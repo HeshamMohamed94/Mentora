@@ -13,6 +13,10 @@ import com.mentora.backend.courses.coursesModule
 import com.mentora.backend.courses.repository.ensureCoursesIndexes
 import com.mentora.backend.courses.routes.courseRoutes
 import com.mentora.backend.courses.service.CourseService
+import com.mentora.backend.enrollment.enrollmentModule
+import com.mentora.backend.enrollment.repository.ensureEnrollmentIndexes
+import com.mentora.backend.enrollment.routes.enrollmentRoutes
+import com.mentora.backend.enrollment.service.EnrollmentService
 import com.mentora.backend.plugins.configureCors
 import com.mentora.backend.plugins.configureDatabaseLifecycle
 import com.mentora.backend.plugins.configureMonitoring
@@ -46,7 +50,10 @@ internal fun Application.module(appConfig: AppConfig) {
 
     install(Koin) {
         slf4jLogger()
-        modules(configKoinModule(appConfig), databaseKoinModule, authModule, usersModule, categoriesModule, coursesModule)
+        modules(
+            configKoinModule(appConfig), databaseKoinModule, authModule, usersModule, categoriesModule,
+            coursesModule, enrollmentModule,
+        )
     }
     configureDatabaseLifecycle()
 
@@ -63,6 +70,7 @@ internal fun Application.module(appConfig: AppConfig) {
             ensureAuthIndexes(get())
             ensureCategoriesIndexes(get())
             ensureCoursesIndexes(get())
+            ensureEnrollmentIndexes(get())
         } catch (error: MongoTimeoutException) {
             log.warn("Could not ensure database indexes because MongoDB is unavailable", error)
         }
@@ -74,5 +82,6 @@ internal fun Application.module(appConfig: AppConfig) {
         userRoutes(get<UserService>())
         categoryRoutes(get<CategoryService>())
         courseRoutes(get<CourseService>())
+        enrollmentRoutes(get<EnrollmentService>())
     }
 }
