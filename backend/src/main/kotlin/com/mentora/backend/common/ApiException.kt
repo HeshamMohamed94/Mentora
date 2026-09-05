@@ -35,6 +35,13 @@ sealed class ApiException(
     class ForbiddenNotEnrolled(message: String = "You are not enrolled in this course.") :
         ApiException(HttpStatusCode.Forbidden, "FORBIDDEN_NOT_ENROLLED", message)
 
+    /** CSRF header check failure on a cookie-authenticated state-changing request — AUTH_SECURITY.md § 10.
+     * Not enumerated in API_CONTRACT.md's original example list; added here as a same-family (403) code
+     * since that table's codes are documented as examples, not an exhaustive enum. Recorded in
+     * execution/INTEGRATION_CONTRACT.md § 4 as an as-built taxonomy addition. */
+    class ForbiddenCsrf(message: String = "Missing or invalid CSRF header.") :
+        ApiException(HttpStatusCode.Forbidden, "FORBIDDEN_CSRF", message)
+
     class NotFound(resourceCode: String, message: String = "The requested resource was not found.") :
         ApiException(HttpStatusCode.NotFound, resourceCode, message)
 

@@ -39,7 +39,9 @@ Error:
 
 ## 4. Error Code Taxonomy (client i18n keys must cover all of these)
 
-`VALIDATION_ERROR` (400) · `AUTH_INVALID_CREDENTIALS` / `AUTH_TOKEN_EXPIRED` / `AUTH_TOKEN_INVALID` (401) · `FORBIDDEN_ROLE` / `FORBIDDEN_NOT_OWNER` / `FORBIDDEN_NOT_ENROLLED` (403) · `COURSE_NOT_FOUND` / `LESSON_NOT_FOUND` / `CERTIFICATE_NOT_FOUND` (404) · `EMAIL_ALREADY_REGISTERED` / `ALREADY_ENROLLED` / `CATEGORY_IN_USE` (409) · `RATE_LIMITED_AUTH` / `RATE_LIMITED_AI_TUTOR` (429) · `INTERNAL_ERROR` (500).
+`VALIDATION_ERROR` (400) · `AUTH_INVALID_CREDENTIALS` / `AUTH_TOKEN_EXPIRED` / `AUTH_TOKEN_INVALID` (401) · `FORBIDDEN_ROLE` / `FORBIDDEN_NOT_OWNER` / `FORBIDDEN_NOT_ENROLLED` / `FORBIDDEN_CSRF` (403) · `COURSE_NOT_FOUND` / `LESSON_NOT_FOUND` / `CERTIFICATE_NOT_FOUND` (404) · `EMAIL_ALREADY_REGISTERED` / `ALREADY_ENROLLED` / `CATEGORY_IN_USE` (409) · `RATE_LIMITED_AUTH` / `RATE_LIMITED_AI_TUTOR` (429) · `INTERNAL_ERROR` (500).
+
+**As-built addition:** `FORBIDDEN_CSRF` (403) — missing/invalid `X-Requested-With: mentora-web` header on a cookie-authenticated state-changing request (`AUTH_SECURITY.md § 10`). Not in `API_CONTRACT.md`'s original example list; added as a same-family code since that list is illustrative, not exhaustive. Web clients (Phase 2) must send this header on every `POST`/`PATCH`/`PUT`/`DELETE`.
 
 ## 5. Roles
 
@@ -63,6 +65,12 @@ See `architecture/API_CONTRACT.md § 7` for the full conceptual list (auth, user
 - `GET /api/v1/ai-tutor/conversation` — fetch/create the student's single conversation, cursor-paginated messages.
 - `POST /api/v1/ai-tutor/conversation/messages` — `{ content, lessonContextId? }`, streamed response. **Phase 1: streams a stub/placeholder response, not a real LLM completion** (see DECISIONS_LOG D4). Contract (request/response shape, streaming mechanism, enrollment gate, rate limit) does not change in Phase 6 — only the `AiProvider` binding does.
 - No AI provider key, SDK, or network call ever exists in any client codebase — enforced structurally, not just by convention.
+
+## 8a. Auth Response Shape (as-built, Phase 1)
+
+`POST /auth/register`, `POST /auth/login`, `POST /auth/refresh` all: set `mentora_access_token` and `mentora_refresh_token` as httpOnly/Secure/SameSite=Lax cookies **and** return `{ accessToken, refreshToken, user }` (register/login) or `{ accessToken, refreshToken }` (refresh) in the JSON body — both mechanisms fire on every response, per `AUTH_SECURITY.md § 4`'s literal per-client delivery description. **Security note for Phase 2 (Web):** the response body's token fields exist for mobile/API-uniformity; the Web app must never persist or re-expose them to client-side JS (no `localStorage`, no passing them to a client component) — the httpOnly cookies are Web's actual auth mechanism. If Phase 2 adds a BFF-style route handler in front of these endpoints (rather than a transparent rewrite), it should drop the body's token fields before they reach the browser, forwarding only `Set-Cookie` + `user`.
+
+`POST /auth/logout` — revokes the presented refresh token (+ family), clears both cookies, returns `{ data: {} }`.
 
 ## 9. Cross-Cutting Rules Every Client Must Respect
 

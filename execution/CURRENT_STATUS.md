@@ -26,9 +26,9 @@ Allowed phase states: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `COMPLETE`.
 | 3 | Create `execution/` continuity documents | DONE |
 | 4 | Audit local toolchain (JDK, MongoDB, Gradle, Codex) | DONE |
 | 5 | `backend/` Gradle project scaffold (M0 slice) | DONE — Claude-authored (Gradle Kotlin DSL, wrapper 8.11, package tree per REPOSITORY_STRUCTURE.md) |
-| 6 | Ktor plugin stack, config, `/healthz` (M1) | IN_PROGRESS — common/config foundation Claude-authored; plugin wiring + Mongo connectivity dispatched to Codex (run 01) |
-| 7 | Auth & RBAC (M2) | NOT_STARTED |
-| 8 | Users module | NOT_STARTED |
+| 6 | Ktor plugin stack, config, `/healthz` (M1) | DONE — common/config foundation Claude-authored; plugin wiring + Mongo connectivity Codex-authored (run 01), Claude-reviewed, fixed 2 build-breaking issues (jbcrypt version, koin/Ktor 3 incompatibility), verified `./gradlew build`/`test` green. Committed `18040a0`. |
+| 7 | Auth & RBAC (M2) | DONE — Codex-authored (run 02), Claude-reviewed line-by-line (security-critical per roadmap): reuse-detection breach path, timing-safe login response (dummy BCrypt hash), atomic conditional revocation, SHA-256 refresh-token hashing, CSRF enforcement. Claude extracted a duplicated CSRF check into common/Csrf.kt. All gates green. |
+| 8 | Users module | DONE — implemented alongside M2 (GET/PATCH /users/me), Claude-reviewed |
 | 9 | Courses/Categories module (M5 slice) | NOT_STARTED |
 | 10 | Enrollment / demo checkout (M6 slice) | NOT_STARTED |
 | 11 | Progress module (M7 slice) | NOT_STARTED |

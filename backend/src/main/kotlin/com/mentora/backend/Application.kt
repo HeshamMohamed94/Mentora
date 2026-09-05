@@ -1,5 +1,9 @@
 package com.mentora.backend
 
+import com.mentora.backend.auth.authModule
+import com.mentora.backend.auth.repository.ensureAuthIndexes
+import com.mentora.backend.auth.routes.authRoutes
+import com.mentora.backend.auth.service.AuthService
 import com.mentora.backend.config.AppConfig
 import com.mentora.backend.plugins.configureCors
 import com.mentora.backend.plugins.configureDatabaseLifecycle
@@ -12,6 +16,10 @@ import com.mentora.backend.plugins.configureStatusPages
 import com.mentora.backend.plugins.databaseKoinModule
 import com.mentora.backend.plugins.healthRoutes
 import com.mentora.backend.plugins.configKoinModule
+import com.mentora.backend.users.routes.userRoutes
+import com.mentora.backend.users.service.UserService
+import com.mentora.backend.users.usersModule
+import com.mongodb.MongoTimeoutException
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import io.ktor.server.application.log
@@ -30,7 +38,7 @@ internal fun Application.module(appConfig: AppConfig) {
 
     install(Koin) {
         slf4jLogger()
-        modules(configKoinModule(appConfig), databaseKoinModule)
+        modules(configKoinModule(appConfig), databaseKoinModule, authModule, usersModule)
     }
     configureDatabaseLifecycle()
 
@@ -42,7 +50,17 @@ internal fun Application.module(appConfig: AppConfig) {
     configureRateLimiting()
     configureStatusPages()
 
+    kotlinx.coroutines.runBlocking {
+        try {
+            ensureAuthIndexes(get())
+        } catch (error: MongoTimeoutException) {
+            log.warn("Could not ensure auth database indexes because MongoDB is unavailable", error)
+        }
+    }
+
     routing {
         healthRoutes(get())
+        authRoutes(get<AuthService>(), appConfig)
+        userRoutes(get<UserService>())
     }
 }
