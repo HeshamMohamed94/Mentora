@@ -1,0 +1,28 @@
+{
+  "theme": "dark",
+  "version": "1.3.2",
+  "extends": "../design-tokens.json#/color/semantic/dark",
+  "color": {
+    "background": { "primary": "#111217", "secondary": "#15161C" },
+    "surface": { "default": "#191A20", "elevated": "#24252E", "variant": "#22232B", "inverse": "#F2F0F7" },
+    "text": { "primary": "#F2F0F7", "secondary": "#C7C5CF", "disabled": "#777780", "inverse": "#1A1B20", "link": "#C8C2FF" },
+    "border": { "default": "#383941", "strong": "#71727D", "focus": "#C8C2FF", "error": "#FFB4AB" },
+    "brand": {
+      "primary": "#C8C2FF", "primaryHover": "#B4AEEF", "primaryPressed": "#A29BE0",
+      "primaryContainer": "#4E449E", "onPrimary": "#2B2170", "onPrimaryContainer": "#E8E5FF",
+      "onSurfaceInverse": "#6558D3"
+    },
+    "secondary": {
+      "default": "#BBC3FF", "hover": "#A7B0F5", "container": "#3B4278",
+      "onSecondary": "#1C2470", "onSecondaryContainer": "#E2E7FF"
+    },
+    "accent": { "default": "#B69CFF" },
+    "success": { "default": "#81C784", "container": "#1E4620", "onSuccess": "#0D3312", "onSuccessContainer": "#E3F5E5" },
+    "warning": { "default": "#FFB74D", "container": "#5C3D00", "onWarning": "#4A2C00", "onWarningContainer": "#FFEDD6" },
+    "error": { "default": "#FFB4AB", "container": "#93000A", "onError": "#410002", "onErrorContainer": "#FFDAD6" },
+    "info": { "default": "#90CAF9", "container": "#0D47A1", "onInfo": "#0B2E4E", "onInfoContainer": "#DCEBFC" },
+    "overlay": { "scrim": "rgba(0,0,0,0.64)", "chipScrim": "rgba(17,18,23,0.72)" }
+  },
+  "stateOpacity": { "hover": 0.08, "pressed": 0.16, "focus": 0.16, "disabledContent": 0.38, "disabledContainer": 0.16 },
+  "elevationShadowBase": "rgba(0,0,0,1)"
+}

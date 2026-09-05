@@ -1,0 +1,533 @@
+{
+  "$schema": "Mentora Design Tokens v1.3 — platform-independent source of truth. Three-layer architecture: primitive -> semantic -> component. Product code must consume 'semantic' or 'component' tokens only; never 'primitive' values directly. See DESIGN_SYSTEM.md § Token Architecture and § Naming Convention.",
+  "meta": {
+    "product": "Mentora",
+    "tagline": "Learn. Build. Grow.",
+    "version": "1.3.2",
+    "direction": "Material 3 Expressive-inspired, modern SaaS, educational, clean, professional, minimal, friendly",
+    "lastUpdated": "2026-09-04",
+    "changelog": "./CHANGELOG.md",
+    "namingConvention": "{category}.{concept}.{property}.{variant?}.{state?}, lowerCamelCase segments, dot-separated. See DESIGN_SYSTEM.md § Naming Convention.",
+    "tokenLayers": {
+      "1_primitive": "Raw, context-free values (color.primitive.*). Never referenced directly by product code.",
+      "2_semantic": "Purpose-named tokens that resolve per theme (color.semantic.{light,dark}.*, typography.scale.*, spacing.scale.*, shape.radius.*, elevation.*, border.*, motion.*, icon.*). This is the default consumption layer.",
+      "3_component": "Component-scoped aliases of semantic tokens (component.*), e.g. component.button.primary.background.default -> color.brand.primary. Use when a component needs a name stable against future semantic re-mapping."
+    }
+  },
+
+  "units": {
+    "note": "Units are mapped SEMANTICALLY across platforms, not physically identical. A token's numeric value is the same integer on all three platforms, but the platform unit it is expressed in behaves differently: web px does not auto-scale with the OS text-size setting unless converted to rem for type; Android sp scales with the user's font-size setting while dp does not; iOS pt scales with Dynamic Type for text via the system font APIs but is fixed for layout metrics unless explicitly made Dynamic-Type-aware. Always use the 'text' unit column for typography tokens and the 'layout' unit column for spacing/radius/icon/elevation tokens.",
+    "web": { "text": "rem (1rem = 16px root; token px value / 16 = rem)", "layout": "px" },
+    "android": { "text": "sp (scales with system font size)", "layout": "dp (density-independent, does not scale with font size)" },
+    "ios": { "text": "pt via Dynamic Type-aware Font/UIFont APIs (scales with Text Size / Larger Accessibility Sizes settings)", "layout": "pt (fixed unless explicitly wrapped in a Dynamic Type-relative metric)" },
+    "rule": "Typography tokens MUST use the scaling unit (rem/sp/Dynamic-Type pt) on every platform so browser zoom, Android font scaling, and iOS Dynamic Type all work. Spacing, radius, elevation, icon, and border-width tokens use the fixed layout unit (px/dp/pt) and do not scale with text size."
+  },
+
+  "color": {
+    "primitive": {
+      "purple": {
+        "50": "#F3F1FF",
+        "100": "#E8E5FF",
+        "200": "#C8C2FF",
+        "300": "#A79FFF",
+        "400": "#8B7FE8",
+        "500": "#6558D3",
+        "600": "#5548C2",
+        "700": "#4A3EB0",
+        "800": "#4E449E",
+        "900": "#2B2170"
+      },
+      "indigo": {
+        "50": "#E2E7FF",
+        "200": "#BBC3FF",
+        "500": "#4A62F0",
+        "600": "#4058E0",
+        "800": "#3B4278",
+        "900": "#1C2470"
+      },
+      "accent": {
+        "500": "#7C4DFF"
+      },
+      "neutralLight": {
+        "0": "#FFFFFF",
+        "50": "#F8F9FC",
+        "75": "#F1F2F7",
+        "100": "#F0F1F6",
+        "200": "#E1E2E8",
+        "300": "#8B8C96",
+        "500": "#9A9BA3",
+        "600": "#5F6069",
+        "900": "#1A1B20"
+      },
+      "neutralDark": {
+        "0": "#111217",
+        "50": "#15161C",
+        "100": "#191A20",
+        "150": "#22232B",
+        "200": "#24252E",
+        "300": "#383941",
+        "400": "#71727D",
+        "500": "#777780",
+        "600": "#C7C5CF",
+        "900": "#F2F0F7"
+      },
+      "green": { "light": "#2E7D32", "lightContainer": "#E3F5E5", "dark": "#81C784", "darkContainer": "#1E4620" },
+      "orange": { "light": "#ED8B00", "lightContainer": "#FFEDD6", "dark": "#FFB74D", "darkContainer": "#5C3D00" },
+      "red": { "light": "#BA1A1A", "lightContainer": "#FFDAD6", "dark": "#FFB4AB", "darkContainer": "#93000A" },
+      "blue": { "light": "#1976D2", "lightContainer": "#DCEBFC", "dark": "#90CAF9", "darkContainer": "#0D47A1" }
+    },
+
+    "semantic": {
+      "light": {
+        "background.primary": "#F8F9FC",
+        "background.secondary": "#F1F2F7",
+        "surface.default": "#FFFFFF",
+        "surface.elevated": "#FFFFFF",
+        "surface.variant": "#F0F1F6",
+        "surface.inverse": "#1A1B20",
+
+        "text.primary": "#1A1B20",
+        "text.secondary": "#5F6069",
+        "text.disabled": "#9A9BA3",
+        "text.inverse": "#FFFFFF",
+        "text.link": "#6558D3",
+
+        "border.default": "#E1E2E8",
+        "border.strong": "#8B8C96",
+        "border.focus": "#6558D3",
+        "border.error": "#BA1A1A",
+
+        "brand.primary": "#6558D3",
+        "brand.primaryHover": "#5548C2",
+        "brand.primaryPressed": "#4A3EB0",
+        "brand.primaryContainer": "#E8E5FF",
+        "brand.onPrimary": "#FFFFFF",
+        "brand.onPrimaryContainer": "#2B2170",
+        "brand.onSurfaceInverse": "#C8C2FF",
+
+        "secondary.default": "#4A62F0",
+        "secondary.hover": "#4058E0",
+        "secondary.container": "#E2E7FF",
+        "secondary.onSecondary": "#FFFFFF",
+        "secondary.onSecondaryContainer": "#1C2470",
+
+        "accent.default": "#7C4DFF",
+
+        "success.default": "#2E7D32",
+        "success.container": "#E3F5E5",
+        "success.onSuccess": "#FFFFFF",
+        "success.onSuccessContainer": "#0D3312",
+
+        "warning.default": "#ED8B00",
+        "warning.container": "#FFEDD6",
+        "warning.onWarning": "#3A2200",
+        "warning.onWarningContainer": "#4A2C00",
+
+        "error.default": "#BA1A1A",
+        "error.container": "#FFDAD6",
+        "error.onError": "#FFFFFF",
+        "error.onErrorContainer": "#410002",
+
+        "info.default": "#1976D2",
+        "info.container": "#DCEBFC",
+        "info.onInfo": "#FFFFFF",
+        "info.onInfoContainer": "#0B2E4E",
+
+        "overlay.scrim": "rgba(17,18,23,0.48)",
+        "overlay.chipScrim": "rgba(17,18,23,0.72)",
+        "state.hoverOpacity": 0.08,
+        "state.pressedOpacity": 0.12,
+        "state.focusOpacity": 0.12,
+        "state.disabledContentOpacity": 0.38,
+        "state.disabledContainerOpacity": 0.12
+      },
+
+      "dark": {
+        "background.primary": "#111217",
+        "background.secondary": "#15161C",
+        "surface.default": "#191A20",
+        "surface.elevated": "#24252E",
+        "surface.variant": "#22232B",
+        "surface.inverse": "#F2F0F7",
+
+        "text.primary": "#F2F0F7",
+        "text.secondary": "#C7C5CF",
+        "text.disabled": "#777780",
+        "text.inverse": "#1A1B20",
+        "text.link": "#C8C2FF",
+
+        "border.default": "#383941",
+        "border.strong": "#71727D",
+        "border.focus": "#C8C2FF",
+        "border.error": "#FFB4AB",
+
+        "brand.primary": "#C8C2FF",
+        "brand.primaryHover": "#B4AEEF",
+        "brand.primaryPressed": "#A29BE0",
+        "brand.primaryContainer": "#4E449E",
+        "brand.onPrimary": "#2B2170",
+        "brand.onPrimaryContainer": "#E8E5FF",
+        "brand.onSurfaceInverse": "#6558D3",
+
+        "secondary.default": "#BBC3FF",
+        "secondary.hover": "#A7B0F5",
+        "secondary.container": "#3B4278",
+        "secondary.onSecondary": "#1C2470",
+        "secondary.onSecondaryContainer": "#E2E7FF",
+
+        "accent.default": "#B69CFF",
+
+        "success.default": "#81C784",
+        "success.container": "#1E4620",
+        "success.onSuccess": "#0D3312",
+        "success.onSuccessContainer": "#E3F5E5",
+
+        "warning.default": "#FFB74D",
+        "warning.container": "#5C3D00",
+        "warning.onWarning": "#4A2C00",
+        "warning.onWarningContainer": "#FFEDD6",
+
+        "error.default": "#FFB4AB",
+        "error.container": "#93000A",
+        "error.onError": "#410002",
+        "error.onErrorContainer": "#FFDAD6",
+
+        "info.default": "#90CAF9",
+        "info.container": "#0D47A1",
+        "info.onInfo": "#0B2E4E",
+        "info.onInfoContainer": "#DCEBFC",
+
+        "overlay.scrim": "rgba(0,0,0,0.64)",
+        "overlay.chipScrim": "rgba(17,18,23,0.72)",
+        "state.hoverOpacity": 0.08,
+        "state.pressedOpacity": 0.16,
+        "state.focusOpacity": 0.16,
+        "state.disabledContentOpacity": 0.38,
+        "state.disabledContainerOpacity": 0.16
+      }
+    }
+  },
+
+  "typography": {
+    "$description": "v1.3: fontFamily now carries both scripts explicitly -- English/Latin content uses *.latin (unchanged from v1.0-v1.2, still just called 'web'/'android'/'ios' for backward reference), Arabic content uses *.arabic. A text run's detected/tagged script selects which family applies; the size/lineHeight/weight/letterSpacing values in 'scale' below are shared by both and do not change per script, except the documented 'arabicAdjustments' overrides. See LOCALIZATION.md § 4.",
+    "fontFamily": {
+      "web": "Inter, -apple-system, 'Segoe UI', sans-serif",
+      "webArabic": "'IBM Plex Sans Arabic', 'Noto Sans Arabic', sans-serif",
+      "android": "Roboto",
+      "androidArabic": "'Noto Sans Arabic', sans-serif",
+      "ios": "SF Pro",
+      "iosArabic": "SF Arabic"
+    },
+    "arabicAdjustments": {
+      "note": "Applied only to text runs detected/tagged as Arabic script, on top of the shared 'scale' values below -- never a separate type scale. See LOCALIZATION.md § 4.",
+      "letterSpacing": 0,
+      "bodyLineHeightMultiplier": 1.1
+    },
+    "fontWeight": { "regular": 400, "medium": 500, "semibold": 600, "bold": 700 },
+    "scale": {
+      "display.large":  { "fontSize": 48, "lineHeight": 56, "fontWeight": 700, "letterSpacing": -0.25 },
+      "display.medium": { "fontSize": 40, "lineHeight": 48, "fontWeight": 700, "letterSpacing": -0.25 },
+      "heading.h1":      { "fontSize": 32, "lineHeight": 40, "fontWeight": 700, "letterSpacing": 0 },
+      "heading.h2":      { "fontSize": 28, "lineHeight": 36, "fontWeight": 700, "letterSpacing": 0 },
+      "heading.h3":      { "fontSize": 24, "lineHeight": 32, "fontWeight": 600, "letterSpacing": 0 },
+      "heading.h4":      { "fontSize": 20, "lineHeight": 28, "fontWeight": 600, "letterSpacing": 0.15 },
+      "body.large":      { "fontSize": 18, "lineHeight": 28, "fontWeight": 400, "letterSpacing": 0.15 },
+      "body.medium":     { "fontSize": 16, "lineHeight": 24, "fontWeight": 400, "letterSpacing": 0.25 },
+      "body.small":      { "fontSize": 14, "lineHeight": 20, "fontWeight": 400, "letterSpacing": 0.25 },
+      "label.large":     { "fontSize": 14, "lineHeight": 20, "fontWeight": 600, "letterSpacing": 0.1 },
+      "label.medium":    { "fontSize": 12, "lineHeight": 16, "fontWeight": 600, "letterSpacing": 0.5 },
+      "caption":         { "fontSize": 12, "lineHeight": 16, "fontWeight": 400, "letterSpacing": 0.4 }
+    },
+    "responsive": {
+      "note": "Only display.* and heading.h1/h2 scale down below desktop, so hero/page titles don't overwhelm narrow viewports. heading.h3/h4, body.*, label.*, and caption are constant across all breakpoints — they are already sized for compact contexts. Values are fontSize/lineHeight in px (or platform-equivalent scaling unit per the 'units' section).",
+      "display.large":  { "mobile": { "fontSize": 34, "lineHeight": 40 }, "tablet": { "fontSize": 40, "lineHeight": 48 }, "desktop": { "fontSize": 48, "lineHeight": 56 }, "largeDesktop": { "fontSize": 48, "lineHeight": 56 } },
+      "display.medium": { "mobile": { "fontSize": 30, "lineHeight": 36 }, "tablet": { "fontSize": 34, "lineHeight": 40 }, "desktop": { "fontSize": 40, "lineHeight": 48 }, "largeDesktop": { "fontSize": 40, "lineHeight": 48 } },
+      "heading.h1":      { "mobile": { "fontSize": 26, "lineHeight": 33 }, "tablet": { "fontSize": 28, "lineHeight": 36 }, "desktop": { "fontSize": 32, "lineHeight": 40 }, "largeDesktop": { "fontSize": 32, "lineHeight": 40 } },
+      "heading.h2":      { "mobile": { "fontSize": 23, "lineHeight": 29 }, "tablet": { "fontSize": 25, "lineHeight": 32 }, "desktop": { "fontSize": 28, "lineHeight": 36 }, "largeDesktop": { "fontSize": 28, "lineHeight": 36 } }
+    }
+  },
+
+  "spacing": {
+    "baseUnit": 4,
+    "scale": {
+      "space.0": 0, "space.1": 4, "space.2": 8, "space.3": 12, "space.4": 16,
+      "space.5": 20, "space.6": 24, "space.8": 32, "space.10": 40, "space.12": 48, "space.16": 64
+    },
+    "pagePadding": { "mobile": 16, "tablet": 24, "desktop": 32, "largeDesktop": 48 },
+    "usage": {
+      "cardPadding": "space.4 (16)",
+      "sectionSpacing": "space.10 (40) mobile / space.12 (48) desktop",
+      "listGap": "space.2 (8) compact / space.3 (12) default",
+      "gridGap": "space.4 (16) mobile / space.6 (24) desktop",
+      "componentInternalGap": "space.2 (8) / space.3 (12)"
+    }
+  },
+
+  "shape": {
+    "radius": { "none": 0, "small": 8, "medium": 12, "large": 16, "xlarge": 24, "full": 999 },
+    "componentUsage": {
+      "button": "radius.medium (12)",
+      "input": "radius.medium (12)",
+      "courseCard": "radius.large (16)",
+      "dashboardCard": "radius.large (16)",
+      "modal": "radius.xlarge (24)",
+      "bottomSheet": "radius.xlarge (24) top corners only",
+      "chip": "radius.full (999)",
+      "avatar": "radius.full (999)",
+      "snackbar": "radius.medium (12)",
+      "checkoutSummary": "radius.large (16)",
+      "successState": "n/a (no container shape)",
+      "toggle": "radius.full (999)",
+      "fileUpload": "radius.medium (12)",
+      "dataTableCollapsedCard": "radius.medium (12)",
+      "select": "radius.medium (12) -- field; menu also radius.medium (12)"
+    }
+  },
+
+  "elevation": {
+    "0": { "web": "none", "compose_dp": 0, "ios": { "radius": 0, "y": 0, "opacity": 0 }, "usage": "flat, resting elements using border only" },
+    "1": { "web": "0 1px 2px rgba(17,18,23,0.06)", "compose_dp": 1, "ios": { "radius": 2, "y": 1, "opacity": 0.06 }, "usage": "resting cards" },
+    "2": { "web": "0 2px 8px rgba(17,18,23,0.08)", "compose_dp": 3, "ios": { "radius": 6, "y": 2, "opacity": 0.08 }, "usage": "hovered/raised cards, dropdown triggers" },
+    "3": { "web": "0 4px 16px rgba(17,18,23,0.10)", "compose_dp": 6, "ios": { "radius": 12, "y": 4, "opacity": 0.10 }, "usage": "menus, popovers, tooltips" },
+    "4": { "web": "0 8px 24px rgba(17,18,23,0.12)", "compose_dp": 12, "ios": { "radius": 20, "y": 8, "opacity": 0.12 }, "usage": "modals, dialogs, bottom sheets" },
+    "darkModeNote": "Dark surfaces prefer a lighter surface tone (surface.elevated) over heavier shadow. Shadow color stays black; reduce opacity ~30% relative to light values since dark backgrounds already read as elevated via tone. Elevation is resolved through the same semantic surface/elevation tokens in both themes -- components never branch on theme to decide shadow strength, the token value already differs per theme."
+  },
+
+  "border": {
+    "width": { "default": 1, "focus": 2 },
+    "colorTokenRefs": {
+      "default": "color.border.default",
+      "strong": "color.border.strong",
+      "focus": "color.border.focus",
+      "error": "color.border.error"
+    }
+  },
+
+  "motion": {
+    "duration": { "fast": 150, "normal": 200, "slow": 300 },
+    "easing": {
+      "standard": "cubic-bezier(0.4, 0.0, 0.2, 1)",
+      "decelerate": "cubic-bezier(0.0, 0.0, 0.2, 1)",
+      "accelerate": "cubic-bezier(0.4, 0.0, 1, 1)"
+    },
+    "usage": {
+      "buttonFeedback": "duration.fast + easing.standard",
+      "dialogOpen": "duration.normal + easing.decelerate",
+      "dialogClose": "duration.fast + easing.accelerate",
+      "bottomSheetOpen": "duration.normal + easing.decelerate",
+      "bottomSheetClose": "duration.fast + easing.accelerate",
+      "navigationTransition": "duration.slow + easing.standard",
+      "pageTransition": "duration.slow + easing.standard",
+      "progressAnimation": "duration.normal + easing.standard, linear for indeterminate loops"
+    },
+    "principle": "Motion communicates state change, never decoration. No bounce, spring overshoot, or parallax without a functional reason.",
+    "reducedMotion": "When the platform's reduced-motion preference is on, translate/scale/slide transitions are replaced by an opacity cross-fade at duration.fast, or an instant cut for sub-100ms feedback. See ACCESSIBILITY.md § Motion & Reduced Motion."
+  },
+
+  "icon": {
+    "family": "Material Symbols Rounded",
+    "sizes": { "small": 16, "medium": 20, "default": 24, "large": 32 },
+    "defaultWeight": 400,
+    "defaultOpticalSize": 24,
+    "directional": {
+      "note": "Icons that encode a left/right direction MUST be authored as logical (start/end) and mirrored automatically in RTL locales (see LOCALIZATION.md). Icons with no inherent direction never mirror.",
+      "mirrorInRtl": ["chevron_left", "chevron_right", "arrow_back", "arrow_forward", "arrow_back_ios", "arrow_forward_ios", "trending_flat", "redo", "undo", "reply", "forward", "last_page", "first_page", "double_arrow", "menu_open"],
+      "neverMirror": ["play_arrow", "pause", "check", "check_circle", "cancel", "close", "search", "add", "remove", "star", "favorite", "download", "upload", "expand_more", "expand_less", "refresh", "visibility", "visibility_off", "volume_up", "volume_off", "fullscreen", "fullscreen_exit", "speed", "cloud_upload", "insert_drive_file", "drag_indicator", "arrow_upward", "arrow_downward", "more_vert"]
+    }
+  },
+
+  "breakpoints": {
+    "mobile": { "min": 0, "max": 599 },
+    "tablet": { "min": 600, "max": 1023 },
+    "desktop": { "min": 1024, "max": 1439 },
+    "largeDesktop": { "min": 1440, "max": null }
+  },
+
+  "grid": {
+    "columns": { "mobile": 4, "tablet": 8, "desktop": 12, "largeDesktop": 12 },
+    "gutter": { "mobile": 16, "tablet": 24, "desktop": 24, "largeDesktop": 24 },
+    "maxContentWidth": 1440,
+    "preferredMarketingWidth": "1200-1280"
+  },
+
+  "courseGrid": {
+    "mobile": 1, "tablet": 2, "desktop": 3, "largeDesktop": 4
+  },
+
+  "avatar": {
+    "small": 24, "medium": 40, "large": 64, "xlarge": 96
+  },
+
+  "touchTarget": {
+    "android_dp": 48,
+    "ios_pt": 44,
+    "web_px": 44
+  },
+
+  "component": {
+    "$description": "Layer 3 of the token architecture. Every value here is an ALIAS (curly-brace path) into color.semantic.*, typography.scale.*, spacing.scale.*, shape.radius.*, elevation.*, border.*, or state.* -- never a literal value. Aliases are theme-agnostic: {color.brand.primary} resolves against whichever theme (light/dark) is active. This is the layer COMPONENTS.md documents in prose; this object is its machine-readable equivalent, generated into per-platform theme objects (see platform-mapping.md).",
+    "button": {
+      "primary": {
+        "height": 48, "radius": "{shape.radius.medium}", "paddingX": "{spacing.scale.space.6}", "typography": "{typography.scale.label.large}",
+        "background": { "default": "{color.brand.primary}", "hover": "{color.brand.primaryHover}", "pressed": "{color.brand.primaryPressed}", "focused": "{color.brand.primary}", "disabled": "{color.surface.default}+{color.brand.primary}@{state.disabledContainerOpacity}" },
+        "text": { "default": "{color.brand.onPrimary}", "disabled": "{color.text.disabled}" }
+      },
+      "secondary": {
+        "height": 48, "radius": "{shape.radius.medium}", "paddingX": "{spacing.scale.space.6}", "typography": "{typography.scale.label.large}",
+        "border": { "default": "{color.brand.primary}", "focused": "{color.border.focus}", "disabled": "{color.border.default}" },
+        "background": { "default": "transparent", "hover": "{color.brand.primary}@{state.hoverOpacity}", "pressed": "{color.brand.primary}@{state.pressedOpacity}" },
+        "text": { "default": "{color.brand.primary}", "disabled": "{color.text.disabled}" }
+      },
+      "tonal": {
+        "height": 48, "radius": "{shape.radius.medium}", "paddingX": "{spacing.scale.space.6}", "typography": "{typography.scale.label.large}",
+        "background": { "default": "{color.brand.primaryContainer}", "hover": "{color.brand.primaryContainer}+{color.brand.onPrimaryContainer}@{state.hoverOpacity}", "pressed": "{color.brand.primaryContainer}+{color.brand.onPrimaryContainer}@{state.pressedOpacity}", "disabled": "{color.surface.variant}" },
+        "text": { "default": "{color.brand.onPrimaryContainer}", "disabled": "{color.text.disabled}" }
+      },
+      "text": {
+        "height": 40, "radius": "{shape.radius.medium}", "paddingX": "{spacing.scale.space.3}", "typography": "{typography.scale.label.large}",
+        "background": { "default": "transparent", "hover": "{color.brand.primary}@{state.hoverOpacity}", "pressed": "{color.brand.primary}@{state.pressedOpacity}" },
+        "text": { "default": "{color.brand.primary}", "disabled": "{color.text.disabled}" }
+      },
+      "icon": {
+        "size": 40, "radius": "{shape.radius.full}", "iconSize": "{icon.default}",
+        "icon": { "default": "{color.text.secondary}", "hover": "{color.text.primary}", "pressed": "{color.text.primary}", "disabled": "{color.text.disabled}" }
+      }
+    },
+    "input": {
+      "height": 52, "radius": "{shape.radius.medium}", "paddingX": "{spacing.scale.space.4}", "paddingY": "{spacing.scale.space.3}",
+      "typography": "{typography.scale.body.medium}", "labelTypography": "{typography.scale.label.medium}", "helperTypography": "{typography.scale.caption}",
+      "border": { "default": "{color.border.default}", "hover": "{color.border.strong}", "focused": "{color.border.focus}", "error": "{color.border.error}", "success": "{color.success.default}", "disabled": "{color.border.default}" },
+      "background": { "default": "{color.surface.default}", "disabled": "{color.surface.variant}" },
+      "text": { "default": "{color.text.primary}", "placeholder": "{color.text.disabled}", "disabled": "{color.text.disabled}", "error": "{color.error.default}" }
+    },
+    "card": {
+      "radius": "{shape.radius.large}", "padding": "{spacing.scale.space.4}",
+      "background": "{color.surface.default}", "border": "{color.border.default}",
+      "elevation": { "default": "{elevation.1}", "hover": "{elevation.2}" }
+    },
+    "chip": {
+      "height": 28, "radius": "{shape.radius.full}", "paddingX": "{spacing.scale.space.3}", "typography": "{typography.scale.label.medium}",
+      "background": { "default": "{color.surface.variant}", "selected": "{color.brand.primaryContainer}", "onImage": "{color.overlay.chipScrim}", "disabled": "{color.surface.variant}" },
+      "text": { "default": "{color.text.secondary}", "selected": "{color.brand.onPrimaryContainer}", "onImage": "{color.text.inverse}", "disabled": "{color.text.disabled}" }
+    },
+    "badge": {
+      "height": 20, "radius": "{shape.radius.full}", "paddingX": "{spacing.scale.space.2}", "typography": "{typography.scale.label.medium}",
+      "neutral": { "background": "{color.surface.variant}", "text": "{color.text.secondary}" },
+      "success": { "background": "{color.success.container}", "text": "{color.success.onSuccessContainer}" },
+      "warning": { "background": "{color.warning.container}", "text": "{color.warning.onWarningContainer}" },
+      "error": { "background": "{color.error.container}", "text": "{color.error.onErrorContainer}" },
+      "info": { "background": "{color.info.container}", "text": "{color.info.onInfoContainer}" },
+      "brand": { "background": "{color.brand.primaryContainer}", "text": "{color.brand.onPrimaryContainer}" }
+    },
+    "progressBar": {
+      "height": 8, "radius": "{shape.radius.full}",
+      "track": "{color.surface.variant}",
+      "fill": { "default": "{color.brand.primary}", "complete": "{color.success.default}", "paused": "{color.text.disabled}" }
+    },
+    "snackbar": {
+      "radius": "{shape.radius.medium}", "paddingX": "{spacing.scale.space.4}", "paddingY": "{spacing.scale.space.3}", "typography": "{typography.scale.body.small}",
+      "background": "{color.surface.inverse}", "text": "{color.text.inverse}", "action": "{color.brand.onSurfaceInverse}", "elevation": "{elevation.3}"
+    },
+    "navItem": {
+      "height": 44, "paddingX": "{spacing.scale.space.4}", "typography": "{typography.scale.label.large}",
+      "icon": "{icon.default}",
+      "background": { "default": "transparent", "hover": "{color.text.primary}@{state.hoverOpacity}", "active": "{color.brand.primaryContainer}" },
+      "text": { "default": "{color.text.secondary}", "hover": "{color.text.primary}", "active": "{color.brand.onPrimaryContainer}" }
+    },
+    "videoPlayer": {
+      "$description": "v1.2. Control-surface contract only -- no streaming/playback implementation. The control bar always renders on top of arbitrary video pixels, in BOTH themes, so every glyph/track token below is deliberately theme-invariant (color.overlay.scrim is already dark in both themes; color.text.inverse is legible on it in both themes). The scrubber/timeline direction is always LTR regardless of app layout direction -- see LOCALIZATION.md § 3.",
+      "aspectRatio": "16:9",
+      "controlBar": { "background": "{color.overlay.scrim}", "paddingX": "{spacing.scale.space.3}", "paddingY": "{spacing.scale.space.2}" },
+      "controlButton": {
+        "touchTarget": "{touchTarget.web_px}", "iconSize": "{icon.default}",
+        "icon": { "default": "{color.text.inverse}", "disabled": "{color.text.inverse}@{state.disabledContentOpacity}" },
+        "background": { "default": "transparent", "hover": "{color.text.inverse}@{state.hoverOpacity}", "pressed": "{color.text.inverse}@{state.pressedOpacity}" }
+      },
+      "scrubber": {
+        "direction": "ltr-always",
+        "trackHeightDefault": "{spacing.scale.space.1}", "trackHeightActive": "{component.progressBar.height}",
+        "radius": "{shape.radius.full}",
+        "track": "{color.text.inverse}@{state.hoverOpacity}",
+        "buffered": "{color.text.inverse}@{state.pressedOpacity}",
+        "fill": "{color.brand.primary}",
+        "thumbSize": "{spacing.scale.space.3}", "thumbSizeActive": "{spacing.scale.space.4}",
+        "thumbColor": "{color.brand.primary}"
+      },
+      "timeLabel": { "typography": "{typography.scale.caption}", "color": "{color.text.inverse}" },
+      "speedControl": { "typography": "{typography.scale.label.medium}", "text": "{color.text.inverse}", "menuElevation": "{elevation.3}", "menuBackground": "{color.surface.elevated}", "menuText": "{color.text.primary}" },
+      "lessonProgress": "component.progressBar"
+    },
+    "checkout": {
+      "$description": "v1.2. Order-summary/confirmation shell for Mentora's simulated Demo Payment flow only -- see ../product/DEMO_PAYMENT_FLOW.md. MUST NEVER contain card/CVV/expiry/billing-address/bank fields; the field set below is exhaustive and closed.",
+      "radius": "{shape.radius.large}", "padding": "{spacing.scale.space.5}",
+      "background": "{color.surface.default}", "border": "{color.border.default}",
+      "lineItem": { "typography": "{typography.scale.body.medium}", "color": "{color.text.primary}" },
+      "priceLabel": { "typography": "{typography.scale.body.medium}", "color": "{color.text.secondary}" },
+      "priceTotal": { "typography": "{typography.scale.heading.h3}", "color": "{color.text.primary}" },
+      "demoNotice": { "background": "{color.info.container}", "text": "{color.info.onInfoContainer}", "radius": "{shape.radius.medium}", "paddingX": "{spacing.scale.space.3}", "paddingY": "{spacing.scale.space.2}", "typography": "{typography.scale.body.small}" },
+      "confirmAction": "component.button.primary",
+      "cancelAction": "component.button.text"
+    },
+    "successState": {
+      "$description": "v1.2. Sibling of emptyState/errorState/loadingState (see COMPONENTS.md § State Patterns) for a celebratory confirmation moment, e.g. Demo Purchase success.",
+      "icon": { "size": "{icon.large}", "color": "{color.success.default}" },
+      "title": { "typography": "{typography.scale.heading.h3}", "color": "{color.text.primary}" },
+      "description": { "typography": "{typography.scale.body.small}", "color": "{color.text.secondary}" },
+      "primaryAction": "component.button.primary",
+      "containerPaddingY": "{spacing.scale.space.10}",
+      "motion": { "duration": "{motion.duration.slow}", "easing": "{motion.easing.decelerate}", "reducedMotion": "cross-fade only, per motion.reducedMotion" }
+    },
+    "toggle": {
+      "$description": "v1.2. Prefer the platform's NATIVE switch/toggle control (Web <input type=checkbox role=switch>, Compose Switch, SwiftUI Toggle) styled to these tokens, over a custom-built control, so built-in accessibility semantics are inherited for free.",
+      "$note": "v1.3 (product decision, ../product/USER_ROLES.md and Instructor Course Editor Publish/Unpublish): whenever a Toggle conveys a meaningful named state (e.g. Published/Draft), it MUST be paired with a visible text label showing that state's name -- never color or switch position alone. This is a usage rule, not a new visual token; the label uses standard typography.label.large next to the control.",
+      "trackWidth": "{spacing.scale.space.10}", "trackHeight": "{spacing.scale.space.6}", "trackRadius": "{shape.radius.full}",
+      "thumbSize": "{spacing.scale.space.5}", "thumbInset": "{border.width.focus}", "thumbTravel": "{spacing.scale.space.4}",
+      "track": { "on": "{color.brand.primary}", "off": "{color.border.strong}", "disabled": "{color.border.default}@{state.disabledContainerOpacity}" },
+      "thumb": { "color": "{color.surface.default}", "elevation": "{elevation.1}" },
+      "focusRing": "{color.border.focus}"
+    },
+    "fileUpload": {
+      "$description": "v1.2. Visual states only -- no upload/storage backend. For Instructor course thumbnails/videos/resources.",
+      "radius": "{shape.radius.medium}", "padding": "{spacing.scale.space.6}",
+      "idle": { "border": "{color.border.default}", "icon": "{color.text.secondary}", "text": "{color.text.secondary}", "browseAction": "component.button.tonal" },
+      "dragOver": { "border": "{color.border.focus}", "background": "{color.brand.primaryContainer}" },
+      "uploading": { "progress": "component.progressBar", "filenameTypography": "{typography.scale.body.medium}", "cancelAction": "component.button.icon" },
+      "success": { "icon": "{color.success.default}", "filenameTypography": "{typography.scale.body.medium}", "metaTypography": "{typography.scale.caption}", "removeAction": "component.button.icon" },
+      "error": { "border": "{color.border.error}", "icon": "{color.error.default}", "text": "{color.error.default}", "retryAction": "component.button.text" }
+    },
+    "reorderableList": {
+      "$description": "v1.2. For Instructor sections/lessons. Drag-and-drop MUST ship with the nonDragControls as a fully equivalent alternative -- never drag-only.",
+      "rowMinHeight": "{spacing.scale.space.12}", "paddingX": "{spacing.scale.space.4}", "gap": "{spacing.scale.space.3}",
+      "background": "{color.surface.default}", "border": "{color.border.default}",
+      "dragHandle": { "icon": "drag_indicator", "size": "{icon.medium}", "touchTarget": "{touchTarget.web_px}", "color": "{color.text.secondary}", "hoverColor": "{color.text.primary}" },
+      "dragging": { "elevation": "{elevation.3}", "background": "{color.surface.elevated}" },
+      "dropIndicator": { "color": "{color.brand.primary}", "height": "{border.width.focus}" },
+      "nonDragControls": { "upAction": "component.button.icon", "downAction": "component.button.icon", "icons": { "up": "arrow_upward", "down": "arrow_downward" } }
+    },
+    "dataTable": {
+      "$description": "v1.2. Web-primary (Instructor/Admin management). Responsive: collapses to stacked cards below the `tablet` breakpoint -- never a horizontally-cramped or force-scrolled desktop table on a narrow viewport.",
+      "header": { "background": "{color.surface.variant}", "typography": "{typography.scale.label.medium}", "color": "{color.text.secondary}", "sortIcon": { "asc": "arrow_upward", "desc": "arrow_downward" } },
+      "row": { "typography": "{typography.scale.body.medium}", "color": "{color.text.primary}", "border": "{color.border.default}", "hoverBackground": "{color.text.primary}@{state.hoverOpacity}" },
+      "rowActions": { "trigger": "more_vert", "action": "component.button.icon" },
+      "collapsedCard": { "radius": "{shape.radius.medium}", "background": "{color.surface.default}", "border": "{color.border.default}", "padding": "{spacing.scale.space.4}", "labelTypography": "{typography.scale.label.medium}", "valueTypography": "{typography.scale.body.medium}" },
+      "pagination": { "action": "component.button.text", "label": "{typography.scale.body.small}" }
+    },
+    "select": {
+      "$description": "v1.3. Dropdown / Select input. Field styling matches component.input exactly (same height/radius/padding/typography/border/background/text tokens) since it is visually an input variant; the menu it opens reuses the same popover/menu convention already established by videoPlayer.speedControl and dataTable.rowActions (elevation.3, surface.elevated, radius.medium) rather than inventing a new floating-surface pattern. Zero new colors introduced.",
+      "height": 52, "radius": "{shape.radius.medium}", "paddingX": "{spacing.scale.space.4}",
+      "typography": "{typography.scale.body.medium}", "labelTypography": "{typography.scale.label.medium}", "helperTypography": "{typography.scale.caption}",
+      "leadingIconSize": "{icon.medium}",
+      "trailingIcon": { "closed": "expand_more", "open": "expand_less" }, "trailingIconSize": "{icon.medium}",
+      "border": { "default": "{color.border.default}", "hover": "{color.border.strong}", "focused": "{color.border.focus}", "open": "{color.border.focus}", "error": "{color.border.error}", "disabled": "{color.border.default}" },
+      "background": { "default": "{color.surface.default}", "disabled": "{color.surface.variant}" },
+      "text": { "default": "{color.text.primary}", "placeholder": "{color.text.disabled}", "disabled": "{color.text.disabled}", "error": "{color.error.default}" },
+      "menu": { "elevation": "{elevation.3}", "background": "{color.surface.elevated}", "radius": "{shape.radius.medium}" },
+      "option": {
+        "height": "{touchTarget.web_px}", "paddingX": "{spacing.scale.space.4}", "typography": "{typography.scale.body.medium}",
+        "text": { "default": "{color.text.primary}", "disabled": "{color.text.disabled}" },
+        "background": { "default": "transparent", "hover": "{color.text.primary}@{state.hoverOpacity}", "selected": "{color.brand.primaryContainer}" },
+        "selectedText": "{color.brand.onPrimaryContainer}"
+      }
+    }
+  }
+}

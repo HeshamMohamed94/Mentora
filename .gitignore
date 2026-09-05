@@ -1,0 +1,50 @@
+# Secrets
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+
+# Claude local files
+.claude/
+
+# Next.js / Node
+node_modules/
+.next/
+out/
+
+# Kotlin / Gradle
+.gradle/
+build/
+**/build/
+local.properties
+
+# IntelliJ / Android Studio
+.idea/
+*.iml
+
+# iOS / Xcode
+DerivedData/
+xcuserdata/
+*.xcuserstate
+
+# Mentora local data
+local-media/
+uploads/
+mongodb-data/
+data/db/
+
+# Logs
+*.log
+
+# Windows / macOS
+Thumbs.db
+.DS_Store
+
+# Temporary files
+*.tmp
+*.temp
+
+# Claude Design review exports
+design-review*/
+design-review*.zip
