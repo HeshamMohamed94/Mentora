@@ -52,7 +52,16 @@ Error:
 See `architecture/API_CONTRACT.md § 7` for the full conceptual list (auth, users, courses/categories, enrollment, progress, quiz, learning-paths, certificates, ai-tutor, instructor, admin, media). This file will append the **as-built** request/response DTO shapes per module here as Phase 1 implements each one — placeholder until then.
 
 ### As-Built Module Contracts
-*(Appended during Phase 1 implementation — empty until a module is complete and reviewed.)*
+
+**Auth** (`/api/v1/auth/*`) — see § 8a below.
+
+**Users** — `GET /users/me` → `{ id, email, name, role, avatarMediaId, preferredLocale, createdAt }` (never `passwordHash`). `PATCH /users/me` body `{ name?, preferredLocale? }` only — no `avatarMediaId` yet (media module doesn't exist; see D10).
+
+**Categories** — `GET /categories` → plain array (no pagination), `{ id, name, slug, courseCount }`. `POST`/`PATCH` Admin-only, `name` only; **slug is server-generated at creation and never changes** on rename. `DELETE` blocked with `409 CATEGORY_IN_USE` while `courseCount > 0`.
+
+**Courses** — `GET /courses` (public list): query params `category`, `level`, `maxPrice`, `q`, `cursor`, `limit` — **`status` is not an accepted filter; the endpoint always forces `published`** (see D9). Returns `CourseSummary` (no embedded curriculum). `GET /courses/{id}`: full `CourseResponse` with `sections[].lessons[]`; a `draft` course 404s (`COURSE_NOT_FOUND`) for anyone but the owning Instructor or an Admin — **404, never 403, to avoid revealing existence**. Write endpoints (`POST /courses`, `PATCH /courses/{id}`, all `sections`/`lessons` CRUD + reorder, `POST .../publish`) are Instructor-owner-only (`403 FORBIDDEN_NOT_OWNER` otherwise); `POST .../unpublish` allows owner-Instructor **or** Admin. `thumbnailMediaId`/`videoMediaId` are ObjectId-shaped strings, format-checked only (see D10) — no `media` collection exists yet to verify against. Publish validation fields: `title`, `description`, `categoryId`, `priceDisplay` → `"REQUIRED"`; `thumbnailMediaId` → `"thumbnail": "REQUIRED"`; no sections → `"curriculum": "NO_SECTIONS"`; an empty section → `"section.<id>.lessons": "NO_LESSONS"`; a lesson missing video → `"lesson.<id>.videoMediaId": "REQUIRED"`. No `isEnrolled` field anywhere yet (see D11 — next task's concern).
+
+*(Further modules appended here as Phase 1 implementation continues.)*
 
 ## 7. Media / Playback
 

@@ -4,7 +4,15 @@ import com.mentora.backend.auth.authModule
 import com.mentora.backend.auth.repository.ensureAuthIndexes
 import com.mentora.backend.auth.routes.authRoutes
 import com.mentora.backend.auth.service.AuthService
+import com.mentora.backend.categories.categoriesModule
+import com.mentora.backend.categories.repository.ensureCategoriesIndexes
+import com.mentora.backend.categories.routes.categoryRoutes
+import com.mentora.backend.categories.service.CategoryService
 import com.mentora.backend.config.AppConfig
+import com.mentora.backend.courses.coursesModule
+import com.mentora.backend.courses.repository.ensureCoursesIndexes
+import com.mentora.backend.courses.routes.courseRoutes
+import com.mentora.backend.courses.service.CourseService
 import com.mentora.backend.plugins.configureCors
 import com.mentora.backend.plugins.configureDatabaseLifecycle
 import com.mentora.backend.plugins.configureMonitoring
@@ -38,7 +46,7 @@ internal fun Application.module(appConfig: AppConfig) {
 
     install(Koin) {
         slf4jLogger()
-        modules(configKoinModule(appConfig), databaseKoinModule, authModule, usersModule)
+        modules(configKoinModule(appConfig), databaseKoinModule, authModule, usersModule, categoriesModule, coursesModule)
     }
     configureDatabaseLifecycle()
 
@@ -53,8 +61,10 @@ internal fun Application.module(appConfig: AppConfig) {
     kotlinx.coroutines.runBlocking {
         try {
             ensureAuthIndexes(get())
+            ensureCategoriesIndexes(get())
+            ensureCoursesIndexes(get())
         } catch (error: MongoTimeoutException) {
-            log.warn("Could not ensure auth database indexes because MongoDB is unavailable", error)
+            log.warn("Could not ensure database indexes because MongoDB is unavailable", error)
         }
     }
 
@@ -62,5 +72,7 @@ internal fun Application.module(appConfig: AppConfig) {
         healthRoutes(get())
         authRoutes(get<AuthService>(), appConfig)
         userRoutes(get<UserService>())
+        categoryRoutes(get<CategoryService>())
+        courseRoutes(get<CourseService>())
     }
 }
