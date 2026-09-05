@@ -44,6 +44,10 @@ class EnrollmentService(
     private val users: UserService,
     private val mongoClient: MongoClient,
 ) {
+    suspend fun requireEnrollment(userId: ObjectId, courseId: ObjectId) {
+        if (repository.find(userId, courseId) == null) throw ApiException.ForbiddenNotEnrolled()
+    }
+
     suspend fun preview(courseId: String, principal: MentoraPrincipal): CheckoutPreview {
         val course = publishedCourse(courseId, principal)
         val instructor = users.getProfile(ObjectId(course.instructorId))
