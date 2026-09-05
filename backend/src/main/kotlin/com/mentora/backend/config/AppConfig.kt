@@ -36,7 +36,7 @@ data class AppConfig(
             fun optional(key: String, default: String): String = env[key]?.takeIf { it.isNotBlank() } ?: default
 
             return AppConfig(
-                mongoUri = optional("MONGODB_URI", "mongodb://localhost:27017/mentora"),
+                mongoUri = optional("MONGODB_URI", "mongodb://localhost:27017/mentora?replicaSet=rs0"),
                 mongoDatabaseName = optional("MONGODB_DATABASE", "mentora"),
                 jwtSigningSecret = required("JWT_SIGNING_SECRET"),
                 jwtIssuer = optional("JWT_ISSUER", "mentora-backend"),
