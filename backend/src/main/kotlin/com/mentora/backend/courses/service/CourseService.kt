@@ -232,6 +232,11 @@ class CourseService(
         return save(course.copy(status = DRAFT, updatedAt = Clock.System.now())).toResponse()
     }
 
+    /** Cross-module ownership check (e.g. for the `quiz` editor) — COURSE_NOT_FOUND if missing,
+     * FORBIDDEN_NOT_OWNER if the principal doesn't own it. */
+    suspend fun requireOwnership(id: String, principal: MentoraPrincipal): CourseResponse =
+        ownedCourse(principal, id).toResponse()
+
     private suspend fun ownedCourse(principal: MentoraPrincipal, id: String): CourseDocument {
         val course = findCourse(id)
         if (course.instructorId != principal.userId) throw ApiException.ForbiddenNotOwner()
