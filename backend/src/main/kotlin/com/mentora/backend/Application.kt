@@ -32,6 +32,10 @@ import com.mentora.backend.progress.progressModule
 import com.mentora.backend.progress.repository.ensureProgressIndexes
 import com.mentora.backend.progress.routes.progressRoutes
 import com.mentora.backend.progress.service.ProgressService
+import com.mentora.backend.quiz.quizModule
+import com.mentora.backend.quiz.repository.ensureQuizIndexes
+import com.mentora.backend.quiz.routes.quizRoutes
+import com.mentora.backend.quiz.service.QuizService
 import com.mentora.backend.users.routes.userRoutes
 import com.mentora.backend.users.service.UserService
 import com.mentora.backend.users.usersModule
@@ -56,7 +60,7 @@ internal fun Application.module(appConfig: AppConfig) {
         slf4jLogger()
         modules(
             configKoinModule(appConfig), databaseKoinModule, authModule, usersModule, categoriesModule,
-            coursesModule, enrollmentModule, progressModule,
+            coursesModule, enrollmentModule, progressModule, quizModule,
         )
     }
     configureDatabaseLifecycle()
@@ -76,6 +80,7 @@ internal fun Application.module(appConfig: AppConfig) {
             ensureCoursesIndexes(get())
             ensureEnrollmentIndexes(get())
             ensureProgressIndexes(get())
+            ensureQuizIndexes(get())
         } catch (error: MongoTimeoutException) {
             log.warn("Could not ensure database indexes because MongoDB is unavailable", error)
         }
@@ -89,5 +94,6 @@ internal fun Application.module(appConfig: AppConfig) {
         courseRoutes(get<CourseService>())
         enrollmentRoutes(get<EnrollmentService>())
         progressRoutes(get<ProgressService>())
+        quizRoutes(get<QuizService>())
     }
 }

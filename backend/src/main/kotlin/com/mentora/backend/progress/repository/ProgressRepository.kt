@@ -7,6 +7,7 @@ import com.mongodb.client.model.ReturnDocument
 import com.mongodb.client.model.Updates.combine
 import com.mongodb.client.model.Updates.set
 import com.mongodb.client.model.Updates.setOnInsert
+import com.mongodb.kotlin.client.coroutine.ClientSession
 import com.mongodb.kotlin.client.coroutine.MongoDatabase
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.datetime.Instant
@@ -62,6 +63,18 @@ class ProgressRepository(database: MongoDatabase) {
 
     suspend fun find(userId: ObjectId, courseId: ObjectId): ProgressDocument? =
         progress.find(filter(userId, courseId)).firstOrNull()
+
+    suspend fun updateQuizPassed(
+        session: ClientSession, userId: ObjectId, courseId: ObjectId, passed: Boolean, now: Instant,
+    ): ProgressDocument = requireNotNull(progress.findOneAndUpdate(
+        session, filter(userId, courseId), combine(
+            setOnInsert("userId", userId), setOnInsert("courseId", courseId),
+            setOnInsert("completedLessonIds", emptyMap<String, Instant>()),
+            setOnInsert("completionPercent", 0), setOnInsert("courseCompletedAt", null),
+            set("quizPassed", passed), set("updatedAt", now),
+        ),
+        FindOneAndUpdateOptions().upsert(true).returnDocument(ReturnDocument.AFTER),
+    ))
 
     private fun filter(userId: ObjectId, courseId: ObjectId) =
         and(eq("userId", userId), eq("courseId", courseId))

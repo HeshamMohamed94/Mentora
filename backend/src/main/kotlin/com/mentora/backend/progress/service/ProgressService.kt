@@ -9,6 +9,7 @@ import com.mentora.backend.progress.repository.ProgressDocument
 import com.mentora.backend.progress.repository.ProgressRepository
 import com.mentora.backend.progress.repository.CompletionUpdate
 import com.mentora.backend.progress.repository.PositionUpdate
+import com.mongodb.kotlin.client.coroutine.ClientSession
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
@@ -30,6 +31,10 @@ class ProgressService(
     private val courses: CourseService,
     private val enrollments: EnrollmentService,
 ) {
+    suspend fun setQuizPassed(
+        session: ClientSession, userId: ObjectId, courseId: ObjectId, passed: Boolean, now: Instant,
+    ) = repository.updateQuizPassed(session, userId, courseId, passed, now)
+
     suspend fun get(courseId: String, principal: MentoraPrincipal): ProgressResponse {
         val objectCourseId = objectId(courseId)
         enrollments.requireEnrollment(principal.userId, objectCourseId)
