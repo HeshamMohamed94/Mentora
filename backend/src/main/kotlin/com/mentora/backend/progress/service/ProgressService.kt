@@ -26,11 +26,30 @@ import org.bson.types.ObjectId
     val courseCompletedAt: Instant?,
 )
 
+data class ProgressCompletionSnapshot(
+    val completedLessonCount: Int,
+    val quizPassed: Boolean?,
+    val courseCompletedAt: Instant?,
+)
+
 class ProgressService(
     private val repository: ProgressRepository,
     private val courses: CourseService,
     private val enrollments: EnrollmentService,
 ) {
+    suspend fun snapshotForCompletion(courseId: ObjectId, userId: ObjectId): ProgressCompletionSnapshot {
+        val progress = repository.find(userId, courseId)
+        return ProgressCompletionSnapshot(
+            completedLessonCount = progress?.completedLessonIds?.size ?: 0,
+            quizPassed = progress?.quizPassed,
+            courseCompletedAt = progress?.courseCompletedAt,
+        )
+    }
+
+    suspend fun markCourseCompleted(
+        session: ClientSession, userId: ObjectId, courseId: ObjectId, now: Instant,
+    ) = repository.markCourseCompleted(session, userId, courseId, now)
+
     suspend fun setQuizPassed(
         session: ClientSession, userId: ObjectId, courseId: ObjectId, passed: Boolean, now: Instant,
     ) = repository.updateQuizPassed(session, userId, courseId, passed, now)

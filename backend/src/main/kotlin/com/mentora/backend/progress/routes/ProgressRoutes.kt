@@ -1,5 +1,6 @@
 package com.mentora.backend.progress.routes
 
+import com.mentora.backend.certificates.service.CertificateService
 import com.mentora.backend.common.Role
 import com.mentora.backend.common.mentoraPrincipal
 import com.mentora.backend.common.requireCsrfHeader
@@ -14,19 +15,24 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 
-fun Route.progressRoutes(service: ProgressService) {
+fun Route.progressRoutes(service: ProgressService, certificates: CertificateService) {
     authenticate("jwt-auth") {
         route("/api/v1/courses/{id}") {
             get("/progress") {
                 val principal = call.mentoraPrincipal().also { it.requireRole(Role.student) }
-                call.respondData(service.get(requireNotNull(call.parameters["id"]), principal))
+                val courseId = requireNotNull(call.parameters["id"])
+                certificates.checkAndIssueIfComplete(principal, courseId)
+                call.respondData(service.get(courseId, principal))
             }
             post("/lessons/{lessonId}/complete") {
                 call.requireCsrfHeader()
                 val principal = call.mentoraPrincipal().also { it.requireRole(Role.student) }
-                call.respondData(service.complete(
-                    requireNotNull(call.parameters["id"]), requireNotNull(call.parameters["lessonId"]), principal,
-                ))
+                val courseId = requireNotNull(call.parameters["id"])
+                val response = service.complete(
+                    courseId, requireNotNull(call.parameters["lessonId"]), principal,
+                )
+                certificates.checkAndIssueIfComplete(principal, courseId)
+                call.respondData(response)
             }
             post("/lessons/{lessonId}/position") {
                 call.requireCsrfHeader()

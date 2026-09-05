@@ -8,6 +8,10 @@ import com.mentora.backend.categories.categoriesModule
 import com.mentora.backend.categories.repository.ensureCategoriesIndexes
 import com.mentora.backend.categories.routes.categoryRoutes
 import com.mentora.backend.categories.service.CategoryService
+import com.mentora.backend.certificates.certificatesModule
+import com.mentora.backend.certificates.repository.ensureCertificateIndexes
+import com.mentora.backend.certificates.routes.certificateRoutes
+import com.mentora.backend.certificates.service.CertificateService
 import com.mentora.backend.config.AppConfig
 import com.mentora.backend.courses.coursesModule
 import com.mentora.backend.courses.repository.ensureCoursesIndexes
@@ -60,7 +64,7 @@ internal fun Application.module(appConfig: AppConfig) {
         slf4jLogger()
         modules(
             configKoinModule(appConfig), databaseKoinModule, authModule, usersModule, categoriesModule,
-            coursesModule, enrollmentModule, progressModule, quizModule,
+            coursesModule, enrollmentModule, progressModule, quizModule, certificatesModule,
         )
     }
     configureDatabaseLifecycle()
@@ -81,6 +85,7 @@ internal fun Application.module(appConfig: AppConfig) {
             ensureEnrollmentIndexes(get())
             ensureProgressIndexes(get())
             ensureQuizIndexes(get())
+            ensureCertificateIndexes(get())
         } catch (error: MongoTimeoutException) {
             log.warn("Could not ensure database indexes because MongoDB is unavailable", error)
         }
@@ -93,7 +98,8 @@ internal fun Application.module(appConfig: AppConfig) {
         categoryRoutes(get<CategoryService>())
         courseRoutes(get<CourseService>())
         enrollmentRoutes(get<EnrollmentService>())
-        progressRoutes(get<ProgressService>())
-        quizRoutes(get<QuizService>())
+        progressRoutes(get<ProgressService>(), get<CertificateService>())
+        quizRoutes(get<QuizService>(), get<CertificateService>())
+        certificateRoutes(get<CertificateService>())
     }
 }

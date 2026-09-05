@@ -1,5 +1,6 @@
 package com.mentora.backend.quiz.routes
 
+import com.mentora.backend.certificates.service.CertificateService
 import com.mentora.backend.common.Role
 import com.mentora.backend.common.mentoraPrincipal
 import com.mentora.backend.common.requireCsrfHeader
@@ -16,7 +17,7 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.put
 import io.ktor.server.routing.route
 
-fun Route.quizRoutes(service: QuizService) {
+fun Route.quizRoutes(service: QuizService, certificates: CertificateService) {
     authenticate("jwt-auth") {
         route("/api/v1/courses/{id}/quiz") {
             get {
@@ -35,7 +36,10 @@ fun Route.quizRoutes(service: QuizService) {
             post("/attempts") {
                 call.requireCsrfHeader()
                 val principal = call.mentoraPrincipal().also { it.requireRole(Role.student) }
-                call.respondData(service.submit(call.id(), principal, call.receive<SubmitAttemptRequest>()))
+                val courseId = call.id()
+                val response = service.submit(courseId, principal, call.receive<SubmitAttemptRequest>())
+                certificates.checkAndIssueIfComplete(principal, courseId)
+                call.respondData(response)
             }
             get("/attempts/latest") {
                 val principal = call.mentoraPrincipal().also { it.requireRole(Role.student) }

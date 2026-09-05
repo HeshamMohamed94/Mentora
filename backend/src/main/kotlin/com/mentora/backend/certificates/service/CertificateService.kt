@@ -1,0 +1,122 @@
+package com.mentora.backend.certificates.service
+
+import com.mentora.backend.certificates.repository.CertificateDocument
+import com.mentora.backend.certificates.repository.CertificateRepository
+import com.mentora.backend.common.ApiException
+import com.mentora.backend.common.MentoraPrincipal
+import com.mentora.backend.common.Page
+import com.mentora.backend.common.PageRequest
+import com.mentora.backend.common.toPage
+import com.mentora.backend.courses.service.CourseService
+import com.mentora.backend.progress.service.ProgressService
+import com.mentora.backend.quiz.service.QuizService
+import com.mentora.backend.users.service.UserService
+import com.mongodb.ErrorCategory
+import com.mongodb.MongoWriteException
+import com.mongodb.kotlin.client.coroutine.ClientSession
+import com.mongodb.kotlin.client.coroutine.MongoClient
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
+import kotlinx.serialization.Serializable
+import org.bson.types.ObjectId
+
+@Serializable data class CertificateSummaryResponse(
+    val id: String,
+    val courseTitleSnapshot: String,
+    val instructorNameSnapshot: String,
+    val issuedAt: Instant,
+)
+
+@Serializable data class CertificateDetailResponse(
+    val id: String,
+    val studentNameSnapshot: String,
+    val courseTitleSnapshot: String,
+    val instructorNameSnapshot: String,
+    val completionDateSnapshot: Instant,
+    val issuedAt: Instant,
+)
+
+class CertificateService(
+    private val repository: CertificateRepository,
+    private val progress: ProgressService,
+    private val quiz: QuizService,
+    private val courses: CourseService,
+    private val users: UserService,
+    private val mongoClient: MongoClient,
+) {
+    suspend fun checkAndIssueIfComplete(principal: MentoraPrincipal, courseId: String) {
+        val course = courses.get(courseId, principal)
+        val objectCourseId = objectId(courseId)
+        val snapshot = progress.snapshotForCompletion(objectCourseId, principal.userId)
+        if (snapshot.courseCompletedAt != null) return
+
+        val totalLessons = course.sections.sumOf { it.lessons.size }
+        val hasQuiz = quiz.hasQuiz(objectCourseId)
+        if (snapshot.completedLessonCount < totalLessons || (hasQuiz && snapshot.quizPassed != true)) return
+
+        val instructor = users.getProfile(ObjectId(course.instructorId))
+        val student = users.getProfile(principal.userId)
+        val now = Clock.System.now()
+        try {
+            mongoClient.startSession().use { session ->
+                inTransaction(session) {
+                    progress.markCourseCompleted(session, principal.userId, objectCourseId, now)
+                    repository.insert(session, CertificateDocument(
+                        userId = principal.userId,
+                        courseId = objectCourseId,
+                        issuedAt = now,
+                        studentNameSnapshot = student.name,
+                        courseTitleSnapshot = course.title,
+                        instructorNameSnapshot = instructor.name,
+                        completionDateSnapshot = now,
+                    ))
+                }
+            }
+        } catch (error: MongoWriteException) {
+            if (error.error.category != ErrorCategory.DUPLICATE_KEY) throw error
+        }
+    }
+
+    suspend fun list(principal: MentoraPrincipal, page: PageRequest): Page<CertificateSummaryResponse> =
+        repository.list(principal.userId, page).toPage(page.limit) { requireNotNull(it.id) }.let { result ->
+            Page(result.items.map { it.toSummary() }, result.nextCursor)
+        }
+
+    suspend fun get(id: String, principal: MentoraPrincipal): CertificateDetailResponse {
+        val certificate = repository.findByIdAndUser(parsePublicId(id), principal.userId)
+            ?: throw certificateNotFound()
+        return certificate.toDetail()
+    }
+
+    private suspend fun <T> inTransaction(session: ClientSession, block: suspend () -> T): T {
+        session.startTransaction()
+        return try { block().also { session.commitTransaction() } }
+        catch (error: Throwable) {
+            if (session.hasActiveTransaction()) session.abortTransaction()
+            throw error
+        }
+    }
+
+    private fun objectId(value: String) = try { ObjectId(value) }
+    catch (_: IllegalArgumentException) { throw ApiException.Validation(fields = mapOf("id" to "INVALID")) }
+
+    private fun parsePublicId(value: String): ObjectId {
+        val match = PUBLIC_ID.matchEntire(value) ?: throw certificateNotFound()
+        return try { ObjectId(match.groupValues.drop(1).joinToString("").lowercase()) }
+        catch (_: IllegalArgumentException) { throw certificateNotFound() }
+    }
+
+    private fun publicId(id: ObjectId): String = id.toHexString().uppercase().chunked(4).joinToString("-", "MTR-")
+    private fun certificateNotFound() = ApiException.NotFound("CERTIFICATE_NOT_FOUND", "The certificate was not found.")
+    private fun CertificateDocument.toSummary() = CertificateSummaryResponse(
+        publicId(requireNotNull(id)), courseTitleSnapshot, instructorNameSnapshot, issuedAt,
+    )
+    private fun CertificateDocument.toDetail() = CertificateDetailResponse(
+        publicId(requireNotNull(id)), studentNameSnapshot, courseTitleSnapshot,
+        instructorNameSnapshot, completionDateSnapshot, issuedAt,
+    )
+
+    private companion object {
+        val PUBLIC_ID = Regex("^MTR-([0-9A-Fa-f]{4})-([0-9A-Fa-f]{4})-([0-9A-Fa-f]{4})-([0-9A-Fa-f]{4})-([0-9A-Fa-f]{4})-([0-9A-Fa-f]{4})$")
+    }
+}

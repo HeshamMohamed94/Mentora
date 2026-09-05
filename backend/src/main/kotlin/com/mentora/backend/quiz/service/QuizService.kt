@@ -47,6 +47,8 @@ class QuizService(
     private val progress: ProgressService,
     private val mongoClient: MongoClient,
 ) {
+    suspend fun hasQuiz(courseId: ObjectId): Boolean = repository.findByCourseId(courseId) != null
+
     suspend fun studentQuiz(courseId: String, principal: MentoraPrincipal): StudentQuizResponse {
         val objectCourseId = objectId(courseId)
         enrollments.requireEnrollment(principal.userId, objectCourseId)

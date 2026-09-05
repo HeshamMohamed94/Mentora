@@ -76,6 +76,15 @@ class ProgressRepository(database: MongoDatabase) {
         FindOneAndUpdateOptions().upsert(true).returnDocument(ReturnDocument.AFTER),
     ))
 
+    suspend fun markCourseCompleted(
+        session: ClientSession, userId: ObjectId, courseId: ObjectId, now: Instant,
+    ): ProgressDocument = requireNotNull(progress.findOneAndUpdate(
+        session, filter(userId, courseId), combine(
+            set("courseCompletedAt", now), set("updatedAt", now),
+        ),
+        FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER),
+    ))
+
     private fun filter(userId: ObjectId, courseId: ObjectId) =
         and(eq("userId", userId), eq("courseId", courseId))
 }
