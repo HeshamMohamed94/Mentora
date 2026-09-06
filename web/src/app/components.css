@@ -161,6 +161,147 @@ html[lang="ar"] .mtx-input {
   line-height: var(--typography-caption-line-height);
 }
 
+/* ---------- Select / Dropdown (COMPONENTS.md v1.3) ---------- */
+
+.mtx-select { position: relative; }
+
+.mtx-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+  height: var(--component-select-height);
+  padding-inline: var(--component-select-padding-x);
+  border: var(--border-width-default) solid var(--component-select-border-default);
+  border-radius: var(--component-select-radius);
+  background-color: var(--component-select-background-default);
+  color: var(--component-select-text-default);
+  font-family: var(--font-family-latin);
+  font-size: var(--typography-body-medium-font-size);
+  line-height: var(--typography-body-medium-line-height);
+  text-align: start;
+  cursor: pointer;
+}
+
+html[lang="ar"] .mtx-select-trigger,
+html[lang="ar"] .mtx-select-option { font-family: var(--font-family-arabic); }
+.mtx-select-trigger:hover:not(:disabled) { border-color: var(--component-select-border-hover); }
+.mtx-select-trigger:focus-visible { border-color: var(--component-select-border-focused); outline: var(--border-width-focus) solid var(--color-border-focus); outline-offset: 2px; }
+.mtx-select-trigger[data-open="true"] { border-color: var(--component-select-border-open); outline: var(--border-width-focus) solid var(--color-border-focus); outline-offset: 2px; }
+.mtx-select-trigger[aria-invalid="true"] { border-color: var(--component-select-border-error); }
+.mtx-select-trigger:disabled { background-color: var(--component-select-background-disabled); color: var(--component-select-text-disabled); cursor: not-allowed; }
+.mtx-select-trigger[data-placeholder="true"] { color: var(--component-select-text-placeholder); }
+
+.mtx-select-value,
+.mtx-select-option { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mtx-select-indicator { flex: none; transform: none; }
+
+.mtx-select-menu {
+  position: absolute;
+  inset-block-start: calc(100% + var(--space-2));
+  inset-inline: var(--space-0);
+  z-index: 3;
+  max-height: calc(var(--space-16) * 4);
+  overflow-y: auto;
+  padding-block: var(--space-1);
+  border-radius: var(--component-select-menu-radius);
+  background-color: var(--component-select-menu-background);
+  box-shadow: var(--elevation-3);
+}
+
+.mtx-select-option {
+  display: block;
+  width: 100%;
+  height: calc(var(--space-10) + var(--space-1));
+  padding-inline: var(--component-select-option-padding-x);
+  border: none;
+  background-color: var(--component-select-option-background-default);
+  color: var(--component-select-option-text-default);
+  font-family: var(--font-family-latin);
+  font-size: var(--typography-body-medium-font-size);
+  line-height: var(--typography-body-medium-line-height);
+  text-align: start;
+  cursor: pointer;
+}
+
+.mtx-select-option:hover:not(:disabled),
+.mtx-select-option[data-highlighted="true"] { background-color: var(--component-select-option-background-hover); }
+.mtx-select-option[aria-selected="true"] { background-color: var(--component-select-option-background-selected); color: var(--component-select-option-selected-text); }
+.mtx-select-option:disabled { color: var(--component-select-option-text-disabled); cursor: not-allowed; }
+.mtx-select-error { display: flex; align-items: center; gap: var(--space-1); }
+.mtx-select-error > svg { flex: none; }
+
+/* ---------- Avatar ---------- */
+
+.mtx-avatar {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  border-radius: var(--radius-full);
+}
+.mtx-avatar-small { width: var(--space-6); height: var(--space-6); font-size: var(--typography-caption-font-size); }
+.mtx-avatar-medium { width: var(--space-10); height: var(--space-10); font-size: var(--typography-label-medium-font-size); }
+.mtx-avatar-large { width: var(--space-16); height: var(--space-16); font-size: var(--typography-label-large-font-size); }
+.mtx-avatar-xlarge { width: calc(var(--space-16) + var(--space-8)); height: calc(var(--space-16) + var(--space-8)); font-size: var(--typography-heading-h4-font-size); }
+.mtx-avatar > img,
+.mtx-avatar-fallback { width: 100%; height: 100%; border-radius: inherit; }
+.mtx-avatar > img { object-fit: cover; }
+.mtx-avatar-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-brand-primary-container);
+  color: var(--color-brand-on-primary-container);
+  font-family: var(--font-family-latin);
+  font-weight: var(--typography-label-large-font-weight);
+}
+html[lang="ar"] .mtx-avatar-fallback { font-family: var(--font-family-arabic); }
+.mtx-avatar-status {
+  position: absolute;
+  inset-inline-end: var(--space-0);
+  inset-block-end: var(--space-0);
+  width: 25%;
+  height: 25%;
+  border: var(--border-width-default) solid var(--color-surface-default);
+  border-radius: var(--radius-full);
+  background-color: var(--color-success-default);
+}
+
+/* ---------- Profile / Settings ---------- */
+
+.mtx-account-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  width: 100%;
+  max-width: calc(var(--space-16) * 10);
+  margin-inline: auto;
+  padding: var(--space-8) var(--space-4);
+}
+.mtx-account-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding: var(--space-6);
+  border: var(--border-width-default) solid var(--color-border-default);
+  border-radius: var(--radius-large);
+  background-color: var(--color-surface-default);
+}
+.mtx-profile-identity { display: flex; flex-direction: column; align-items: center; gap: var(--space-4); text-align: center; }
+.mtx-profile-copy { min-width: var(--space-0); }
+.mtx-account-secondary { color: var(--color-text-secondary); overflow-wrap: anywhere; }
+.mtx-profile-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
+.mtx-profile-edit,
+.mtx-settings-fields { display: flex; flex-direction: column; gap: var(--space-4); }
+.mtx-account-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.mtx-account-skeleton { min-height: calc(var(--space-16) * 6); border-radius: var(--radius-large); }
+
+@media (min-width: 600px) {
+  .mtx-account-page { padding-inline: var(--space-6); }
+  .mtx-profile-identity { flex-direction: row; text-align: start; }
+}
+
 /* ---------- Navigation (COMPONENTS.md § Navigation) ---------- */
 
 .mtx-nav-item {

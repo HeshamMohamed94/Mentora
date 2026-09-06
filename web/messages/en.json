@@ -224,6 +224,37 @@
     "sessionExpiredError": "Your session expired. Try sending that again.",
     "sendError": "Something went wrong sending your message. Try again."
   },
+  "profile": {
+    "title": "Profile",
+    "loading": "Loading your profile",
+    "loadError": "Your profile couldn't be loaded",
+    "retry": "Try again",
+    "coursesCompleted": "Courses Completed",
+    "certificates": "Certificates",
+    "nameLabel": "Name",
+    "editProfile": "Edit Profile",
+    "settings": "Settings",
+    "logout": "Logout",
+    "save": "Save",
+    "cancel": "Cancel",
+    "nameRequired": "Enter your name.",
+    "nameTooLong": "Name must be 120 characters or fewer.",
+    "saveError": "Your name couldn't be saved. Try again."
+  },
+  "settings": {
+    "title": "Settings",
+    "preferences": "Preferences",
+    "loading": "Loading your settings",
+    "loadError": "Your settings couldn't be loaded",
+    "retry": "Try again",
+    "themeLabel": "Theme",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "themeSystem": "System",
+    "languageLabel": "Language",
+    "languageSaveError": "Your language preference couldn't be saved. Try again.",
+    "logout": "Logout"
+  },
   "auth": {
     "loginTitle": "Login",
     "registerTitle": "Create your account",

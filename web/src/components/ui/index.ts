@@ -16,3 +16,5 @@ export { VideoPlayer, type VideoPlayerLabels, type VideoPlayerProps } from "./vi
 export { QuestionCard, AnswerOption, type AnswerOptionState } from "./question-card";
 export { AiTutorBubble, type AiTutorBubbleProps } from "./ai-tutor-bubble";
 export { AiTutorQuickAction, type AiTutorQuickActionProps } from "./ai-tutor-quick-action";
+export { Avatar, type AvatarProps, type AvatarSize } from "./avatar";
+export { Select, type SelectOption, type SelectProps } from "./select";

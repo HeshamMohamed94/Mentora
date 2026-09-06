@@ -25,7 +25,9 @@ export type IconName =
   | "fullscreen"
   | "fullscreenExit"
   | "checkCircle"
-  | "cancel";
+  | "cancel"
+  | "expandMore"
+  | "expandLess";
 
 const PATHS: Record<IconName, React.ReactNode> = {
   dashboard: (
@@ -113,6 +115,8 @@ const PATHS: Record<IconName, React.ReactNode> = {
       <path d="M9 9l6 6M15 9l-6 6" />
     </>
   ),
+  expandMore: <path d="M7 9.5l5 5 5-5" />,
+  expandLess: <path d="M7 14.5l5-5 5 5" />,
 };
 
 export function Icon({ name, size = 24, className }: { name: IconName; size?: number; className?: string }) {

@@ -224,6 +224,37 @@
     "sessionExpiredError": "انتهت صلاحية جلستك. حاول إرسال الرسالة مرة أخرى.",
     "sendError": "حدث خطأ أثناء إرسال رسالتك. حاول مرة أخرى."
   },
+  "profile": {
+    "title": "الملف الشخصي",
+    "loading": "جارٍ تحميل ملفك الشخصي",
+    "loadError": "تعذّر تحميل ملفك الشخصي",
+    "retry": "أعد المحاولة",
+    "coursesCompleted": "الدورات المكتملة",
+    "certificates": "الشهادات",
+    "nameLabel": "الاسم",
+    "editProfile": "تعديل الملف الشخصي",
+    "settings": "الإعدادات",
+    "logout": "تسجيل الخروج",
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "nameRequired": "أدخل اسمك.",
+    "nameTooLong": "يجب ألا يزيد الاسم على 120 حرفًا.",
+    "saveError": "تعذّر حفظ اسمك. حاول مرة أخرى."
+  },
+  "settings": {
+    "title": "الإعدادات",
+    "preferences": "التفضيلات",
+    "loading": "جارٍ تحميل إعداداتك",
+    "loadError": "تعذّر تحميل إعداداتك",
+    "retry": "أعد المحاولة",
+    "themeLabel": "المظهر",
+    "themeLight": "فاتح",
+    "themeDark": "داكن",
+    "themeSystem": "النظام",
+    "languageLabel": "اللغة",
+    "languageSaveError": "تعذّر حفظ تفضيل اللغة. حاول مرة أخرى.",
+    "logout": "تسجيل الخروج"
+  },
   "auth": {
     "loginTitle": "تسجيل الدخول",
     "registerTitle": "أنشئ حسابك",
