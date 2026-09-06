@@ -10,6 +10,7 @@ import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.patch
 import io.ktor.client.request.post
+import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
@@ -174,6 +175,143 @@ class CoursesCategoriesIntegrationTest {
         assertEquals(listOf(0, 1, 2), reorderedLessons.map { it.jsonObject.getValue("order").jsonPrimitive.content.toInt() })
     }
 
+    @Test
+    fun `owner and admin can unpublish while other roles are rejected and enrollment access remains`() = testApplication {
+        application { module(config()) }
+        val admin = provision("unpublish-admin@example.com", "admin")
+        val owner = provision("unpublish-owner@example.com", "instructor")
+        val otherInstructor = provision("unpublish-other@example.com", "instructor")
+        val student = register("unpublish-student@example.com").dataString("accessToken")
+        val categoryId = postJson("/api/v1/categories", """{"name":"Publishing"}""", admin).dataString("id")
+
+        val ownerCourseId = createPublishedCourse(owner, categoryId, "Owner Course", 40)
+        val ownerUnpublish = postJson("/api/v1/courses/$ownerCourseId/unpublish", "{}", owner)
+        assertEquals(HttpStatusCode.OK, ownerUnpublish.status)
+        assertEquals("draft", ownerUnpublish.dataString("status"))
+
+        val protectedCourseId = createPublishedCourse(owner, categoryId, "Protected Course", 50)
+        val nonOwnerUnpublish = postJson("/api/v1/courses/$protectedCourseId/unpublish", "{}", otherInstructor)
+        assertEquals(HttpStatusCode.Forbidden, nonOwnerUnpublish.status)
+        assertEquals("FORBIDDEN_NOT_OWNER", nonOwnerUnpublish.errorCode())
+        val studentUnpublish = postJson("/api/v1/courses/$protectedCourseId/unpublish", "{}", student)
+        assertEquals(HttpStatusCode.Forbidden, studentUnpublish.status)
+        assertEquals("FORBIDDEN_ROLE", studentUnpublish.errorCode())
+
+        putJson(
+            "/api/v1/courses/$protectedCourseId/quiz/editor",
+            """{"questions":[{"prompt":"Ready?","order":0,"options":[{"text":"Yes","isCorrect":true},{"text":"No","isCorrect":false}]}]}""",
+            owner,
+        )
+        assertEquals(
+            HttpStatusCode.Created,
+            postJson("/api/v1/courses/$protectedCourseId/checkout/complete", "{}", student).status,
+        )
+
+        val adminUnpublish = postJson("/api/v1/courses/$protectedCourseId/unpublish", "{}", admin)
+        assertEquals(HttpStatusCode.OK, adminUnpublish.status)
+        assertEquals("draft", adminUnpublish.dataString("status"))
+        assertFalse(client.get("/api/v1/courses").dataArray().any {
+            it.jsonObject.getValue("id").jsonPrimitive.content == protectedCourseId
+        })
+        assertEquals(
+            HttpStatusCode.OK,
+            client.get("/api/v1/courses/$protectedCourseId/quiz") { bearerAuth(student) }.status,
+        )
+    }
+
+    @Test
+    fun `course owner can rename section and non owner is rejected`() = testApplication {
+        application { module(config()) }
+        val admin = provision("rename-admin@example.com", "admin")
+        val owner = provision("rename-owner@example.com", "instructor")
+        val otherInstructor = provision("rename-other@example.com", "instructor")
+        val categoryId = postJson("/api/v1/categories", """{"name":"Renaming"}""", admin).dataString("id")
+        val courseId = createCourse(owner, categoryId, objectIdHex(60), "Rename Course").dataString("id")
+        val sectionId = addSection(courseId, owner, "Before")
+
+        val renamed = patchJson(
+            "/api/v1/courses/$courseId/sections/$sectionId", """{"title":"After"}""", owner,
+        )
+        assertEquals(HttpStatusCode.OK, renamed.status)
+        assertEquals(
+            "After",
+            renamed.dataObject().getValue("sections").jsonArray.single().jsonObject
+                .getValue("title").jsonPrimitive.content,
+        )
+
+        val rejected = patchJson(
+            "/api/v1/courses/$courseId/sections/$sectionId", """{"title":"Stolen"}""", otherInstructor,
+        )
+        assertEquals(HttpStatusCode.Forbidden, rejected.status)
+        assertEquals("FORBIDDEN_NOT_OWNER", rejected.errorCode())
+    }
+
+    @Test
+    fun `deleting section removes it and compacts remaining order`() = testApplication {
+        application { module(config()) }
+        val admin = provision("delete-section-admin@example.com", "admin")
+        val owner = provision("delete-section-owner@example.com", "instructor")
+        val categoryId = postJson("/api/v1/categories", """{"name":"Section Deletion"}""", admin).dataString("id")
+        val courseId = createCourse(owner, categoryId, objectIdHex(70), "Delete Section").dataString("id")
+        val sectionIds = (1..3).map { addSection(courseId, owner, "Section $it") }
+
+        val deleted = deleteJson("/api/v1/courses/$courseId/sections/${sectionIds[1]}", owner)
+        assertEquals(HttpStatusCode.OK, deleted.status)
+        val remaining = deleted.dataObject().getValue("sections").jsonArray
+        assertEquals(listOf(sectionIds[0], sectionIds[2]), remaining.map {
+            it.jsonObject.getValue("sectionId").jsonPrimitive.content
+        })
+        assertEquals(listOf(0, 1), remaining.map { it.jsonObject.getValue("order").jsonPrimitive.content.toInt() })
+    }
+
+    @Test
+    fun `deleting lesson removes it and compacts remaining order`() = testApplication {
+        application { module(config()) }
+        val admin = provision("delete-lesson-admin@example.com", "admin")
+        val owner = provision("delete-lesson-owner@example.com", "instructor")
+        val categoryId = postJson("/api/v1/categories", """{"name":"Lesson Deletion"}""", admin).dataString("id")
+        val courseId = createCourse(owner, categoryId, objectIdHex(80), "Delete Lesson").dataString("id")
+        val sectionId = addSection(courseId, owner, "Lessons")
+        val lessonIds = (1..3).map { number ->
+            postJson(
+                "/api/v1/courses/$courseId/sections/$sectionId/lessons",
+                """{"title":"Lesson $number","description":"Body","videoMediaId":"${objectIdHex(80 + number)}"}""",
+                owner,
+            ).dataObject().getValue("sections").jsonArray.single().jsonObject
+                .getValue("lessons").jsonArray.last().jsonObject.getValue("lessonId").jsonPrimitive.content
+        }
+
+        val deleted = deleteJson(
+            "/api/v1/courses/$courseId/sections/$sectionId/lessons/${lessonIds[1]}", owner,
+        )
+        assertEquals(HttpStatusCode.OK, deleted.status)
+        val remaining = deleted.dataObject().getValue("sections").jsonArray.single().jsonObject
+            .getValue("lessons").jsonArray
+        assertEquals(listOf(lessonIds[0], lessonIds[2]), remaining.map {
+            it.jsonObject.getValue("lessonId").jsonPrimitive.content
+        })
+        assertEquals(listOf(0, 1), remaining.map { it.jsonObject.getValue("order").jsonPrimitive.content.toInt() })
+    }
+
+    private suspend fun ApplicationTestBuilder.createPublishedCourse(
+        token: String, categoryId: String, title: String, seed: Int,
+    ): String {
+        val courseId = createCourse(token, categoryId, objectIdHex(seed), title).dataString("id")
+        val sectionId = addSection(courseId, token, "Introduction")
+        postJson(
+            "/api/v1/courses/$courseId/sections/$sectionId/lessons",
+            """{"title":"Welcome","description":"Start here","videoMediaId":"${objectIdHex(seed + 1)}"}""",
+            token,
+        )
+        assertEquals(HttpStatusCode.OK, postJson("/api/v1/courses/$courseId/publish", "{}", token).status)
+        return courseId
+    }
+
+    private suspend fun ApplicationTestBuilder.addSection(courseId: String, token: String, title: String) =
+        postJson("/api/v1/courses/$courseId/sections", """{"title":"$title"}""", token)
+            .dataObject().getValue("sections").jsonArray.last().jsonObject
+            .getValue("sectionId").jsonPrimitive.content
+
     private suspend fun ApplicationTestBuilder.createCourse(
         token: String, categoryId: String, thumbnail: String?, title: String,
     ): HttpResponse {
@@ -200,6 +338,8 @@ class CoursesCategoriesIntegrationTest {
         client.post(path) { jsonRequest(body, token) }
     private suspend fun ApplicationTestBuilder.patchJson(path: String, body: String, token: String) =
         client.patch(path) { jsonRequest(body, token) }
+    private suspend fun ApplicationTestBuilder.putJson(path: String, body: String, token: String) =
+        client.put(path) { jsonRequest(body, token) }
     private suspend fun ApplicationTestBuilder.deleteJson(path: String, token: String) =
         client.delete(path) { header("X-Requested-With", "mentora-web"); bearerAuth(token) }
     private fun io.ktor.client.request.HttpRequestBuilder.jsonRequest(body: String, token: String?) {

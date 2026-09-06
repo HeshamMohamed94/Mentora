@@ -1,6 +1,6 @@
 # Mentora — Current Implementation Status
 
-**Last updated:** 2026-09-06 (task 18 — AI Tutor scaffold — closed out and committed)
+**Last updated:** 2026-09-06 (task 19 — backend test suite completeness review — closed out and committed; tasks 20-23 in progress in the same session, per explicit user instruction to complete all remaining Phase 1 work without stopping for approval between them)
 
 ---
 
@@ -9,10 +9,10 @@
 **Read this section first when resuming.**
 
 - **Phase:** PHASE 1 — Backend Foundation & API — `IN_PROGRESS`
-- **Current task:** Task 19 — Backend test suite completeness review (M15 portion) — **NOT_STARTED**
-- **Next immediate action:** Read `architecture/TESTING_STRATEGY.md` for the target coverage bar, then audit each module's existing integration suite against it and fill genuine gaps (edge cases, error-path coverage) — this is a review/completeness pass across all 11 backend modules, not a new feature; likely still Codex-implemented with Claude review, but scope the brief per-module or as one pass depending on what the audit finds.
+- **Current task:** Task 20 — Seed/demo data script (M16 portion) — dispatched to Codex, review pending.
+- **Next immediate action:** If resuming mid-session: check whether the Task 20 Codex dispatch completed (`result.json` under the most recent `delegate-relay` temp dir) and pick up review/commit from there; otherwise continue with Task 20 → 21 → 22 → 23 in order, per the user's instruction in this session to complete all of Phase 1 without stopping for approval, then produce the final Phase 1 report and STOP for the user's explicit approval before any Phase 2 work.
 
-### What is COMPLETE (committed, reviewed, gates green) — tasks 1–18
+### What is COMPLETE (committed, reviewed, gates green) — tasks 1–19
 
 All of: execution continuity docs, backend Gradle scaffold, Ktor foundation (M1), Auth & RBAC (M2), Users module, Courses & Categories (M5 slice), Enrollment/Demo Checkout (M6 slice), Progress (M7 slice), Quiz (M8 slice), Certificates + completion-crossing wiring (M9 slice), Learning Paths (M10 slice), Media/local filesystem storage (M11 slice), Instructor aggregation endpoint (M11 tail), Admin aggregation endpoints (M12 slice), AI Tutor scaffold (M13 boundary only). Last commit: see `git log` on `main` — "Phase 1: AI Tutor scaffold (M13 boundary only)".
 
@@ -22,20 +22,41 @@ Task 16 (Instructor aggregation endpoint): Codex-authored, Claude-reviewed. Impl
 
 Task 18 (AI Tutor scaffold, M13 boundary only): Codex-authored, Claude-reviewed. Implements `GET /api/v1/ai-tutor/conversation` and `POST /api/v1/ai-tutor/conversation/messages`, the `AiProvider` interface, and a `StubAiProvider` binding (Phase 1 streams fixed placeholder text, genuinely chunked over the wire — never a real LLM completion; Phase 6 swaps only the Koin binding). Real enrollment gate, real persistence (`aiConversations`/`aiMessages`, both newly-owned collections with their own indexes), real per-minute-and-daily rate limiting (both now `AppConfig`-driven, closing a gap where only a hardcoded per-minute cap existed). One implementation-time gap resolved before dispatch (not discovered mid-review this time): lesson ids have no reverse lookup to their owning course, so the request pairs `courseId` with `lessonContextId` — the same fix already established for `media`'s `lessonVideo` upload (D21), applied here proactively. See `DECISIONS_LOG.md` D30 for this and three other implementation-time specifics (system prompt scope, streaming wire format, rate-limit config). All gates green (41 tests, 12 suites) — independently re-verified, not just Codex's self-report.
 
-**Also fixed during this task's independent verification, as its own separate commit:** a pre-existing flaky test in `MediaIntegrationTest` (task 15), unrelated to `aitutor` — see `DECISIONS_LOG.md` D31.
+**Also fixed during task 18's independent verification, as its own separate commit:** a pre-existing flaky test in `MediaIntegrationTest` (task 15), unrelated to `aitutor` — see `DECISIONS_LOG.md` D31.
+
+Task 19 (backend test suite completeness review, M15 portion): a fork-based audit found two concrete,
+bounded gaps against `architecture/TESTING_STRATEGY.md § 1` (not a rewrite — every module already had a
+passing integration suite): (1) zero unit tests existed anywhere despite the strategy doc naming three
+explicit examples — added `QuizServiceTest.kt`/`CourseServiceTest.kt`/`ProgressServiceTest.kt` (MockK,
+no live Mongo); (2) `POST /courses/{id}/unpublish` had never been called by any test despite being named
+in two milestones' roadmap acceptance criteria — added coverage (owner/Admin/wrong-role/enrolled-student-
+keeps-access) plus three other never-exercised courses routes (section rename/delete, lesson delete, both
+asserting order re-compaction). Zero production bugs found — every new test asserts already-correct
+behavior. See `DECISIONS_LOG.md` D32. All gates green (64 tests, 15 suites), independently re-verified.
 
 ### What is PARTIAL / uncommitted
 
-Nothing. Working tree is clean relative to the task-18 commit.
+Nothing from task 19 (committed). Tasks 20-23 are in progress in this same session — see "Current task"
+above for exactly where to pick up if interrupted.
 
 ### Exact next steps on resume
 
-1. Task 19 — Backend test suite completeness review (M15 portion): read `architecture/TESTING_STRATEGY.md` for the target coverage bar; audit each of the 11 existing modules' integration suites against it (edge cases, error-path coverage — every module already has a passing suite, this closes remaining gaps, it's not a new-feature task).
-2. Task 20 — Seed data script.
-3. Task 21 — Local run instructions (M16 portion).
-4. Task 22 — Phase 1 quality gate verification.
-5. Task 23 — `PHASE_HANDOFF.md` write-up.
-6. Do not start Phase 2 under any circumstances until Phase 1's quality gate is met and the user has explicitly approved the Phase 1 report.
+1. Task 20 — Seed/demo data script (M16 portion): a Kotlin entry point (`SeedData.kt`) + Gradle
+   `seedDemoData` task, reusing the real service layer (not a parallel document-writing implementation),
+   idempotent, seeding categories/courses(en+ar, draft+published)/a quiz/a Learning Path/one account per
+   role. Dispatched to Codex — review the diff, independently re-verify gates, commit.
+2. Task 21 — Local run instructions (M16 portion): `backend/README.md` + `backend/.env.example` already
+   drafted directly by Claude (not delegated — pure documentation, low risk) covering the one-time MongoDB
+   replica-set conversion (D12), env setup, build/test/run commands, and the seed script's demo credentials
+   once task 20 confirms its exact final shape — reconcile the README against whatever task 20 actually
+   produced before committing.
+3. Task 22 — Phase 1 quality gate verification: Claude-led full audit (fresh build/test, RBAC/security
+   spot-checks, module-boundary compliance, no real-payment-path re-confirmation, known-limitations
+   compilation from the decisions log) — no delegation, per the Master Plan's Claude-led final-polish rule.
+4. Task 23 — `PHASE_HANDOFF.md` final write-up (mark Phase 1 `COMPLETE` in the fixed structure the file's
+   header already specifies) — Claude-authored.
+5. After task 23: produce the "MENTORA IMPLEMENTATION — PHASE 1 REPORT" the user asked for, then STOP and
+   wait for explicit approval. Do not start Phase 2 under any circumstances before that approval.
 
 ---
 
@@ -76,7 +97,7 @@ Allowed phase states: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `COMPLETE`.
 | 16 | Instructor aggregation endpoints (M11 slice) | DONE — Codex-authored, Claude-reviewed: `GET /api/v1/instructor/dashboard` reads directly across `courses`/`enrollments`/`progress` per the module's documented no-own-collection design; verified owner-scoping (another Instructor's courses never leak in), stats math, and the completion-rate definition (average `progress.completionPercent` per course). Codex's dispatch was interrupted by an OpenAI usage-limit error before it could self-verify; Claude ran the gates independently, found and fixed one test-fixture-only bug (JWT claim name), re-verified green — see D27. All gates green (31 tests, 10 suites). |
 | 17 | Admin aggregation endpoints (M12 slice) | DONE — Codex-authored, Claude-reviewed: `GET /api/v1/admin/{dashboard,courses,users,instructors}` reading directly across `courses`/`users`/`enrollments` per the module's no-own-collection design (same pattern as `instructor`, task 16). `users`/`instructors` are disjoint role-scoped lists (`role == student` / `role == instructor`, never "all accounts"); `q` search on both escapes untrusted input via `Pattern.quote` before building the Mongo regex filter. Reused the already-implemented `categories` CRUD and `POST /courses/{id}/unpublish` (already Admin-capable) rather than duplicating either. Codex's dispatch hit the same OpenAI usage-limit wall as task 16 twice before a third immediate retry succeeded cleanly — see D28/D29. Independently re-verified: fresh `gradlew.bat test --rerun-tasks` (35 tests, 11 suites, 0 failures) and `gradlew.bat build`, plus a full diff read. |
 | 18 | AI Tutor scaffold + `AiProvider` interface + stub impl (M13 boundary only) | DONE — Codex-authored, Claude-reviewed: `GET /ai-tutor/conversation` + `POST /ai-tutor/conversation/messages`, real persistence/enrollment-gate/rate-limiting, bound to a stub `AiProvider` (placeholder text, genuinely chunked streaming, no real LLM call — Phase 6 swaps only the Koin binding). `courseId`+`lessonContextId` paired in the request (no lesson→course reverse lookup exists — same fix as media's D21). Added both a per-minute and a per-day rate cap, both `AppConfig`-driven (previously only a hardcoded per-minute cap existed). See D30. Independently re-verified (41 tests, 12 suites, 0 failures) rather than trusting the self-report; that re-verification also surfaced and fixed an unrelated pre-existing flaky test in `MediaIntegrationTest` (task 15) — see D31, landed as its own separate commit. |
-| 19 | Backend test suite (M15 portion) | NOT_STARTED |
+| 19 | Backend test suite (M15 portion) | DONE — Codex-authored, Claude-reviewed: added the previously-missing unit-test layer (MockK, quiz scoring/publish-validation/completion-percentage) and closed 4 never-exercised `courses` routes (`unpublish` — the highest-priority gap, plus section rename/delete and lesson delete). Zero production bugs found. See D32. 64 tests, 15 suites, independently re-verified. |
 | 20 | Seed data script | NOT_STARTED |
 | 21 | Local run instructions (M16 portion) | NOT_STARTED |
 | 22 | Phase 1 quality gate verification | NOT_STARTED |
@@ -84,4 +105,4 @@ Allowed phase states: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `COMPLETE`.
 
 ## Immediate Next Action
 
-Task 19 — Backend test suite completeness review (M15 portion). Audit each existing module's integration suite against `architecture/TESTING_STRATEGY.md`'s target coverage and fill genuine gaps.
+Task 20 — Seed/demo data script (M16 portion), then 21/22/23 in sequence (see "Exact next steps on resume" above) — the user has instructed completing all remaining Phase 1 tasks in one session without stopping for approval between them, then a final Phase 1 report and a stop for explicit approval before Phase 2.
