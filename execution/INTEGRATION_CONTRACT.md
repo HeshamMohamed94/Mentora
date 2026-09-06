@@ -117,6 +117,8 @@ See `architecture/API_CONTRACT.md § 7` for the full conceptual list (auth, user
 
 `POST /auth/logout` — revokes the presented refresh token (+ family), clears both cookies, returns `{ data: {} }`.
 
+**As-built note (Phase 2, D36):** the `user` object embedded in `login`/`register`'s response body is `{ id, email, name, role, preferredLocale? }` — **not** the same shape as `GET /users/me`'s response (`{ id, email, name, role, avatarMediaId?, preferredLocale?, createdAt }`). No `avatarMediaId`, no `createdAt`. Both DTOs happen to share the name `AuthUser` in the Kotlin source despite living in different modules (`auth` vs. `users`) — don't assume one shape covers both call sites. Both omit null-valued optional fields entirely rather than sending `null` (`explicitNulls = false`, D20).
+
 ## 9. Cross-Cutting Rules Every Client Must Respect
 
 1. The backend is authoritative — no client "declares" progress/enrollment/role state; always re-fetch or trust only server responses.

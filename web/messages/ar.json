@@ -1,0 +1,44 @@
+{
+  "common": {
+    "appName": "Mentora",
+    "tagline": "تعلّم. اِبنِ. تطوّر.",
+    "skipToContent": "تخطَّ إلى المحتوى",
+    "loading": "جارٍ التحميل…",
+    "retry": "أعد المحاولة",
+    "cancel": "إلغاء",
+    "save": "حفظ"
+  },
+  "nav": {
+    "explore": "استكشف",
+    "learningPaths": "مسارات التعلّم",
+    "login": "تسجيل الدخول",
+    "getStarted": "ابدأ الآن",
+    "dashboard": "لوحة التحكم",
+    "myLearning": "تعلّمي",
+    "aiTutor": "المعلّم الذكي",
+    "certificates": "الشهادات",
+    "profile": "الملف الشخصي",
+    "settings": "الإعدادات",
+    "logout": "تسجيل الخروج"
+  },
+  "landing": {
+    "heroTitle": "تعلّم. اِبنِ. تطوّر.",
+    "heroSubtitle": "دورات عملية تأخذك من الفضول إلى الإتقان.",
+    "exploreCourses": "استكشف الدورات",
+    "getStarted": "ابدأ الآن"
+  },
+  "auth": {
+    "loginTitle": "تسجيل الدخول",
+    "registerTitle": "أنشئ حسابك",
+    "emailLabel": "البريد الإلكتروني",
+    "passwordLabel": "كلمة المرور",
+    "nameLabel": "الاسم",
+    "loginAction": "تسجيل الدخول",
+    "registerAction": "إنشاء حساب",
+    "noAccount": "ليس لديك حساب؟",
+    "haveAccount": "لديك حساب بالفعل؟",
+    "invalidCredentials": "البريد الإلكتروني أو كلمة المرور غير صحيحة.",
+    "emailAlreadyRegistered": "يوجد حساب مسجَّل بهذا البريد الإلكتروني بالفعل.",
+    "genericError": "حدث خطأ ما. يرجى المحاولة مرة أخرى."
+  }
+}

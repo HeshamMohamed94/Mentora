@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+/* GENERATED token layers — see tools/token-pipeline/generate.js. Do not hand-edit either file. */
+@import "../../styles/tokens.css";
+@import "../../styles/tailwind-theme.css";
+@import "./components.css";
+
+html,
+body {
+  background-color: var(--color-background-primary);
+  color: var(--color-text-primary);
+}
+
+body {
+  font-family: var(--font-family-latin);
+  min-height: 100dvh;
+}
+
+html[lang="ar"] body {
+  font-family: var(--font-family-arabic);
+}
+
+/* Skip-to-content link (design-system/ACCESSIBILITY.md § 3) */
+.mtx-skip-link {
+  position: absolute;
+  inset-inline-start: var(--space-4);
+  top: -100px;
+  z-index: 100;
+  background-color: var(--color-surface-elevated);
+  color: var(--color-text-primary);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-medium);
+  box-shadow: var(--elevation-3);
+  transition: top var(--motion-duration-fast) var(--motion-easing-standard);
+}
+
+.mtx-skip-link:focus {
+  top: var(--space-4);
+}
+
+/* Visible focus ring (design-system/ACCESSIBILITY.md § 2) — logical offset, no left/right */
+:focus-visible {
+  outline: var(--border-width-focus) solid var(--color-border-focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,663 @@
+/* GENERATED — DO NOT EDIT.
+ * Source: design-system/design-tokens.json, design-system/themes/theme-{light,dark}.json
+ * Regenerate with: npm run generate (from tools/token-pipeline/), or node tools/token-pipeline/generate.js
+ */
+
+:root {
+  --space-0: 0px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --radius-none: 0px;
+  --radius-small: 8px;
+  --radius-medium: 12px;
+  --radius-large: 16px;
+  --radius-xlarge: 24px;
+  --radius-full: 999px;
+  --elevation-0: none;
+  --elevation-1: 0 1px 2px rgba(17,18,23,0.06);
+  --elevation-2: 0 2px 8px rgba(17,18,23,0.08);
+  --elevation-3: 0 4px 16px rgba(17,18,23,0.10);
+  --elevation-4: 0 8px 24px rgba(17,18,23,0.12);
+  --border-width-default: 1px;
+  --border-width-focus: 2px;
+  --motion-duration-fast: 150ms;
+  --motion-duration-normal: 200ms;
+  --motion-duration-slow: 300ms;
+  --motion-easing-standard: cubic-bezier(0.4, 0.0, 0.2, 1);
+  --motion-easing-decelerate: cubic-bezier(0.0, 0.0, 0.2, 1);
+  --motion-easing-accelerate: cubic-bezier(0.4, 0.0, 1, 1);
+  --icon-small: 16px;
+  --icon-medium: 20px;
+  --icon-default: 24px;
+  --icon-large: 32px;
+  --font-family-latin: Inter, -apple-system, 'Segoe UI', sans-serif;
+  --font-family-arabic: 'IBM Plex Sans Arabic', 'Noto Sans Arabic', sans-serif;
+  --typography-display-large-font-size: 3rem;
+  --typography-display-large-line-height: 3.5rem;
+  --typography-display-large-font-weight: 700;
+  --typography-display-large-letter-spacing: -0.005208333333333333em;
+  --typography-display-medium-font-size: 2.5rem;
+  --typography-display-medium-line-height: 3rem;
+  --typography-display-medium-font-weight: 700;
+  --typography-display-medium-letter-spacing: -0.00625em;
+  --typography-heading-h1-font-size: 2rem;
+  --typography-heading-h1-line-height: 2.5rem;
+  --typography-heading-h1-font-weight: 700;
+  --typography-heading-h1-letter-spacing: 0em;
+  --typography-heading-h2-font-size: 1.75rem;
+  --typography-heading-h2-line-height: 2.25rem;
+  --typography-heading-h2-font-weight: 700;
+  --typography-heading-h2-letter-spacing: 0em;
+  --typography-heading-h3-font-size: 1.5rem;
+  --typography-heading-h3-line-height: 2rem;
+  --typography-heading-h3-font-weight: 600;
+  --typography-heading-h3-letter-spacing: 0em;
+  --typography-heading-h4-font-size: 1.25rem;
+  --typography-heading-h4-line-height: 1.75rem;
+  --typography-heading-h4-font-weight: 600;
+  --typography-heading-h4-letter-spacing: 0.0075em;
+  --typography-body-large-font-size: 1.125rem;
+  --typography-body-large-line-height: 1.75rem;
+  --typography-body-large-font-weight: 400;
+  --typography-body-large-letter-spacing: 0.008333333333333333em;
+  --typography-body-medium-font-size: 1rem;
+  --typography-body-medium-line-height: 1.5rem;
+  --typography-body-medium-font-weight: 400;
+  --typography-body-medium-letter-spacing: 0.015625em;
+  --typography-body-small-font-size: 0.875rem;
+  --typography-body-small-line-height: 1.25rem;
+  --typography-body-small-font-weight: 400;
+  --typography-body-small-letter-spacing: 0.017857142857142856em;
+  --typography-label-large-font-size: 0.875rem;
+  --typography-label-large-line-height: 1.25rem;
+  --typography-label-large-font-weight: 600;
+  --typography-label-large-letter-spacing: 0.0071428571428571435em;
+  --typography-label-medium-font-size: 0.75rem;
+  --typography-label-medium-line-height: 1rem;
+  --typography-label-medium-font-weight: 600;
+  --typography-label-medium-letter-spacing: 0.041666666666666664em;
+  --typography-caption-font-size: 0.75rem;
+  --typography-caption-line-height: 1rem;
+  --typography-caption-font-weight: 400;
+  --typography-caption-letter-spacing: 0.03333333333333333em;
+}
+
+/* Light theme (default) */
+:root,
+:root[data-theme="light"] {
+  --color-background-primary: #F8F9FC;
+  --color-background-secondary: #F1F2F7;
+  --color-surface-default: #FFFFFF;
+  --color-surface-elevated: #FFFFFF;
+  --color-surface-variant: #F0F1F6;
+  --color-surface-inverse: #1A1B20;
+  --color-text-primary: #1A1B20;
+  --color-text-secondary: #5F6069;
+  --color-text-disabled: #9A9BA3;
+  --color-text-inverse: #FFFFFF;
+  --color-text-link: #6558D3;
+  --color-border-default: #E1E2E8;
+  --color-border-strong: #8B8C96;
+  --color-border-focus: #6558D3;
+  --color-border-error: #BA1A1A;
+  --color-brand-primary: #6558D3;
+  --color-brand-primary-hover: #5548C2;
+  --color-brand-primary-pressed: #4A3EB0;
+  --color-brand-primary-container: #E8E5FF;
+  --color-brand-on-primary: #FFFFFF;
+  --color-brand-on-primary-container: #2B2170;
+  --color-brand-on-surface-inverse: #C8C2FF;
+  --color-secondary-default: #4A62F0;
+  --color-secondary-hover: #4058E0;
+  --color-secondary-container: #E2E7FF;
+  --color-secondary-on-secondary: #FFFFFF;
+  --color-secondary-on-secondary-container: #1C2470;
+  --color-accent-default: #7C4DFF;
+  --color-success-default: #2E7D32;
+  --color-success-container: #E3F5E5;
+  --color-success-on-success: #FFFFFF;
+  --color-success-on-success-container: #0D3312;
+  --color-warning-default: #ED8B00;
+  --color-warning-container: #FFEDD6;
+  --color-warning-on-warning: #3A2200;
+  --color-warning-on-warning-container: #4A2C00;
+  --color-error-default: #BA1A1A;
+  --color-error-container: #FFDAD6;
+  --color-error-on-error: #FFFFFF;
+  --color-error-on-error-container: #410002;
+  --color-info-default: #1976D2;
+  --color-info-container: #DCEBFC;
+  --color-info-on-info: #FFFFFF;
+  --color-info-on-info-container: #0B2E4E;
+  --color-overlay-scrim: rgba(17,18,23,0.48);
+  --color-overlay-chip-scrim: rgba(17,18,23,0.72);
+  --state-hover-opacity: 0.08;
+  --state-pressed-opacity: 0.12;
+  --state-focus-opacity: 0.12;
+  --state-disabled-content-opacity: 0.38;
+  --state-disabled-container-opacity: 0.12;
+}
+
+/* Dark theme via explicit override */
+:root[data-theme="dark"] {
+  --color-background-primary: #111217;
+  --color-background-secondary: #15161C;
+  --color-surface-default: #191A20;
+  --color-surface-elevated: #24252E;
+  --color-surface-variant: #22232B;
+  --color-surface-inverse: #F2F0F7;
+  --color-text-primary: #F2F0F7;
+  --color-text-secondary: #C7C5CF;
+  --color-text-disabled: #777780;
+  --color-text-inverse: #1A1B20;
+  --color-text-link: #C8C2FF;
+  --color-border-default: #383941;
+  --color-border-strong: #71727D;
+  --color-border-focus: #C8C2FF;
+  --color-border-error: #FFB4AB;
+  --color-brand-primary: #C8C2FF;
+  --color-brand-primary-hover: #B4AEEF;
+  --color-brand-primary-pressed: #A29BE0;
+  --color-brand-primary-container: #4E449E;
+  --color-brand-on-primary: #2B2170;
+  --color-brand-on-primary-container: #E8E5FF;
+  --color-brand-on-surface-inverse: #6558D3;
+  --color-secondary-default: #BBC3FF;
+  --color-secondary-hover: #A7B0F5;
+  --color-secondary-container: #3B4278;
+  --color-secondary-on-secondary: #1C2470;
+  --color-secondary-on-secondary-container: #E2E7FF;
+  --color-accent-default: #B69CFF;
+  --color-success-default: #81C784;
+  --color-success-container: #1E4620;
+  --color-success-on-success: #0D3312;
+  --color-success-on-success-container: #E3F5E5;
+  --color-warning-default: #FFB74D;
+  --color-warning-container: #5C3D00;
+  --color-warning-on-warning: #4A2C00;
+  --color-warning-on-warning-container: #FFEDD6;
+  --color-error-default: #FFB4AB;
+  --color-error-container: #93000A;
+  --color-error-on-error: #410002;
+  --color-error-on-error-container: #FFDAD6;
+  --color-info-default: #90CAF9;
+  --color-info-container: #0D47A1;
+  --color-info-on-info: #0B2E4E;
+  --color-info-on-info-container: #DCEBFC;
+  --color-overlay-scrim: rgba(0,0,0,0.64);
+  --color-overlay-chip-scrim: rgba(17,18,23,0.72);
+  --state-hover-opacity: 0.08;
+  --state-pressed-opacity: 0.16;
+  --state-focus-opacity: 0.16;
+  --state-disabled-content-opacity: 0.38;
+  --state-disabled-container-opacity: 0.16;
+}
+
+/* Dark theme via system preference, unless explicitly overridden to light */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-background-primary: #111217;
+    --color-background-secondary: #15161C;
+    --color-surface-default: #191A20;
+    --color-surface-elevated: #24252E;
+    --color-surface-variant: #22232B;
+    --color-surface-inverse: #F2F0F7;
+    --color-text-primary: #F2F0F7;
+    --color-text-secondary: #C7C5CF;
+    --color-text-disabled: #777780;
+    --color-text-inverse: #1A1B20;
+    --color-text-link: #C8C2FF;
+    --color-border-default: #383941;
+    --color-border-strong: #71727D;
+    --color-border-focus: #C8C2FF;
+    --color-border-error: #FFB4AB;
+    --color-brand-primary: #C8C2FF;
+    --color-brand-primary-hover: #B4AEEF;
+    --color-brand-primary-pressed: #A29BE0;
+    --color-brand-primary-container: #4E449E;
+    --color-brand-on-primary: #2B2170;
+    --color-brand-on-primary-container: #E8E5FF;
+    --color-brand-on-surface-inverse: #6558D3;
+    --color-secondary-default: #BBC3FF;
+    --color-secondary-hover: #A7B0F5;
+    --color-secondary-container: #3B4278;
+    --color-secondary-on-secondary: #1C2470;
+    --color-secondary-on-secondary-container: #E2E7FF;
+    --color-accent-default: #B69CFF;
+    --color-success-default: #81C784;
+    --color-success-container: #1E4620;
+    --color-success-on-success: #0D3312;
+    --color-success-on-success-container: #E3F5E5;
+    --color-warning-default: #FFB74D;
+    --color-warning-container: #5C3D00;
+    --color-warning-on-warning: #4A2C00;
+    --color-warning-on-warning-container: #FFEDD6;
+    --color-error-default: #FFB4AB;
+    --color-error-container: #93000A;
+    --color-error-on-error: #410002;
+    --color-error-on-error-container: #FFDAD6;
+    --color-info-default: #90CAF9;
+    --color-info-container: #0D47A1;
+    --color-info-on-info: #0B2E4E;
+    --color-info-on-info-container: #DCEBFC;
+    --color-overlay-scrim: rgba(0,0,0,0.64);
+    --color-overlay-chip-scrim: rgba(17,18,23,0.72);
+    --state-hover-opacity: 0.08;
+    --state-pressed-opacity: 0.16;
+    --state-focus-opacity: 0.16;
+    --state-disabled-content-opacity: 0.38;
+    --state-disabled-container-opacity: 0.16;
+  }
+}
+
+/* Component-layer aliases (design-tokens.json § component.*) — theme-resolved automatically
+ * since every value above is itself a var() into the theme-scoped blocks. */
+:root {
+  --component-button-primary-height: 48px;
+  --component-button-primary-radius: var(--radius-medium);
+  --component-button-primary-padding-x: var(--space-6);
+  --component-button-primary-background-default: var(--color-brand-primary);
+  --component-button-primary-background-hover: var(--color-brand-primary-hover);
+  --component-button-primary-background-pressed: var(--color-brand-primary-pressed);
+  --component-button-primary-background-focused: var(--color-brand-primary);
+  --component-button-primary-background-disabled: color-mix(in srgb, var(--color-brand-primary) calc(var(--state-disabled-container-opacity) * 100%), var(--color-surface-default));
+  --component-button-primary-text-default: var(--color-brand-on-primary);
+  --component-button-primary-text-disabled: var(--color-text-disabled);
+  --component-button-secondary-height: 48px;
+  --component-button-secondary-radius: var(--radius-medium);
+  --component-button-secondary-padding-x: var(--space-6);
+  --component-button-secondary-border-default: var(--color-brand-primary);
+  --component-button-secondary-border-focused: var(--color-border-focus);
+  --component-button-secondary-border-disabled: var(--color-border-default);
+  --component-button-secondary-background-default: transparent;
+  --component-button-secondary-background-hover: color-mix(in srgb, var(--color-brand-primary) calc(var(--state-hover-opacity) * 100%), transparent);
+  --component-button-secondary-background-pressed: color-mix(in srgb, var(--color-brand-primary) calc(var(--state-pressed-opacity) * 100%), transparent);
+  --component-button-secondary-text-default: var(--color-brand-primary);
+  --component-button-secondary-text-disabled: var(--color-text-disabled);
+  --component-button-tonal-height: 48px;
+  --component-button-tonal-radius: var(--radius-medium);
+  --component-button-tonal-padding-x: var(--space-6);
+  --component-button-tonal-background-default: var(--color-brand-primary-container);
+  --component-button-tonal-background-hover: color-mix(in srgb, var(--color-brand-on-primary-container) calc(var(--state-hover-opacity) * 100%), var(--color-brand-primary-container));
+  --component-button-tonal-background-pressed: color-mix(in srgb, var(--color-brand-on-primary-container) calc(var(--state-pressed-opacity) * 100%), var(--color-brand-primary-container));
+  --component-button-tonal-background-disabled: var(--color-surface-variant);
+  --component-button-tonal-text-default: var(--color-brand-on-primary-container);
+  --component-button-tonal-text-disabled: var(--color-text-disabled);
+  --component-button-text-height: 40px;
+  --component-button-text-radius: var(--radius-medium);
+  --component-button-text-padding-x: var(--space-3);
+  --component-button-text-background-default: transparent;
+  --component-button-text-background-hover: color-mix(in srgb, var(--color-brand-primary) calc(var(--state-hover-opacity) * 100%), transparent);
+  --component-button-text-background-pressed: color-mix(in srgb, var(--color-brand-primary) calc(var(--state-pressed-opacity) * 100%), transparent);
+  --component-button-text-text-default: var(--color-brand-primary);
+  --component-button-text-text-disabled: var(--color-text-disabled);
+  --component-button-icon-size: 40px;
+  --component-button-icon-radius: var(--radius-full);
+  --component-button-icon-icon-default: var(--color-text-secondary);
+  --component-button-icon-icon-hover: var(--color-text-primary);
+  --component-button-icon-icon-pressed: var(--color-text-primary);
+  --component-button-icon-icon-disabled: var(--color-text-disabled);
+  --component-input-height: 52px;
+  --component-input-radius: var(--radius-medium);
+  --component-input-padding-x: var(--space-4);
+  --component-input-padding-y: var(--space-3);
+  --component-input-border-default: var(--color-border-default);
+  --component-input-border-hover: var(--color-border-strong);
+  --component-input-border-focused: var(--color-border-focus);
+  --component-input-border-error: var(--color-border-error);
+  --component-input-border-success: var(--color-success-default);
+  --component-input-border-disabled: var(--color-border-default);
+  --component-input-background-default: var(--color-surface-default);
+  --component-input-background-disabled: var(--color-surface-variant);
+  --component-input-text-default: var(--color-text-primary);
+  --component-input-text-placeholder: var(--color-text-disabled);
+  --component-input-text-disabled: var(--color-text-disabled);
+  --component-input-text-error: var(--color-error-default);
+  --component-card-radius: var(--radius-large);
+  --component-card-padding: var(--space-4);
+  --component-card-background: var(--color-surface-default);
+  --component-card-border: var(--color-border-default);
+  --component-chip-height: 28px;
+  --component-chip-radius: var(--radius-full);
+  --component-chip-padding-x: var(--space-3);
+  --component-chip-background-default: var(--color-surface-variant);
+  --component-chip-background-selected: var(--color-brand-primary-container);
+  --component-chip-background-on-image: var(--color-overlay-chip-scrim);
+  --component-chip-background-disabled: var(--color-surface-variant);
+  --component-chip-text-default: var(--color-text-secondary);
+  --component-chip-text-selected: var(--color-brand-on-primary-container);
+  --component-chip-text-on-image: var(--color-text-inverse);
+  --component-chip-text-disabled: var(--color-text-disabled);
+  --component-badge-height: 20px;
+  --component-badge-radius: var(--radius-full);
+  --component-badge-padding-x: var(--space-2);
+  --component-badge-neutral-background: var(--color-surface-variant);
+  --component-badge-neutral-text: var(--color-text-secondary);
+  --component-badge-success-background: var(--color-success-container);
+  --component-badge-success-text: var(--color-success-on-success-container);
+  --component-badge-warning-background: var(--color-warning-container);
+  --component-badge-warning-text: var(--color-warning-on-warning-container);
+  --component-badge-error-background: var(--color-error-container);
+  --component-badge-error-text: var(--color-error-on-error-container);
+  --component-badge-info-background: var(--color-info-container);
+  --component-badge-info-text: var(--color-info-on-info-container);
+  --component-badge-brand-background: var(--color-brand-primary-container);
+  --component-badge-brand-text: var(--color-brand-on-primary-container);
+  --component-progress-bar-height: 8px;
+  --component-progress-bar-radius: var(--radius-full);
+  --component-progress-bar-track: var(--color-surface-variant);
+  --component-progress-bar-fill-default: var(--color-brand-primary);
+  --component-progress-bar-fill-complete: var(--color-success-default);
+  --component-progress-bar-fill-paused: var(--color-text-disabled);
+  --component-snackbar-radius: var(--radius-medium);
+  --component-snackbar-padding-x: var(--space-4);
+  --component-snackbar-padding-y: var(--space-3);
+  --component-snackbar-background: var(--color-surface-inverse);
+  --component-snackbar-text: var(--color-text-inverse);
+  --component-snackbar-action: var(--color-brand-on-surface-inverse);
+  --component-nav-item-height: 44px;
+  --component-nav-item-padding-x: var(--space-4);
+  --component-nav-item-background-default: transparent;
+  --component-nav-item-background-hover: color-mix(in srgb, var(--color-text-primary) calc(var(--state-hover-opacity) * 100%), transparent);
+  --component-nav-item-background-active: var(--color-brand-primary-container);
+  --component-nav-item-text-default: var(--color-text-secondary);
+  --component-nav-item-text-hover: var(--color-text-primary);
+  --component-nav-item-text-active: var(--color-brand-on-primary-container);
+  --component-video-player-control-bar-background: var(--color-overlay-scrim);
+  --component-video-player-control-bar-padding-x: var(--space-3);
+  --component-video-player-control-bar-padding-y: var(--space-2);
+  --component-video-player-control-button-icon-default: var(--color-text-inverse);
+  --component-video-player-control-button-icon-disabled: color-mix(in srgb, var(--color-text-inverse) calc(var(--state-disabled-content-opacity) * 100%), transparent);
+  --component-video-player-control-button-background-default: transparent;
+  --component-video-player-control-button-background-hover: color-mix(in srgb, var(--color-text-inverse) calc(var(--state-hover-opacity) * 100%), transparent);
+  --component-video-player-control-button-background-pressed: color-mix(in srgb, var(--color-text-inverse) calc(var(--state-pressed-opacity) * 100%), transparent);
+  --component-video-player-scrubber-track-height-default: var(--space-1);
+  --component-video-player-scrubber-radius: var(--radius-full);
+  --component-video-player-scrubber-track: color-mix(in srgb, var(--color-text-inverse) calc(var(--state-hover-opacity) * 100%), transparent);
+  --component-video-player-scrubber-buffered: color-mix(in srgb, var(--color-text-inverse) calc(var(--state-pressed-opacity) * 100%), transparent);
+  --component-video-player-scrubber-fill: var(--color-brand-primary);
+  --component-video-player-scrubber-thumb-size: var(--space-3);
+  --component-video-player-scrubber-thumb-size-active: var(--space-4);
+  --component-video-player-scrubber-thumb-color: var(--color-brand-primary);
+  --component-video-player-time-label-color: var(--color-text-inverse);
+  --component-video-player-speed-control-text: var(--color-text-inverse);
+  --component-video-player-speed-control-menu-background: var(--color-surface-elevated);
+  --component-video-player-speed-control-menu-text: var(--color-text-primary);
+  --component-checkout-radius: var(--radius-large);
+  --component-checkout-padding: var(--space-5);
+  --component-checkout-background: var(--color-surface-default);
+  --component-checkout-border: var(--color-border-default);
+  --component-checkout-line-item-color: var(--color-text-primary);
+  --component-checkout-price-label-color: var(--color-text-secondary);
+  --component-checkout-price-total-color: var(--color-text-primary);
+  --component-checkout-demo-notice-background: var(--color-info-container);
+  --component-checkout-demo-notice-text: var(--color-info-on-info-container);
+  --component-checkout-demo-notice-radius: var(--radius-medium);
+  --component-checkout-demo-notice-padding-x: var(--space-3);
+  --component-checkout-demo-notice-padding-y: var(--space-2);
+  --component-success-state-icon-color: var(--color-success-default);
+  --component-success-state-title-color: var(--color-text-primary);
+  --component-success-state-description-color: var(--color-text-secondary);
+  --component-success-state-container-padding-y: var(--space-10);
+  --component-toggle-track-width: var(--space-10);
+  --component-toggle-track-height: var(--space-6);
+  --component-toggle-track-radius: var(--radius-full);
+  --component-toggle-thumb-size: var(--space-5);
+  --component-toggle-thumb-inset: var(--border-width-focus);
+  --component-toggle-thumb-travel: var(--space-4);
+  --component-toggle-track-on: var(--color-brand-primary);
+  --component-toggle-track-off: var(--color-border-strong);
+  --component-toggle-track-disabled: color-mix(in srgb, var(--color-border-default) calc(var(--state-disabled-container-opacity) * 100%), transparent);
+  --component-toggle-thumb-color: var(--color-surface-default);
+  --component-toggle-focus-ring: var(--color-border-focus);
+  --component-file-upload-radius: var(--radius-medium);
+  --component-file-upload-padding: var(--space-6);
+  --component-file-upload-idle-border: var(--color-border-default);
+  --component-file-upload-idle-icon: var(--color-text-secondary);
+  --component-file-upload-idle-text: var(--color-text-secondary);
+  --component-file-upload-drag-over-border: var(--color-border-focus);
+  --component-file-upload-drag-over-background: var(--color-brand-primary-container);
+  --component-file-upload-success-icon: var(--color-success-default);
+  --component-file-upload-error-border: var(--color-border-error);
+  --component-file-upload-error-icon: var(--color-error-default);
+  --component-file-upload-error-text: var(--color-error-default);
+  --component-reorderable-list-row-min-height: var(--space-12);
+  --component-reorderable-list-padding-x: var(--space-4);
+  --component-reorderable-list-gap: var(--space-3);
+  --component-reorderable-list-background: var(--color-surface-default);
+  --component-reorderable-list-border: var(--color-border-default);
+  --component-reorderable-list-drag-handle-color: var(--color-text-secondary);
+  --component-reorderable-list-drag-handle-hover-color: var(--color-text-primary);
+  --component-reorderable-list-dragging-background: var(--color-surface-elevated);
+  --component-reorderable-list-drop-indicator-color: var(--color-brand-primary);
+  --component-reorderable-list-drop-indicator-height: var(--border-width-focus);
+  --component-data-table-header-background: var(--color-surface-variant);
+  --component-data-table-header-color: var(--color-text-secondary);
+  --component-data-table-row-color: var(--color-text-primary);
+  --component-data-table-row-border: var(--color-border-default);
+  --component-data-table-row-hover-background: color-mix(in srgb, var(--color-text-primary) calc(var(--state-hover-opacity) * 100%), transparent);
+  --component-data-table-collapsed-card-radius: var(--radius-medium);
+  --component-data-table-collapsed-card-background: var(--color-surface-default);
+  --component-data-table-collapsed-card-border: var(--color-border-default);
+  --component-data-table-collapsed-card-padding: var(--space-4);
+  --component-select-height: 52px;
+  --component-select-radius: var(--radius-medium);
+  --component-select-padding-x: var(--space-4);
+  --component-select-border-default: var(--color-border-default);
+  --component-select-border-hover: var(--color-border-strong);
+  --component-select-border-focused: var(--color-border-focus);
+  --component-select-border-open: var(--color-border-focus);
+  --component-select-border-error: var(--color-border-error);
+  --component-select-border-disabled: var(--color-border-default);
+  --component-select-background-default: var(--color-surface-default);
+  --component-select-background-disabled: var(--color-surface-variant);
+  --component-select-text-default: var(--color-text-primary);
+  --component-select-text-placeholder: var(--color-text-disabled);
+  --component-select-text-disabled: var(--color-text-disabled);
+  --component-select-text-error: var(--color-error-default);
+  --component-select-menu-background: var(--color-surface-elevated);
+  --component-select-menu-radius: var(--radius-medium);
+  --component-select-option-padding-x: var(--space-4);
+  --component-select-option-text-default: var(--color-text-primary);
+  --component-select-option-text-disabled: var(--color-text-disabled);
+  --component-select-option-background-default: transparent;
+  --component-select-option-background-hover: color-mix(in srgb, var(--color-text-primary) calc(var(--state-hover-opacity) * 100%), transparent);
+  --component-select-option-background-selected: var(--color-brand-primary-container);
+  --component-select-option-selected-text: var(--color-brand-on-primary-container);
+}
+
+/* Responsive typography — only display.* and heading.h1/h2 scale by breakpoint (DESIGN_SYSTEM.md § 2.2) */
+:root {
+  --typography-display-large-font-size: 2.125rem;
+  --typography-display-large-line-height: 2.5rem;
+  --typography-display-medium-font-size: 1.875rem;
+  --typography-display-medium-line-height: 2.25rem;
+  --typography-heading-h1-font-size: 1.625rem;
+  --typography-heading-h1-line-height: 2.0625rem;
+  --typography-heading-h2-font-size: 1.4375rem;
+  --typography-heading-h2-line-height: 1.8125rem;
+}
+
+@media (min-width: 600px) {
+  :root {
+    --typography-display-large-font-size: 2.5rem;
+    --typography-display-large-line-height: 3rem;
+    --typography-display-medium-font-size: 2.125rem;
+    --typography-display-medium-line-height: 2.5rem;
+    --typography-heading-h1-font-size: 1.75rem;
+    --typography-heading-h1-line-height: 2.25rem;
+    --typography-heading-h2-font-size: 1.5625rem;
+    --typography-heading-h2-line-height: 2rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --typography-display-large-font-size: 3rem;
+    --typography-display-large-line-height: 3.5rem;
+    --typography-display-medium-font-size: 2.5rem;
+    --typography-display-medium-line-height: 3rem;
+    --typography-heading-h1-font-size: 2rem;
+    --typography-heading-h1-line-height: 2.5rem;
+    --typography-heading-h2-font-size: 1.75rem;
+    --typography-heading-h2-line-height: 2.25rem;
+  }
+}
+
+@media (min-width: 1440px) {
+  :root {
+    --typography-display-large-font-size: 3rem;
+    --typography-display-large-line-height: 3.5rem;
+    --typography-display-medium-font-size: 2.5rem;
+    --typography-display-medium-line-height: 3rem;
+    --typography-heading-h1-font-size: 2rem;
+    --typography-heading-h1-line-height: 2.5rem;
+    --typography-heading-h2-font-size: 1.75rem;
+    --typography-heading-h2-line-height: 2.25rem;
+  }
+}
+
+/* Typography utility classes — one per typography.scale entry, with Arabic-script overrides
+ * per LOCALIZATION.md § 4 (own font stack, zero letter-spacing, +10% line-height for body.*). */
+.mtx-text-display-large {
+  font-family: var(--font-family-latin);
+  font-size: var(--typography-display-large-font-size);
+  line-height: var(--typography-display-large-line-height);
+  font-weight: var(--typography-display-large-font-weight);
+  letter-spacing: var(--typography-display-large-letter-spacing);
+}
+
+.mtx-text-display-medium {
+  font-family: var(--font-family-latin);
+  font-size: var(--typography-display-medium-font-size);
+  line-height: var(--typography-display-medium-line-height);
+  font-weight: var(--typography-display-medium-font-weight);
+  letter-spacing: var(--typography-display-medium-letter-spacing);
+}
+
+.mtx-text-heading-h1 {
+  font-family: var(--font-family-latin);
+  font-size: var(--typography-heading-h1-font-size);
+  line-height: var(--typography-heading-h1-line-height);
+  font-weight: var(--typography-heading-h1-font-weight);
+  letter-spacing: var(--typography-heading-h1-letter-spacing);
+}
+
+.mtx-text-heading-h2 {
+  font-family: var(--font-family-latin);
+  font-size: var(--typography-heading-h2-font-size);
+  line-height: var(--typography-heading-h2-line-height);
+  font-weight: var(--typography-heading-h2-font-weight);
+  letter-spacing: var(--typography-heading-h2-letter-spacing);
+}
+
+.mtx-text-heading-h3 {
+  font-family: var(--font-family-latin);
+  font-size: var(--typography-heading-h3-font-size);
+  line-height: var(--typography-heading-h3-line-height);
+  font-weight: var(--typography-heading-h3-font-weight);
+  letter-spacing: var(--typography-heading-h3-letter-spacing);
+}
+
+.mtx-text-heading-h4 {
+  font-family: var(--font-family-latin);
+  font-size: var(--typography-heading-h4-font-size);
+  line-height: var(--typography-heading-h4-line-height);
+  font-weight: var(--typography-heading-h4-font-weight);
+  letter-spacing: var(--typography-heading-h4-letter-spacing);
+}
+
+.mtx-text-body-large {
+  font-family: var(--font-family-latin);
+  font-size: var(--typography-body-large-font-size);
+  line-height: var(--typography-body-large-line-height);
+  font-weight: var(--typography-body-large-font-weight);
+  letter-spacing: var(--typography-body-large-letter-spacing);
+}
+
+.mtx-text-body-medium {
+  font-family: var(--font-family-latin);
+  font-size: var(--typography-body-medium-font-size);
+  line-height: var(--typography-body-medium-line-height);
+  font-weight: var(--typography-body-medium-font-weight);
+  letter-spacing: var(--typography-body-medium-letter-spacing);
+}
+
+.mtx-text-body-small {
+  font-family: var(--font-family-latin);
+  font-size: var(--typography-body-small-font-size);
+  line-height: var(--typography-body-small-line-height);
+  font-weight: var(--typography-body-small-font-weight);
+  letter-spacing: var(--typography-body-small-letter-spacing);
+}
+
+.mtx-text-label-large {
+  font-family: var(--font-family-latin);
+  font-size: var(--typography-label-large-font-size);
+  line-height: var(--typography-label-large-line-height);
+  font-weight: var(--typography-label-large-font-weight);
+  letter-spacing: var(--typography-label-large-letter-spacing);
+}
+
+.mtx-text-label-medium {
+  font-family: var(--font-family-latin);
+  font-size: var(--typography-label-medium-font-size);
+  line-height: var(--typography-label-medium-line-height);
+  font-weight: var(--typography-label-medium-font-weight);
+  letter-spacing: var(--typography-label-medium-letter-spacing);
+}
+
+.mtx-text-caption {
+  font-family: var(--font-family-latin);
+  font-size: var(--typography-caption-font-size);
+  line-height: var(--typography-caption-line-height);
+  font-weight: var(--typography-caption-font-weight);
+  letter-spacing: var(--typography-caption-letter-spacing);
+}
+
+html[lang="ar"] [class^="mtx-text-"],
+html[lang="ar"] [class*=" mtx-text-"] {
+  font-family: var(--font-family-arabic);
+  letter-spacing: 0;
+}
+
+html[lang="ar"] .mtx-text-body-large {
+  line-height: calc(var(--typography-body-large-line-height) * 1.1);
+}
+
+html[lang="ar"] .mtx-text-body-medium {
+  line-height: calc(var(--typography-body-medium-line-height) * 1.1);
+}
+
+html[lang="ar"] .mtx-text-body-small {
+  line-height: calc(var(--typography-body-small-line-height) * 1.1);
+}
+
+/* Elevation utility classes */
+.mtx-elevation-0 {
+  box-shadow: var(--elevation-0);
+}
+
+.mtx-elevation-1 {
+  box-shadow: var(--elevation-1);
+}
+
+.mtx-elevation-2 {
+  box-shadow: var(--elevation-2);
+}
+
+.mtx-elevation-3 {
+  box-shadow: var(--elevation-3);
+}
+
+.mtx-elevation-4 {
+  box-shadow: var(--elevation-4);
+}

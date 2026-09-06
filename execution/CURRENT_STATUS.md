@@ -1,6 +1,6 @@
 # Mentora — Current Implementation Status
 
-**Last updated:** 2026-09-06 (tasks 22 and 23 closed out — **all 23 Phase 1 tasks now complete**; `PHASE_HANDOFF.md`'s Phase 1 entry is the authoritative final write-up)
+**Last updated:** 2026-09-06 (Phase 1 approved by the user; Phase 2 — Website — kicked off, task 1 (foundation scaffold) in progress)
 
 ---
 
@@ -8,9 +8,19 @@
 
 **Read this section first when resuming.**
 
-- **Phase:** PHASE 1 — Backend Foundation & API — `COMPLETE`, pending the user's explicit approval of the Phase 1 report (delivered this session) before Phase 2 begins.
-- **Current task:** None — all 23 Phase 1 tasks are done. If resuming: check whether the user has approved the Phase 1 report yet. If not approved, do not start any Phase 2 work under any circumstances — wait. If approved, Phase 2 (Website) is next per `execution/MASTER_IMPLEMENTATION_PLAN.md`.
-- **Next immediate action:** Wait for explicit user approval of the Phase 1 report. Read `execution/PHASE_HANDOFF.md`'s Phase 1 section for the full final account before doing anything else in this repo.
+- **Phase:** PHASE 2 — Website — `IN_PROGRESS`. Phase 1 is `COMPLETE` and was explicitly approved by the user on 2026-09-06.
+- **Current task:** Tasks 1 (foundation) and 2 (auth screens) are DONE and verified end-to-end (real browser + real backend). Task 3 (public discovery) is next — only the Landing placeholder exists so far; Explore/Course Details/Learning Paths still need real content backed by the `courses`/`categories`/`learningpaths` APIs.
+- **What exists in `web/` right now (tasks 1–2):**
+  - Next.js 15 App Router + TypeScript, `[locale]` routing (`en`/`ar`, `localePrefix: "always"`) via `next-intl`, `src/middleware.ts` combining locale detection with the `/app`, `/instructor`, `/admin` auth gate (redirects to `/login?redirect=<intent>` when the `mentora_refresh_token` cookie is absent).
+  - `tools/token-pipeline/generate.js` (plain Node, see D35) generates `web/styles/tokens.css` (semantic + component-layer CSS custom properties, light/dark via `[data-theme]` + `prefers-color-scheme`), `web/styles/tailwind-theme.css` (Tailwind v4 `@theme inline` color mapping + custom `tablet`/`desktop`/`large-desktop` breakpoints), and `web/src/lib/design-tokens.generated.ts`. Re-run `npm run generate-tokens` (from `web/`) after any `design-tokens.json` change.
+  - `web/src/app/components.css` — hand-authored Button (primary/secondary/tonal/text)/TextField CSS classes consuming only generated tokens; `web/src/components/ui/` has the React wrappers.
+  - `web/src/lib/api/client.ts` — typed fetch client: CSRF header on writes, response-envelope unwrapping, 401→refresh→retry, `mentora:force-logout` event on unrecoverable 401. `web/src/lib/auth/` — `login`/`register`/`logout`/`getCurrentUser` + `useCurrentUser` TanStack Query hook. See D36: login/register's embedded `user` is a narrower shape than `/users/me`'s.
+  - Real pages: Landing (`(public)/page.tsx`, placeholder hero only), Login, Register (both fully functional — react-hook-form + zod, wired to the live backend), and a minimal `/app` Dashboard shell (proves the session loop; not the real Dashboard screen from `SCREEN_INVENTORY.md § 8`, that's task 5).
+  - Verified live: register → cookies set → `/app` accessible → `/users/me` succeeds → logout → cookies cleared → `/app` redirects to `/login?redirect=%2Fen%2Fapp`. Verified in an actual Chrome tab too (screenshots), both `en` (LTR) and `ar` (RTL, mirrored layout, IBM Plex Sans Arabic font) — see chat history for screenshots.
+  - Gates green: `npm run typecheck`, `npm run lint`, `npm run lint:logical-properties`, `npm run build` (both locales prerender).
+  - Backend is running locally for this work (`backend/.env` created with a generated `JWT_SIGNING_SECRET`; MongoDB replica set already existed from Phase 1). A test account exists in the dev DB: `phase2tester@example.com` / `MentoraDemo1`.
+- **Not yet built (do not assume these exist):** Sidebar (authenticated shell chrome), Explore/Course Details/Learning Paths real content, Course Player, Quiz, Certificates, AI Tutor, Instructor Web, Admin Web, Settings/language-selector UI (routing supports `ar` already; no in-app switcher control yet), Playwright E2E, `web/README.md`. Icon system (Material Symbols) is not wired up yet — `TextField`'s error state is currently border+text only, missing the third "icon" signal `ACCESSIBILITY.md § 7` requires (tracked in a comment in `text-field.tsx`, not yet a DECISIONS_LOG entry since it's an open gap, not a resolved one).
+- **Next immediate action:** Start Phase 2 task 3 (Explore/Course Details/Learning Paths) — needs `lib/api/courses.ts`/`categories.ts`/`learningpaths.ts` TanStack Query hook modules following the `execution/INTEGRATION_CONTRACT.md` shapes, plus the CourseCard/SearchField/CategoryChip components from `design-system/COMPONENTS.md`. `execution/PHASE_HANDOFF.md`'s Phase 1 entry remains the authoritative Phase 1 account — do not re-read backend code, do not modify `backend/`.
 
 ### What is COMPLETE (committed, reviewed, gates green) — tasks 1–23, all of Phase 1
 
@@ -87,8 +97,8 @@ Allowed phase states: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `COMPLETE`.
 
 | Phase | Status | Notes |
 |---|---|---|
-| PHASE 1 — Backend Foundation & API | **COMPLETE** | Started 2026-09-05, completed 2026-09-06. Pending user approval before Phase 2. See below for task breakdown and `PHASE_HANDOFF.md` for the full write-up. |
-| PHASE 2 — Website | NOT_STARTED | Blocked on the user's explicit approval of the Phase 1 report. |
+| PHASE 1 — Backend Foundation & API | **COMPLETE** | Started 2026-09-05, completed 2026-09-06, approved by the user 2026-09-06. See `PHASE_HANDOFF.md` for the full write-up. |
+| PHASE 2 — Website | **IN_PROGRESS** | Started 2026-09-06. See task breakdown below. |
 | PHASE 3 — KMP Shared Mobile Core | NOT_STARTED | Blocked on Phase 1. |
 | PHASE 4 — Android | NOT_STARTED | Blocked on Phase 3. |
 | PHASE 5 — iOS | NOT_STARTED | Blocked on Phase 3. |
@@ -126,6 +136,30 @@ Allowed phase states: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `COMPLETE`.
 | 22 | Phase 1 quality gate verification | DONE — Claude-led, no delegation: from-scratch clean build (65 tests, 15 suites, 0 failures), full RBAC/CSRF/secrets/payment-vocabulary/module-wiring audit (found and fixed the D33 CSRF gap), locked-docs-untouched confirmation, known-limitations compilation. |
 | 23 | `PHASE_HANDOFF.md` write-up | DONE — Claude-authored final Phase 1 entry in the file's required fixed structure; status marked COMPLETE. |
 
+## PHASE 2 — Task Breakdown
+
+Web app lives in `web/` at repo root (sibling to `backend/`), per `REPOSITORY_STRUCTURE.md`. Consumes `execution/INTEGRATION_CONTRACT.md` as the authoritative API shape — never re-derives it from `architecture/API_CONTRACT.md` alone where the two differ.
+
+| # | Task | Status |
+|---|---|---|
+| 1 | Foundation: Next.js scaffold, Tailwind v4 + token pipeline, i18n routing, API proxy, auth/CSRF/TanStack Query plumbing, base Navbar + core component kit (Button, TextField) | DONE |
+| 2 | Auth screens (Login, Register) + middleware auth gate | DONE |
+| 3 | Public discovery: Landing, Explore, Course Details, Learning Paths (+ Learning Path Details) | IN_PROGRESS — Landing placeholder only so far |
+| 4 | Demo Checkout + Purchase Success | NOT_STARTED |
+| 5 | Student Dashboard + My Learning | NOT_STARTED |
+| 6 | Course Player + Quiz + Quiz Results | NOT_STARTED |
+| 7 | Certificates List + Certificate Detail | NOT_STARTED |
+| 8 | Learning Paths (student-aware) follow/unfollow wiring | NOT_STARTED |
+| 9 | AI Tutor chat UI (streaming) | NOT_STARTED |
+| 10 | Profile + Settings (incl. language selector) | NOT_STARTED |
+| 11 | Instructor Web: Dashboard, Course Editor (Overview/Curriculum), Lesson Editor, Quiz Editor | NOT_STARTED |
+| 12 | Admin Web: Dashboard, Manage Courses/Users/Instructors/Categories | NOT_STARTED |
+| 13 | Localization completion pass (M14 web slice) — full en/ar coverage + RTL QA sweep | NOT_STARTED |
+| 14 | Playwright E2E suite (M15 web portion) | NOT_STARTED |
+| 15 | `web/README.md` local run instructions (M16 web portion) | NOT_STARTED |
+| 16 | Phase 2 quality gate verification | NOT_STARTED |
+| 17 | `PHASE_HANDOFF.md` Phase 2 write-up | NOT_STARTED |
+
 ## Immediate Next Action
 
-None. Phase 1 is complete. Waiting for the user's explicit approval before any Phase 2 work.
+Task 3: build Explore, Course Details, and Learning Paths against the live `courses`/`categories`/`learningpaths` endpoints (see `execution/INTEGRATION_CONTRACT.md`'s "As-Built Module Contracts" section for exact request/response shapes). Add `lib/api/courses.ts`/`categories.ts`/`learningpaths.ts` TanStack Query modules following the pattern in `lib/auth/`, and the `CourseCard`/`SearchField`/`CategoryChip`/`EmptyState`/`LoadingState`/`ErrorState` components from `design-system/COMPONENTS.md`.

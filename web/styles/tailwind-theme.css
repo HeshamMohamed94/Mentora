@@ -1,0 +1,69 @@
+/* GENERATED — DO NOT EDIT.
+ * Source: design-system/design-tokens.json, design-system/themes/theme-{light,dark}.json
+ * Regenerate with: npm run generate (from tools/token-pipeline/), or node tools/token-pipeline/generate.js
+ */
+
+@theme inline {
+  --color-background-primary: var(--color-background-primary);
+  --color-background-secondary: var(--color-background-secondary);
+  --color-surface-default: var(--color-surface-default);
+  --color-surface-elevated: var(--color-surface-elevated);
+  --color-surface-variant: var(--color-surface-variant);
+  --color-surface-inverse: var(--color-surface-inverse);
+  --color-text-primary: var(--color-text-primary);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-text-disabled: var(--color-text-disabled);
+  --color-text-inverse: var(--color-text-inverse);
+  --color-text-link: var(--color-text-link);
+  --color-border-default: var(--color-border-default);
+  --color-border-strong: var(--color-border-strong);
+  --color-border-focus: var(--color-border-focus);
+  --color-border-error: var(--color-border-error);
+  --color-brand-primary: var(--color-brand-primary);
+  --color-brand-primary-hover: var(--color-brand-primary-hover);
+  --color-brand-primary-pressed: var(--color-brand-primary-pressed);
+  --color-brand-primary-container: var(--color-brand-primary-container);
+  --color-brand-on-primary: var(--color-brand-on-primary);
+  --color-brand-on-primary-container: var(--color-brand-on-primary-container);
+  --color-brand-on-surface-inverse: var(--color-brand-on-surface-inverse);
+  --color-secondary-default: var(--color-secondary-default);
+  --color-secondary-hover: var(--color-secondary-hover);
+  --color-secondary-container: var(--color-secondary-container);
+  --color-secondary-on-secondary: var(--color-secondary-on-secondary);
+  --color-secondary-on-secondary-container: var(--color-secondary-on-secondary-container);
+  --color-accent-default: var(--color-accent-default);
+  --color-success-default: var(--color-success-default);
+  --color-success-container: var(--color-success-container);
+  --color-success-on-success: var(--color-success-on-success);
+  --color-success-on-success-container: var(--color-success-on-success-container);
+  --color-warning-default: var(--color-warning-default);
+  --color-warning-container: var(--color-warning-container);
+  --color-warning-on-warning: var(--color-warning-on-warning);
+  --color-warning-on-warning-container: var(--color-warning-on-warning-container);
+  --color-error-default: var(--color-error-default);
+  --color-error-container: var(--color-error-container);
+  --color-error-on-error: var(--color-error-on-error);
+  --color-error-on-error-container: var(--color-error-on-error-container);
+  --color-info-default: var(--color-info-default);
+  --color-info-container: var(--color-info-container);
+  --color-info-on-info: var(--color-info-on-info);
+  --color-info-on-info-container: var(--color-info-on-info-container);
+  --color-overlay-scrim: var(--color-overlay-scrim);
+  --color-overlay-chip-scrim: var(--color-overlay-chip-scrim);
+  --radius-none: var(--radius-none);
+  --radius-small: var(--radius-small);
+  --radius-medium: var(--radius-medium);
+  --radius-large: var(--radius-large);
+  --radius-xlarge: var(--radius-xlarge);
+  --radius-full: var(--radius-full);
+}
+
+/* Mentora's own named breakpoints (design-tokens.json § breakpoints), replacing Tailwind's
+ * default sm/md/lg/xl/2xl scale — RESPONSIVE_BEHAVIOR.md's four tiers, mobile-first.
+ * Mobile (0-599) is the unprefixed default; tablet:/desktop:/large-desktop: apply upward. */
+@theme {
+  --breakpoint-*: initial;
+  --breakpoint-tablet: 600px;
+  --breakpoint-desktop: 1024px;
+  --breakpoint-large-desktop: 1440px;
+}

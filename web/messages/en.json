@@ -1,0 +1,44 @@
+{
+  "common": {
+    "appName": "Mentora",
+    "tagline": "Learn. Build. Grow.",
+    "skipToContent": "Skip to content",
+    "loading": "Loading…",
+    "retry": "Try again",
+    "cancel": "Cancel",
+    "save": "Save"
+  },
+  "nav": {
+    "explore": "Explore",
+    "learningPaths": "Learning Paths",
+    "login": "Login",
+    "getStarted": "Get Started",
+    "dashboard": "Dashboard",
+    "myLearning": "My Learning",
+    "aiTutor": "AI Tutor",
+    "certificates": "Certificates",
+    "profile": "Profile",
+    "settings": "Settings",
+    "logout": "Logout"
+  },
+  "landing": {
+    "heroTitle": "Learn. Build. Grow.",
+    "heroSubtitle": "Practical courses that take you from curious to capable.",
+    "exploreCourses": "Explore Courses",
+    "getStarted": "Get Started"
+  },
+  "auth": {
+    "loginTitle": "Login",
+    "registerTitle": "Create your account",
+    "emailLabel": "Email",
+    "passwordLabel": "Password",
+    "nameLabel": "Name",
+    "loginAction": "Login",
+    "registerAction": "Create Account",
+    "noAccount": "Don't have an account?",
+    "haveAccount": "Already have an account?",
+    "invalidCredentials": "Incorrect email or password.",
+    "emailAlreadyRegistered": "An account with this email already exists.",
+    "genericError": "Something went wrong. Please try again."
+  }
+}

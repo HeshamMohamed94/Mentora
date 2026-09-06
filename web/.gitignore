@@ -1,0 +1,11 @@
+# TypeScript incremental build cache
+tsconfig.tsbuildinfo
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
+# Local env overrides (never commit — see .env.example)
+.env.local

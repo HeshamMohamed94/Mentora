@@ -1,0 +1,190 @@
+/* Hand-authored component styling — consumes ONLY generated tokens/component vars from
+ * tokens.css (design-system/DESIGN_RULES.md rule 1). One entry per design-system/COMPONENTS.md
+ * component; grows alongside the screens that need each one. */
+
+/* ---------- Buttons (COMPONENTS.md § Buttons) ---------- */
+
+.mtx-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  border-radius: var(--radius-medium);
+  font-family: var(--font-family-latin);
+  font-size: var(--typography-label-large-font-size);
+  line-height: var(--typography-label-large-line-height);
+  font-weight: var(--typography-label-large-font-weight);
+  letter-spacing: var(--typography-label-large-letter-spacing);
+  cursor: pointer;
+  border: none;
+  white-space: normal;
+  transition: background-color var(--motion-duration-fast) var(--motion-easing-standard),
+    border-color var(--motion-duration-fast) var(--motion-easing-standard);
+}
+
+html[lang="ar"] .mtx-btn {
+  font-family: var(--font-family-arabic);
+  letter-spacing: 0;
+}
+
+.mtx-btn:disabled {
+  cursor: not-allowed;
+}
+
+.mtx-btn-primary {
+  height: var(--component-button-primary-height);
+  padding-inline: var(--component-button-primary-padding-x);
+  background-color: var(--component-button-primary-background-default);
+  color: var(--component-button-primary-text-default);
+}
+.mtx-btn-primary:hover:not(:disabled) {
+  background-color: var(--component-button-primary-background-hover);
+}
+.mtx-btn-primary:active:not(:disabled) {
+  background-color: var(--component-button-primary-background-pressed);
+}
+.mtx-btn-primary:disabled {
+  background-color: var(--component-button-primary-background-disabled);
+  color: var(--component-button-primary-text-disabled);
+}
+
+.mtx-btn-secondary {
+  height: var(--component-button-secondary-height);
+  padding-inline: var(--component-button-secondary-padding-x);
+  background-color: var(--component-button-secondary-background-default);
+  color: var(--component-button-secondary-text-default);
+  border: var(--border-width-default) solid var(--component-button-secondary-border-default);
+}
+.mtx-btn-secondary:hover:not(:disabled) {
+  background-color: var(--component-button-secondary-background-hover);
+}
+.mtx-btn-secondary:active:not(:disabled) {
+  background-color: var(--component-button-secondary-background-pressed);
+}
+.mtx-btn-secondary:disabled {
+  border-color: var(--component-button-secondary-border-disabled);
+  color: var(--component-button-secondary-text-disabled);
+}
+
+.mtx-btn-tonal {
+  height: var(--component-button-tonal-height);
+  padding-inline: var(--component-button-tonal-padding-x);
+  background-color: var(--component-button-tonal-background-default);
+  color: var(--component-button-tonal-text-default);
+}
+.mtx-btn-tonal:hover:not(:disabled) {
+  background-color: var(--component-button-tonal-background-hover);
+}
+.mtx-btn-tonal:active:not(:disabled) {
+  background-color: var(--component-button-tonal-background-pressed);
+}
+.mtx-btn-tonal:disabled {
+  background-color: var(--component-button-tonal-background-disabled);
+  color: var(--component-button-tonal-text-disabled);
+}
+
+.mtx-btn-text {
+  height: var(--component-button-text-height);
+  padding-inline: var(--component-button-text-padding-x);
+  background-color: var(--component-button-text-background-default);
+  color: var(--component-button-text-text-default);
+}
+.mtx-btn-text:hover:not(:disabled) {
+  background-color: var(--component-button-text-background-hover);
+}
+.mtx-btn-text:active:not(:disabled) {
+  background-color: var(--component-button-text-background-pressed);
+}
+.mtx-btn-text:disabled {
+  color: var(--component-button-text-text-disabled);
+}
+
+/* ---------- Inputs (COMPONENTS.md § Inputs) ---------- */
+
+.mtx-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  text-align: start;
+}
+
+.mtx-field-label {
+  font-family: var(--font-family-latin);
+  font-size: var(--typography-label-large-font-size);
+  line-height: var(--typography-label-large-line-height);
+  font-weight: var(--typography-label-large-font-weight);
+  color: var(--color-text-primary);
+}
+html[lang="ar"] .mtx-field-label {
+  font-family: var(--font-family-arabic);
+}
+
+.mtx-input {
+  height: var(--component-input-height);
+  padding-inline: var(--component-input-padding-x);
+  border-radius: var(--component-input-radius);
+  border: var(--border-width-default) solid var(--component-input-border-default);
+  background-color: var(--component-input-background-default);
+  color: var(--component-input-text-default);
+  font-family: var(--font-family-latin);
+  font-size: var(--typography-body-medium-font-size);
+  line-height: var(--typography-body-medium-line-height);
+  text-align: start;
+  width: 100%;
+}
+html[lang="ar"] .mtx-input {
+  font-family: var(--font-family-arabic);
+}
+.mtx-input::placeholder {
+  color: var(--component-input-text-placeholder);
+}
+.mtx-input:hover:not(:disabled) {
+  border-color: var(--component-input-border-hover);
+}
+.mtx-input:focus-visible {
+  border-color: var(--component-input-border-focused);
+  outline: var(--border-width-focus) solid var(--color-border-focus);
+  outline-offset: 2px;
+}
+.mtx-input:disabled {
+  background-color: var(--component-input-background-disabled);
+  color: var(--component-input-text-disabled);
+  cursor: not-allowed;
+}
+.mtx-input[aria-invalid="true"] {
+  border-color: var(--component-input-border-error);
+}
+
+.mtx-field-error {
+  color: var(--component-input-text-error);
+  font-size: var(--typography-caption-font-size);
+  line-height: var(--typography-caption-line-height);
+}
+
+/* ---------- Navigation (COMPONENTS.md § Navigation) ---------- */
+
+.mtx-nav-item {
+  display: inline-flex;
+  align-items: center;
+  height: var(--component-nav-item-height);
+  padding-inline: var(--component-nav-item-padding-x);
+  border-radius: var(--radius-medium);
+  background-color: var(--component-nav-item-background-default);
+  color: var(--component-nav-item-text-default);
+  font-family: var(--font-family-latin);
+  font-size: var(--typography-label-large-font-size);
+  font-weight: var(--typography-label-large-font-weight);
+  text-decoration: none;
+  transition: background-color var(--motion-duration-fast) var(--motion-easing-standard);
+}
+html[lang="ar"] .mtx-nav-item {
+  font-family: var(--font-family-arabic);
+}
+.mtx-nav-item:hover {
+  background-color: var(--component-nav-item-background-hover);
+  color: var(--component-nav-item-text-hover);
+}
+.mtx-nav-item[data-active="true"] {
+  background-color: var(--component-nav-item-background-active);
+  color: var(--component-nav-item-text-active);
+}

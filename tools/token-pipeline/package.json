@@ -1,0 +1,10 @@
+{
+  "name": "@mentora/token-pipeline",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Generates web/styles/tokens.css and web/src/lib/design-tokens.generated.ts from design-system/design-tokens.json. See ADR-011 and execution/DECISIONS_LOG.md D35.",
+  "scripts": {
+    "generate": "node generate.js",
+    "check": "node generate.js && git diff --exit-code -- ../../web/styles/tokens.css ../../web/src/lib/design-tokens.generated.ts"
+  }
+}
