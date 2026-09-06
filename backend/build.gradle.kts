@@ -13,6 +13,13 @@ application {
     mainClass.set("com.mentora.backend.ApplicationKt")
 }
 
+tasks.register<JavaExec>("seedDemoData") {
+    group = "application"
+    description = "Seeds realistic local demo data without removing existing records."
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("com.mentora.backend.SeedDataKt")
+}
+
 repositories {
     mavenCentral()
 }
