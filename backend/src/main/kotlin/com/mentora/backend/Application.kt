@@ -21,6 +21,9 @@ import com.mentora.backend.enrollment.enrollmentModule
 import com.mentora.backend.enrollment.repository.ensureEnrollmentIndexes
 import com.mentora.backend.enrollment.routes.enrollmentRoutes
 import com.mentora.backend.enrollment.service.EnrollmentService
+import com.mentora.backend.instructor.instructorModule
+import com.mentora.backend.instructor.routes.instructorRoutes
+import com.mentora.backend.instructor.service.InstructorService
 import com.mentora.backend.learningpaths.learningPathsModule
 import com.mentora.backend.learningpaths.repository.ensureLearningPathIndexes
 import com.mentora.backend.learningpaths.routes.learningPathRoutes
@@ -74,7 +77,7 @@ internal fun Application.module(appConfig: AppConfig) {
         modules(
             configKoinModule(appConfig), databaseKoinModule, authModule, usersModule, categoriesModule,
             coursesModule, enrollmentModule, progressModule, quizModule, certificatesModule, learningPathsModule,
-            mediaModule,
+            mediaModule, instructorModule,
         )
     }
     configureDatabaseLifecycle()
@@ -116,5 +119,6 @@ internal fun Application.module(appConfig: AppConfig) {
         certificateRoutes(get<CertificateService>())
         learningPathRoutes(get<LearningPathService>())
         mediaRoutes(get<MediaService>())
+        instructorRoutes(get<InstructorService>())
     }
 }

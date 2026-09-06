@@ -71,7 +71,9 @@ See `architecture/API_CONTRACT.md § 7` for the full conceptual list (auth, user
 
 **Media** — see § 7 below for the full as-built shape (upload, public file, gated playback/stream). Route auth: `POST /media/uploads` and `GET /media/{id}/playback-url` require `jwt-auth`; `GET /media/{id}/file` and `GET /media/{id}/stream` are public (no auth possible — a native video element can't attach headers/cookies, and thumbnails are public-read by design).
 
-**Phase 1 backend module set is now complete: auth, users, courses, categories, enrollment, progress, quiz, certificates, media.** Remaining Phase 1 work is instructor/admin aggregation endpoints, the AI Tutor scaffold, and the backend test/seed/documentation pass.
+**Instructor** — `GET /instructor/dashboard` (Instructor role required) → `{ stats: { totalCourses, publishedCount, totalEnrollments }, courses: [{ id, title, status, enrollmentCount, completionRate }] }`, scoped to `principal.userId`-owned courses only (another Instructor's courses never appear), sorted by `_id` ascending. `completionRate` (0-100 integer) is the average of `progress.completionPercent` across that course's progress documents, `0` when there are none — this specific definition isn't spelled out in any locked doc (`product/USER_ROLES.md` just says "completion rate"), so it's recorded here as the as-built contract. This module owns no collection of its own (`architecture/BACKEND_ARCHITECTURE.md § 3`) — it reads `courses`/`enrollments`/`progress` directly rather than going through another module's service, the one documented exception to this codebase's usual cross-module-reuse rule.
+
+**Phase 1 backend module set is now complete: auth, users, courses, categories, enrollment, progress, quiz, certificates, media, instructor.** Remaining Phase 1 work is the admin aggregation endpoints, the AI Tutor scaffold, and the backend test/seed/documentation pass.
 
 ## 7. Media / Playback (as-built)
 
