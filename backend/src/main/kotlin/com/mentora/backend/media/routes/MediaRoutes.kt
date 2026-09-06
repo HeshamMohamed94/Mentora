@@ -2,6 +2,7 @@ package com.mentora.backend.media.routes
 
 import com.mentora.backend.common.ApiException
 import com.mentora.backend.common.mentoraPrincipal
+import com.mentora.backend.common.requireCsrfHeader
 import com.mentora.backend.common.respondData
 import com.mentora.backend.media.service.MediaService
 import com.mentora.backend.media.service.MediaUpload
@@ -22,6 +23,7 @@ fun Route.mediaRoutes(service: MediaService) {
     route("/api/v1/media") {
         authenticate("jwt-auth") {
             post("/uploads") {
+                call.requireCsrfHeader()
                 val fields = mutableMapOf<String, String>()
                 var response: com.mentora.backend.media.service.MediaUploadResponse? = null
                 call.receiveMultipart().forEachPart { part ->

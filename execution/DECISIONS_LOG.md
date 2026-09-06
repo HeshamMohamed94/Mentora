@@ -327,3 +327,13 @@ Format: `D<n> — <date> — <decision>` with **Why** and **Impact**.
 **Why:** Matches `TESTING_STRATEGY.md § 1`'s explicit requirement (unit tests for the three named examples) and closes a real, previously-undetected blind spot (`unpublish` — a locked-doc-named acceptance criterion for two milestones — had literally never been called by any test before this).
 
 **Impact:** No production code changed — every test added asserts already-correct existing behavior; zero bugs were found by any of the new tests. 15 suites / 64 tests, all green, independently re-verified (not just Codex's self-report).
+
+---
+
+### D33 — 2026-09-06 — Phase 1 quality gate audit found and fixed a genuine CSRF gap on the media upload route
+
+**Decision:** While auditing CSRF coverage across every mutating route as part of task 22's quality-gate pass, `POST /api/v1/media/uploads` was the sole route in the entire backend that never called `common/Csrf.kt`'s `requireCsrfHeader()` — every other `POST`/`PATCH`/`DELETE` route in the codebase does, and that file's own docstring states "Every POST/PATCH/PUT/DELETE route must call this." `MediaIntegrationTest.kt`'s own `upload()` test helper already sent the `X-Requested-With: mentora-web` header on every call (evidently written assuming the check would be enforced), so this was a genuine, previously-undetected gap in the route handler itself, not a deliberate exemption — confirmed by there being zero mention of dropping CSRF for uploads anywhere in D21-D26 (the media module's own decision record). Fixed by adding the same one-line `call.requireCsrfHeader()` at the top of the `/uploads` handler, matching the pattern already used everywhere else, plus one new regression test (`upload without the CSRF header is rejected`, asserting `403 FORBIDDEN_CSRF`) — no existing test needed changes since they already sent the header.
+
+**Why:** A cookie-authenticated state-changing endpoint without CSRF protection is a real, if narrow, security gap (Web's actual auth mechanism is the httpOnly cookie per `INTEGRATION_CONTRACT.md § 8a` — a cross-site form could otherwise trigger an authenticated upload). Finding and fixing exactly this kind of issue is what a quality-gate pass is for.
+
+**Impact:** No client-visible contract change — any client already sending the header (as documented in `INTEGRATION_CONTRACT.md`'s conventions and as every existing test already did) is unaffected. 65 tests / 15 suites, all green, independently re-verified.

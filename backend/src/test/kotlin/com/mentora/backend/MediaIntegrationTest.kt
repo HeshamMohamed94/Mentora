@@ -81,6 +81,28 @@ class MediaIntegrationTest {
     }
 
     @Test
+    fun `upload without the CSRF header is rejected`() = testApplication {
+        application { module(config()) }
+        val student = register("csrf-student@example.com").dataString("accessToken")
+        val studentId = JWT.decode(student).getClaim("userId").asString()
+
+        val response = client.post("/api/v1/media/uploads") {
+            bearerAuth(student)
+            setBody(MultiPartFormDataContent(formData {
+                append("kind", "avatar")
+                append("ownerRefId", studentId)
+                append("contentType", "image/png")
+                append("file", byteArrayOf(1), Headers.build {
+                    append(HttpHeaders.ContentDisposition, ContentDisposition.File.withParameter(ContentDisposition.Parameters.FileName, "ignored.bin").toString())
+                    append(HttpHeaders.ContentType, ContentType.Application.OctetStream.toString())
+                })
+            }))
+        }
+        assertEquals(HttpStatusCode.Forbidden, response.status)
+        assertEquals("FORBIDDEN_CSRF", response.errorCode())
+    }
+
+    @Test
     fun `upload validation rejects incompatible content and oversized images`() = testApplication {
         application { module(config()) }
         val student = register("validation-student@example.com").dataString("accessToken")
