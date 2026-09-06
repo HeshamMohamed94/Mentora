@@ -110,6 +110,7 @@ class ProgressServiceTest {
         categoryId = ObjectId().toHexString(), level = "beginner", contentLanguage = "en",
         priceDisplay = PriceDisplayDto(0, "USD"), thumbnailMediaId = ObjectId().toHexString(),
         status = "published", ratingSeed = 4.5, instructorId = ObjectId().toHexString(),
+        instructorName = "Test Instructor",
         sections = if (lessonIds.isEmpty()) emptyList() else listOf(SectionResponse(
             "section", "Section", 0,
             lessonIds.distinct().mapIndexed { index, id -> LessonResponse(id, id, "Description", index, null, emptyList()) },

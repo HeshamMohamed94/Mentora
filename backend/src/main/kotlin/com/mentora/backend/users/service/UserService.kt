@@ -40,6 +40,12 @@ class UserService(private val repository: UserRepository) {
             ?: throw ApiException.NotFound("USER_NOT_FOUND", "The user was not found.")
     }
 
+    /** Cross-module name resolution (e.g. `courses` denormalizing `instructorName`) —
+     * the established service-layer reuse pattern (see PHASE_HANDOFF.md § 8), not a new
+     * direct-collection query from the calling module. */
+    suspend fun getNamesByIds(ids: List<ObjectId>): Map<ObjectId, String> =
+        repository.findByIds(ids).associate { requireNotNull(it.id) to it.name }
+
     private fun UserDocument.toProfile() = UserProfile(
         id = requireNotNull(id).toHexString(), email = email, name = name, role = role,
         avatarMediaId = avatarMediaId?.toHexString(), preferredLocale = preferredLocale, createdAt = createdAt,

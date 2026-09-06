@@ -10,6 +10,7 @@ import com.mentora.backend.courses.repository.Lesson
 import com.mentora.backend.courses.repository.PriceDisplay
 import com.mentora.backend.courses.repository.Section
 import com.mentora.backend.courses.service.CourseService
+import com.mentora.backend.users.service.UserService
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -23,8 +24,11 @@ import kotlin.test.assertFailsWith
 class CourseServiceTest {
     private val repository = mockk<CourseRepository>()
     private val categories = mockk<CategoryService>(relaxed = true)
-    private val service = CourseService(repository, categories)
     private val instructorId = ObjectId()
+    private val users = mockk<UserService> {
+        coEvery { getNamesByIds(any()) } returns mapOf(instructorId to "Test Instructor")
+    }
+    private val service = CourseService(repository, categories, users)
     private val principal = MentoraPrincipal(instructorId, Role.instructor)
 
     @Test fun `blank title is reported by publish validation`() = assertInvalid(

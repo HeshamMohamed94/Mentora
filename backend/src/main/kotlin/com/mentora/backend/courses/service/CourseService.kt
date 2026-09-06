@@ -14,6 +14,7 @@ import com.mentora.backend.courses.repository.Lesson
 import com.mentora.backend.courses.repository.PriceDisplay
 import com.mentora.backend.courses.repository.PublishedCourseFilter
 import com.mentora.backend.courses.repository.Section
+import com.mentora.backend.users.service.UserService
 import kotlinx.datetime.Clock
 import kotlinx.serialization.Serializable
 import org.bson.types.ObjectId
@@ -31,12 +32,13 @@ import java.util.UUID
 @Serializable data class CourseSummary(
     val id: String, val title: String, val description: String, val categoryId: String, val level: String,
     val contentLanguage: String, val priceDisplay: PriceDisplayDto, val thumbnailMediaId: String?,
-    val ratingSeed: Double, val instructorId: String,
+    val ratingSeed: Double, val instructorId: String, val instructorName: String,
 )
 @Serializable data class CourseResponse(
     val id: String, val title: String, val description: String, val categoryId: String, val level: String,
     val contentLanguage: String, val priceDisplay: PriceDisplayDto, val thumbnailMediaId: String?,
-    val status: String, val ratingSeed: Double, val instructorId: String, val sections: List<SectionResponse>,
+    val status: String, val ratingSeed: Double, val instructorId: String, val instructorName: String,
+    val sections: List<SectionResponse>,
 )
 @Serializable data class CreateCourseRequest(
     val title: String, val description: String, val categoryId: String, val level: String,
@@ -65,6 +67,7 @@ data class CourseListQuery(
 class CourseService(
     private val repository: CourseRepository,
     private val categories: CategoryService,
+    private val users: UserService,
 ) {
     suspend fun list(query: CourseListQuery): Page<CourseSummary> {
         val price = query.maxPrice?.toIntOrNull()?.takeIf { it >= 0 }
@@ -75,7 +78,8 @@ class CourseService(
         )
         val documents = repository.listPublished(filter)
         return documents.toPage(query.page.limit) { requireNotNull(it.id) }.let { result ->
-            Page(result.items.map { it.toSummary() }, result.nextCursor)
+            val names = users.getNamesByIds(result.items.map { it.instructorId }.distinct())
+            Page(result.items.map { it.toSummary(instructorName(it.instructorId, names)) }, result.nextCursor)
         }
     }
 
@@ -84,7 +88,7 @@ class CourseService(
         if (course.status == DRAFT && principal?.role != Role.admin && principal?.userId != course.instructorId) {
             throw courseNotFound()
         }
-        return course.toResponse()
+        return course.toResponseResolved()
     }
 
     suspend fun create(principal: MentoraPrincipal, request: CreateCourseRequest): CourseResponse {
@@ -106,7 +110,7 @@ class CourseService(
             updatedAt = now,
         ))
         categories.adjustCourseCount(categoryId, 1)
-        return course.toResponse()
+        return course.toResponseResolved()
     }
 
     suspend fun update(principal: MentoraPrincipal, id: String, request: UpdateCourseRequest): CourseResponse {
@@ -129,27 +133,27 @@ class CourseService(
             categories.adjustCourseCount(current.categoryId, -1)
             categories.adjustCourseCount(nextCategoryId, 1)
         }
-        return saved.toResponse()
+        return saved.toResponseResolved()
     }
 
     suspend fun addSection(principal: MentoraPrincipal, id: String, request: SectionTitleRequest): CourseResponse {
         val course = ownedCourse(principal, id)
         val section = Section(UUID.randomUUID().toString(), required(request.title, "title"), course.sections.size)
-        return save(course.copy(sections = course.sections + section, updatedAt = Clock.System.now())).toResponse()
+        return save(course.copy(sections = course.sections + section, updatedAt = Clock.System.now())).toResponseResolved()
     }
 
     suspend fun updateSection(principal: MentoraPrincipal, id: String, sectionId: String, request: SectionTitleRequest): CourseResponse {
         val course = ownedCourse(principal, id)
         ensureSection(course, sectionId)
         val sections = course.sections.map { if (it.sectionId == sectionId) it.copy(title = required(request.title, "title")) else it }
-        return save(course.copy(sections = sections, updatedAt = Clock.System.now())).toResponse()
+        return save(course.copy(sections = sections, updatedAt = Clock.System.now())).toResponseResolved()
     }
 
     suspend fun deleteSection(principal: MentoraPrincipal, id: String, sectionId: String): CourseResponse {
         val course = ownedCourse(principal, id)
         ensureSection(course, sectionId)
         val sections = course.sections.filterNot { it.sectionId == sectionId }.mapIndexed { index, section -> section.copy(order = index) }
-        return save(course.copy(sections = sections, updatedAt = Clock.System.now())).toResponse()
+        return save(course.copy(sections = sections, updatedAt = Clock.System.now())).toResponseResolved()
     }
 
     suspend fun reorderSections(principal: MentoraPrincipal, id: String, request: ReorderSectionsRequest): CourseResponse {
@@ -157,7 +161,7 @@ class CourseService(
         validateExactIds(request.sectionIds, course.sections.map { it.sectionId }, "sectionIds")
         val byId = course.sections.associateBy { it.sectionId }
         val sections = request.sectionIds.mapIndexed { index, sectionId -> requireNotNull(byId[sectionId]).copy(order = index) }
-        return save(course.copy(sections = sections, updatedAt = Clock.System.now())).toResponse()
+        return save(course.copy(sections = sections, updatedAt = Clock.System.now())).toResponseResolved()
     }
 
     suspend fun addLesson(
@@ -170,7 +174,7 @@ class CourseService(
             section.lessons.size, request.videoMediaId?.let { objectId(it, "videoMediaId") }, validateResources(request.resources),
         )
         val sections = course.sections.map { if (it.sectionId == sectionId) it.copy(lessons = it.lessons + lesson) else it }
-        return save(course.copy(sections = sections, updatedAt = Clock.System.now())).toResponse()
+        return save(course.copy(sections = sections, updatedAt = Clock.System.now())).toResponseResolved()
     }
 
     suspend fun updateLesson(
@@ -186,7 +190,7 @@ class CourseService(
             resources = request.resources?.let { validateResources(it) } ?: lesson.resources,
         ) }
         val sections = course.sections.map { if (it.sectionId == sectionId) it.copy(lessons = lessons) else it }
-        return save(course.copy(sections = sections, updatedAt = Clock.System.now())).toResponse()
+        return save(course.copy(sections = sections, updatedAt = Clock.System.now())).toResponseResolved()
     }
 
     suspend fun deleteLesson(principal: MentoraPrincipal, id: String, sectionId: String, lessonId: String): CourseResponse {
@@ -195,7 +199,7 @@ class CourseService(
         ensureLesson(section, lessonId)
         val lessons = section.lessons.filterNot { it.lessonId == lessonId }.mapIndexed { index, lesson -> lesson.copy(order = index) }
         val sections = course.sections.map { if (it.sectionId == sectionId) it.copy(lessons = lessons) else it }
-        return save(course.copy(sections = sections, updatedAt = Clock.System.now())).toResponse()
+        return save(course.copy(sections = sections, updatedAt = Clock.System.now())).toResponseResolved()
     }
 
     suspend fun reorderLessons(
@@ -207,7 +211,7 @@ class CourseService(
         val byId = section.lessons.associateBy { it.lessonId }
         val lessons = request.lessonIds.mapIndexed { index, lessonId -> requireNotNull(byId[lessonId]).copy(order = index) }
         val sections = course.sections.map { if (it.sectionId == sectionId) it.copy(lessons = lessons) else it }
-        return save(course.copy(sections = sections, updatedAt = Clock.System.now())).toResponse()
+        return save(course.copy(sections = sections, updatedAt = Clock.System.now())).toResponseResolved()
     }
 
     suspend fun publish(principal: MentoraPrincipal, id: String): CourseResponse {
@@ -223,19 +227,19 @@ class CourseService(
         course.sections.flatMap { it.lessons }.filter { it.videoMediaId == null }
             .forEach { fields["lesson.${it.lessonId}.videoMediaId"] = "REQUIRED" }
         if (fields.isNotEmpty()) throw ApiException.Validation("The course is not ready to publish.", fields)
-        return save(course.copy(status = PUBLISHED, updatedAt = Clock.System.now())).toResponse()
+        return save(course.copy(status = PUBLISHED, updatedAt = Clock.System.now())).toResponseResolved()
     }
 
     suspend fun unpublish(principal: MentoraPrincipal, id: String): CourseResponse {
         val course = findCourse(id)
         if (principal.role != Role.admin && principal.userId != course.instructorId) throw ApiException.ForbiddenNotOwner()
-        return save(course.copy(status = DRAFT, updatedAt = Clock.System.now())).toResponse()
+        return save(course.copy(status = DRAFT, updatedAt = Clock.System.now())).toResponseResolved()
     }
 
     /** Cross-module ownership check (e.g. for the `quiz` editor) — COURSE_NOT_FOUND if missing,
      * FORBIDDEN_NOT_OWNER if the principal doesn't own it. */
     suspend fun requireOwnership(id: String, principal: MentoraPrincipal): CourseResponse =
-        ownedCourse(principal, id).toResponse()
+        ownedCourse(principal, id).toResponseResolved()
 
     private suspend fun ownedCourse(principal: MentoraPrincipal, id: String): CourseDocument {
         val course = findCourse(id)
@@ -277,13 +281,22 @@ class CourseService(
         throw ApiException.Validation(fields = mapOf(field to "INVALID"))
     }
     private fun courseNotFound() = ApiException.NotFound("COURSE_NOT_FOUND", "The course was not found.")
-    private fun CourseDocument.toSummary() = CourseSummary(
+
+    /** Resolves the one instructor name a single-course response needs. Not the N+1 concern
+     * `list()` avoids via a bulk lookup — this is always exactly one id. */
+    private suspend fun CourseDocument.toResponseResolved(): CourseResponse =
+        toResponse(instructorName(instructorId, users.getNamesByIds(listOf(instructorId))))
+
+    private fun instructorName(id: ObjectId, names: Map<ObjectId, String>): String =
+        requireNotNull(names[id]) { "Course references instructor $id with no matching user document" }
+
+    private fun CourseDocument.toSummary(instructorName: String) = CourseSummary(
         requireNotNull(id).toHexString(), title, description, categoryId.toHexString(), level, contentLanguage,
-        priceDisplay.toDto(), thumbnailMediaId?.toHexString(), ratingSeed, instructorId.toHexString(),
+        priceDisplay.toDto(), thumbnailMediaId?.toHexString(), ratingSeed, instructorId.toHexString(), instructorName,
     )
-    private fun CourseDocument.toResponse() = CourseResponse(
+    private fun CourseDocument.toResponse(instructorName: String) = CourseResponse(
         requireNotNull(id).toHexString(), title, description, categoryId.toHexString(), level, contentLanguage,
-        priceDisplay.toDto(), thumbnailMediaId?.toHexString(), status, ratingSeed, instructorId.toHexString(),
+        priceDisplay.toDto(), thumbnailMediaId?.toHexString(), status, ratingSeed, instructorId.toHexString(), instructorName,
         sections.sortedBy { it.order }.map { it.toResponse() },
     )
     private fun PriceDisplay.toDto() = PriceDisplayDto(amount, currency)
