@@ -1,6 +1,6 @@
 # Mentora — Current Implementation Status
 
-**Last updated:** 2026-09-06 (task 19 — backend test suite completeness review — closed out and committed; tasks 20-23 in progress in the same session, per explicit user instruction to complete all remaining Phase 1 work without stopping for approval between them)
+**Last updated:** 2026-09-06 (tasks 20 and 21 closed out and committed, in the same all-remaining-Phase-1-tasks session as 19/22/23 — see PHASE_HANDOFF.md for the full final write-up once task 23 lands)
 
 ---
 
@@ -9,10 +9,10 @@
 **Read this section first when resuming.**
 
 - **Phase:** PHASE 1 — Backend Foundation & API — `IN_PROGRESS`
-- **Current task:** Task 20 — Seed/demo data script (M16 portion) — dispatched to Codex, review pending.
-- **Next immediate action:** If resuming mid-session: check whether the Task 20 Codex dispatch completed (`result.json` under the most recent `delegate-relay` temp dir) and pick up review/commit from there; otherwise continue with Task 20 → 21 → 22 → 23 in order, per the user's instruction in this session to complete all of Phase 1 without stopping for approval, then produce the final Phase 1 report and STOP for the user's explicit approval before any Phase 2 work.
+- **Current task:** Task 22 — Phase 1 quality gate verification — in progress (Claude-led, no delegation).
+- **Next immediate action:** Continue/finish task 22's audit, then task 23 (`PHASE_HANDOFF.md` final write-up), then produce the "MENTORA IMPLEMENTATION — PHASE 1 REPORT" and STOP for the user's explicit approval before any Phase 2 work — per the user's explicit instruction this session to complete all remaining Phase 1 tasks without stopping in between.
 
-### What is COMPLETE (committed, reviewed, gates green) — tasks 1–19
+### What is COMPLETE (committed, reviewed, gates green) — tasks 1–21
 
 All of: execution continuity docs, backend Gradle scaffold, Ktor foundation (M1), Auth & RBAC (M2), Users module, Courses & Categories (M5 slice), Enrollment/Demo Checkout (M6 slice), Progress (M7 slice), Quiz (M8 slice), Certificates + completion-crossing wiring (M9 slice), Learning Paths (M10 slice), Media/local filesystem storage (M11 slice), Instructor aggregation endpoint (M11 tail), Admin aggregation endpoints (M12 slice), AI Tutor scaffold (M13 boundary only). Last commit: see `git log` on `main` — "Phase 1: AI Tutor scaffold (M13 boundary only)".
 
@@ -34,28 +34,39 @@ keeps-access) plus three other never-exercised courses routes (section rename/de
 asserting order re-compaction). Zero production bugs found — every new test asserts already-correct
 behavior. See `DECISIONS_LOG.md` D32. All gates green (64 tests, 15 suites), independently re-verified.
 
+**Also found and fixed during task 22's audit, as its own separate commit:** `POST /media/uploads` was
+missing the CSRF header check every other mutating route already has — a genuine, real security gap, not
+a pre-existing documented limitation. See `DECISIONS_LOG.md` D33.
+
+Task 20 (seed/demo data script, M16 portion): a backend-native Kotlin entry point (`SeedData.kt`) + Gradle
+`seedDemoData` task — not `infra/docker/mongo-init` (D34: no Docker/infra exists in Phase 1 at all, per
+D1). Reuses the real service layer for every entity it can (register/category/course/media/quiz), with
+two narrow justified exceptions (Instructor/Admin role-flip, Learning Path insert — both because no other
+write path exists for them, by design). Idempotent, verified by running it twice. Seeds 6 demo accounts
+(`@mentora.dev` / `MentoraDemo1`), 4 categories, 6 courses (4 published/2 draft, real en/ar content), a
+quiz, a Learning Path. Independently re-verified beyond the self-report: `mongosh` count spot-check, and a
+real end-to-end check — started the actual server, logged in over HTTP as the seeded admin account.
+
+Task 21 (local run instructions, M16 portion): `backend/README.md` + `backend/.env.example`, Claude-authored
+directly (pure documentation, not delegated). Covers the one-time MongoDB replica-set conversion (D12,
+previously undocumented anywhere outside the decisions log), env setup, build/test/run/seed commands, and
+the exact demo credentials task 20 produced.
+
 ### What is PARTIAL / uncommitted
 
-Nothing from task 19 (committed). Tasks 20-23 are in progress in this same session — see "Current task"
-above for exactly where to pick up if interrupted.
+Nothing. Tasks 22-23 are in progress in this same session — see "Current task" above for exactly where to
+pick up if interrupted.
 
 ### Exact next steps on resume
 
-1. Task 20 — Seed/demo data script (M16 portion): a Kotlin entry point (`SeedData.kt`) + Gradle
-   `seedDemoData` task, reusing the real service layer (not a parallel document-writing implementation),
-   idempotent, seeding categories/courses(en+ar, draft+published)/a quiz/a Learning Path/one account per
-   role. Dispatched to Codex — review the diff, independently re-verify gates, commit.
-2. Task 21 — Local run instructions (M16 portion): `backend/README.md` + `backend/.env.example` already
-   drafted directly by Claude (not delegated — pure documentation, low risk) covering the one-time MongoDB
-   replica-set conversion (D12), env setup, build/test/run commands, and the seed script's demo credentials
-   once task 20 confirms its exact final shape — reconcile the README against whatever task 20 actually
-   produced before committing.
-3. Task 22 — Phase 1 quality gate verification: Claude-led full audit (fresh build/test, RBAC/security
+1. Task 22 — Phase 1 quality gate verification: Claude-led full audit (fresh build/test, RBAC/security
    spot-checks, module-boundary compliance, no real-payment-path re-confirmation, known-limitations
    compilation from the decisions log) — no delegation, per the Master Plan's Claude-led final-polish rule.
-4. Task 23 — `PHASE_HANDOFF.md` final write-up (mark Phase 1 `COMPLETE` in the fixed structure the file's
+   Already substantially done inline during tasks 19-21's review passes (found/fixed D32's test gaps and
+   D33's CSRF gap); what remains is compiling the final known-issues list and a last fresh full-suite run.
+2. Task 23 — `PHASE_HANDOFF.md` final write-up (mark Phase 1 `COMPLETE` in the fixed structure the file's
    header already specifies) — Claude-authored.
-5. After task 23: produce the "MENTORA IMPLEMENTATION — PHASE 1 REPORT" the user asked for, then STOP and
+3. After task 23: produce the "MENTORA IMPLEMENTATION — PHASE 1 REPORT" the user asked for, then STOP and
    wait for explicit approval. Do not start Phase 2 under any circumstances before that approval.
 
 ---
@@ -98,11 +109,11 @@ Allowed phase states: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `COMPLETE`.
 | 17 | Admin aggregation endpoints (M12 slice) | DONE — Codex-authored, Claude-reviewed: `GET /api/v1/admin/{dashboard,courses,users,instructors}` reading directly across `courses`/`users`/`enrollments` per the module's no-own-collection design (same pattern as `instructor`, task 16). `users`/`instructors` are disjoint role-scoped lists (`role == student` / `role == instructor`, never "all accounts"); `q` search on both escapes untrusted input via `Pattern.quote` before building the Mongo regex filter. Reused the already-implemented `categories` CRUD and `POST /courses/{id}/unpublish` (already Admin-capable) rather than duplicating either. Codex's dispatch hit the same OpenAI usage-limit wall as task 16 twice before a third immediate retry succeeded cleanly — see D28/D29. Independently re-verified: fresh `gradlew.bat test --rerun-tasks` (35 tests, 11 suites, 0 failures) and `gradlew.bat build`, plus a full diff read. |
 | 18 | AI Tutor scaffold + `AiProvider` interface + stub impl (M13 boundary only) | DONE — Codex-authored, Claude-reviewed: `GET /ai-tutor/conversation` + `POST /ai-tutor/conversation/messages`, real persistence/enrollment-gate/rate-limiting, bound to a stub `AiProvider` (placeholder text, genuinely chunked streaming, no real LLM call — Phase 6 swaps only the Koin binding). `courseId`+`lessonContextId` paired in the request (no lesson→course reverse lookup exists — same fix as media's D21). Added both a per-minute and a per-day rate cap, both `AppConfig`-driven (previously only a hardcoded per-minute cap existed). See D30. Independently re-verified (41 tests, 12 suites, 0 failures) rather than trusting the self-report; that re-verification also surfaced and fixed an unrelated pre-existing flaky test in `MediaIntegrationTest` (task 15) — see D31, landed as its own separate commit. |
 | 19 | Backend test suite (M15 portion) | DONE — Codex-authored, Claude-reviewed: added the previously-missing unit-test layer (MockK, quiz scoring/publish-validation/completion-percentage) and closed 4 never-exercised `courses` routes (`unpublish` — the highest-priority gap, plus section rename/delete and lesson delete). Zero production bugs found. See D32. 64 tests, 15 suites, independently re-verified. |
-| 20 | Seed data script | NOT_STARTED |
-| 21 | Local run instructions (M16 portion) | NOT_STARTED |
+| 20 | Seed data script | DONE — Codex-authored, Claude-reviewed: backend-native `SeedData.kt` + Gradle `seedDemoData` task (not `infra/docker/mongo-init` — see D34), idempotent, reuses the real service layer. Seeds 6 accounts/4 categories/6 courses (4 published/2 draft, en+ar)/1 quiz/1 Learning Path. Independently verified via `mongosh` + a real HTTP login as the seeded admin. |
+| 21 | Local run instructions (M16 portion) | DONE — Claude-authored directly (documentation, not delegated): `backend/README.md` + `backend/.env.example`, covering the MongoDB replica-set one-time setup (D12), env config, build/test/run/seed commands, and the seed script's exact demo credentials. |
 | 22 | Phase 1 quality gate verification | NOT_STARTED |
 | 23 | `PHASE_HANDOFF.md` write-up | NOT_STARTED |
 
 ## Immediate Next Action
 
-Task 20 — Seed/demo data script (M16 portion), then 21/22/23 in sequence (see "Exact next steps on resume" above) — the user has instructed completing all remaining Phase 1 tasks in one session without stopping for approval between them, then a final Phase 1 report and a stop for explicit approval before Phase 2.
+Task 22 — Phase 1 quality gate verification, then task 23 (see "Exact next steps on resume" above) — the user has instructed completing all remaining Phase 1 tasks in one session without stopping for approval between them, then a final Phase 1 report and a stop for explicit approval before Phase 2.
