@@ -1,3 +1,4 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "./client";
 
 // Shapes verified against backend/src/main/kotlin/com/mentora/backend/progress/service/ProgressService.kt.
@@ -14,4 +15,39 @@ export interface ProgressResponse {
 
 export function getProgress(courseId: string) {
   return apiFetch<ProgressResponse>(`/courses/${courseId}/progress`);
+}
+
+export function useProgress(courseId: string) {
+  return useQuery({
+    queryKey: ["progress", courseId],
+    queryFn: () => getProgress(courseId),
+    enabled: Boolean(courseId),
+  });
+}
+
+export function useCompleteLesson(courseId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (lessonId: string) =>
+      apiFetch<ProgressResponse>(`/courses/${courseId}/lessons/${lessonId}/complete`, { method: "POST" }),
+    onSuccess: (progress) => {
+      queryClient.setQueryData(["progress", courseId], progress);
+      queryClient.invalidateQueries({ queryKey: ["progress", courseId] });
+    },
+  });
+}
+
+export function useUpdatePosition(courseId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ lessonId, positionSeconds }: { lessonId: string; positionSeconds: number }) =>
+      apiFetch<ProgressResponse>(`/courses/${courseId}/lessons/${lessonId}/position`, {
+        method: "POST",
+        body: JSON.stringify({ positionSeconds }),
+      }),
+    onSuccess: (progress) => {
+      queryClient.setQueryData(["progress", courseId], progress);
+      queryClient.invalidateQueries({ queryKey: ["progress", courseId] });
+    },
+  });
 }

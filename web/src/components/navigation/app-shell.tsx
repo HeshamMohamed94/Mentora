@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { createContext, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
@@ -21,6 +21,8 @@ const NAV_ITEMS: { key: string; href: string; icon: IconName }[] = [
 
 const COLLAPSE_STORAGE_KEY = "mentora:sidebar-collapsed";
 
+export const SidebarForceCollapseContext = createContext<(collapsed: boolean) => void>(() => undefined);
+
 function isActive(pathname: string, href: string): boolean {
   return href === "/app" ? pathname === "/app" : pathname === href || pathname.startsWith(`${href}/`);
 }
@@ -37,6 +39,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { data: user } = useCurrentUser();
   const queryClient = useQueryClient();
   const [collapsed, setCollapsed] = useState(false);
+  const [forcedCollapsed, setForcedCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
@@ -65,14 +68,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     router.push("/login");
   }
 
-  const labelClass = `mtx-sidebar-label tablet:hidden ${collapsed ? "desktop:hidden" : "desktop:inline"}`;
+  const effectiveCollapsed = collapsed || forcedCollapsed;
+  const labelClass = `mtx-sidebar-label tablet:hidden ${effectiveCollapsed ? "desktop:hidden" : "desktop:inline"}`;
 
   return (
-    <div className="flex min-h-screen">
-      {mobileOpen && <div className="mtx-sidebar-scrim tablet:hidden" onClick={() => setMobileOpen(false)} />}
+    <SidebarForceCollapseContext.Provider value={setForcedCollapsed}>
+      <div className="flex min-h-screen">
+        {mobileOpen && <div className="mtx-sidebar-scrim tablet:hidden" onClick={() => setMobileOpen(false)} />}
 
       <aside
-        className={`mtx-sidebar ${mobileOpen ? "flex" : "hidden"} tablet:flex fixed inset-y-0 start-0 z-50 tablet:static tablet:z-auto w-[264px] tablet:w-[72px] ${collapsed ? "desktop:w-[72px]" : "desktop:w-[264px]"}`}
+        className={`mtx-sidebar ${mobileOpen ? "flex" : "hidden"} tablet:flex fixed inset-y-0 start-0 z-50 tablet:static tablet:z-auto w-[264px] tablet:w-[72px] ${effectiveCollapsed ? "desktop:w-[72px]" : "desktop:w-[264px]"}`}
       >
         <nav className="mtx-sidebar-nav" aria-label={t("primaryNavigation")}>
           {NAV_ITEMS.map((item) => (
@@ -129,6 +134,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </div>
-    </div>
+      </div>
+    </SidebarForceCollapseContext.Provider>
   );
 }

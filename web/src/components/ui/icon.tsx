@@ -17,7 +17,15 @@ export type IconName =
   | "profile"
   | "settings"
   | "menu"
-  | "logout";
+  | "logout"
+  | "play"
+  | "pause"
+  | "volumeOn"
+  | "volumeMuted"
+  | "fullscreen"
+  | "fullscreenExit"
+  | "checkCircle"
+  | "cancel";
 
 const PATHS: Record<IconName, React.ReactNode> = {
   dashboard: (
@@ -72,6 +80,37 @@ const PATHS: Record<IconName, React.ReactNode> = {
     <>
       <path d="M9 4H6.5C5.1 4 4 5.1 4 6.5v11C4 18.9 5.1 20 6.5 20H9" />
       <path d="M14 15.5l4.5-3.5-4.5-3.5M18.5 12H9" />
+    </>
+  ),
+  play: <path d="M8 5.5v13l10-6.5z" />,
+  pause: (
+    <>
+      <path d="M8 5.5v13M16 5.5v13" />
+    </>
+  ),
+  volumeOn: (
+    <>
+      <path d="M4 10v4h4l5 4V6L8 10z" />
+      <path d="M16 9c1.7 1.7 1.7 4.3 0 6M18.5 6.5c3 3 3 8 0 11" />
+    </>
+  ),
+  volumeMuted: (
+    <>
+      <path d="M4 10v4h4l5 4V6L8 10zM16.5 9.5l4 5M20.5 9.5l-4 5" />
+    </>
+  ),
+  fullscreen: <path d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5" />,
+  fullscreenExit: <path d="M4 9h5V4M20 9h-5V4M4 15h5v5M20 15h-5v5" />,
+  checkCircle: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M8 12.5l2.5 2.5 5.5-6" />
+    </>
+  ),
+  cancel: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9 9l6 6M15 9l-6 6" />
     </>
   ),
 };

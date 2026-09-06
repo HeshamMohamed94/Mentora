@@ -543,3 +543,329 @@ html[lang="ar"] .mtx-sidebar-item { font-family: var(--font-family-arabic); }
 @media (prefers-reduced-motion: reduce) {
   .mtx-success-container { animation: mtx-success-fade var(--motion-duration-fast) linear; }
 }
+
+/* ---------- Course Player / VideoPlayer ---------- */
+
+.mtx-player-page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-6);
+  padding: var(--space-4);
+  max-width: calc(var(--space-16) * 22);
+  margin-inline: auto;
+}
+
+@media (min-width: 1024px) {
+  .mtx-player-page {
+    grid-template-columns: calc(var(--space-16) * 5) minmax(0, 1fr);
+    padding: var(--space-6);
+  }
+}
+
+.mtx-player-curriculum {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding: var(--space-4);
+  border: var(--border-width-default) solid var(--color-border-default);
+  border-radius: var(--radius-large);
+  background-color: var(--color-surface-default);
+}
+
+.mtx-player-curriculum-skeleton { min-height: calc(var(--space-16) * 7); }
+
+.mtx-player-content,
+.mtx-lesson-content {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.mtx-lesson-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: var(--space-12);
+  padding-inline: var(--space-3);
+  border: none;
+  border-radius: var(--radius-medium);
+  background-color: transparent;
+  color: var(--color-text-primary);
+  text-align: start;
+  cursor: pointer;
+}
+
+.mtx-lesson-row:hover,
+.mtx-lesson-row[data-selected="true"] {
+  background-color: var(--color-brand-primary-container);
+  color: var(--color-brand-on-primary-container);
+}
+
+.mtx-lesson-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mtx-resource-link { color: var(--color-brand-primary); }
+.mtx-inline-error { color: var(--color-error-default); }
+
+.mtx-video-frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: var(--radius-large);
+  background-color: var(--color-surface-variant);
+}
+
+.mtx-video-media {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+  background-color: var(--color-overlay-scrim);
+}
+
+.mtx-video-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}
+
+.mtx-video-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  text-align: center;
+  color: var(--color-error-default);
+  background-color: var(--color-surface-variant);
+}
+
+.mtx-video-retry {
+  min-height: var(--space-10);
+  padding-inline: var(--space-3);
+  border: none;
+  border-radius: var(--radius-medium);
+  background-color: var(--color-brand-primary-container);
+  color: var(--color-brand-on-primary-container);
+  font: inherit;
+  cursor: pointer;
+}
+
+.mtx-video-controls {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-inline: var(--component-video-player-control-bar-padding-x);
+  padding-block: var(--component-video-player-control-bar-padding-y);
+  background-color: var(--component-video-player-control-bar-background);
+  color: var(--component-video-player-time-label-color);
+}
+
+.mtx-video-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mtx-video-timeline,
+.mtx-video-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.mtx-video-scrubber {
+  position: relative;
+  flex: 1;
+  height: var(--component-video-player-scrubber-track-height-default);
+  border-radius: var(--component-video-player-scrubber-radius);
+  background-color: var(--component-video-player-scrubber-track);
+  overflow: visible;
+}
+
+.mtx-video-scrubber:hover,
+.mtx-video-scrubber:focus-within { height: var(--space-2); }
+
+.mtx-video-scrubber-buffered,
+.mtx-video-scrubber-played {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  border-radius: var(--component-video-player-scrubber-radius);
+  pointer-events: none;
+}
+
+.mtx-video-scrubber-buffered { background-color: var(--component-video-player-scrubber-buffered); }
+.mtx-video-scrubber-played { background-color: var(--component-video-player-scrubber-fill); }
+
+.mtx-video-scrubber input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: var(--space-0);
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.mtx-video-scrubber input::-webkit-slider-thumb {
+  width: var(--component-video-player-scrubber-thumb-size);
+  height: var(--component-video-player-scrubber-thumb-size);
+  appearance: none;
+  border: none;
+  border-radius: var(--radius-full);
+  background-color: var(--component-video-player-scrubber-thumb-color);
+}
+
+.mtx-video-scrubber input:active::-webkit-slider-thumb {
+  width: var(--component-video-player-scrubber-thumb-size-active);
+  height: var(--component-video-player-scrubber-thumb-size-active);
+}
+
+.mtx-video-scrubber input::-moz-range-thumb {
+  width: var(--component-video-player-scrubber-thumb-size);
+  height: var(--component-video-player-scrubber-thumb-size);
+  border: none;
+  border-radius: var(--radius-full);
+  background-color: var(--component-video-player-scrubber-thumb-color);
+}
+
+.mtx-video-control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--space-10) + var(--space-1));
+  height: calc(var(--space-10) + var(--space-1));
+  padding: var(--space-0);
+  border: none;
+  border-radius: var(--radius-full);
+  background-color: var(--component-video-player-control-button-background-default);
+  color: var(--component-video-player-control-button-icon-default);
+  cursor: pointer;
+}
+
+.mtx-video-control:hover:not(:disabled) { background-color: var(--component-video-player-control-button-background-hover); }
+.mtx-video-control:active:not(:disabled) { background-color: var(--component-video-player-control-button-background-pressed); }
+.mtx-video-control:disabled { color: var(--component-video-player-control-button-icon-disabled); cursor: not-allowed; }
+
+.mtx-video-volume {
+  width: var(--space-16);
+  accent-color: var(--color-brand-primary);
+}
+
+.mtx-video-speed { position: relative; margin-inline-start: auto; }
+.mtx-video-speed-trigger {
+  width: auto;
+  min-width: calc(var(--space-10) + var(--space-1));
+  padding-inline: var(--space-2);
+  border-radius: var(--radius-medium);
+  color: var(--component-video-player-speed-control-text);
+  font-family: var(--font-family-latin);
+  font-size: var(--typography-label-medium-font-size);
+  font-weight: var(--typography-label-medium-font-weight);
+}
+
+.mtx-video-speed-menu {
+  position: absolute;
+  inset-inline-end: 0;
+  inset-block-end: calc(100% + var(--space-2));
+  z-index: 3;
+  display: flex;
+  min-width: var(--space-16);
+  flex-direction: column;
+  padding-block: var(--space-1);
+  border-radius: var(--radius-medium);
+  background-color: var(--component-video-player-speed-control-menu-background);
+  box-shadow: var(--elevation-3);
+  overflow: hidden;
+}
+
+.mtx-video-speed-menu button {
+  min-height: calc(var(--space-10) + var(--space-1));
+  padding-inline: var(--space-4);
+  border: none;
+  background-color: transparent;
+  color: var(--component-video-player-speed-control-menu-text);
+  text-align: start;
+  cursor: pointer;
+}
+
+.mtx-video-speed-menu button:hover,
+.mtx-video-speed-menu button[data-selected="true"] { background-color: var(--color-brand-primary-container); }
+
+/* ---------- Quiz System ---------- */
+
+.mtx-quiz-page {
+  max-width: calc(var(--space-16) * 12);
+  margin-inline: auto;
+}
+
+.mtx-question-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-5);
+  border: var(--border-width-default) solid var(--color-border-default);
+  border-radius: var(--radius-large);
+  background-color: var(--color-surface-default);
+}
+
+.mtx-answer-option {
+  display: flex;
+  width: 100%;
+  min-height: calc(var(--space-12) + var(--space-1));
+  align-items: center;
+  gap: var(--space-3);
+  padding-inline: var(--space-4);
+  border: var(--border-width-default) solid var(--color-border-default);
+  border-radius: var(--radius-medium);
+  background-color: var(--color-surface-default);
+  color: var(--color-text-primary);
+  text-align: start;
+  cursor: pointer;
+}
+
+.mtx-answer-option:disabled { cursor: default; }
+.mtx-answer-option-text { flex: 1; }
+.mtx-answer-option-selected { border-color: var(--color-brand-primary); background-color: var(--color-brand-primary-container); color: var(--color-brand-on-primary-container); }
+.mtx-answer-option-selected svg { color: var(--color-brand-primary); }
+.mtx-answer-option-correct { border-color: var(--color-success-default); background-color: var(--color-success-container); color: var(--color-success-on-success-container); }
+.mtx-answer-option-correct svg { color: var(--color-success-default); }
+.mtx-answer-option-incorrect { border-color: var(--color-error-default); background-color: var(--color-error-container); color: var(--color-error-on-error-container); }
+.mtx-answer-option-incorrect svg { color: var(--color-error-default); }
+.mtx-answer-option-disabled { background-color: var(--color-surface-variant); color: var(--color-text-disabled); }
+
+.mtx-quiz-skeleton { min-height: calc(var(--space-16) * 6); }
+.mtx-results-skeleton { min-height: calc(var(--space-16) * 8); }
+
+.mtx-result-score {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+}
+
+.mtx-result-score .mtx-stat-card { width: 100%; }
+
+.mtx-result-score .mtx-stat-card > p:first-child {
+  font-family: var(--font-family-latin);
+  font-size: var(--typography-display-medium-font-size);
+  line-height: var(--typography-display-medium-line-height);
+  font-weight: var(--typography-display-medium-font-weight);
+  letter-spacing: var(--typography-display-medium-letter-spacing);
+}
+
+html[lang="ar"] .mtx-result-score .mtx-stat-card > p:first-child,
+html[lang="ar"] .mtx-video-speed-trigger { font-family: var(--font-family-arabic); letter-spacing: 0; }

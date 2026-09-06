@@ -11,3 +11,5 @@ export { InstructorCard } from "./instructor-card";
 export { Icon, type IconName } from "./icon";
 export { CourseProgressCard } from "./course-progress-card";
 export { StatCard } from "./stat-card";
+export { VideoPlayer, type VideoPlayerLabels, type VideoPlayerProps } from "./video-player";
+export { QuestionCard, AnswerOption, type AnswerOptionState } from "./question-card";
