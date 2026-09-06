@@ -199,6 +199,31 @@
     "share": "مشاركة",
     "shareAcknowledged": "تم اختيار المشاركة"
   },
+  "aiTutor": {
+    "title": "المرشد الذكي",
+    "welcome": "مرحبًا! اسألني أي شيء عن دوراتك، أو جرّب إجراءً سريعًا أدناه.",
+    "loading": "جارٍ تحميل محادثتك",
+    "loadError": "تعذّر تحميل محادثتك مع المرشد الذكي",
+    "retry": "أعد المحاولة",
+    "assistantLabel": "المرشد الذكي",
+    "userLabel": "أنت",
+    "thinking": "المرشد الذكي يفكّر",
+    "quickActionsLabel": "إجراءات سريعة",
+    "quickActions": {
+      "explainLesson": "اشرح هذا الدرس",
+      "summarize": "لخّص",
+      "example": "أعطني مثالًا",
+      "quizMe": "اختبرني",
+      "learnNext": "ماذا ينبغي أن أتعلم بعد ذلك؟"
+    },
+    "inputLabel": "مراسلة المرشد الذكي",
+    "inputPlaceholder": "اطرح سؤالًا...",
+    "send": "إرسال",
+    "messageInvalidError": "أدخل رسالة لا يزيد طولها على ٤٬٠٠٠ حرف.",
+    "rateLimitError": "أنت ترسل الرسائل بسرعة كبيرة. حاول مرة أخرى بعد قليل.",
+    "sessionExpiredError": "انتهت صلاحية جلستك. حاول إرسال الرسالة مرة أخرى.",
+    "sendError": "حدث خطأ أثناء إرسال رسالتك. حاول مرة أخرى."
+  },
   "auth": {
     "loginTitle": "تسجيل الدخول",
     "registerTitle": "أنشئ حسابك",

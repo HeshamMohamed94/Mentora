@@ -199,6 +199,31 @@
     "share": "Share",
     "shareAcknowledged": "Share selected"
   },
+  "aiTutor": {
+    "title": "AI Tutor",
+    "welcome": "Hi! Ask me anything about your courses, or try a quick action below.",
+    "loading": "Loading your conversation",
+    "loadError": "Your AI Tutor conversation couldn't be loaded",
+    "retry": "Try again",
+    "assistantLabel": "AI Tutor",
+    "userLabel": "You",
+    "thinking": "AI Tutor is thinking",
+    "quickActionsLabel": "Quick actions",
+    "quickActions": {
+      "explainLesson": "Explain this lesson",
+      "summarize": "Summarize",
+      "example": "Give me an example",
+      "quizMe": "Quiz me",
+      "learnNext": "What should I learn next?"
+    },
+    "inputLabel": "Message AI Tutor",
+    "inputPlaceholder": "Ask a question...",
+    "send": "Send",
+    "messageInvalidError": "Enter a message of no more than 4,000 characters.",
+    "rateLimitError": "You're sending messages too quickly. Try again in a moment.",
+    "sessionExpiredError": "Your session expired. Try sending that again.",
+    "sendError": "Something went wrong sending your message. Try again."
+  },
   "auth": {
     "loginTitle": "Login",
     "registerTitle": "Create your account",

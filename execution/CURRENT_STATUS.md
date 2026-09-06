@@ -9,7 +9,7 @@
 **Read this section first when resuming.**
 
 - **Phase:** PHASE 2 — Website — `IN_PROGRESS`. Phase 1 is `COMPLETE` and was explicitly approved by the user on 2026-09-06.
-- **Current task:** Tasks 1-8 are DONE and verified end-to-end (real browser + real backend, en+ar) — foundation, auth, public discovery, demo checkout/purchase success, dashboard/my learning + the authenticated Sidebar shell, Course Player/Quiz/Quiz Results, Certificates List/Detail, and Learning Paths follow/unfollow (already complete since task 3). Tasks 6-7 were delegated to Codex via the `codex-delegate` skill (D41/D42) and independently reviewed/verified/landed by Claude. Task 9 (AI Tutor chat UI) is next. Icon set is a hand-drawn inline-SVG placeholder for the real self-hosted Material Symbols Rounded font (D40) — swap later behind the same `Icon` component API, no call-site changes needed. Landing page's own `CourseCard`/`LearningPathCard` usage still hardcodes the Guest `basePath` (unchanged from D39) — low priority since Landing is conceptually Guest-only.
+- **Current task:** Tasks 1-9 are DONE and verified end-to-end (real browser + real backend, en+ar) — foundation, auth, public discovery, demo checkout/purchase success, dashboard/my learning + the authenticated Sidebar shell, Course Player/Quiz/Quiz Results, Certificates List/Detail, Learning Paths follow/unfollow (already complete since task 3), and AI Tutor chat UI (streaming). Tasks 6-7-9 were delegated to Codex via the `codex-delegate` skill (D41/D42/D43) and independently reviewed/verified/landed by Claude. Task 10 (Profile + Settings) is next. Icon set is a hand-drawn inline-SVG placeholder for the real self-hosted Material Symbols Rounded font (D40) — swap later behind the same `Icon` component API, no call-site changes needed. Landing page's own `CourseCard`/`LearningPathCard` usage still hardcodes the Guest `basePath` (unchanged from D39) — low priority since Landing is conceptually Guest-only.
 - **What exists in `web/` right now (tasks 1–2):**
   - Next.js 15 App Router + TypeScript, `[locale]` routing (`en`/`ar`, `localePrefix: "always"`) via `next-intl`, `src/middleware.ts` combining locale detection with the `/app`, `/instructor`, `/admin` auth gate (redirects to `/login?redirect=<intent>` when the `mentora_refresh_token` cookie is absent).
   - `tools/token-pipeline/generate.js` (plain Node, see D35) generates `web/styles/tokens.css` (semantic + component-layer CSS custom properties, light/dark via `[data-theme]` + `prefers-color-scheme`), `web/styles/tailwind-theme.css` (Tailwind v4 `@theme inline` color mapping + custom `tablet`/`desktop`/`large-desktop` breakpoints), and `web/src/lib/design-tokens.generated.ts`. Re-run `npm run generate-tokens` (from `web/`) after any `design-tokens.json` change.
@@ -150,7 +150,7 @@ Web app lives in `web/` at repo root (sibling to `backend/`), per `REPOSITORY_ST
 | 6 | Course Player + Quiz + Quiz Results | DONE — delegated to Codex via the `codex-delegate` skill (D41), Claude reviewed and landed. `/app/learn/:id` (curriculum + real VideoPlayer/PlaybackControls against the media playback-url/stream endpoints + Mark Complete/auto-advance), `/app/learn/:id/quiz` (question-by-question QuestionCard/AnswerOption flow), `/app/learn/:id/quiz/results` (fresh-fetched score/breakdown + completion confirmation). Sidebar auto-collapses on both screens via a new `SidebarForceCollapseContext`, reverting on navigate-away without touching the user's saved preference. Verified live end-to-end as the seeded student: completed both lessons of a real course, took its real 3-question quiz, saw the graded breakdown, reached the certificate-issued completion confirmation, and confirmed My Learning/Dashboard stats updated correctly. Independently re-ran typecheck/lint/RTL-check/build (all matched Codex's own claims exactly) and read every diff against the brief — zero out-of-scope changes. |
 | 7 | Certificates List + Certificate Detail | DONE — delegated to Codex via `codex-delegate` (D42), Claude reviewed and landed. `/app/certificates` (grid + `EmptyState`) and `/app/certificates/:id` (`:id` is the backend's public `MTR-XXXX-...` format, passed through verbatim). No real certificate-image asset exists in the backend, so both screens build a polished, fully token-driven placeholder/"document" presentation instead of pointing at a nonexistent image endpoint — see D42. "Share" is confirmed UI-only (zero network calls). Verified live: the certificate earned during task 6's live test appears correctly in both screens, en+ar, including the not-found path for an invalid id. Independently re-ran every gate; matched Codex's own claims exactly. |
 | 8 | Learning Paths (student-aware) follow/unfollow wiring | DONE — already fully implemented as part of task 3's `learning-path-details-screen.tsx` (`useFollowLearningPath`/`useUnfollowLearningPath`, login-gated for guests, `path.isFollowing`-driven button state). Discovered already complete while planning task 6/7 — noted here so it isn't redone. |
-| 9 | AI Tutor chat UI (streaming) | NOT_STARTED |
+| 9 | AI Tutor chat UI (streaming) | DONE — delegated to Codex via `codex-delegate` (D43), Claude reviewed and landed. `/app/ai-tutor` chat screen against the real `AiTutorRoutes`/`StubAiProvider` chunked `text/plain` streaming endpoint (architecturally distinct from every other endpoint's JSON envelope — a dedicated `streamAiMessage()` in `lib/api/ai-tutor.ts` reads the raw `ReadableStream` via `getReader()`/`TextDecoder`, bypassing the shared `apiFetch` abstraction on purpose). Thinking-dots indicator, token-by-token streaming render with blinking cursor, quick-action chips that send immediately, IME-safe Enter-to-send, partial-reply preservation on mid-stream failure with a separate retryable error bubble, accessible `role="log"` thread plus a completion-only `sr-only` live region. Sidebar stays visible (not force-collapsed, unlike Course Player/Quiz). Verified live as the seeded student: sent a typed message and a quick action, watched the stub reply stream and complete correctly, then confirmed `/ar/app/ai-tutor` mirrors correctly via logical properties (bubble sides swap, Arabic strings render). Independently re-ran every gate; matched Codex's own claims exactly. |
 | 10 | Profile + Settings (incl. language selector) | NOT_STARTED |
 | 11 | Instructor Web: Dashboard, Course Editor (Overview/Curriculum), Lesson Editor, Quiz Editor | NOT_STARTED |
 | 12 | Admin Web: Dashboard, Manage Courses/Users/Instructors/Categories | NOT_STARTED |
@@ -160,15 +160,19 @@ Web app lives in `web/` at repo root (sibling to `backend/`), per `REPOSITORY_ST
 | 16 | Phase 2 quality gate verification | NOT_STARTED |
 | 17 | `PHASE_HANDOFF.md` Phase 2 write-up | NOT_STARTED |
 
+Task 9 note: built as the standalone full-navigation `/app/ai-tutor` screen only — the
+`ux/RESPONSIVE_BEHAVIOR.md` § 9 docked-panel-alongside-the-player variant for Course Player was
+**not** built (Course Player's "Ask AI Tutor" link still full-navigates away, same forward-reference
+behavior as before task 9 existed). Not a defect, just an unbuilt refinement — flag it if a future
+task revisits Course Player.
+
 ## Immediate Next Action
 
-Task 9: AI Tutor chat UI (streaming), against the live `ai-tutor` backend module
-(`backend/src/main/kotlin/com/mentora/backend/aitutor/` — `AiTutorRoutes.kt`/`AiTutorService.kt`
-for the exact as-built endpoint shapes, `AiProvider`/`StubAiProvider` for how the "genuinely
-chunked streaming, no real LLM call" stub behaves, before assuming anything, same discipline as
-tasks 6-7). Route: `/app/ai-tutor` — every "Ask AI Tutor" link already added in tasks 6 (Course
-Player) and elsewhere currently points here as a forward reference; this task makes it real. Per
-`ux/RESPONSIVE_BEHAVIOR.md` § 9, on Course Player this should ideally open as a docked panel
-alongside the player rather than full navigation — decide whether that's in scope for task 9 or a
-follow-up refinement once the base chat screen exists. Chat UI needs `AITutorBubble`/
-`AITutorQuickAction` per `design-system/COMPONENTS.md` — read that section before building.
+Task 10: Profile + Settings (incl. language selector), against the live `users`/`auth` backend
+modules. Read `backend/src/main/kotlin/com/mentora/backend/users/` (`UsersRoutes.kt`/`UsersService.kt`)
+for the exact as-built profile-update endpoint shape before assuming anything, same discipline as
+tasks 6-7-9. `ux/WEB_UX.md`/`design-system/COMPONENTS.md` should already cover the Settings screen's
+language-selector control — this is the first task that needs to actually flip the app's locale at
+runtime (routing already supports `en`/`ar` via `next-intl`, D-prefixed decisions note no in-app
+switcher control exists yet). Check whether password-change/account-deletion are in scope per
+`product/USER_FLOWS.md` before assuming Settings is profile-fields-only.

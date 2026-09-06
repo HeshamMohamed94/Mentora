@@ -14,3 +14,5 @@ export { StatCard } from "./stat-card";
 export { CertificateCard, CertificateGridSkeleton } from "./certificate-card";
 export { VideoPlayer, type VideoPlayerLabels, type VideoPlayerProps } from "./video-player";
 export { QuestionCard, AnswerOption, type AnswerOptionState } from "./question-card";
+export { AiTutorBubble, type AiTutorBubbleProps } from "./ai-tutor-bubble";
+export { AiTutorQuickAction, type AiTutorQuickActionProps } from "./ai-tutor-quick-action";
