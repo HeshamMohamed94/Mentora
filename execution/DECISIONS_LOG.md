@@ -173,3 +173,37 @@ Format: `D<n> — <date> — <decision>` with **Why** and **Impact**.
 **Why:** `progress` already depends on `quiz` is false — actually `quiz` depends on `progress` (for `setQuizPassed`). Detecting "did a lesson-completion just finish the course" requires knowing whether the course has a quiz, i.e. `progress` would need to depend on `quiz` too — creating a real circular dependency (`quiz → progress → quiz`) that Koin/constructor injection cannot resolve. Routing the completion-check-and-certificate-issuance through a new one-way-dependent `certificates` module, triggered from the route layer rather than chained service-to-service, is the standard way to break this cycle without weakening the actual data-integrity guarantee: `BACKEND_ARCHITECTURE.md § 4`'s real intent — a certificate is never orphaned from, or missing given, the completion state it represents — is fully preserved; only the literal "single transaction spanning three collections from one write's callsite" mechanic is split into two adjacent transactions.
 
 **Impact:** A theoretical crash in the narrow window between the two transactions could leave a course fully eligible but not yet certified. Mitigated by making the completion-check idempotent and re-triggerable — `GET /courses/{id}/progress` (already lazy-creating, per D13) also re-runs the same eligibility check on every read as a self-healing safety net, so the gap self-corrects on the student's very next progress view. This is judged acceptable for a local single-instance MVP portfolio demo, not a distributed-systems-scale concern.
+
+---
+
+### D18 — 2026-09-06 — Codex usage limit hit mid-Phase-1; user chose to wait rather than switch allocation
+
+**Decision:** During the Learning Paths module task (run 08), Codex returned "You've hit your usage limit... try again at 4:57 AM" (an account-level quota, not a task failure — confirmed via the run's raw event log, not a code/task defect). Presented the user a choice: wait for the quota to reset and resume the established Codex-implements/Claude-reviews workflow, or have Claude implement the remaining Phase 1 modules directly. **User chose to wait.**
+
+**Why this matters to record:** Explains a visible gap/pause in the implementation timeline and confirms the Claude/Codex allocation for the rest of Phase 1 remains unchanged (not a scope or process deviation) — purely a scheduling pause caused by external account quota, resolved by waiting.
+
+**Impact:** Learning Paths (task 14) has partial, uncommitted work in the working tree from the interrupted run (all layers scaffolded, no tests yet) — preserved, not discarded, to resume from once Codex is available again.
+
+---
+
+### D19 — 2026-09-06 — Session paused for machine shutdown mid-Learning-Paths-task
+
+**Decision:** Codex's retry of the Learning Paths task (run 08c, resuming session `01a073f2-bf8d-7a21-b0e0-081fd139e0a4`) was making progress (had produced a test file in addition to the module scaffold) when the user requested an immediate machine shutdown. The in-flight dispatch was stopped via `TaskStop` (a clean termination, not a crash) rather than left running unattended through a shutdown. No build/test verification, review, or commit was performed on this partial work — it is left exactly as Codex produced it, uncommitted, for the next session to pick up.
+
+**Why:** User-directed safe-shutdown request takes priority over completing the in-flight delegation; stopping the task cleanly (rather than letting a shutdown kill it uncontrolled) and leaving the working tree untouched otherwise is the safest way to honor both "preserve partial work" and "stop background tasks" simultaneously.
+
+**Impact:** See `execution/CURRENT_STATUS.md`'s "EXACT RESUME POINT" section for the full resume procedure. No git operations (commit/reset/discard) were performed as part of this pause.
+
+---
+
+### D20 — 2026-09-06 — Learning Paths (task 14) resumed and closed out: 3 test-only bugs found and fixed, application code verified correct
+
+**Decision:** Resumed from the machine-shutdown pause. Built and ran the partial Learning Paths work as-is first (per the documented resume procedure) rather than assuming it was broken or re-dispatching Codex. All 4 `LearningPathsIntegrationTest` cases initially failed. Root-caused and fixed three bugs, all confined to the test file — the production module code (`LearningPathsModule.kt`, `repository/`, `service/`, `routes/`) required zero changes and was verified correct as Codex left it:
+
+1. `postJson`/`register`/`login` test helpers had two conflicting 2-arg overloads — `postJson(path, token)` and the intended-but-effectively-shadowed `postJson(path, body)` — both `(String, String)`, so `register()`'s call resolved to the token overload, silently sending an empty `{}` body to `/api/v1/auth/register` instead of the real payload. Fixed by adopting the exact helper signature already used (and working) in `CertificatesIntegrationTest.kt`/`CoursesCategoriesIntegrationTest.kt`: a single `postJson(path, body, token: String? = null)`, with call sites updated accordingly.
+2. `seedPath()`'s direct-to-MongoDB test fixture inserted `createdAt` as a raw `java.util.Date`, producing a native BSON `DATE_TIME`. But `LearningPathDocument.createdAt: Instant` (no `@Contextual` override, same as every other module's `Instant` fields) is written by the app's own Kotlinx-serialization Mongo codec as an ISO-8601 **string**, so real documents and this raw-inserted fixture were BSON-type-inconsistent — decoding threw `BsonInvalidOperationException`. Fixed by seeding `createdAt` as `java.time.Instant.now().toString()` instead.
+3. One assertion checked `body["progressPercent"]?.jsonPrimitive?.content == "null"` to assert a null field for a guest request. The app's global JSON config sets `explicitNulls = false` (`plugins/Serialization.kt`), so null fields are omitted from the response entirely rather than serialized as JSON `null` — the established, already-used pattern elsewhere (`CertificatesIntegrationTest`, `ProgressIntegrationTest`) is `assertFalse(body.containsKey(...))`. Fixed to match.
+
+**Why this matters to record:** None of these were application-logic defects — they were test-harness mistakes introduced while authoring a brand-new test file under Codex's interrupted/retried session (D18/D19), not present in any previously-reviewed module. Recording this distinction so the module's certificate-of-review is accurate: the learning-paths production code was correct on first read: order-preserving course resolution, dangling-course omission from both detail and the progress denominator, idempotent follow (unique compound index + `setOnInsert` upsert) and unfollow (plain idempotent delete), and guest-safe optional-auth on the detail route all verified via the now-passing tests plus direct code reading.
+
+**Impact:** Full `./gradlew build` (all 8 integration test classes, 25 tests) is green. Task 14 committed. Proceeding to task 15 (Media module).

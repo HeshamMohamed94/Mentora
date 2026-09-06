@@ -1,6 +1,41 @@
 # Mentora — Current Implementation Status
 
-**Last updated:** 2026-09-05 (Phase 1 kickoff)
+**Last updated:** 2026-09-06 (session resumed from machine-shutdown pause; task 14 closed out and committed)
+
+---
+
+## EXACT RESUME POINT
+
+**Read this section first when resuming.**
+
+- **Phase:** PHASE 1 — Backend Foundation & API — `IN_PROGRESS`
+- **Current task:** Task 15 — Media module (local filesystem storage, M11 slice) — **NOT_STARTED**
+- **Next immediate action:** Dispatch Codex for the Media module using the established per-module brief pattern (see Courses/Enrollment/Progress/Quiz/Certificates/Learning Paths for the style), then build/test/review/commit exactly as done for every prior module.
+
+### What is COMPLETE (committed, reviewed, gates green) — tasks 1–14
+
+All of: execution continuity docs, backend Gradle scaffold, Ktor foundation (M1), Auth & RBAC (M2), Users module, Courses & Categories (M5 slice), Enrollment/Demo Checkout (M6 slice), Progress (M7 slice), Quiz (M8 slice), Certificates + completion-crossing wiring (M9 slice), Learning Paths (M10 slice). Last commit: see `git log` on `main` — "Phase 1: Learning paths module (M10 slice)".
+
+Task 14 (Learning Paths) resumed from the machine-shutdown pause: built/tested the partial work as-is first (per the prior resume plan), found all 4 integration tests failing, root-caused and fixed 3 test-only bugs (an ambiguous-overload bug in the test's `postJson` helper that silently emptied the register/login request bodies, a BSON type mismatch in the test's direct-seed fixture for `createdAt`, and an assertion written against the wrong null-encoding convention). The production module code itself needed no changes — verified correct on direct read (order-preserving course resolution, dangling-course omission from both detail and the progress denominator, idempotent follow/unfollow, guest-safe optional auth). Full details in `DECISIONS_LOG.md` D20. Full `./gradlew build` (25 tests across 8 integration test classes) is green.
+
+### What is PARTIAL / uncommitted
+
+Nothing. Working tree is clean relative to the task-14 commit.
+
+### Exact next steps on resume
+
+1. Task 15 — Media module (local filesystem storage, M11 slice): dispatch Codex with a brief in the same style as prior modules (spec: local filesystem storage under `mediaStorageRoot` from `AppConfig`, upload/serve endpoints, ownership/role gating consistent with Courses module patterns). Build/test/review/commit.
+2. Task 16 — Instructor aggregation endpoints (M11 slice).
+3. Task 17 — Admin aggregation endpoints (M12 slice).
+4. Task 18 — AI Tutor scaffold + `AiProvider` interface + stub impl (M13 boundary only).
+5. Task 19 — Backend test suite completeness review (M15 portion).
+6. Task 20 — Seed data script.
+7. Task 21 — Local run instructions (M16 portion).
+8. Task 22 — Phase 1 quality gate verification.
+9. Task 23 — `PHASE_HANDOFF.md` write-up.
+10. Do not start Phase 2 under any circumstances until Phase 1's quality gate is met and the user has explicitly approved the Phase 1 report.
+
+---
 
 Allowed phase states: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `COMPLETE`.
 
@@ -34,7 +69,7 @@ Allowed phase states: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `COMPLETE`.
 | 11 | Progress module (M7 slice) | DONE — Codex-authored (run 05), Claude-reviewed: verified enrollment gate, idempotent lesson-completion map, correct integer percentage math, lazy find-or-create via atomic upsert, and that quizPassed/courseCompletedAt stay null as scoped (D15). All gates green. |
 | 12 | Quiz module (M8 slice) | DONE — Codex-authored (run 06), Claude-reviewed (isCorrect-stripping per roadmap): confirmed `StudentQuizOption` is structurally a distinct type with no `isCorrect` property (not a serialization-omitted field), verified via raw-JSON substring test; grading math, editor validation, and the authorized `progress.setQuizPassed` addition all verified. Certificate/completion-crossing wiring deferred to next task (D16). All gates green. |
 | 13 | Certificates module + course-completion wiring (M9 slice + D15/D16/D17 follow-through) | DONE — Codex-authored (run 07), Claude-reviewed closely: independently verified via grep that progress/quiz services have zero dependency on certificates (route-layer-only wiring, no circular dependency), confirmed the eligibility check, the reversible human-readable public ID, and order-independence (quiz-first and lessons-first both correctly trigger issuance) with genuine direct-collection-count proof of no double-issuance. All gates green. |
-| 14 | Learning paths module (M10 slice) | NOT_STARTED |
+| 14 | Learning paths module (M10 slice) | DONE — Codex-authored (run 08c, resumed after a usage-limit pause and a machine-shutdown pause, D18/D19), Claude-reviewed: production code correct on first read (order-preserving course resolution, dangling-course omission from detail + progress denominator, idempotent follow/unfollow via unique index + upsert, guest-safe optional auth). Found and fixed 3 test-only bugs (ambiguous helper overload emptying register/login bodies, BSON date-type mismatch in a raw-seed fixture, a null-encoding assertion mismatched to the app's `explicitNulls = false` config) — see D20. All gates green (25 tests, 8 classes). |
 | 15 | Media module — local filesystem storage (M11 slice) | NOT_STARTED |
 | 16 | Instructor aggregation endpoints (M11 slice) | NOT_STARTED |
 | 17 | Admin aggregation endpoints (M12 slice) | NOT_STARTED |
@@ -47,4 +82,4 @@ Allowed phase states: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `COMPLETE`.
 
 ## Immediate Next Action
 
-Scaffold `backend/` (Gradle Kotlin DSL, Ktor dependencies, package structure per `architecture/REPOSITORY_STRUCTURE.md § 2`).
+Task 15 — Media module (local filesystem storage, M11 slice). Dispatch Codex with a brief in the established per-module style, then build/test/review/commit.

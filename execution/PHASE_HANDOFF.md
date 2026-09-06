@@ -9,3 +9,11 @@ Each completed phase gets one dated section below, appended (never overwritten),
 **Status:** IN_PROGRESS (started 2026-09-05)
 
 *(This section will be completed and finalized when Phase 1 reaches its quality gate. Do not start Phase 2 until this section says COMPLETE and the quality gate report has been delivered and approved.)*
+
+### Checkpoint note — session resumed 2026-09-06 after machine-shutdown pause; task 14 (Learning Paths) closed out
+
+Full exact-resume-point detail lives in `execution/CURRENT_STATUS.md`'s "EXACT RESUME POINT" section (top of file) — read that first. Summary:
+
+- **Committed and reviewed so far (tasks 1–14):** execution continuity docs; backend Gradle scaffold; Ktor foundation (plugin stack, MongoDB connectivity via a converted single-node replica set `rs0`, `/healthz`); Auth & RBAC (register/login/logout/refresh with reuse-detection); minimal Users module; Courses & Categories (full CRUD, embedded curriculum, publish validation); Enrollment/Demo Checkout (transactional, idempotent, verified free of real-payment vocabulary); Progress (lesson completion, position heartbeat, lazy creation); Quiz (isCorrect-stripped student view, server-side grading); Certificates (denormalized snapshot, reversible public id, completion-crossing wired into both progress and quiz without a circular module dependency); Learning Paths (order-preserving course resolution, dangling-course-safe progress math, idempotent follow/unfollow, guest-safe optional auth — see `DECISIONS_LOG.md` D20 for the 3 test-only bugs found and fixed during resume).
+- **Not yet started:** Media module (local filesystem storage), Instructor aggregation endpoints, Admin aggregation endpoints, AI Tutor scaffold (interface boundary only, per the locked Phase 1 scope), backend test-suite completeness review, seed data script, local run instructions, the Phase 1 quality-gate verification pass, and this document's final completion write-up.
+- **Working tree is clean.** Nothing partial or uncommitted remains from the shutdown pause.
