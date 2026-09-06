@@ -2,6 +2,7 @@ import { Link } from "@/i18n/navigation";
 import type { CourseSummary } from "@/lib/api/courses";
 import { formatPrice } from "@/lib/i18n/format";
 import { CategoryChip } from "./category-chip";
+import { CourseThumbnail } from "./course-thumbnail";
 
 /**
  * design-system/COMPONENTS.md § Course Card. Content hierarchy: thumbnail → category chip →
@@ -15,27 +16,21 @@ export function CourseCard({
   categoryName,
   levelLabel,
   locale,
+  viewLabel,
   basePath = "",
 }: {
   course: CourseSummary;
   categoryName?: string;
   levelLabel: string;
   locale: string;
+  viewLabel: string;
   /** "/app" when rendered for an authenticated Student so the link stays inside the
    * authenticated shell instead of dropping them onto the Guest-styled public route. */
   basePath?: string;
 }) {
   return (
     <Link href={`${basePath}/courses/${course.id}`} className="mtx-card" aria-label={course.title}>
-      {course.thumbnailMediaId ? (
-        <img
-          src={`/api/v1/media/${course.thumbnailMediaId}/file`}
-          alt=""
-          className="mtx-card-thumbnail"
-        />
-      ) : (
-        <div className="mtx-card-thumbnail" aria-hidden="true" />
-      )}
+      <CourseThumbnail mediaId={course.thumbnailMediaId} className="mtx-card-thumbnail" />
       <div className="mtx-card-body">
         {categoryName && <CategoryChip label={categoryName} />}
         <h3 className="mtx-text-heading-h4 mtx-card-title">{course.title}</h3>
@@ -49,6 +44,9 @@ export function CourseCard({
         <p className="mtx-text-label-large" style={{ color: "var(--color-text-primary)" }}>
           {formatPrice(course.priceDisplay.amount, course.priceDisplay.currency, locale)}
         </p>
+        <span className="mtx-btn mtx-btn-tonal mtx-card-cta" aria-hidden="true">
+          {viewLabel}
+        </span>
       </div>
     </Link>
   );

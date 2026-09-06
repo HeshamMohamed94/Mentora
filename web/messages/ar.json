@@ -43,7 +43,8 @@
     "errorTitle": "حدث خطأ أثناء تحميل الدورات",
     "levelBeginner": "مبتدئ",
     "levelIntermediate": "متوسط",
-    "levelAdvanced": "متقدم"
+    "levelAdvanced": "متقدم",
+    "viewCourse": "عرض الدورة"
   },
   "courseDetails": {
     "enroll": "التسجيل",
@@ -63,7 +64,8 @@
     "follow": "متابعة المسار",
     "unfollow": "إلغاء المتابعة",
     "loginToFollow": "سجّل الدخول للمتابعة",
-    "errorTitle": "تعذّر تحميل مسار التعلّم هذا"
+    "errorTitle": "تعذّر تحميل مسار التعلّم هذا",
+    "viewPath": "عرض المسار"
   },
   "dashboard": {
     "title": "لوحة التحكم",
@@ -79,7 +81,8 @@
     "recommended": "موصى بها لك",
     "emptyTitle": "لا توجد دورات بعد",
     "emptyDescription": "سجّل في دورة لترى تقدمك هنا",
-    "exploreCourses": "استكشف الدورات"
+    "exploreCourses": "استكشف الدورات",
+    "viewPath": "عرض المسار"
   },
   "myLearning": {
     "title": "تعلّمي",

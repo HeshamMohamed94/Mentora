@@ -12,6 +12,7 @@ type StatusFilter = "all" | "inProgress" | "completed";
 /** product/SCREEN_INVENTORY.md § 9 (My Learning). */
 export function MyLearningScreen() {
   const t = useTranslations("myLearning");
+  const tCommon = useTranslations("common");
   const locale = useLocale();
   const router = useRouter();
   const myLearning = useMyLearning();
@@ -36,7 +37,7 @@ export function MyLearningScreen() {
       {myLearning.isLoading && <CourseGridSkeleton count={4} />}
 
       {myLearning.isError && (
-        <ErrorState description={t("errorTitle")} retryLabel={t("errorTitle")} onRetry={() => myLearning.refetch()} />
+        <ErrorState description={t("errorTitle")} retryLabel={tCommon("retry")} onRetry={() => myLearning.refetch()} />
       )}
 
       {!myLearning.isLoading && !myLearning.isError && myLearning.items.length === 0 && (

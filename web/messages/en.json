@@ -43,7 +43,8 @@
     "errorTitle": "Something went wrong loading courses",
     "levelBeginner": "Beginner",
     "levelIntermediate": "Intermediate",
-    "levelAdvanced": "Advanced"
+    "levelAdvanced": "Advanced",
+    "viewCourse": "View Course"
   },
   "courseDetails": {
     "enroll": "Enroll",
@@ -63,7 +64,8 @@
     "follow": "Follow Path",
     "unfollow": "Unfollow",
     "loginToFollow": "Login to Follow",
-    "errorTitle": "This learning path couldn't be loaded"
+    "errorTitle": "This learning path couldn't be loaded",
+    "viewPath": "View Path"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -79,7 +81,8 @@
     "recommended": "Recommended for you",
     "emptyTitle": "No courses yet",
     "emptyDescription": "Enroll in a course to see your progress here",
-    "exploreCourses": "Explore Courses"
+    "exploreCourses": "Explore Courses",
+    "viewPath": "View Path"
   },
   "myLearning": {
     "title": "My Learning",

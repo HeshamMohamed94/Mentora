@@ -80,7 +80,7 @@ export function ExploreScreen() {
       {coursesQuery.isLoading && <CourseGridSkeleton />}
 
       {coursesQuery.isError && (
-        <ErrorState description={t("errorTitle")} retryLabel={t("errorTitle")} onRetry={() => coursesQuery.refetch()} />
+        <ErrorState description={t("errorTitle")} retryLabel={tCommon("retry")} onRetry={() => coursesQuery.refetch()} />
       )}
 
       {coursesQuery.data && coursesQuery.data.items.length === 0 && (
@@ -105,6 +105,7 @@ export function ExploreScreen() {
                 categoryName={categoryNameById.get(course.categoryId)}
                 levelLabel={t(LEVEL_LABEL_KEYS[course.level])}
                 locale={locale}
+                viewLabel={t("viewCourse")}
                 basePath={basePath}
               />
             ))}

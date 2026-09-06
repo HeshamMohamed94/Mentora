@@ -8,10 +8,11 @@ import {
   useUnfollowLearningPath,
 } from "@/lib/api/learning-paths";
 import { useCurrentUser } from "@/lib/auth/use-current-user";
-import { Button, ProgressBar, ErrorState } from "@/components/ui";
+import { Button, ProgressBar, ErrorState, CourseThumbnail } from "@/components/ui";
 
 export function LearningPathDetailsScreen({ pathId }: { pathId: string }) {
   const t = useTranslations("learningPaths");
+  const tCommon = useTranslations("common");
   const query = useLearningPath(pathId);
   const { data: user } = useCurrentUser();
   const follow = useFollowLearningPath(pathId);
@@ -28,7 +29,7 @@ export function LearningPathDetailsScreen({ pathId }: { pathId: string }) {
   if (query.isError || !query.data) {
     return (
       <div className="px-4 py-8">
-        <ErrorState description={t("errorTitle")} retryLabel={t("errorTitle")} onRetry={() => query.refetch()} />
+        <ErrorState description={t("errorTitle")} retryLabel={tCommon("retry")} onRetry={() => query.refetch()} />
       </div>
     );
   }
@@ -74,31 +75,9 @@ export function LearningPathDetailsScreen({ pathId }: { pathId: string }) {
       <ol className="flex flex-col gap-3">
         {path.courses.map((course, index) => (
           <li key={course.id}>
-            <Link
-              href={`${basePath}/courses/${course.id}`}
-              className="mtx-card"
-              style={{ display: "flex", alignItems: "center", gap: "var(--space-4)", padding: "var(--space-4)" }}
-            >
-              <span className="mtx-text-heading-h4" style={{ color: "var(--color-text-secondary)" }}>
-                {index + 1}
-              </span>
-              {course.thumbnailMediaId ? (
-                <img
-                  src={`/api/v1/media/${course.thumbnailMediaId}/file`}
-                  alt=""
-                  style={{ width: 96, aspectRatio: "16/9", borderRadius: "var(--radius-medium)", objectFit: "cover" }}
-                />
-              ) : (
-                <div
-                  style={{
-                    width: 96,
-                    aspectRatio: "16/9",
-                    borderRadius: "var(--radius-medium)",
-                    backgroundColor: "var(--color-surface-variant)",
-                  }}
-                  aria-hidden="true"
-                />
-              )}
+            <Link href={`${basePath}/courses/${course.id}`} className="mtx-card mtx-path-course-row">
+              <span className="mtx-text-heading-h4 mtx-path-course-index">{index + 1}</span>
+              <CourseThumbnail mediaId={course.thumbnailMediaId} className="mtx-checkout-thumbnail" iconSize={20} />
               <span className="mtx-text-label-large">{course.title}</span>
             </Link>
           </li>

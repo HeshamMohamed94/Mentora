@@ -3,7 +3,7 @@
 import { useTranslations, useLocale } from "next-intl";
 import { useCheckoutPreview, useCompleteCheckout } from "@/lib/api/enrollment";
 import { useRouter, Link } from "@/i18n/navigation";
-import { Button, ErrorState } from "@/components/ui";
+import { Button, ErrorState, CourseThumbnail } from "@/components/ui";
 import { formatPrice } from "@/lib/i18n/format";
 
 /**
@@ -13,6 +13,7 @@ import { formatPrice } from "@/lib/i18n/format";
  */
 export function CheckoutScreen({ courseId }: { courseId: string }) {
   const t = useTranslations("checkout");
+  const tCommon = useTranslations("common");
   const locale = useLocale();
   const router = useRouter();
   const previewQuery = useCheckoutPreview(courseId);
@@ -35,7 +36,7 @@ export function CheckoutScreen({ courseId }: { courseId: string }) {
   if (previewQuery.isError || !previewQuery.data) {
     return (
       <div className="px-4 py-16">
-        <ErrorState description={t("errorTitle")} retryLabel={t("errorTitle")} onRetry={() => previewQuery.refetch()} />
+        <ErrorState description={t("errorTitle")} retryLabel={tCommon("retry")} onRetry={() => previewQuery.refetch()} />
       </div>
     );
   }
@@ -47,15 +48,7 @@ export function CheckoutScreen({ courseId }: { courseId: string }) {
       <h1 className="mtx-text-heading-h3 mb-6 text-center">{t("title")}</h1>
       <div className="mtx-checkout-card flex flex-col gap-4">
         <div className="mtx-checkout-line-item">
-          {preview.course.thumbnailMediaId ? (
-            <img
-              src={`/api/v1/media/${preview.course.thumbnailMediaId}/file`}
-              alt=""
-              className="mtx-checkout-thumbnail"
-            />
-          ) : (
-            <div className="mtx-checkout-thumbnail" aria-hidden="true" />
-          )}
+          <CourseThumbnail mediaId={preview.course.thumbnailMediaId} className="mtx-checkout-thumbnail" iconSize={20} />
           <div>
             <p className="mtx-text-label-large mtx-card-title">{preview.course.title}</p>
             <p className="mtx-text-body-small" style={{ color: "var(--color-text-secondary)" }}>

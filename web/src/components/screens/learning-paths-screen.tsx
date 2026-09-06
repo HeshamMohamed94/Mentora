@@ -7,6 +7,7 @@ import { useCurrentUser } from "@/lib/auth/use-current-user";
 
 export function LearningPathsScreen() {
   const t = useTranslations("learningPaths");
+  const tCommon = useTranslations("common");
   const query = useLearningPaths();
   const { data: user } = useCurrentUser();
   const basePath = user ? "/app" : "";
@@ -27,7 +28,7 @@ export function LearningPathsScreen() {
       )}
 
       {query.isError && (
-        <ErrorState description={t("errorTitle")} retryLabel={t("errorTitle")} onRetry={() => query.refetch()} />
+        <ErrorState description={t("errorTitle")} retryLabel={tCommon("retry")} onRetry={() => query.refetch()} />
       )}
 
       {query.data && query.data.length === 0 && <EmptyState title={t("emptyTitle")} description={t("emptyDescription")} />}
@@ -39,6 +40,7 @@ export function LearningPathsScreen() {
               key={path.id}
               path={path}
               courseCountLabel={t("courseCount", { count: path.courseCount })}
+              viewLabel={t("viewPath")}
               basePath={basePath}
             />
           ))}

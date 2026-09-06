@@ -80,6 +80,7 @@ export function DashboardScreen() {
                 key={path.id}
                 path={{ id: path.id, title: path.title, description: path.description, courseCount: path.courses.length }}
                 courseCountLabel={t("pathCourseCount", { count: path.courses.length })}
+                viewLabel={t("viewPath")}
                 basePath="/app"
               />
             ))}
@@ -97,6 +98,7 @@ export function DashboardScreen() {
                 course={course}
                 levelLabel={tExplore(LEVEL_LABEL_KEYS[course.level])}
                 locale={locale}
+                viewLabel={tExplore("viewCourse")}
                 basePath="/app"
               />
             ))}

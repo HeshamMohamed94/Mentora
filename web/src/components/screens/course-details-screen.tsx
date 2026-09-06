@@ -5,7 +5,7 @@ import { useCourse } from "@/lib/api/courses";
 import { useCategories } from "@/lib/api/categories";
 import { useCurrentUser } from "@/lib/auth/use-current-user";
 import { useIsEnrolled } from "@/lib/api/enrollment";
-import { Button, Badge, InstructorCard, ErrorState } from "@/components/ui";
+import { Button, Badge, InstructorCard, ErrorState, CourseThumbnail } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
 import { formatPrice } from "@/lib/i18n/format";
 import { LEVEL_LABEL_KEYS } from "@/lib/i18n/course-labels";
@@ -17,6 +17,7 @@ import { LEVEL_LABEL_KEYS } from "@/lib/i18n/course-labels";
 export function CourseDetailsScreen({ courseId }: { courseId: string }) {
   const t = useTranslations("courseDetails");
   const tExplore = useTranslations("explore");
+  const tCommon = useTranslations("common");
   const locale = useLocale();
   const courseQuery = useCourse(courseId);
   const categoriesQuery = useCategories();
@@ -34,7 +35,7 @@ export function CourseDetailsScreen({ courseId }: { courseId: string }) {
   if (courseQuery.isError || !courseQuery.data) {
     return (
       <div className="px-4 py-8">
-        <ErrorState description={t("errorTitle")} retryLabel={t("errorTitle")} onRetry={() => courseQuery.refetch()} />
+        <ErrorState description={t("errorTitle")} retryLabel={tCommon("retry")} onRetry={() => courseQuery.refetch()} />
       </div>
     );
   }
@@ -66,16 +67,7 @@ export function CourseDetailsScreen({ courseId }: { courseId: string }) {
 
   return (
     <div className="mx-auto max-w-[900px] px-4 py-8 tablet:px-6 desktop:px-8">
-      {course.thumbnailMediaId ? (
-        <img
-          src={`/api/v1/media/${course.thumbnailMediaId}/file`}
-          alt=""
-          className="mtx-card-thumbnail"
-          style={{ borderRadius: "var(--radius-large)" }}
-        />
-      ) : (
-        <div className="mtx-card-thumbnail" style={{ borderRadius: "var(--radius-large)" }} aria-hidden="true" />
-      )}
+      <CourseThumbnail mediaId={course.thumbnailMediaId} className="mtx-course-hero-thumbnail" iconSize={48} />
 
       <div className="mt-4 flex flex-col gap-3">
         {categoryName && (

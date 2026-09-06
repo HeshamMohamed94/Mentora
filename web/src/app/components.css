@@ -513,12 +513,27 @@ a.mtx-card:hover {
   object-fit: cover;
   display: block;
 }
+.mtx-thumbnail-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-brand-primary-container);
+  color: var(--color-brand-on-primary-container);
+}
+.mtx-course-hero-thumbnail {
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  border-radius: var(--radius-large);
+  background-color: var(--color-surface-variant);
+  object-fit: cover;
+  display: block;
+}
 
 .mtx-card-body {
   padding: var(--component-card-padding);
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-2);
 }
 
 .mtx-card-title {
@@ -533,6 +548,13 @@ a.mtx-card:hover {
   align-items: center;
   gap: var(--space-3);
   color: var(--color-text-secondary);
+}
+
+.mtx-card-cta {
+  margin-block-start: var(--space-1);
+  width: 100%;
+  text-align: center;
+  justify-content: center;
 }
 
 /* ---------- Certificates ---------- */
@@ -696,6 +718,19 @@ a.mtx-card:hover {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+  box-shadow: var(--elevation-1);
+  transition: box-shadow var(--motion-duration-fast) var(--motion-easing-standard);
+}
+.mtx-path-card:hover {
+  box-shadow: var(--elevation-2);
+}
+.mtx-path-card-description {
+  flex-grow: 1;
+}
+.mtx-path-card-cta {
+  align-self: start;
+  margin-inline: calc(var(--space-3) * -1);
+  color: var(--color-brand-on-primary-container);
 }
 
 /* InstructorCard */
@@ -955,6 +990,16 @@ html[lang="ar"] .mtx-sidebar-item { font-family: var(--font-family-arabic); }
   background-color: var(--color-surface-variant);
   object-fit: cover;
   flex-shrink: 0;
+}
+
+.mtx-path-course-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4);
+}
+.mtx-path-course-index {
+  color: var(--color-text-secondary);
 }
 
 .mtx-checkout-summary-row {

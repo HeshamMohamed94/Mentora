@@ -61,6 +61,7 @@ export default async function LandingPage({ params }: { params: Promise<{ locale
                   categoryName={categoryNameById.get(course.categoryId)}
                   levelLabel={explore(LEVEL_LABEL_KEYS[course.level])}
                   locale={locale}
+                  viewLabel={explore("viewCourse")}
                 />
               ))}
             </div>
@@ -72,7 +73,12 @@ export default async function LandingPage({ params }: { params: Promise<{ locale
             <h2 className="mtx-text-heading-h2 mb-4">{paths("title")}</h2>
             <div className="mtx-course-grid">
               {learningPaths.slice(0, 3).map((path) => (
-                <LearningPathCard key={path.id} path={path} courseCountLabel={paths("courseCount", { count: path.courseCount })} />
+                <LearningPathCard
+                  key={path.id}
+                  path={path}
+                  courseCountLabel={paths("courseCount", { count: path.courseCount })}
+                  viewLabel={paths("viewPath")}
+                />
               ))}
             </div>
           </section>
