@@ -19,6 +19,7 @@ const LEVELS: CourseLevel[] = ["beginner", "intermediate", "advanced"];
  */
 export function ExploreScreen() {
   const t = useTranslations("explore");
+  const tCommon = useTranslations("common");
   const locale = useLocale();
   const { data: user } = useCurrentUser();
   const basePath = user ? "/app" : "";
@@ -53,7 +54,13 @@ export function ExploreScreen() {
     <div className="mx-auto max-w-[1440px] px-4 py-8 tablet:px-6 desktop:px-8 large-desktop:px-12">
       <h1 className="mtx-text-heading-h1 mb-6">{t("title")}</h1>
       <div className="mb-4">
-        <SearchField value={search} onChange={setSearch} label={t("searchLabel")} placeholder={t("searchPlaceholder")} />
+        <SearchField
+          value={search}
+          onChange={setSearch}
+          label={t("searchLabel")}
+          placeholder={t("searchPlaceholder")}
+          clearLabel={tCommon("clearSearch")}
+        />
       </div>
       <div className="mb-4 flex flex-wrap gap-2" role="group" aria-label={t("title")}>
         <CategoryChip label={t("allCategories")} selected={!category} onClick={() => setCategory(undefined)} />

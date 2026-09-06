@@ -119,6 +119,48 @@ html[lang="ar"] .mtx-field-label {
   font-family: var(--font-family-arabic);
 }
 
+/* TextField/PasswordField only (Select keeps the plain static label above): floating label
+   per COMPONENTS.md § Inputs ("Focused: label shrinks/floats above field" / "Filled: label
+   stays floated") — rests centered inside the field like a placeholder until the field is
+   focused or has a value. */
+.mtx-text-field {
+  position: relative;
+  padding-top: var(--space-5);
+  gap: 0;
+}
+.mtx-text-field .mtx-field-label {
+  position: absolute;
+  inset-inline-start: var(--component-input-padding-x);
+  top: calc(var(--space-5) + var(--component-input-height) / 2);
+  transform: translateY(-50%);
+  max-width: calc(100% - 2 * var(--component-input-padding-x));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--typography-body-medium-font-size);
+  line-height: var(--typography-body-medium-line-height);
+  font-weight: var(--typography-body-medium-font-weight);
+  color: var(--component-input-text-placeholder);
+  pointer-events: none;
+  transition:
+    top var(--motion-duration-fast) var(--motion-easing-standard),
+    font-size var(--motion-duration-fast) var(--motion-easing-standard),
+    color var(--motion-duration-fast) var(--motion-easing-standard);
+}
+.mtx-text-field:has(.mtx-input:focus) .mtx-field-label,
+.mtx-text-field:has(.mtx-input:not(:placeholder-shown)) .mtx-field-label {
+  top: 0;
+  transform: translateY(0);
+  font-size: var(--typography-label-medium-font-size);
+  line-height: var(--typography-label-medium-line-height);
+  font-weight: var(--typography-label-medium-font-weight);
+  color: var(--color-text-secondary);
+}
+.mtx-text-field:has(.mtx-input[aria-invalid="true"]:focus) .mtx-field-label,
+.mtx-text-field:has(.mtx-input[aria-invalid="true"]:not(:placeholder-shown)) .mtx-field-label {
+  color: var(--component-input-text-error);
+}
+
 .mtx-input {
   height: var(--component-input-height);
   padding-inline: var(--component-input-padding-x);
@@ -138,6 +180,11 @@ html[lang="ar"] .mtx-input {
 .mtx-input::placeholder {
   color: var(--component-input-text-placeholder);
 }
+/* Inside TextField's floating-label wrapper, the space placeholder used to drive
+   :placeholder-shown must stay invisible — the floating label itself covers this role. */
+.mtx-text-field .mtx-input::placeholder {
+  color: transparent;
+}
 .mtx-input:hover:not(:disabled) {
   border-color: var(--component-input-border-hover);
 }
@@ -153,6 +200,35 @@ html[lang="ar"] .mtx-input {
 }
 .mtx-input[aria-invalid="true"] {
   border-color: var(--component-input-border-error);
+}
+
+/* PasswordField (COMPONENTS.md § PasswordField) — trailing visibility-toggle IconButton */
+.mtx-field-with-toggle .mtx-input {
+  padding-inline-end: calc(var(--component-input-padding-x) + var(--space-8));
+}
+.mtx-field-toggle {
+  position: absolute;
+  inset-inline-end: var(--space-2);
+  top: calc(var(--space-5) + var(--component-input-height) / 2);
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--space-8);
+  height: var(--space-8);
+  border: none;
+  border-radius: var(--radius-full);
+  background-color: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+.mtx-field-toggle:hover {
+  background-color: color-mix(in srgb, var(--color-text-primary) calc(var(--state-hover-opacity) * 100%), transparent);
+  color: var(--color-text-primary);
+}
+.mtx-field-toggle:focus-visible {
+  outline: var(--border-width-focus) solid var(--color-border-focus);
+  outline-offset: 2px;
 }
 
 .mtx-field-error {
@@ -300,6 +376,70 @@ html[lang="ar"] .mtx-avatar-fallback { font-family: var(--font-family-arabic); }
 @media (min-width: 600px) {
   .mtx-account-page { padding-inline: var(--space-6); }
   .mtx-profile-identity { flex-direction: row; text-align: start; }
+}
+
+/* ---------- Inline text link (color.text.link — DESIGN_SYSTEM.md § 1) ---------- */
+
+.mtx-link {
+  color: var(--color-text-link);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.mtx-link:hover { color: var(--color-brand-primary-hover); }
+
+/* ---------- Auth screens: Login / Register (ux/SCREEN_UX_SPECS.md §§ 6-7) ---------- */
+
+.mtx-auth-header {
+  display: flex;
+  align-items: center;
+  height: var(--space-16);
+  padding-inline: var(--space-4);
+  border-block-end: var(--border-width-default) solid var(--color-border-default);
+  background-color: var(--color-surface-default);
+}
+@media (min-width: 600px) { .mtx-auth-header { padding-inline: var(--space-6); } }
+@media (min-width: 1024px) { .mtx-auth-header { padding-inline: var(--space-8); } }
+
+.mtx-auth-wordmark {
+  color: var(--color-brand-primary);
+  text-decoration: none;
+}
+
+.mtx-auth-page {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-10) var(--space-4);
+}
+@media (min-width: 600px) { .mtx-auth-page { padding-block: var(--space-16); } }
+
+.mtx-auth-card {
+  width: 100%;
+  max-width: 480px;
+  border: var(--border-width-default) solid var(--color-border-default);
+  border-radius: var(--radius-large);
+  background-color: var(--color-surface-default);
+  box-shadow: var(--elevation-1);
+  padding: var(--space-6);
+}
+@media (min-width: 600px) { .mtx-auth-card { padding: var(--space-8); } }
+
+.mtx-auth-title {
+  text-align: center;
+  margin-block-end: var(--space-6);
+}
+
+.mtx-auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.mtx-auth-error {
+  color: var(--color-error-default);
+}
+
+.mtx-auth-footer {
+  color: var(--color-text-secondary);
 }
 
 /* ---------- Navigation (COMPONENTS.md § Navigation) ---------- */
@@ -657,6 +797,35 @@ html[lang="ar"] .mtx-badge { font-family: var(--font-family-arabic); }
   inset-inline-start: var(--space-3);
   pointer-events: none;
   color: var(--color-text-secondary);
+}
+.mtx-search-field .mtx-input {
+  padding-inline-end: var(--space-10);
+}
+/* Suppress the browser's native type="search" clear icon — .mtx-search-field-clear replaces it
+   with a token-styled, icon-system-consistent control. */
+.mtx-search-field .mtx-input::-webkit-search-cancel-button {
+  display: none;
+}
+.mtx-search-field-clear {
+  position: absolute;
+  inset-inline-end: var(--space-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--space-6);
+  height: var(--space-6);
+  border: none;
+  border-radius: var(--radius-full);
+  background-color: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+.mtx-search-field-clear:hover {
+  color: var(--color-text-primary);
+}
+.mtx-search-field-clear:focus-visible {
+  outline: var(--border-width-focus) solid var(--color-border-focus);
+  outline-offset: 2px;
 }
 
 /* ---------- State Patterns (COMPONENTS.md § State Patterns) ---------- */

@@ -27,7 +27,11 @@ export type IconName =
   | "checkCircle"
   | "cancel"
   | "expandMore"
-  | "expandLess";
+  | "expandLess"
+  | "visibility"
+  | "visibilityOff"
+  | "search"
+  | "close";
 
 const PATHS: Record<IconName, React.ReactNode> = {
   dashboard: (
@@ -117,6 +121,26 @@ const PATHS: Record<IconName, React.ReactNode> = {
   ),
   expandMore: <path d="M7 9.5l5 5 5-5" />,
   expandLess: <path d="M7 14.5l5-5 5 5" />,
+  visibility: (
+    <>
+      <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" />
+      <circle cx="12" cy="12" r="3" />
+    </>
+  ),
+  visibilityOff: (
+    <>
+      <path d="M4 4l16 16" />
+      <path d="M9.9 5.7c.7-.13 1.4-.2 2.1-.2 6 0 9.5 6.5 9.5 6.5a17.5 17.5 0 01-3.2 4.1M6.8 7.3A17.6 17.6 0 002.5 12S6 18.5 12 18.5c1.3 0 2.5-.3 3.6-.8" />
+      <path d="M9.9 14.1a3 3 0 004.2-4.2" />
+    </>
+  ),
+  search: (
+    <>
+      <circle cx="10.5" cy="10.5" r="6.5" />
+      <path d="M19.5 19.5l-4.3-4.3" />
+    </>
+  ),
+  close: <path d="M6 6l12 12M18 6L6 18" />,
 };
 
 export function Icon({ name, size = 24, className }: { name: IconName; size?: number; className?: string }) {

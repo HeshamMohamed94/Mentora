@@ -1,5 +1,5 @@
 import { getTranslations } from "next-intl/server";
-import { PublicNavbar } from "@/components/navigation/public-navbar";
+import { AuthHeader } from "@/components/navigation/auth-header";
 import { RegisterForm } from "./register-form";
 
 export default async function RegisterPage({
@@ -12,10 +12,10 @@ export default async function RegisterPage({
 
   return (
     <>
-      <PublicNavbar />
-      <main id="main-content" className="flex justify-center px-4 py-16">
-        <div className="w-full" style={{ maxWidth: "480px" }}>
-          <h1 className="mtx-text-heading-h3 mb-6 text-center">{t("registerTitle")}</h1>
+      <AuthHeader />
+      <main id="main-content" className="mtx-auth-page">
+        <div className="mtx-auth-card">
+          <h1 className="mtx-text-heading-h3 mtx-auth-title">{t("registerTitle")}</h1>
           <RegisterForm redirectTo={redirect ?? ""} />
         </div>
       </main>

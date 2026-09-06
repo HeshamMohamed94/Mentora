@@ -16,7 +16,7 @@ export interface TextFieldProps extends Omit<React.InputHTMLAttributes<HTMLInput
  * (DESIGN_SYSTEM.md § 8) isn't wired up yet. Add the icon once that lands.
  */
 export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function TextField(
-  { label, error, id, className, ...props },
+  { label, error, id, className, placeholder, ...props },
   ref
 ) {
   const generatedId = useId();
@@ -24,7 +24,7 @@ export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function T
   const errorId = `${fieldId}-error`;
 
   return (
-    <div className="mtx-field">
+    <div className="mtx-field mtx-text-field">
       <label htmlFor={fieldId} className="mtx-field-label">
         {label}
       </label>
@@ -32,6 +32,7 @@ export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function T
         ref={ref}
         id={fieldId}
         className={clsx("mtx-input", className)}
+        placeholder={placeholder ?? " "}
         aria-invalid={Boolean(error) || undefined}
         aria-describedby={error ? errorId : undefined}
         {...props}

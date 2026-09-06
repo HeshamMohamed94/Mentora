@@ -6,7 +6,8 @@
     "loading": "Loading…",
     "retry": "Try again",
     "cancel": "Cancel",
-    "save": "Save"
+    "save": "Save",
+    "clearSearch": "Clear search"
   },
   "nav": {
     "explore": "Explore",
@@ -256,8 +257,8 @@
     "logout": "Logout"
   },
   "auth": {
-    "loginTitle": "Login",
-    "registerTitle": "Create your account",
+    "loginTitle": "Log in to Mentora",
+    "registerTitle": "Create your Mentora account",
     "emailLabel": "Email",
     "passwordLabel": "Password",
     "nameLabel": "Name",
@@ -267,6 +268,8 @@
     "haveAccount": "Already have an account?",
     "invalidCredentials": "Incorrect email or password.",
     "emailAlreadyRegistered": "An account with this email already exists.",
-    "genericError": "Something went wrong. Please try again."
+    "genericError": "Something went wrong. Please try again.",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password"
   }
 }

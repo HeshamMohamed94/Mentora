@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslations } from "next-intl";
 import { useQueryClient } from "@tanstack/react-query";
-import { Button, TextField } from "@/components/ui";
+import { Button, PasswordField, TextField } from "@/components/ui";
 import { register as registerAccount } from "@/lib/auth/actions";
 import { CURRENT_USER_QUERY_KEY } from "@/lib/auth/use-current-user";
 import { registerSchema, type RegisterInput } from "@/lib/auth/schemas";
@@ -42,7 +42,7 @@ export function RegisterForm({ redirectTo }: { redirectTo: string }) {
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
+    <form onSubmit={handleSubmit(onSubmit)} noValidate className="mtx-auth-form">
       <TextField
         label={t("nameLabel")}
         autoComplete="name"
@@ -56,23 +56,24 @@ export function RegisterForm({ redirectTo }: { redirectTo: string }) {
         error={errors.email ? t("emailLabel") : undefined}
         {...registerField("email")}
       />
-      <TextField
+      <PasswordField
         label={t("passwordLabel")}
-        type="password"
         autoComplete="new-password"
         error={errors.password ? t("passwordLabel") : undefined}
+        showPasswordLabel={t("showPassword")}
+        hidePasswordLabel={t("hidePassword")}
         {...registerField("password")}
       />
       {formError && (
-        <p role="alert" className="mtx-text-body-small" style={{ color: "var(--color-error-default)" }}>
+        <p role="alert" className="mtx-text-body-small mtx-auth-error">
           {formError}
         </p>
       )}
       <Button type="submit" variant="primary" loading={isSubmitting}>
         {t("registerAction")}
       </Button>
-      <p className="mtx-text-body-small" style={{ color: "var(--color-text-secondary)" }}>
-        {t("haveAccount")} <Link href="/login">{t("loginAction")}</Link>
+      <p className="mtx-text-body-small mtx-auth-footer">
+        {t("haveAccount")} <Link href="/login" className="mtx-link">{t("loginAction")}</Link>
       </p>
     </form>
   );

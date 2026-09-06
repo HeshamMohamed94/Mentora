@@ -6,7 +6,8 @@
     "loading": "جارٍ التحميل…",
     "retry": "أعد المحاولة",
     "cancel": "إلغاء",
-    "save": "حفظ"
+    "save": "حفظ",
+    "clearSearch": "مسح البحث"
   },
   "nav": {
     "explore": "استكشف",
@@ -256,8 +257,8 @@
     "logout": "تسجيل الخروج"
   },
   "auth": {
-    "loginTitle": "تسجيل الدخول",
-    "registerTitle": "أنشئ حسابك",
+    "loginTitle": "سجّل الدخول إلى Mentora",
+    "registerTitle": "أنشئ حسابك في Mentora",
     "emailLabel": "البريد الإلكتروني",
     "passwordLabel": "كلمة المرور",
     "nameLabel": "الاسم",
@@ -267,6 +268,8 @@
     "haveAccount": "لديك حساب بالفعل؟",
     "invalidCredentials": "البريد الإلكتروني أو كلمة المرور غير صحيحة.",
     "emailAlreadyRegistered": "يوجد حساب مسجَّل بهذا البريد الإلكتروني بالفعل.",
-    "genericError": "حدث خطأ ما. يرجى المحاولة مرة أخرى."
+    "genericError": "حدث خطأ ما. يرجى المحاولة مرة أخرى.",
+    "showPassword": "إظهار كلمة المرور",
+    "hidePassword": "إخفاء كلمة المرور"
   }
 }

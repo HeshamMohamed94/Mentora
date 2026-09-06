@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslations } from "next-intl";
 import { useQueryClient } from "@tanstack/react-query";
-import { Button, TextField } from "@/components/ui";
+import { Button, PasswordField, TextField } from "@/components/ui";
 import { login } from "@/lib/auth/actions";
 import { CURRENT_USER_QUERY_KEY } from "@/lib/auth/use-current-user";
 import { loginSchema, type LoginInput } from "@/lib/auth/schemas";
@@ -43,7 +43,7 @@ export function LoginForm({ redirectTo }: { redirectTo: string }) {
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
+    <form onSubmit={handleSubmit(onSubmit)} noValidate className="mtx-auth-form">
       <TextField
         label={t("emailLabel")}
         type="email"
@@ -51,23 +51,24 @@ export function LoginForm({ redirectTo }: { redirectTo: string }) {
         error={errors.email ? t("emailLabel") : undefined}
         {...register("email")}
       />
-      <TextField
+      <PasswordField
         label={t("passwordLabel")}
-        type="password"
         autoComplete="current-password"
         error={errors.password ? t("passwordLabel") : undefined}
+        showPasswordLabel={t("showPassword")}
+        hidePasswordLabel={t("hidePassword")}
         {...register("password")}
       />
       {formError && (
-        <p role="alert" className="mtx-text-body-small" style={{ color: "var(--color-error-default)" }}>
+        <p role="alert" className="mtx-text-body-small mtx-auth-error">
           {formError}
         </p>
       )}
       <Button type="submit" variant="primary" loading={isSubmitting}>
         {t("loginAction")}
       </Button>
-      <p className="mtx-text-body-small" style={{ color: "var(--color-text-secondary)" }}>
-        {t("noAccount")} <Link href="/register">{t("registerAction")}</Link>
+      <p className="mtx-text-body-small mtx-auth-footer">
+        {t("noAccount")} <Link href="/register" className="mtx-link">{t("registerAction")}</Link>
       </p>
     </form>
   );

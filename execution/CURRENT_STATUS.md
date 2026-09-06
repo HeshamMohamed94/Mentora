@@ -9,7 +9,7 @@
 **Read this section first when resuming.**
 
 - **Phase:** PHASE 2 — Website — `IN_PROGRESS`. Phase 1 is `COMPLETE` and was explicitly approved by the user on 2026-09-06.
-- **Current task:** Tasks 1-10 are DONE and verified end-to-end (real browser + real backend, en+ar) — foundation, auth, public discovery, demo checkout/purchase success, dashboard/my learning + the authenticated Sidebar shell, Course Player/Quiz/Quiz Results, Certificates List/Detail, Learning Paths follow/unfollow (already complete since task 3), AI Tutor chat UI (streaming), and Profile + Settings (incl. functional language selector). Tasks 6-7-9-10 were delegated to Codex via the `codex-delegate` skill (D41/D42/D43/D44) and independently reviewed/verified/landed by Claude. Task 11 (Instructor Web) is next. Icon set is a hand-drawn inline-SVG placeholder for the real self-hosted Material Symbols Rounded font (D40) — swap later behind the same `Icon` component API, no call-site changes needed. Landing page's own `CourseCard`/`LearningPathCard` usage still hardcodes the Guest `basePath` (unchanged from D39) — low priority since Landing is conceptually Guest-only. Two spec-vs-backend gaps disclosed and scoped out in task 10 (D44): no password-change endpoint exists, and `avatarMediaId` is a dead field nothing ever writes — Profile shows initials-only, no upload control.
+- **Current task:** Tasks 1-10 are DONE and verified end-to-end (real browser + real backend, en+ar) — foundation, auth, public discovery, demo checkout/purchase success, dashboard/my learning + the authenticated Sidebar shell, Course Player/Quiz/Quiz Results, Certificates List/Detail, Learning Paths follow/unfollow (already complete since task 3), AI Tutor chat UI (streaming), and Profile + Settings (incl. functional language selector). Tasks 6-7-9-10 were delegated to Codex via the `codex-delegate` skill (D41/D42/D43/D44) and independently reviewed/verified/landed by Claude. **A dedicated UI-fidelity correction pass across Tasks 1-10 is also DONE (D45, 2026-09-07)** — per explicit user request, closing real gaps against `design-system/COMPONENTS.md`'s locked spec (`TextField` now has real floating-label behavior; new `PasswordField` component with the required visibility toggle; Login/Register rebuilt with a proper card surface, minimal logo-only header, and corrected title copy instead of unstyled scaffolding; `color.text.link` — previously defined but unused anywhere — now backs a real `.mtx-link` class; `SearchField` now uses the icon system instead of a raw glyph and has its spec'd clear button). Task 11 (Instructor Web) is next. Icon set is a hand-drawn inline-SVG placeholder for the real self-hosted Material Symbols Rounded font (D40) — swap later behind the same `Icon` component API, no call-site changes needed. Landing page's own `CourseCard`/`LearningPathCard` usage still hardcodes the Guest `basePath` (unchanged from D39) — low priority since Landing is conceptually Guest-only. Two spec-vs-backend gaps disclosed and scoped out in task 10 (D44): no password-change endpoint exists, and `avatarMediaId` is a dead field nothing ever writes — Profile shows initials-only, no upload control.
 - **What exists in `web/` right now (tasks 1–2):**
   - Next.js 15 App Router + TypeScript, `[locale]` routing (`en`/`ar`, `localePrefix: "always"`) via `next-intl`, `src/middleware.ts` combining locale detection with the `/app`, `/instructor`, `/admin` auth gate (redirects to `/login?redirect=<intent>` when the `mentora_refresh_token` cookie is absent).
   - `tools/token-pipeline/generate.js` (plain Node, see D35) generates `web/styles/tokens.css` (semantic + component-layer CSS custom properties, light/dark via `[data-theme]` + `prefers-color-scheme`), `web/styles/tailwind-theme.css` (Tailwind v4 `@theme inline` color mapping + custom `tablet`/`desktop`/`large-desktop` breakpoints), and `web/src/lib/design-tokens.generated.ts`. Re-run `npm run generate-tokens` (from `web/`) after any `design-tokens.json` change.
@@ -165,6 +165,18 @@ Task 9 note: built as the standalone full-navigation `/app/ai-tutor` screen only
 **not** built (Course Player's "Ask AI Tutor" link still full-navigates away, same forward-reference
 behavior as before task 9 existed). Not a defect, just an unbuilt refinement — flag it if a future
 task revisits Course Player.
+
+**UI-fidelity correction pass (2026-09-07, D45) — done before Task 11, by explicit user request:**
+a cross-cutting visual-fidelity pass across Tasks 1-10 (not a numbered task itself), closing real
+gaps against the locked `design-system/COMPONENTS.md` spec found via a live-browser audit: `TextField`
+now has the documented floating-label behavior (was a static always-visible label); a new
+`PasswordField` component ships the spec-required visibility toggle (Login/Register previously had
+none); Login and Register were rebuilt with a real card surface, a minimal logo-only header (was
+the full `PublicNavbar`, contradicting `ux/SCREEN_UX_SPECS.md §§ 6-7`), and corrected title copy;
+`color.text.link` (previously defined in tokens but consumed nowhere) now backs a new `.mtx-link`
+class; `SearchField` uses the real icon system instead of a raw Unicode glyph and has its spec'd
+clear button. Zero product behavior, routes, or backend contracts changed. Full detail, the
+Select-label regression caught and fixed mid-pass, and the verification performed: see D45.
 
 ## Immediate Next Action
 

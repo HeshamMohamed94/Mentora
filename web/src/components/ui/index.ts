@@ -1,5 +1,6 @@
 export { Button, type ButtonProps, type ButtonVariant } from "./button";
 export { TextField, type TextFieldProps } from "./text-field";
+export { PasswordField, type PasswordFieldProps } from "./password-field";
 export { CourseCard } from "./course-card";
 export { CategoryChip } from "./category-chip";
 export { Badge, type BadgeVariant } from "./badge";
