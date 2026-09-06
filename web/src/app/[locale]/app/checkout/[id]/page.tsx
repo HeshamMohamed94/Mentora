@@ -4,9 +4,5 @@ import { CheckoutScreen } from "@/components/screens/checkout-screen";
 // (public) counterpart, since the backend's checkout routes require the student role.
 export default async function CheckoutPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  return (
-    <main id="main-content">
-      <CheckoutScreen courseId={id} />
-    </main>
-  );
+  return <CheckoutScreen courseId={id} />;
 }

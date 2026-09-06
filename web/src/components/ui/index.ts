@@ -8,3 +8,6 @@ export { SearchField } from "./search-field";
 export { EmptyState, ErrorState, SuccessState, CourseGridSkeleton } from "./state-patterns";
 export { LearningPathCard } from "./learning-path-card";
 export { InstructorCard } from "./instructor-card";
+export { Icon, type IconName } from "./icon";
+export { CourseProgressCard } from "./course-progress-card";
+export { StatCard } from "./stat-card";

@@ -397,6 +397,81 @@ html[lang="ar"] .mtx-badge { font-family: var(--font-family-arabic); }
   .mtx-skeleton { animation: none; }
 }
 
+/* ---------- StatCard ---------- */
+
+.mtx-stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  border-radius: var(--radius-large);
+  border: var(--border-width-default) solid var(--color-border-default);
+  background-color: var(--color-surface-default);
+  padding: var(--space-4);
+}
+
+/* ---------- Sidebar (COMPONENTS.md § Navigation, authenticated web) ---------- */
+
+.mtx-sidebar {
+  flex-direction: column;
+  justify-content: space-between;
+  background-color: var(--color-surface-default);
+  border-inline-end: var(--border-width-default) solid var(--color-border-default);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.mtx-sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+}
+
+.mtx-sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: var(--component-nav-item-height);
+  padding-inline: var(--component-nav-item-padding-x);
+  border-radius: var(--radius-medium);
+  background-color: var(--component-nav-item-background-default);
+  color: var(--component-nav-item-text-default);
+  font-family: var(--font-family-latin);
+  font-size: var(--typography-label-large-font-size);
+  font-weight: var(--typography-label-large-font-weight);
+  white-space: nowrap;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+html[lang="ar"] .mtx-sidebar-item { font-family: var(--font-family-arabic); }
+.mtx-sidebar-item:hover {
+  background-color: var(--component-nav-item-background-hover);
+  color: var(--component-nav-item-text-hover);
+}
+.mtx-sidebar-item[data-active="true"] {
+  background-color: var(--component-nav-item-background-active);
+  color: var(--component-nav-item-text-active);
+}
+.mtx-sidebar-item svg { flex-shrink: 0; }
+
+.mtx-sidebar-scrim {
+  position: fixed;
+  inset: 0;
+  background-color: var(--color-overlay-scrim);
+  z-index: 40;
+}
+
+.mtx-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+  padding-inline: var(--space-4);
+  border-block-end: var(--border-width-default) solid var(--color-border-default);
+  background-color: var(--color-surface-default);
+  flex-shrink: 0;
+}
+
 /* ---------- Checkout / OrderSummary (COMPONENTS.md § Checkout) ---------- */
 
 .mtx-checkout-card {

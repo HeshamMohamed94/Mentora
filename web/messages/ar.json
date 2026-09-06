@@ -19,7 +19,10 @@
     "certificates": "الشهادات",
     "profile": "الملف الشخصي",
     "settings": "الإعدادات",
-    "logout": "تسجيل الخروج"
+    "logout": "تسجيل الخروج",
+    "primaryNavigation": "التنقل الرئيسي",
+    "openMenu": "افتح القائمة",
+    "collapseSidebar": "طي الشريط الجانبي"
   },
   "landing": {
     "heroTitle": "تعلّم. اِبنِ. تطوّر.",
@@ -60,6 +63,37 @@
     "unfollow": "إلغاء المتابعة",
     "loginToFollow": "سجّل الدخول للمتابعة",
     "errorTitle": "تعذّر تحميل مسار التعلّم هذا"
+  },
+  "dashboard": {
+    "title": "لوحة التحكم",
+    "greeting": "مرحبًا بعودتك، {name}",
+    "statInProgress": "دورات قيد التقدم",
+    "statCompleted": "دورات مكتملة",
+    "statCertificates": "شهادات محصَّلة",
+    "continueLearning": "متابعة التعلّم",
+    "resume": "استئناف",
+    "percentComplete": "اكتمل {percent}٪",
+    "pathsInProgress": "مسارات تعلّم قيد التقدم",
+    "pathCourseCount": "{count, plural, one {دورة واحدة} two {دورتان} few {# دورات} many {# دورة} other {# دورة}}",
+    "recommended": "موصى بها لك",
+    "emptyTitle": "لا توجد دورات بعد",
+    "emptyDescription": "سجّل في دورة لترى تقدمك هنا",
+    "exploreCourses": "استكشف الدورات"
+  },
+  "myLearning": {
+    "title": "تعلّمي",
+    "filterAll": "الكل",
+    "filterInProgress": "قيد التقدم",
+    "filterCompleted": "مكتملة",
+    "resume": "استئناف",
+    "review": "مراجعة",
+    "percentComplete": "اكتمل {percent}٪",
+    "emptyTitle": "لا توجد تسجيلات بعد",
+    "emptyDescription": "استكشف الدورات وابدأ التعلّم",
+    "exploreCourses": "استكشف الدورات",
+    "filterEmptyTitle": "لا توجد دورات مطابقة لهذا الفلتر",
+    "filterEmptyDescription": "جرّب فلترًا مختلفًا",
+    "errorTitle": "تعذّر تحميل تعلّمك"
   },
   "checkout": {
     "title": "الدفع التجريبي",

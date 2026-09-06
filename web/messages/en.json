@@ -19,7 +19,10 @@
     "certificates": "Certificates",
     "profile": "Profile",
     "settings": "Settings",
-    "logout": "Logout"
+    "logout": "Logout",
+    "primaryNavigation": "Primary navigation",
+    "openMenu": "Open menu",
+    "collapseSidebar": "Collapse sidebar"
   },
   "landing": {
     "heroTitle": "Learn. Build. Grow.",
@@ -60,6 +63,37 @@
     "unfollow": "Unfollow",
     "loginToFollow": "Login to Follow",
     "errorTitle": "This learning path couldn't be loaded"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "greeting": "Welcome back, {name}",
+    "statInProgress": "Courses in progress",
+    "statCompleted": "Courses completed",
+    "statCertificates": "Certificates earned",
+    "continueLearning": "Continue Learning",
+    "resume": "Resume",
+    "percentComplete": "{percent}% complete",
+    "pathsInProgress": "Learning Paths in progress",
+    "pathCourseCount": "{count, plural, one {# course} other {# courses}}",
+    "recommended": "Recommended for you",
+    "emptyTitle": "No courses yet",
+    "emptyDescription": "Enroll in a course to see your progress here",
+    "exploreCourses": "Explore Courses"
+  },
+  "myLearning": {
+    "title": "My Learning",
+    "filterAll": "All",
+    "filterInProgress": "In Progress",
+    "filterCompleted": "Completed",
+    "resume": "Resume",
+    "review": "Review",
+    "percentComplete": "{percent}% complete",
+    "emptyTitle": "No enrollments yet",
+    "emptyDescription": "Explore courses and start learning",
+    "exploreCourses": "Explore Courses",
+    "filterEmptyTitle": "No courses match this filter",
+    "filterEmptyDescription": "Try a different filter",
+    "errorTitle": "Couldn't load your learning"
   },
   "checkout": {
     "title": "Demo Checkout",

@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "./client";
 
 // Shapes verified against
@@ -54,6 +54,31 @@ export function useFollowLearningPath(id: string) {
     mutationFn: () => apiFetch<{ isFollowing: boolean }>(`/learning-paths/${id}/follow`, { method: "POST" }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["learning-paths", id] }),
   });
+}
+
+/**
+ * `GET /learning-paths` (the list) carries no `isFollowing`/`progressPercent` — only the detail
+ * endpoint does. There's no dedicated "my followed paths" backend endpoint either, so this
+ * fetches every path's detail (fine at MVP demo scale — a handful of paths total, per the seed
+ * data) and filters client-side, the same N+1-at-small-scale tradeoff as `useMyLearning`.
+ */
+export function useFollowedLearningPaths() {
+  const listQuery = useLearningPaths();
+  const paths = listQuery.data ?? [];
+
+  const detailQueries = useQueries({
+    queries: paths.map((p) => ({
+      queryKey: ["learning-paths", p.id],
+      queryFn: () => getLearningPath(p.id),
+    })),
+  });
+
+  const isLoading = listQuery.isLoading || detailQueries.some((q) => q.isLoading);
+  const items = detailQueries
+    .map((q) => q.data)
+    .filter((path): path is LearningPathResponse => Boolean(path?.isFollowing));
+
+  return { items, isLoading };
 }
 
 export function useUnfollowLearningPath(id: string) {

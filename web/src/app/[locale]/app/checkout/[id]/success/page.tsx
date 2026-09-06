@@ -2,9 +2,5 @@ import { PurchaseSuccessScreen } from "@/components/screens/purchase-success-scr
 
 export default async function PurchaseSuccessPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  return (
-    <main id="main-content">
-      <PurchaseSuccessScreen courseId={id} />
-    </main>
-  );
+  return <PurchaseSuccessScreen courseId={id} />;
 }
