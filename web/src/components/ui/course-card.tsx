@@ -15,14 +15,18 @@ export function CourseCard({
   categoryName,
   levelLabel,
   locale,
+  basePath = "",
 }: {
   course: CourseSummary;
   categoryName?: string;
   levelLabel: string;
   locale: string;
+  /** "/app" when rendered for an authenticated Student so the link stays inside the
+   * authenticated shell instead of dropping them onto the Guest-styled public route. */
+  basePath?: string;
 }) {
   return (
-    <Link href={`/courses/${course.id}`} className="mtx-card" aria-label={course.title}>
+    <Link href={`${basePath}/courses/${course.id}`} className="mtx-card" aria-label={course.title}>
       {course.thumbnailMediaId ? (
         <img
           src={`/api/v1/media/${course.thumbnailMediaId}/file`}

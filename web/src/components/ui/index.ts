@@ -5,6 +5,6 @@ export { CategoryChip } from "./category-chip";
 export { Badge, type BadgeVariant } from "./badge";
 export { ProgressBar } from "./progress-bar";
 export { SearchField } from "./search-field";
-export { EmptyState, ErrorState, CourseGridSkeleton } from "./state-patterns";
+export { EmptyState, ErrorState, SuccessState, CourseGridSkeleton } from "./state-patterns";
 export { LearningPathCard } from "./learning-path-card";
 export { InstructorCard } from "./instructor-card";

@@ -61,6 +61,19 @@
     "loginToFollow": "Login to Follow",
     "errorTitle": "This learning path couldn't be loaded"
   },
+  "checkout": {
+    "title": "Demo Checkout",
+    "total": "Total",
+    "demoNotice": "Demo Payment — no real charges or payment information required.",
+    "confirmAction": "Complete Demo Purchase",
+    "cancelAction": "Cancel",
+    "errorMessage": "Demo checkout could not be completed. Try again.",
+    "errorTitle": "This checkout couldn't be loaded",
+    "successTitle": "Payment Successful",
+    "successDescription": "You're now enrolled!",
+    "startLearning": "Start Learning",
+    "backToMyLearning": "Back to My Learning"
+  },
   "auth": {
     "loginTitle": "Login",
     "registerTitle": "Create your account",

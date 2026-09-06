@@ -34,6 +34,7 @@ export function LearningPathDetailsScreen({ pathId }: { pathId: string }) {
   }
 
   const path = query.data;
+  const basePath = user ? "/app" : "";
 
   let followAction: React.ReactNode;
   if (!user) {
@@ -74,7 +75,7 @@ export function LearningPathDetailsScreen({ pathId }: { pathId: string }) {
         {path.courses.map((course, index) => (
           <li key={course.id}>
             <Link
-              href={`/courses/${course.id}`}
+              href={`${basePath}/courses/${course.id}`}
               className="mtx-card"
               style={{ display: "flex", alignItems: "center", gap: "var(--space-4)", padding: "var(--space-4)" }}
             >

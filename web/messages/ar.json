@@ -61,6 +61,19 @@
     "loginToFollow": "سجّل الدخول للمتابعة",
     "errorTitle": "تعذّر تحميل مسار التعلّم هذا"
   },
+  "checkout": {
+    "title": "الدفع التجريبي",
+    "total": "الإجمالي",
+    "demoNotice": "دفع تجريبي — لا توجد رسوم حقيقية أو حاجة لبيانات دفع.",
+    "confirmAction": "إتمام الشراء التجريبي",
+    "cancelAction": "إلغاء",
+    "errorMessage": "تعذّر إتمام الدفع التجريبي. حاول مرة أخرى.",
+    "errorTitle": "تعذّر تحميل صفحة الدفع",
+    "successTitle": "تم الدفع بنجاح",
+    "successDescription": "تم تسجيلك في الدورة الآن!",
+    "startLearning": "ابدأ التعلّم",
+    "backToMyLearning": "العودة إلى تعلّمي"
+  },
   "auth": {
     "loginTitle": "تسجيل الدخول",
     "registerTitle": "أنشئ حسابك",

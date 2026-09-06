@@ -7,6 +7,7 @@ import { useCategories } from "@/lib/api/categories";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { CourseCard, CategoryChip, SearchField, EmptyState, ErrorState, CourseGridSkeleton } from "@/components/ui";
 import { LEVEL_LABEL_KEYS, type CourseLevel } from "@/lib/i18n/course-labels";
+import { useCurrentUser } from "@/lib/auth/use-current-user";
 
 const LEVELS: CourseLevel[] = ["beginner", "intermediate", "advanced"];
 
@@ -19,6 +20,8 @@ const LEVELS: CourseLevel[] = ["beginner", "intermediate", "advanced"];
 export function ExploreScreen() {
   const t = useTranslations("explore");
   const locale = useLocale();
+  const { data: user } = useCurrentUser();
+  const basePath = user ? "/app" : "";
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<string | undefined>();
   const [level, setLevel] = useState<string | undefined>();
@@ -95,6 +98,7 @@ export function ExploreScreen() {
                 categoryName={categoryNameById.get(course.categoryId)}
                 levelLabel={t(LEVEL_LABEL_KEYS[course.level])}
                 locale={locale}
+                basePath={basePath}
               />
             ))}
           </div>

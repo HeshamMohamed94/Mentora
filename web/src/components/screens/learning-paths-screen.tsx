@@ -3,10 +3,13 @@
 import { useTranslations } from "next-intl";
 import { useLearningPaths } from "@/lib/api/learning-paths";
 import { LearningPathCard, EmptyState, ErrorState } from "@/components/ui";
+import { useCurrentUser } from "@/lib/auth/use-current-user";
 
 export function LearningPathsScreen() {
   const t = useTranslations("learningPaths");
   const query = useLearningPaths();
+  const { data: user } = useCurrentUser();
+  const basePath = user ? "/app" : "";
 
   return (
     <div className="mx-auto max-w-[1200px] px-4 py-8 tablet:px-6 desktop:px-8">
@@ -32,7 +35,12 @@ export function LearningPathsScreen() {
       {query.data && query.data.length > 0 && (
         <div className="mtx-course-grid">
           {query.data.map((path) => (
-            <LearningPathCard key={path.id} path={path} courseCountLabel={t("courseCount", { count: path.courseCount })} />
+            <LearningPathCard
+              key={path.id}
+              path={path}
+              courseCountLabel={t("courseCount", { count: path.courseCount })}
+              basePath={basePath}
+            />
           ))}
         </div>
       )}

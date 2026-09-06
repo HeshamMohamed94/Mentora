@@ -396,3 +396,75 @@ html[lang="ar"] .mtx-badge { font-family: var(--font-family-arabic); }
 @media (prefers-reduced-motion: reduce) {
   .mtx-skeleton { animation: none; }
 }
+
+/* ---------- Checkout / OrderSummary (COMPONENTS.md § Checkout) ---------- */
+
+.mtx-checkout-card {
+  border-radius: var(--component-checkout-radius);
+  border: var(--border-width-default) solid var(--component-checkout-border);
+  background-color: var(--component-checkout-background);
+  padding: var(--component-checkout-padding);
+  color: var(--component-checkout-line-item-color);
+}
+
+.mtx-checkout-line-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.mtx-checkout-thumbnail {
+  width: 96px;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-medium);
+  background-color: var(--color-surface-variant);
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.mtx-checkout-summary-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  border-block-start: var(--border-width-default) solid var(--color-border-default);
+  padding-block-start: var(--space-4);
+}
+.mtx-checkout-summary-row .mtx-checkout-price-label { color: var(--component-checkout-price-label-color); }
+.mtx-checkout-summary-row .mtx-checkout-price-total { color: var(--component-checkout-price-total-color); }
+
+.mtx-checkout-notice {
+  background-color: var(--component-checkout-demo-notice-background);
+  color: var(--component-checkout-demo-notice-text);
+  border-radius: var(--component-checkout-demo-notice-radius);
+  padding-inline: var(--component-checkout-demo-notice-padding-x);
+  padding-block: var(--component-checkout-demo-notice-padding-y);
+}
+
+/* ---------- SuccessState (COMPONENTS.md § State Patterns) ---------- */
+
+.mtx-success-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-3);
+  padding-block: var(--component-success-state-container-padding-y);
+  max-width: 420px;
+  margin-inline: auto;
+}
+.mtx-success-icon { color: var(--component-success-state-icon-color); }
+.mtx-success-title { color: var(--component-success-state-title-color); }
+.mtx-success-description { color: var(--component-success-state-description-color); }
+
+@keyframes mtx-success-enter {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes mtx-success-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.mtx-success-container { animation: mtx-success-enter var(--motion-duration-slow) var(--motion-easing-decelerate); }
+@media (prefers-reduced-motion: reduce) {
+  .mtx-success-container { animation: mtx-success-fade var(--motion-duration-fast) linear; }
+}
