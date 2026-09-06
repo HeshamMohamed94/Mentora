@@ -3,6 +3,10 @@ package com.mentora.backend
 import com.mentora.backend.admin.adminModule
 import com.mentora.backend.admin.routes.adminRoutes
 import com.mentora.backend.admin.service.AdminService
+import com.mentora.backend.aitutor.aiTutorModule
+import com.mentora.backend.aitutor.repository.ensureAiTutorIndexes
+import com.mentora.backend.aitutor.routes.aiTutorRoutes
+import com.mentora.backend.aitutor.service.AiTutorService
 import com.mentora.backend.auth.authModule
 import com.mentora.backend.auth.repository.ensureAuthIndexes
 import com.mentora.backend.auth.routes.authRoutes
@@ -80,7 +84,7 @@ internal fun Application.module(appConfig: AppConfig) {
         modules(
             configKoinModule(appConfig), databaseKoinModule, authModule, usersModule, categoriesModule,
             coursesModule, enrollmentModule, progressModule, quizModule, certificatesModule, learningPathsModule,
-            mediaModule, instructorModule, adminModule,
+            mediaModule, instructorModule, adminModule, aiTutorModule,
         )
     }
     configureDatabaseLifecycle()
@@ -90,7 +94,7 @@ internal fun Application.module(appConfig: AppConfig) {
     configureCors(appConfig)
     configureSecurity(appConfig)
     configureRequestValidation()
-    configureRateLimiting()
+    configureRateLimiting(appConfig)
     configureStatusPages()
     install(PartialContent)
 
@@ -105,6 +109,7 @@ internal fun Application.module(appConfig: AppConfig) {
             ensureCertificateIndexes(get())
             ensureLearningPathIndexes(get())
             ensureMediaIndexes(get())
+            ensureAiTutorIndexes(get())
         } catch (error: MongoTimeoutException) {
             log.warn("Could not ensure database indexes because MongoDB is unavailable", error)
         }
@@ -124,5 +129,6 @@ internal fun Application.module(appConfig: AppConfig) {
         mediaRoutes(get<MediaService>())
         instructorRoutes(get<InstructorService>())
         adminRoutes(get<AdminService>())
+        aiTutorRoutes(get<AiTutorService>())
     }
 }

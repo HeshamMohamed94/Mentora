@@ -75,7 +75,7 @@ See `architecture/API_CONTRACT.md § 7` for the full conceptual list (auth, user
 
 **Admin** — all four routes require `Role.admin`. `GET /admin/dashboard` → `{ totalCourses, publishedCourses, draftCourses, totalStudents, totalInstructors }` (plain counts, no pagination). `GET /admin/courses` (optional `q` keyword, reuses the `courses` collection's existing text index) → cursor-paginated `{ id, title, instructorName, status, enrollmentCount }` across **every** status and every Instructor (unlike the public `/courses` list, which is published-only and unauthenticated-safe). `GET /admin/users` (optional `q`, matches `name` OR `email`) → cursor-paginated `{ id, name, email, createdAt, enrollmentCount }`, scoped to `role == student` only. `GET /admin/instructors` (optional `q`, same match rule) → cursor-paginated `{ id, name, email, courseCount, publishedCount }`, scoped to `role == instructor` only. **`users` and `instructors` are disjoint lists — there is no "all accounts" endpoint.** The `q` filter on `users`/`instructors` is a case-insensitive substring match with the query escaped (`Pattern.quote`) before being used as a Mongo regex — any future free-text admin filter should do the same. This module owns no collection of its own (`architecture/BACKEND_ARCHITECTURE.md § 3`) — like `instructor`, it reads `courses`/`users`/`enrollments` directly. Category management and course-unpublish moderation are **not** part of this module — they're served by the pre-existing `categories` module and `POST /courses/{id}/unpublish` (already Admin-capable) respectively.
 
-**Phase 1 backend module set is now complete: auth, users, courses, categories, enrollment, progress, quiz, certificates, media, instructor, admin.** Remaining Phase 1 work is the AI Tutor scaffold and the backend test/seed/documentation pass.
+**AI Tutor** — see § 8 below for the full as-built shape.
 
 ## 7. Media / Playback (as-built)
 
@@ -84,11 +84,32 @@ See `architecture/API_CONTRACT.md § 7` for the full conceptual list (auth, user
 - **Lesson videos:** never publicly addressable. Client calls `GET /api/v1/media/{mediaId}/playback-url` (`jwt-auth`; owning-Instructor or Admin previews freely, otherwise `enrollment.requireEnrollment` gates it — `403 FORBIDDEN_NOT_ENROLLED`) → `{ url, expiresAt }`, where `url` is `/api/v1/media/{mediaId}/stream?token=<signed>` — a purpose-scoped, 5-minute-lived JWT (distinct from the session access token; verified by hand, not through the `jwt-auth` Authentication provider). Pass `url` directly as the native `<video>`/ExoPlayer/AVPlayer source; `GET .../stream` is itself unauthenticated (a player element can't attach custom headers) and instead validates `?token=` per-request, streaming with HTTP range-request support (Ktor's `PartialContent` plugin) for scrubbing/seeking. Re-request `playback-url` if the player session outlives the token's `expiresAt`.
 - `media.ownerRefId` is a `String` on the wire and server-side (not always an `ObjectId`) — a courseId/userId hex string for `courseThumbnail`/`avatar`, but a UUID string for `lessonVideo` (matching how `courses` actually generates lesson ids — see `DECISIONS_LOG.md` D25). Clients should treat it as an opaque string in all cases, never assume ObjectId-hex shape.
 
-## 8. AI Tutor (Phase 1 boundary; Phase 6 completes it)
+## 8. AI Tutor (Phase 1 boundary; Phase 6 completes it) — as-built
 
-- `GET /api/v1/ai-tutor/conversation` — fetch/create the student's single conversation, cursor-paginated messages.
-- `POST /api/v1/ai-tutor/conversation/messages` — `{ content, lessonContextId? }`, streamed response. **Phase 1: streams a stub/placeholder response, not a real LLM completion** (see DECISIONS_LOG D4). Contract (request/response shape, streaming mechanism, enrollment gate, rate limit) does not change in Phase 6 — only the `AiProvider` binding does.
+- `GET /api/v1/ai-tutor/conversation` (`Role.student`) — lazily creates the student's single conversation on
+  first call. Cursor-paginated (`cursor`/`limit`, oldest-first), but the shape doesn't fit the plain list-page
+  pattern (it also needs the conversation id), so it responds `{ conversationId, messages: [...], nextCursor }`
+  inside `data` rather than a bare array — each message `{ id, role, content, lessonContextId, createdAt }`.
+- `POST /api/v1/ai-tutor/conversation/messages` (`Role.student`, CSRF header required) — `{ content, courseId?, lessonContextId? }`.
+  **`courseId` and `lessonContextId` are a pair — send both or neither** (`400 VALIDATION_ERROR` otherwise):
+  there is no reverse lookup from a lesson id back to its owning course anywhere in this backend, so unlike
+  the architecture doc's prose (which only mentions `lessonContextId`), the client must supply the course id
+  it already knows it's viewing — the same pairing already required by the `media` module's `lessonVideo`
+  upload (§ 7 above, D21). An unenrolled student sending lesson context gets `403 FORBIDDEN_NOT_ENROLLED`; a
+  `lessonContextId` that doesn't belong to the given `courseId` gets `404 LESSON_NOT_FOUND`. `content` is
+  capped at 4000 characters (`400` if blank or over). **Response is a streamed `text/plain` body** (not the
+  JSON envelope, not SSE-framed) — plain incremental chunks as the (Phase 1: stub) provider produces them.
+  **Phase 1 streams a fixed placeholder response, not a real LLM completion** (D4/D30) — both the user's and
+  the assistant's messages are persisted regardless (the assistant one only after the stream completes
+  successfully; a mid-stream failure leaves no partial assistant message). Contract (request/response shape,
+  streaming mechanism, enrollment gate, rate limit) does not change in Phase 6 — only the `AiProvider` Koin
+  binding does, and Phase 6 is expected to add the "global mode" enrolled-course-list system-prompt content
+  that Phase 1 deliberately omits (D30).
+- Rate-limited per-user on two independent, configurable caps (`AI_TUTOR_MESSAGES_PER_MINUTE`/`AI_TUTOR_MESSAGES_PER_DAY`
+  env vars, defaulting to 20/minute and 200/day) — either one alone returns `429` when exceeded.
 - No AI provider key, SDK, or network call ever exists in any client codebase — enforced structurally, not just by convention.
+
+**Phase 1 backend module set is now complete: auth, users, courses, categories, enrollment, progress, quiz, certificates, media, instructor, admin, aitutor.** Remaining Phase 1 work is the backend test/seed/documentation pass.
 
 ## 8a. Auth Response Shape (as-built, Phase 1)
 

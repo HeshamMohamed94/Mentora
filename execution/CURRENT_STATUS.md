@@ -1,6 +1,6 @@
 # Mentora — Current Implementation Status
 
-**Last updated:** 2026-09-06 (task 17 — Admin aggregation endpoints — closed out and committed)
+**Last updated:** 2026-09-06 (task 18 — AI Tutor scaffold — closed out and committed)
 
 ---
 
@@ -9,30 +9,33 @@
 **Read this section first when resuming.**
 
 - **Phase:** PHASE 1 — Backend Foundation & API — `IN_PROGRESS`
-- **Current task:** Task 18 — AI Tutor scaffold + `AiProvider` interface + stub impl (M13 boundary only) — **NOT_STARTED**
-- **Next immediate action:** Dispatch Codex for the AI Tutor scaffold using the established per-module brief pattern, then build/test/review/commit exactly as done for every prior module. Read `architecture/AI_TUTOR_ARCHITECTURE.md` first — this task is an interface/boundary scaffold only (per the locked Phase 1 scope), not a working AI integration; Phase 6 completes it.
+- **Current task:** Task 19 — Backend test suite completeness review (M15 portion) — **NOT_STARTED**
+- **Next immediate action:** Read `architecture/TESTING_STRATEGY.md` for the target coverage bar, then audit each module's existing integration suite against it and fill genuine gaps (edge cases, error-path coverage) — this is a review/completeness pass across all 11 backend modules, not a new feature; likely still Codex-implemented with Claude review, but scope the brief per-module or as one pass depending on what the audit finds.
 
-### What is COMPLETE (committed, reviewed, gates green) — tasks 1–17
+### What is COMPLETE (committed, reviewed, gates green) — tasks 1–18
 
-All of: execution continuity docs, backend Gradle scaffold, Ktor foundation (M1), Auth & RBAC (M2), Users module, Courses & Categories (M5 slice), Enrollment/Demo Checkout (M6 slice), Progress (M7 slice), Quiz (M8 slice), Certificates + completion-crossing wiring (M9 slice), Learning Paths (M10 slice), Media/local filesystem storage (M11 slice), Instructor aggregation endpoint (M11 tail), Admin aggregation endpoints (M12 slice). Last commit: see `git log` on `main` — "Phase 1: Admin aggregation endpoints (M12 slice)".
+All of: execution continuity docs, backend Gradle scaffold, Ktor foundation (M1), Auth & RBAC (M2), Users module, Courses & Categories (M5 slice), Enrollment/Demo Checkout (M6 slice), Progress (M7 slice), Quiz (M8 slice), Certificates + completion-crossing wiring (M9 slice), Learning Paths (M10 slice), Media/local filesystem storage (M11 slice), Instructor aggregation endpoint (M11 tail), Admin aggregation endpoints (M12 slice), AI Tutor scaffold (M13 boundary only). Last commit: see `git log` on `main` — "Phase 1: AI Tutor scaffold (M13 boundary only)".
 
 Task 15 (Media): Codex-authored, Claude-reviewed closely. Implements the `MediaStorage` abstraction + local-filesystem impl with canonical-path-escape protection, streaming upload with per-kind size caps (images 5 MB / video 500 MB, aborted-and-cleaned-up mid-stream on overflow, never buffering the full file), public thumbnail/avatar serving, and a gated lesson-video playback flow (a second, purpose-scoped 5-minute JWT, verified by hand — not a second Authentication provider — plus Ktor's `PartialContent` plugin for range-request seeking). Ownership/enrollment authorization reuses the already-exposed `CourseService.requireOwnership`/`EnrollmentService.requireEnrollment` (no new cross-module surface). One correctly-identified and fixed implementation-time conflict: `media.ownerRefId` had to become a `String` (not the originally-assumed `ObjectId`) because `courses` generates lesson ids as UUID strings, not Mongo ObjectIds — see `DECISIONS_LOG.md` D21/D25 for the full reasoning, D22–D24 for the size-limit/token/status-lifecycle decisions, D26 for a real Phase-2-relevant contract note (multipart form fields must precede the file part in the upload request). Verified independently: re-ran `./gradlew test --rerun` myself (not just trusting Codex's self-report) — fresh, non-cached run against live MongoDB, 29 tests/9 suites, 0 failures/errors. Reviewed the diff directly (not just the test outcome): storage-key generation is always server-generated, never client-filename-derived; content-type/kind cross-validation happens before any disk write; `courseId` additive field correctly resolves both the upload-ownership and playback-enrollment checks without a new reverse lookup; public `/file` route correctly 404s for `lessonVideo`-kind media.
 
 Task 16 (Instructor aggregation endpoint): Codex-authored, Claude-reviewed. Implements `GET /api/v1/instructor/dashboard` per `architecture/BACKEND_ARCHITECTURE.md § 3`'s explicit design for this module (no collection of its own — reads directly across `courses`/`enrollments`/`progress`, the one documented exception to the usual reuse-another-module's-service-method boundary rule): owner-scoped `stats` (`totalCourses`, `publishedCount`, `totalEnrollments`) plus a per-course list (`enrollmentCount`, `completionRate` — defined as the average of `progress.completionPercent` across that course's progress documents, `0` when there are none). Codex's dispatch was cut off mid-run by an OpenAI usage-limit error, after writing the module and test but before self-verifying — Claude ran the gates independently instead of waiting for quota reset, found and fixed one test-fixture-only bug (JWT claim name mismatch, `sub` vs. the codebase's actual `userId` claim), and re-verified clean. See `DECISIONS_LOG.md` D27 for the full account. All gates green (31 tests, 10 suites).
 
+Task 18 (AI Tutor scaffold, M13 boundary only): Codex-authored, Claude-reviewed. Implements `GET /api/v1/ai-tutor/conversation` and `POST /api/v1/ai-tutor/conversation/messages`, the `AiProvider` interface, and a `StubAiProvider` binding (Phase 1 streams fixed placeholder text, genuinely chunked over the wire — never a real LLM completion; Phase 6 swaps only the Koin binding). Real enrollment gate, real persistence (`aiConversations`/`aiMessages`, both newly-owned collections with their own indexes), real per-minute-and-daily rate limiting (both now `AppConfig`-driven, closing a gap where only a hardcoded per-minute cap existed). One implementation-time gap resolved before dispatch (not discovered mid-review this time): lesson ids have no reverse lookup to their owning course, so the request pairs `courseId` with `lessonContextId` — the same fix already established for `media`'s `lessonVideo` upload (D21), applied here proactively. See `DECISIONS_LOG.md` D30 for this and three other implementation-time specifics (system prompt scope, streaming wire format, rate-limit config). All gates green (41 tests, 12 suites) — independently re-verified, not just Codex's self-report.
+
+**Also fixed during this task's independent verification, as its own separate commit:** a pre-existing flaky test in `MediaIntegrationTest` (task 15), unrelated to `aitutor` — see `DECISIONS_LOG.md` D31.
+
 ### What is PARTIAL / uncommitted
 
-Nothing. Working tree is clean relative to the task-17 commit.
+Nothing. Working tree is clean relative to the task-18 commit.
 
 ### Exact next steps on resume
 
-1. Task 18 — AI Tutor scaffold + `AiProvider` interface + stub impl (M13 boundary only): dispatch Codex with a brief in the same style as prior modules. Read `architecture/AI_TUTOR_ARCHITECTURE.md` and `architecture/API_CONTRACT.md § "AI Tutor"` first — Phase 1 scope is the interface/boundary + persistence + a stub `AiProvider` implementation only, not a working Anthropic Claude API integration (that's Phase 6). Build/test/review/commit.
-2. Task 19 — Backend test suite completeness review (M15 portion).
-3. Task 20 — Seed data script.
-4. Task 21 — Local run instructions (M16 portion).
-5. Task 22 — Phase 1 quality gate verification.
-6. Task 23 — `PHASE_HANDOFF.md` write-up.
-7. Do not start Phase 2 under any circumstances until Phase 1's quality gate is met and the user has explicitly approved the Phase 1 report.
+1. Task 19 — Backend test suite completeness review (M15 portion): read `architecture/TESTING_STRATEGY.md` for the target coverage bar; audit each of the 11 existing modules' integration suites against it (edge cases, error-path coverage — every module already has a passing suite, this closes remaining gaps, it's not a new-feature task).
+2. Task 20 — Seed data script.
+3. Task 21 — Local run instructions (M16 portion).
+4. Task 22 — Phase 1 quality gate verification.
+5. Task 23 — `PHASE_HANDOFF.md` write-up.
+6. Do not start Phase 2 under any circumstances until Phase 1's quality gate is met and the user has explicitly approved the Phase 1 report.
 
 ---
 
@@ -72,7 +75,7 @@ Allowed phase states: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `COMPLETE`.
 | 15 | Media module — local filesystem storage (M11 slice) | DONE — Codex-authored, Claude-reviewed: verified the `MediaStorage` abstraction's path-escape defense, streaming size-cap-with-cleanup, server-generated (never client-derived) storage keys, public-thumbnail vs. gated-lesson-video route split, the two-JWT (session vs. purpose-scoped playback) design, and that ownership/enrollment checks reuse existing cross-module methods with zero new surface. One correctly-caught implementation conflict (lesson ids are UUID strings, not ObjectIds — D25). Independently re-ran the test suite myself (fresh, non-cached, live MongoDB) rather than trusting the self-report. All gates green (29 tests, 9 classes). |
 | 16 | Instructor aggregation endpoints (M11 slice) | DONE — Codex-authored, Claude-reviewed: `GET /api/v1/instructor/dashboard` reads directly across `courses`/`enrollments`/`progress` per the module's documented no-own-collection design; verified owner-scoping (another Instructor's courses never leak in), stats math, and the completion-rate definition (average `progress.completionPercent` per course). Codex's dispatch was interrupted by an OpenAI usage-limit error before it could self-verify; Claude ran the gates independently, found and fixed one test-fixture-only bug (JWT claim name), re-verified green — see D27. All gates green (31 tests, 10 suites). |
 | 17 | Admin aggregation endpoints (M12 slice) | DONE — Codex-authored, Claude-reviewed: `GET /api/v1/admin/{dashboard,courses,users,instructors}` reading directly across `courses`/`users`/`enrollments` per the module's no-own-collection design (same pattern as `instructor`, task 16). `users`/`instructors` are disjoint role-scoped lists (`role == student` / `role == instructor`, never "all accounts"); `q` search on both escapes untrusted input via `Pattern.quote` before building the Mongo regex filter. Reused the already-implemented `categories` CRUD and `POST /courses/{id}/unpublish` (already Admin-capable) rather than duplicating either. Codex's dispatch hit the same OpenAI usage-limit wall as task 16 twice before a third immediate retry succeeded cleanly — see D28/D29. Independently re-verified: fresh `gradlew.bat test --rerun-tasks` (35 tests, 11 suites, 0 failures) and `gradlew.bat build`, plus a full diff read. |
-| 18 | AI Tutor scaffold + `AiProvider` interface + stub impl (M13 boundary only) | NOT_STARTED |
+| 18 | AI Tutor scaffold + `AiProvider` interface + stub impl (M13 boundary only) | DONE — Codex-authored, Claude-reviewed: `GET /ai-tutor/conversation` + `POST /ai-tutor/conversation/messages`, real persistence/enrollment-gate/rate-limiting, bound to a stub `AiProvider` (placeholder text, genuinely chunked streaming, no real LLM call — Phase 6 swaps only the Koin binding). `courseId`+`lessonContextId` paired in the request (no lesson→course reverse lookup exists — same fix as media's D21). Added both a per-minute and a per-day rate cap, both `AppConfig`-driven (previously only a hardcoded per-minute cap existed). See D30. Independently re-verified (41 tests, 12 suites, 0 failures) rather than trusting the self-report; that re-verification also surfaced and fixed an unrelated pre-existing flaky test in `MediaIntegrationTest` (task 15) — see D31, landed as its own separate commit. |
 | 19 | Backend test suite (M15 portion) | NOT_STARTED |
 | 20 | Seed data script | NOT_STARTED |
 | 21 | Local run instructions (M16 portion) | NOT_STARTED |
@@ -81,4 +84,4 @@ Allowed phase states: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `COMPLETE`.
 
 ## Immediate Next Action
 
-Task 18 — AI Tutor scaffold + `AiProvider` interface + stub impl (M13 boundary only). Dispatch Codex with a brief in the established per-module style, then build/test/review/commit.
+Task 19 — Backend test suite completeness review (M15 portion). Audit each existing module's integration suite against `architecture/TESTING_STRATEGY.md`'s target coverage and fill genuine gaps.

@@ -21,6 +21,8 @@ data class AppConfig(
     val aiProviderApiKey: String?,
     val aiProviderModel: String,
     val logLevel: String,
+    val aiTutorMessagesPerMinute: Int = 20,
+    val aiTutorMessagesPerDay: Int = 200,
 ) {
     companion object {
         fun load(): AppConfig {
@@ -48,6 +50,8 @@ data class AppConfig(
                 aiProviderApiKey = env["AI_PROVIDER_API_KEY"]?.takeIf { it.isNotBlank() },
                 aiProviderModel = optional("AI_PROVIDER_MODEL", "claude-sonnet-4-5"),
                 logLevel = optional("LOG_LEVEL", "DEBUG"),
+                aiTutorMessagesPerMinute = optional("AI_TUTOR_MESSAGES_PER_MINUTE", "20").toInt(),
+                aiTutorMessagesPerDay = optional("AI_TUTOR_MESSAGES_PER_DAY", "200").toInt(),
             )
         }
     }
