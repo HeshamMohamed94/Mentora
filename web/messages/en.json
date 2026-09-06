@@ -177,6 +177,28 @@
     "viewCertificate": "View Certificate",
     "backToLearning": "Back to My Learning"
   },
+  "certificates": {
+    "title": "Certificates",
+    "instructor": "Instructor: {name}",
+    "issuedOn": "Issued {date}",
+    "completedOn": "Completed {date}",
+    "view": "View",
+    "emptyTitle": "No certificates yet",
+    "emptyDescription": "Complete a course to earn your first certificate.",
+    "exploreCourses": "Explore Courses",
+    "loadError": "Your certificates couldn't be loaded",
+    "detailLoadError": "This certificate couldn't be loaded",
+    "retry": "Try again",
+    "notFoundTitle": "Certificate not found",
+    "notFoundDescription": "This certificate doesn't exist or isn't available to your account.",
+    "backToCertificates": "Back to Certificates",
+    "certificateOfCompletion": "Certificate of Completion",
+    "awardedTo": "Awarded to",
+    "completionStatement": "for successfully completing",
+    "certificateId": "Certificate ID: {id}",
+    "share": "Share",
+    "shareAcknowledged": "Share selected"
+  },
   "auth": {
     "loginTitle": "Login",
     "registerTitle": "Create your account",

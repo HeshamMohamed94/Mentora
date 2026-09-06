@@ -177,6 +177,28 @@
     "viewCertificate": "عرض الشهادة",
     "backToLearning": "العودة إلى تعلّمي"
   },
+  "certificates": {
+    "title": "الشهادات",
+    "instructor": "المدرّب: {name}",
+    "issuedOn": "صدرت في {date}",
+    "completedOn": "اكتملت في {date}",
+    "view": "عرض",
+    "emptyTitle": "لا توجد شهادات بعد",
+    "emptyDescription": "أكمل دورة لتحصل على شهادتك الأولى.",
+    "exploreCourses": "استكشف الدورات",
+    "loadError": "تعذّر تحميل شهاداتك",
+    "detailLoadError": "تعذّر تحميل هذه الشهادة",
+    "retry": "أعد المحاولة",
+    "notFoundTitle": "الشهادة غير موجودة",
+    "notFoundDescription": "هذه الشهادة غير موجودة أو غير متاحة لحسابك.",
+    "backToCertificates": "العودة إلى الشهادات",
+    "certificateOfCompletion": "شهادة إتمام",
+    "awardedTo": "مُقدّمة إلى",
+    "completionStatement": "لإتمام الدورة بنجاح",
+    "certificateId": "معرّف الشهادة: {id}",
+    "share": "مشاركة",
+    "shareAcknowledged": "تم اختيار المشاركة"
+  },
   "auth": {
     "loginTitle": "تسجيل الدخول",
     "registerTitle": "أنشئ حسابك",
