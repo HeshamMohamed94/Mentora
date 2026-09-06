@@ -1,6 +1,6 @@
 # Mentora — Current Implementation Status
 
-**Last updated:** 2026-09-06 (tasks 20 and 21 closed out and committed, in the same all-remaining-Phase-1-tasks session as 19/22/23 — see PHASE_HANDOFF.md for the full final write-up once task 23 lands)
+**Last updated:** 2026-09-06 (tasks 22 and 23 closed out — **all 23 Phase 1 tasks now complete**; `PHASE_HANDOFF.md`'s Phase 1 entry is the authoritative final write-up)
 
 ---
 
@@ -8,11 +8,11 @@
 
 **Read this section first when resuming.**
 
-- **Phase:** PHASE 1 — Backend Foundation & API — `IN_PROGRESS`
-- **Current task:** Task 22 — Phase 1 quality gate verification — in progress (Claude-led, no delegation).
-- **Next immediate action:** Continue/finish task 22's audit, then task 23 (`PHASE_HANDOFF.md` final write-up), then produce the "MENTORA IMPLEMENTATION — PHASE 1 REPORT" and STOP for the user's explicit approval before any Phase 2 work — per the user's explicit instruction this session to complete all remaining Phase 1 tasks without stopping in between.
+- **Phase:** PHASE 1 — Backend Foundation & API — `COMPLETE`, pending the user's explicit approval of the Phase 1 report (delivered this session) before Phase 2 begins.
+- **Current task:** None — all 23 Phase 1 tasks are done. If resuming: check whether the user has approved the Phase 1 report yet. If not approved, do not start any Phase 2 work under any circumstances — wait. If approved, Phase 2 (Website) is next per `execution/MASTER_IMPLEMENTATION_PLAN.md`.
+- **Next immediate action:** Wait for explicit user approval of the Phase 1 report. Read `execution/PHASE_HANDOFF.md`'s Phase 1 section for the full final account before doing anything else in this repo.
 
-### What is COMPLETE (committed, reviewed, gates green) — tasks 1–21
+### What is COMPLETE (committed, reviewed, gates green) — tasks 1–23, all of Phase 1
 
 All of: execution continuity docs, backend Gradle scaffold, Ktor foundation (M1), Auth & RBAC (M2), Users module, Courses & Categories (M5 slice), Enrollment/Demo Checkout (M6 slice), Progress (M7 slice), Quiz (M8 slice), Certificates + completion-crossing wiring (M9 slice), Learning Paths (M10 slice), Media/local filesystem storage (M11 slice), Instructor aggregation endpoint (M11 tail), Admin aggregation endpoints (M12 slice), AI Tutor scaffold (M13 boundary only). Last commit: see `git log` on `main` — "Phase 1: AI Tutor scaffold (M13 boundary only)".
 
@@ -52,22 +52,34 @@ directly (pure documentation, not delegated). Covers the one-time MongoDB replic
 previously undocumented anywhere outside the decisions log), env setup, build/test/run/seed commands, and
 the exact demo credentials task 20 produced.
 
+Task 22 (Phase 1 quality gate verification): Claude-led, no delegation. A from-scratch clean build
+(`gradlew.bat clean` then `test build --rerun-tasks`) confirmed 65 tests / 15 suites / 0 failures / 0
+errors — the definitive number for the Phase 1 report, not a cached result. Full audit: RBAC/auth coverage
+(every route file checked for `authenticate()`/CSRF coverage — found and fixed the one gap, D33), a
+whole-backend grep sweep for payment vocabulary (zero matches), hardcoded secrets (zero), stray debug
+logging (zero), TODO/FIXME markers (zero), module/index/route wiring completeness (all 13 modules
+correctly registered), and a `git log --name-only` confirmation that no commit this phase ever touched
+`architecture/`, `product/`, `ux/`, or `design-system/`. Compiled the full known-limitations list (7 items,
+all pre-existing/deliberate, none blocking — see `PHASE_HANDOFF.md`'s Phase 1 entry § 6).
+
+Task 23 (`PHASE_HANDOFF.md` final write-up): Claude-authored, the fixed structure the file's header
+specifies (status, what was implemented, files/modules, API/contracts, database changes, tests/verification,
+known limitations, decisions, next-phase dependencies, what not to redo, git reference) — see that file
+directly for the full account; not duplicated here.
+
+**Phase 1 is COMPLETE.** All 23 tasks done, gates green, working tree clean. Awaiting the user's explicit
+approval before any Phase 2 work begins.
+
 ### What is PARTIAL / uncommitted
 
-Nothing. Tasks 22-23 are in progress in this same session — see "Current task" above for exactly where to
-pick up if interrupted.
+Nothing. All of Phase 1 is committed and clean.
 
 ### Exact next steps on resume
 
-1. Task 22 — Phase 1 quality gate verification: Claude-led full audit (fresh build/test, RBAC/security
-   spot-checks, module-boundary compliance, no real-payment-path re-confirmation, known-limitations
-   compilation from the decisions log) — no delegation, per the Master Plan's Claude-led final-polish rule.
-   Already substantially done inline during tasks 19-21's review passes (found/fixed D32's test gaps and
-   D33's CSRF gap); what remains is compiling the final known-issues list and a last fresh full-suite run.
-2. Task 23 — `PHASE_HANDOFF.md` final write-up (mark Phase 1 `COMPLETE` in the fixed structure the file's
-   header already specifies) — Claude-authored.
-3. After task 23: produce the "MENTORA IMPLEMENTATION — PHASE 1 REPORT" the user asked for, then STOP and
-   wait for explicit approval. Do not start Phase 2 under any circumstances before that approval.
+1. Wait for the user's explicit approval of the Phase 1 report delivered this session.
+2. Do not start Phase 2 (or any later phase) under any circumstances before that approval — this is an
+   explicit, standing instruction, not a default that erodes over a long gap between sessions.
+3. Once approved: Phase 2 — Website (see `execution/MASTER_IMPLEMENTATION_PLAN.md`'s Phase → Milestone map).
 
 ---
 
@@ -75,8 +87,8 @@ Allowed phase states: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `COMPLETE`.
 
 | Phase | Status | Notes |
 |---|---|---|
-| PHASE 1 — Backend Foundation & API | **IN_PROGRESS** | Started 2026-09-05. See below for task breakdown. |
-| PHASE 2 — Website | NOT_STARTED | Blocked on Phase 1 COMPLETE + HANDOFF COMPLETE. |
+| PHASE 1 — Backend Foundation & API | **COMPLETE** | Started 2026-09-05, completed 2026-09-06. Pending user approval before Phase 2. See below for task breakdown and `PHASE_HANDOFF.md` for the full write-up. |
+| PHASE 2 — Website | NOT_STARTED | Blocked on the user's explicit approval of the Phase 1 report. |
 | PHASE 3 — KMP Shared Mobile Core | NOT_STARTED | Blocked on Phase 1. |
 | PHASE 4 — Android | NOT_STARTED | Blocked on Phase 3. |
 | PHASE 5 — iOS | NOT_STARTED | Blocked on Phase 3. |
@@ -86,7 +98,7 @@ Allowed phase states: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `COMPLETE`.
 
 ---
 
-## PHASE 1 — Task Breakdown (in progress)
+## PHASE 1 — Task Breakdown (COMPLETE — all 23 tasks done)
 
 | # | Task | Status |
 |---|---|---|
@@ -111,9 +123,9 @@ Allowed phase states: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `COMPLETE`.
 | 19 | Backend test suite (M15 portion) | DONE — Codex-authored, Claude-reviewed: added the previously-missing unit-test layer (MockK, quiz scoring/publish-validation/completion-percentage) and closed 4 never-exercised `courses` routes (`unpublish` — the highest-priority gap, plus section rename/delete and lesson delete). Zero production bugs found. See D32. 64 tests, 15 suites, independently re-verified. |
 | 20 | Seed data script | DONE — Codex-authored, Claude-reviewed: backend-native `SeedData.kt` + Gradle `seedDemoData` task (not `infra/docker/mongo-init` — see D34), idempotent, reuses the real service layer. Seeds 6 accounts/4 categories/6 courses (4 published/2 draft, en+ar)/1 quiz/1 Learning Path. Independently verified via `mongosh` + a real HTTP login as the seeded admin. |
 | 21 | Local run instructions (M16 portion) | DONE — Claude-authored directly (documentation, not delegated): `backend/README.md` + `backend/.env.example`, covering the MongoDB replica-set one-time setup (D12), env config, build/test/run/seed commands, and the seed script's exact demo credentials. |
-| 22 | Phase 1 quality gate verification | NOT_STARTED |
-| 23 | `PHASE_HANDOFF.md` write-up | NOT_STARTED |
+| 22 | Phase 1 quality gate verification | DONE — Claude-led, no delegation: from-scratch clean build (65 tests, 15 suites, 0 failures), full RBAC/CSRF/secrets/payment-vocabulary/module-wiring audit (found and fixed the D33 CSRF gap), locked-docs-untouched confirmation, known-limitations compilation. |
+| 23 | `PHASE_HANDOFF.md` write-up | DONE — Claude-authored final Phase 1 entry in the file's required fixed structure; status marked COMPLETE. |
 
 ## Immediate Next Action
 
-Task 22 — Phase 1 quality gate verification, then task 23 (see "Exact next steps on resume" above) — the user has instructed completing all remaining Phase 1 tasks in one session without stopping for approval between them, then a final Phase 1 report and a stop for explicit approval before Phase 2.
+None. Phase 1 is complete. Waiting for the user's explicit approval before any Phase 2 work.
