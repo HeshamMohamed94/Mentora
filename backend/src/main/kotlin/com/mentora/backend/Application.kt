@@ -1,5 +1,8 @@
 package com.mentora.backend
 
+import com.mentora.backend.admin.adminModule
+import com.mentora.backend.admin.routes.adminRoutes
+import com.mentora.backend.admin.service.AdminService
 import com.mentora.backend.auth.authModule
 import com.mentora.backend.auth.repository.ensureAuthIndexes
 import com.mentora.backend.auth.routes.authRoutes
@@ -77,7 +80,7 @@ internal fun Application.module(appConfig: AppConfig) {
         modules(
             configKoinModule(appConfig), databaseKoinModule, authModule, usersModule, categoriesModule,
             coursesModule, enrollmentModule, progressModule, quizModule, certificatesModule, learningPathsModule,
-            mediaModule, instructorModule,
+            mediaModule, instructorModule, adminModule,
         )
     }
     configureDatabaseLifecycle()
@@ -120,5 +123,6 @@ internal fun Application.module(appConfig: AppConfig) {
         learningPathRoutes(get<LearningPathService>())
         mediaRoutes(get<MediaService>())
         instructorRoutes(get<InstructorService>())
+        adminRoutes(get<AdminService>())
     }
 }
