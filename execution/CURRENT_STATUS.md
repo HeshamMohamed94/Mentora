@@ -9,7 +9,7 @@
 **Read this section first when resuming.**
 
 - **Phase:** PHASE 2 — Website — `IN_PROGRESS`. Phase 1 is `COMPLETE` and was explicitly approved by the user on 2026-09-06.
-- **Current task:** Tasks 1 (foundation) and 2 (auth screens) are DONE and verified end-to-end (real browser + real backend). Task 3 (public discovery) is next — only the Landing placeholder exists so far; Explore/Course Details/Learning Paths still need real content backed by the `courses`/`categories`/`learningpaths` APIs.
+- **Current task:** Tasks 1-3 (foundation, auth screens, public discovery — Landing/Explore/Course Details/Learning Paths) are DONE and verified end-to-end (real browser + real backend, en+ar). Task 4 (Demo Checkout + Purchase Success) is next.
 - **What exists in `web/` right now (tasks 1–2):**
   - Next.js 15 App Router + TypeScript, `[locale]` routing (`en`/`ar`, `localePrefix: "always"`) via `next-intl`, `src/middleware.ts` combining locale detection with the `/app`, `/instructor`, `/admin` auth gate (redirects to `/login?redirect=<intent>` when the `mentora_refresh_token` cookie is absent).
   - `tools/token-pipeline/generate.js` (plain Node, see D35) generates `web/styles/tokens.css` (semantic + component-layer CSS custom properties, light/dark via `[data-theme]` + `prefers-color-scheme`), `web/styles/tailwind-theme.css` (Tailwind v4 `@theme inline` color mapping + custom `tablet`/`desktop`/`large-desktop` breakpoints), and `web/src/lib/design-tokens.generated.ts`. Re-run `npm run generate-tokens` (from `web/`) after any `design-tokens.json` change.
@@ -144,8 +144,8 @@ Web app lives in `web/` at repo root (sibling to `backend/`), per `REPOSITORY_ST
 |---|---|---|
 | 1 | Foundation: Next.js scaffold, Tailwind v4 + token pipeline, i18n routing, API proxy, auth/CSRF/TanStack Query plumbing, base Navbar + core component kit (Button, TextField) | DONE |
 | 2 | Auth screens (Login, Register) + middleware auth gate | DONE |
-| 3 | Public discovery: Landing, Explore, Course Details, Learning Paths (+ Learning Path Details) | IN_PROGRESS — Landing placeholder only so far |
-| 4 | Demo Checkout + Purchase Success | NOT_STARTED |
+| 3 | Public discovery: Landing, Explore, Course Details, Learning Paths (+ Learning Path Details) | DONE — real content against live `courses`/`categories`/`learningpaths` endpoints; shared screens under `components/screens/` rendered from both `(public)/...` and `app/...` route trees per the "same screens, not duplicate screens" IA rule; Landing server-fetches featured courses/paths/categories in parallel (`revalidate = 300`); enrollment-aware CTA on Course Details (Login to Enroll / Enroll / Continue Learning); course level labels centralized in `lib/i18n/course-labels.ts` and translated everywhere (D38's `explicitNulls=false` gotcha caught and fixed here — see D38). Verified via real browser against live seeded backend in both en (LTR) and ar (RTL). Clean `lint`, `lint:logical-properties`, and `build` (both locales, 0 errors, only pre-existing `<img>` warnings). |
+| 4 | Demo Checkout + Purchase Success | NOT_STARTED — next up; Course Details' CTA already links to `/app/checkout/:id` and `/app/learn/:id`, so this task removes that dead link |
 | 5 | Student Dashboard + My Learning | NOT_STARTED |
 | 6 | Course Player + Quiz + Quiz Results | NOT_STARTED |
 | 7 | Certificates List + Certificate Detail | NOT_STARTED |
@@ -162,4 +162,4 @@ Web app lives in `web/` at repo root (sibling to `backend/`), per `REPOSITORY_ST
 
 ## Immediate Next Action
 
-Task 3: build Explore, Course Details, and Learning Paths against the live `courses`/`categories`/`learningpaths` endpoints (see `execution/INTEGRATION_CONTRACT.md`'s "As-Built Module Contracts" section for exact request/response shapes). Add `lib/api/courses.ts`/`categories.ts`/`learningpaths.ts` TanStack Query modules following the pattern in `lib/auth/`, and the `CourseCard`/`SearchField`/`CategoryChip`/`EmptyState`/`LoadingState`/`ErrorState` components from `design-system/COMPONENTS.md`.
+Task 4: Demo Checkout + Purchase Success, against the live `enrollment` endpoints (`useCheckoutPreview`/`useCompleteCheckout` already exist in `lib/api/enrollment.ts`). Build `/app/checkout/:id` (checkout preview + confirm) and a Purchase Success screen, then wire `/app/learn/:id` as the redirect target so the Course Details CTA chain (Login to Enroll → Enroll → Continue Learning) has no dead links.

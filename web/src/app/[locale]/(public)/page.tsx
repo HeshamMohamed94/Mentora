@@ -1,16 +1,32 @@
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { PublicNavbar } from "@/components/navigation/public-navbar";
-import { Button } from "@/components/ui";
+import { Button, CourseCard, LearningPathCard } from "@/components/ui";
+import { listCourses } from "@/lib/api/courses";
+import { listLearningPaths } from "@/lib/api/learning-paths";
+import { listCategories } from "@/lib/api/categories";
+import { LEVEL_LABEL_KEYS } from "@/lib/i18n/course-labels";
 
-/**
- * Landing (product/SCREEN_INVENTORY.md § 1). Full hero/featured-courses/featured-paths
- * content lands with task 3 (Explore/Course Details/Learning Paths) once course data can be
- * fetched — this is the minimal, real (not stubbed-out) shell proving the App Router + i18n +
- * token pipeline work end-to-end.
- */
-export default async function LandingPage() {
+// Revalidated on a schedule, not fully static (architecture/WEB_ARCHITECTURE.md § 1) — a
+// build-time-frozen featured-courses list would go stale the moment an Instructor
+// publishes/unpublishes a course.
+export const revalidate = 300;
+
+/** Landing (product/SCREEN_INVENTORY.md § 1). Server-rendered per architecture/WEB_ARCHITECTURE.md
+ * § 1 — featured content is fetched directly (no client hooks) so the crawlable HTML includes
+ * real course/path data, not an empty shell. */
+export default async function LandingPage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
   const t = await getTranslations("landing");
+  const explore = await getTranslations("explore");
+  const paths = await getTranslations("learningPaths");
+
+  const [{ items: courses }, learningPaths, categories] = await Promise.all([
+    listCourses({ limit: 4 }),
+    listLearningPaths(),
+    listCategories(),
+  ]);
+  const categoryNameById = new Map(categories.map((c) => [c.id, c.name]));
 
   return (
     <>
@@ -33,6 +49,34 @@ export default async function LandingPage() {
             </Link>
           </div>
         </section>
+
+        {courses.length > 0 && (
+          <section className="py-8">
+            <h2 className="mtx-text-heading-h2 mb-4">{explore("title")}</h2>
+            <div className="mtx-course-grid">
+              {courses.map((course) => (
+                <CourseCard
+                  key={course.id}
+                  course={course}
+                  categoryName={categoryNameById.get(course.categoryId)}
+                  levelLabel={explore(LEVEL_LABEL_KEYS[course.level])}
+                  locale={locale}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {learningPaths.length > 0 && (
+          <section className="py-8">
+            <h2 className="mtx-text-heading-h2 mb-4">{paths("title")}</h2>
+            <div className="mtx-course-grid">
+              {learningPaths.slice(0, 3).map((path) => (
+                <LearningPathCard key={path.id} path={path} courseCountLabel={paths("courseCount", { count: path.courseCount })} />
+              ))}
+            </div>
+          </section>
+        )}
       </main>
     </>
   );

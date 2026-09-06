@@ -27,6 +27,40 @@
     "exploreCourses": "استكشف الدورات",
     "getStarted": "ابدأ الآن"
   },
+  "explore": {
+    "title": "استكشف",
+    "searchLabel": "ابحث عن الدورات",
+    "searchPlaceholder": "ابحث عن الدورات...",
+    "allCategories": "كل الفئات",
+    "resultCount": "{count, plural, =0 {لا توجد دورات} one {دورة واحدة} two {دورتان} few {# دورات} many {# دورة} other {# دورة}}",
+    "emptyTitle": "لا توجد دورات مطابقة لبحثك",
+    "emptyDescription": "جرّب كلمات مختلفة أو امسح الفلاتر",
+    "clearFilters": "مسح الفلاتر",
+    "errorTitle": "حدث خطأ أثناء تحميل الدورات",
+    "levelBeginner": "مبتدئ",
+    "levelIntermediate": "متوسط",
+    "levelAdvanced": "متقدم"
+  },
+  "courseDetails": {
+    "enroll": "التسجيل",
+    "continueLearning": "متابعة التعلّم",
+    "loginToEnroll": "سجّل الدخول للتسجيل",
+    "curriculum": "المنهج",
+    "lessonsCount": "{count, plural, one {درس واحد} two {درسان} few {# دروس} many {# درسًا} other {# درس}}",
+    "aboutInstructor": "المدرّب",
+    "errorTitle": "تعذّر تحميل هذه الدورة"
+  },
+  "learningPaths": {
+    "title": "مسارات التعلّم",
+    "intro": "تسلسلات دورات منظّمة ومختارة بعناية",
+    "emptyTitle": "لا توجد مسارات تعلّم بعد",
+    "emptyDescription": "تحقق لاحقًا من تسلسلات الدورات المختارة",
+    "courseCount": "{count, plural, one {دورة واحدة} two {دورتان} few {# دورات} many {# دورة} other {# دورة}}",
+    "follow": "متابعة المسار",
+    "unfollow": "إلغاء المتابعة",
+    "loginToFollow": "سجّل الدخول للمتابعة",
+    "errorTitle": "تعذّر تحميل مسار التعلّم هذا"
+  },
   "auth": {
     "loginTitle": "تسجيل الدخول",
     "registerTitle": "أنشئ حسابك",

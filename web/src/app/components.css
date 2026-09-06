@@ -188,3 +188,211 @@ html[lang="ar"] .mtx-nav-item {
   background-color: var(--component-nav-item-background-active);
   color: var(--component-nav-item-text-active);
 }
+
+/* ---------- Course grid (design-system/DESIGN_SYSTEM.md § 9) ---------- */
+
+.mtx-course-grid {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+@media (min-width: 600px) {
+  .mtx-course-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-6); }
+}
+@media (min-width: 1024px) {
+  .mtx-course-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 1440px) {
+  .mtx-course-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+/* ---------- Cards (COMPONENTS.md § Cards) ---------- */
+
+.mtx-card {
+  display: block;
+  border-radius: var(--component-card-radius);
+  border: var(--border-width-default) solid var(--component-card-border);
+  background-color: var(--component-card-background);
+  box-shadow: var(--elevation-1);
+  overflow: hidden;
+  text-decoration: none;
+  color: inherit;
+  transition: box-shadow var(--motion-duration-fast) var(--motion-easing-standard),
+    border-color var(--motion-duration-fast) var(--motion-easing-standard);
+}
+a.mtx-card:hover {
+  box-shadow: var(--elevation-2);
+  border-color: var(--color-border-strong);
+}
+
+.mtx-card-thumbnail {
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  background-color: var(--color-surface-variant);
+  object-fit: cover;
+  display: block;
+}
+
+.mtx-card-body {
+  padding: var(--component-card-padding);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.mtx-card-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.mtx-card-meta-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--color-text-secondary);
+}
+
+/* LearningPathCard */
+.mtx-path-card {
+  display: block;
+  border-radius: var(--radius-large);
+  background-color: var(--color-brand-primary-container);
+  padding: var(--space-5);
+  color: var(--color-brand-on-primary-container);
+  text-decoration: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* InstructorCard */
+.mtx-instructor-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  border-radius: var(--radius-large);
+  border: var(--border-width-default) solid var(--color-border-default);
+  background-color: var(--color-surface-default);
+  padding: var(--space-4);
+}
+
+.mtx-avatar {
+  border-radius: var(--radius-full);
+  background-color: var(--color-brand-primary-container);
+  color: var(--color-brand-on-primary-container);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-family-latin);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+html[lang="ar"] .mtx-avatar { font-family: var(--font-family-arabic); }
+
+/* ---------- Chips & Badges ---------- */
+
+.mtx-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  border-radius: var(--radius-full);
+  padding-inline: var(--space-3);
+  font-family: var(--font-family-latin);
+  font-size: var(--typography-label-medium-font-size);
+  font-weight: var(--typography-label-medium-font-weight);
+  background-color: var(--color-surface-variant);
+  color: var(--color-text-secondary);
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+html[lang="ar"] .mtx-chip { font-family: var(--font-family-arabic); }
+.mtx-chip[data-selected="true"] {
+  background-color: var(--color-brand-primary-container);
+  color: var(--color-brand-on-primary-container);
+}
+
+.mtx-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  border-radius: var(--radius-full);
+  padding-inline: var(--space-2);
+  font-family: var(--font-family-latin);
+  font-size: var(--typography-label-medium-font-size);
+  font-weight: var(--typography-label-medium-font-weight);
+  white-space: nowrap;
+}
+html[lang="ar"] .mtx-badge { font-family: var(--font-family-arabic); }
+.mtx-badge-neutral { background-color: var(--color-surface-variant); color: var(--color-text-secondary); }
+.mtx-badge-success { background-color: var(--color-success-container); color: var(--color-success-on-success-container); }
+.mtx-badge-warning { background-color: var(--color-warning-container); color: var(--color-warning-on-warning-container); }
+.mtx-badge-error { background-color: var(--color-error-container); color: var(--color-error-on-error-container); }
+.mtx-badge-info { background-color: var(--color-info-container); color: var(--color-info-on-info-container); }
+.mtx-badge-brand { background-color: var(--color-brand-primary-container); color: var(--color-brand-on-primary-container); }
+
+/* ---------- ProgressBar ---------- */
+
+.mtx-progress-track {
+  height: 8px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-surface-variant);
+  overflow: hidden;
+}
+.mtx-progress-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  background-color: var(--color-brand-primary);
+  transition: width var(--motion-duration-normal) var(--motion-easing-standard);
+}
+.mtx-progress-fill[data-complete="true"] {
+  background-color: var(--color-success-default);
+}
+
+/* ---------- SearchField ---------- */
+
+.mtx-search-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.mtx-search-field .mtx-input {
+  padding-inline-start: var(--space-10);
+}
+.mtx-search-field-icon {
+  position: absolute;
+  inset-inline-start: var(--space-3);
+  pointer-events: none;
+  color: var(--color-text-secondary);
+}
+
+/* ---------- State Patterns (COMPONENTS.md § State Patterns) ---------- */
+
+.mtx-state-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-3);
+  padding-block: var(--space-10);
+  max-width: 420px;
+  margin-inline: auto;
+}
+
+.mtx-skeleton {
+  background-color: var(--color-surface-variant);
+  border-radius: var(--radius-medium);
+}
+
+@keyframes mtx-skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+.mtx-skeleton {
+  animation: mtx-skeleton-pulse 1.5s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mtx-skeleton { animation: none; }
+}

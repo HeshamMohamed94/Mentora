@@ -44,9 +44,17 @@ function buildHeaders(init: RequestInit, method: string): Headers {
   return headers;
 }
 
+// Server Components/route handlers run outside the browser, so a relative fetch URL has
+// nothing to resolve against — they must hit the backend directly. This only matters for
+// unauthenticated, server-fetched data (e.g. Landing's featured courses); every
+// authenticated screen fetches client-side via hooks, where the relative `/api/v1` path
+// correctly goes through next.config.ts's same-origin proxy (WEB_ARCHITECTURE.md § 3).
+const SERVER_API_BASE_URL = process.env.API_BASE_URL ?? "http://localhost:8080";
+
 async function rawRequest(path: string, init: RequestInit): Promise<Response> {
   const method = (init.method ?? "GET").toUpperCase();
-  return fetch(`/api/v1${path}`, {
+  const base = typeof window === "undefined" ? `${SERVER_API_BASE_URL}/api/v1` : "/api/v1";
+  return fetch(`${base}${path}`, {
     ...init,
     method,
     headers: buildHeaders(init, method),

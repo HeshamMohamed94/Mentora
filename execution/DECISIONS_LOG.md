@@ -382,3 +382,13 @@ Seeds: 6 accounts (1 Admin, 2 Instructor, 3 Student — `@mentora.dev`, password
 **Why:** No route changed, no existing field changed or removed, no schema/collection change — purely additive on top of an already-complete module, using patterns that already existed elsewhere in the codebase (not inventing a new cross-module-access style). The alternative (omitting instructor name from Explore/Course Details) would have shipped a visibly incomplete core screen; a raw id/email stand-in would have looked broken in the demo.
 
 **Impact:** Two test files needed trivial updates for the new required constructor param / DTO field (`CourseServiceTest.kt` — added a mocked `UserService` stub; `ProgressServiceTest.kt` — added `instructorName` to a directly-constructed `CourseResponse` fixture). Full backend suite re-verified after the change: 65 tests, 0 failures, 0 errors (`./gradlew.bat test`), plus a live `curl` check against seeded data confirming `instructorName` on the wire (e.g. `"instructorName": "Omar Khalil"`). `execution/INTEGRATION_CONTRACT.md`'s Courses section is updated to document the new field. No other Phase 1 module or route was touched.
+
+---
+
+### D38 — 2026-09-06 — Standing gotcha for every Web API module: nullable Kotlin fields are *omitted*, never sent as `null`
+
+**Decision:** Every `lib/api/*.ts` module must treat an optional backend field as **absent** (TypeScript `field?: T`) and check it with `!== undefined`/truthy, never `!== null`/`=== null`. Caught live twice already: `LearningPathResponse.progressPercent` (a guest viewing a path got `progressPercent` missing from the JSON entirely; a strict `!== null` check in `learning-path-details-screen.tsx` evaluated `undefined !== null` as `true` and rendered a bogus 100%-looking progress bar) and `AuthUser`/`AuthSessionUser` (D36).
+
+**Why:** The backend's `explicitNulls = false` kotlinx.serialization config (D20) applies to every module, not just the ones already hit — this isn't an auth-specific or learning-paths-specific quirk, it's global backend behavior every future `lib/api/*.ts` module will run into the first time it types a nullable Kotlin field as `T | null` and compares strictly against `null`.
+
+**Impact:** Fixed `LearningPathResponse.progressPercent` to `progressPercent?: number` and the corresponding check to `!== undefined`. Audited every other strict-null comparison in `web/src` at the same time (grep for `=== null`/`!== null`) — none remained. Any new API module should default to `field?: T` (optional) rather than `field: T | null`, and use truthy/falsy or `!= null`/`== null` checks, not strict `null` comparison — noted here so this isn't rediscovered a third time.

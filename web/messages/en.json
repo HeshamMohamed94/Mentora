@@ -27,6 +27,40 @@
     "exploreCourses": "Explore Courses",
     "getStarted": "Get Started"
   },
+  "explore": {
+    "title": "Explore",
+    "searchLabel": "Search courses",
+    "searchPlaceholder": "Search courses...",
+    "allCategories": "All categories",
+    "resultCount": "{count, plural, =0 {No courses} one {# course} other {# courses}}",
+    "emptyTitle": "No courses match your search",
+    "emptyDescription": "Try different keywords or clear your filters",
+    "clearFilters": "Clear filters",
+    "errorTitle": "Something went wrong loading courses",
+    "levelBeginner": "Beginner",
+    "levelIntermediate": "Intermediate",
+    "levelAdvanced": "Advanced"
+  },
+  "courseDetails": {
+    "enroll": "Enroll",
+    "continueLearning": "Continue Learning",
+    "loginToEnroll": "Login to Enroll",
+    "curriculum": "Curriculum",
+    "lessonsCount": "{count, plural, one {# lesson} other {# lessons}}",
+    "aboutInstructor": "Instructor",
+    "errorTitle": "This course couldn't be loaded"
+  },
+  "learningPaths": {
+    "title": "Learning Paths",
+    "intro": "Curated, ordered course sequences",
+    "emptyTitle": "No Learning Paths yet",
+    "emptyDescription": "Check back soon for curated course sequences",
+    "courseCount": "{count, plural, one {# course} other {# courses}}",
+    "follow": "Follow Path",
+    "unfollow": "Unfollow",
+    "loginToFollow": "Login to Follow",
+    "errorTitle": "This learning path couldn't be loaded"
+  },
   "auth": {
     "loginTitle": "Login",
     "registerTitle": "Create your account",
