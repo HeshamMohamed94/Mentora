@@ -42,7 +42,7 @@ data class AppConfig(
                 jwtIssuer = optional("JWT_ISSUER", "mentora-backend"),
                 accessTokenTtlMinutes = optional("ACCESS_TOKEN_TTL_MINUTES", "15").toLong(),
                 refreshTokenTtlDays = optional("REFRESH_TOKEN_TTL_DAYS", "30").toLong(),
-                mediaStorageRoot = optional("MEDIA_STORAGE_ROOT", "backend/storage/media"),
+                mediaStorageRoot = optional("MEDIA_STORAGE_ROOT", "storage/media"),
                 corsAllowedOrigins = optional("CORS_ALLOWED_ORIGINS", "http://localhost:3000")
                     .split(",").map { it.trim() }.filter { it.isNotEmpty() },
                 aiProviderApiKey = env["AI_PROVIDER_API_KEY"]?.takeIf { it.isNotBlank() },

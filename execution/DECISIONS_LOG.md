@@ -207,3 +207,63 @@ Format: `D<n> — <date> — <decision>` with **Why** and **Impact**.
 **Why this matters to record:** None of these were application-logic defects — they were test-harness mistakes introduced while authoring a brand-new test file under Codex's interrupted/retried session (D18/D19), not present in any previously-reviewed module. Recording this distinction so the module's certificate-of-review is accurate: the learning-paths production code was correct on first read: order-preserving course resolution, dangling-course omission from both detail and the progress denominator, idempotent follow (unique compound index + `setOnInsert` upsert) and unfollow (plain idempotent delete), and guest-safe optional-auth on the detail route all verified via the now-passing tests plus direct code reading.
 
 **Impact:** Full `./gradlew build` (all 8 integration test classes, 25 tests) is green. Task 14 committed. Proceeding to task 15 (Media module).
+
+---
+
+### D21 — 2026-09-06 — Media documents carry an additive `courseId` field to resolve lesson-video ownership/enrollment without a new reverse lookup
+
+**Decision:** `DATABASE_MODEL.md § 15`'s `media` fields (`ownerRefId` interpreted per `kind`) don't by themselves let the `media` module answer "which course does this `lessonVideo`'s `ownerRefId` (a `lessonId`) belong to?" — needed both to check upload-time ownership (is this Instructor the owning course's Instructor?) and playback-time enrollment (is this Student enrolled in the owning course?). Rather than add a new lesson→course reverse-lookup method to `CourseService` (or have `media` reach into `courses`' collection directly, which `BACKEND_ARCHITECTURE.md § 1` forbids), the `media` document gains one additive field, `courseId: ObjectId?` — populated only for `kind: lessonVideo`, supplied by the client at upload time as an extra multipart field, `null` for `courseThumbnail` (where `ownerRefId` already *is* the courseId) and `avatar` (no owning course). At upload time, `media` calls the already-exposed `CourseService.requireOwnership(courseId, principal)` (added in the commit just before this task specifically for this kind of cross-module reuse) and additionally verifies the given `lessonId` actually appears in that course's `sections[].lessons[]` (defense-in-depth against a client pairing an unrelated `lessonId` with a `courseId` it doesn't belong to). At playback time, `media` calls the existing public `CourseService.get(courseId, principal)` to read the owning instructor, and `EnrollmentService.requireEnrollment(userId, courseId)` for the enrollment gate.
+
+**Why:** Keeps the module-boundary rule intact (no direct cross-collection queries) by reusing methods already public on `CourseService`/`EnrollmentService`, rather than inventing a new cross-module query surface or letting `media` query `courses`' collection directly. A purely derived/recomputed reverse lookup was the only other option and would have required exactly the kind of new service method this avoids.
+
+**Impact:** `POST /api/v1/media/uploads`'s multipart fields are `{ kind, ownerRefId, contentType, courseId? }` — `courseId` is required and validated when `kind == lessonVideo`, ignored otherwise. This is a non-breaking, additive extension of `MEDIA_ARCHITECTURE.md § 3`'s described shape (that section doesn't enumerate the exhaustive field list). `execution/INTEGRATION_CONTRACT.md § 7` will record the as-built shape once this task lands.
+
+---
+
+### D22 — 2026-09-06 — Media upload size limits (not pinned in any locked doc) set for local-demo scale
+
+**Decision:** `AUTH_SECURITY.md § 8` locks the content-type allowlist (`video/mp4`, `video/webm`, `image/jpeg`, `image/png`, `image/webp`) but no document states a max upload size. Set: images (`courseThumbnail`/`avatar`) max **5 MB**; videos (`lessonVideo`) max **500 MB**. Enforced server-side before any disk write (streaming size check as multipart bytes arrive, not after buffering the whole file), per `ADR-008`'s "twice, client and server, server authoritative" rule — Phase 1 only implements the server-side half; client-side pre-validation is a later Phase 2 UX concern. Content-type is also cross-checked against `kind` (`courseThumbnail`/`avatar` → must be one of the three image MIME types; `lessonVideo` → must be one of the two video MIME types) — a client can't upload a video as a "courseThumbnail" or vice versa.
+
+**Why:** A concrete number is required to implement a working upload endpoint; 5 MB/500 MB are conservative, generous-enough-for-a-demo bounds for a single local developer machine, not a product requirement derived from any locked doc.
+
+**Impact:** If real course videos ever need to exceed 500 MB, this is a one-line config-constant change, not a design change. Not treated as a locked architectural value — safe to revisit.
+
+---
+
+### D23 — 2026-09-06 — Signed playback reference implemented as a short-lived, purpose-scoped JWT, verified outside the main `jwt-auth` Authentication provider
+
+**Decision:** `MEDIA_ARCHITECTURE.md § 5`'s "short-lived signed reference" for lesson-video playback is implemented as a second JWT (reusing the already-present `com.auth0:java-jwt` dependency and `appConfig.jwtSigningSecret`), distinct from the access token: claims `mediaId` and `purpose: "media-playback"`, 5-minute expiry, verified by hand (`JWT.require(...).build().verify(token)`) inside the streaming route handler itself — not registered as a second Ktor `Authentication` provider, since it's a resource-scoped capability token bound to one `mediaId`, not a user-session credential. Route shape: `GET /api/v1/media/{mediaId}/playback-url` (normal `jwt-auth`, enrollment-checked per D21) returns `{ url, expiresAt }` where `url` is `/api/v1/media/{mediaId}/stream?token=<jwt>`; `GET /api/v1/media/{mediaId}/stream` is a public route (no cookie/bearer auth — a native `<video>`/`ExoPlayer`/`AVPlayer` element can't easily attach custom headers) that verifies the query-param token's signature, expiry, and that its `mediaId` claim matches the path parameter before streaming any bytes, per `ADR-008`'s "an unauthorized or expired request is rejected before any bytes are streamed."
+
+**Why:** Reuses an already-vetted signing mechanism/secret instead of inventing a new one; keeps the token purpose-scoped (a stolen playback token can only stream that one video for 5 minutes, never anything else, and isn't a valid access token or vice versa) via the `purpose` claim.
+
+**Impact:** Video streaming (`.../stream`) uses `LocalFileContent` + the already-installed `ktor-server-partial-content` plugin (`install(PartialContent)`, not yet installed in `plugins/Security.kt` or elsewhere — this task installs it) so HTTP range requests (scrubbing/seeking) work for free without hand-rolled range-header parsing.
+
+---
+
+### D24 — 2026-09-06 — Media documents are only ever inserted with `status: ready`; the `pendingUpload`/`failed` lifecycle states are unused in Phase 1
+
+**Decision:** `DATABASE_MODEL.md § 15`'s lifecycle (`pendingUpload` → `ready`/`failed`) describes a two-phase presigned-upload flow. `MEDIA_ARCHITECTURE.md § 3` (the more specific, local-scope-amended doc) instead describes one synchronous backend-mediated request that writes bytes and inserts the `media` document together — "if step 3 fails part-way..., no `media` document is created... there is no orphaned-record cleanup problem." Phase 1 follows `MEDIA_ARCHITECTURE.md`'s simpler shape literally: a `media` document is inserted (with `status: "ready"`) only after `MediaStorage.store(...)` has already succeeded; any failure before that point returns an error to the client and writes nothing. The `status` field is kept on the document (for schema-compatibility with `DATABASE_MODEL.md` and any future async-processing evolution) but is always `"ready"` in Phase 1 — `pendingUpload`/`failed` are dead enum values for now.
+
+**Why:** Matches the already-locked, more-specific `MEDIA_ARCHITECTURE.md § 3` flow exactly; inventing an unused async two-phase state machine now would be speculative (YAGNI) — no caller ever produces a `pendingUpload` document to transition out of.
+
+**Impact:** `execution/INTEGRATION_CONTRACT.md § 7` will note this once the module lands. A future async/cloud-storage migration (`ADR-008`'s optional Migration Path) is exactly where `pendingUpload`/`failed` would become live states again — not required now.
+
+---
+
+### D25 — 2026-09-06 — `media.ownerRefId` is stored as a `String`, not an `ObjectId`, because lesson ids are UUID strings
+
+**Decision (correction to D21's assumed type):** D21 assumed `ownerRefId` would be an `ObjectId` for every `kind`. During implementation this proved wrong for `kind: lessonVideo`: `courses/service/CourseService.kt` generates a lesson's `lessonId` as `UUID.randomUUID().toString()` (a stable string identifier, deliberately not a Mongo `ObjectId`, per `DATABASE_MODEL.md § 4`'s own note that section/lesson ids are "a stable string/UUID, not a Mongo ObjectId, since sections are addressed by clients for reorder operations"). `MediaDocument.ownerRefId` is therefore typed `String`: validated as ObjectId-hex for `courseThumbnail`/`avatar` (where `ownerRefId` really is a courseId/userId), and validated as a well-formed UUID matching a real lesson id on the owning course for `lessonVideo`.
+
+**Why:** Requiring `ObjectId` format for `lessonVideo.ownerRefId` would reject every real lesson id a course actually produces — not a hypothetical edge case, a guaranteed failure for the module's main use case. Caught and fixed during implementation rather than shipped broken.
+
+**Impact:** No API-visible change — `ownerRefId` was always an opaque string on the wire (multipart form field), this only affects the Kotlin type stored server-side. `courseId` (the D21 additive field) stays a real `ObjectId`, since course ids are genuinely Mongo `ObjectId`s.
+
+---
+
+### D26 — 2026-09-06 — Media upload multipart request requires form fields before the file part
+
+**Decision:** `POST /api/v1/media/uploads`'s handler reads `kind`/`ownerRefId`/`contentType`/`courseId`/`durationSeconds` from multipart form fields into memory as they stream past, and processes the file part (calls the upload service, which needs those fields already resolved) at the moment the file part itself arrives. This means the client **must** send the form fields before the file part in the multipart body — the same requirement direct-to-object-storage POST uploads (e.g. S3 presigned POST) already impose, and satisfied automatically by every standard multipart-builder (browser `FormData`, `curl -F`, Ktor's own `formData { }`) as long as the caller appends the metadata fields first, which is also the natural order to write the code in.
+
+**Why:** Ktor's multipart parsing is a single forward-only stream — there is no "read all parts, then decide" step without buffering the entire (up to 500 MB) file part in memory first, which the size-limit design explicitly avoids (D22's streaming-with-abort approach). Requiring metadata-before-file is the standard, low-cost way to avoid that buffering.
+
+**Impact:** **Phase 2 (Web)'s upload UI must append `kind`, `ownerRefId`, `contentType`, and (for lesson videos) `courseId`/`durationSeconds` to the `FormData` before appending the file blob.** Recorded here and in `execution/INTEGRATION_CONTRACT.md § 7` so this isn't rediscovered the hard way during Phase 2.

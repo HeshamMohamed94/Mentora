@@ -1,6 +1,6 @@
 # Mentora — Current Implementation Status
 
-**Last updated:** 2026-09-06 (session resumed from machine-shutdown pause; task 14 closed out and committed)
+**Last updated:** 2026-09-06 (task 15 — Media module — closed out and committed)
 
 ---
 
@@ -9,23 +9,22 @@
 **Read this section first when resuming.**
 
 - **Phase:** PHASE 1 — Backend Foundation & API — `IN_PROGRESS`
-- **Current task:** Task 15 — Media module (local filesystem storage, M11 slice) — **NOT_STARTED**
-- **Next immediate action:** Dispatch Codex for the Media module using the established per-module brief pattern (see Courses/Enrollment/Progress/Quiz/Certificates/Learning Paths for the style), then build/test/review/commit exactly as done for every prior module.
+- **Current task:** Task 16 — Instructor aggregation endpoints (M11 slice) — **NOT_STARTED**
+- **Next immediate action:** Dispatch Codex for the Instructor aggregation endpoints using the established per-module brief pattern, then build/test/review/commit exactly as done for every prior module.
 
-### What is COMPLETE (committed, reviewed, gates green) — tasks 1–14
+### What is COMPLETE (committed, reviewed, gates green) — tasks 1–15
 
-All of: execution continuity docs, backend Gradle scaffold, Ktor foundation (M1), Auth & RBAC (M2), Users module, Courses & Categories (M5 slice), Enrollment/Demo Checkout (M6 slice), Progress (M7 slice), Quiz (M8 slice), Certificates + completion-crossing wiring (M9 slice), Learning Paths (M10 slice). Last commit: see `git log` on `main` — "Phase 1: Learning paths module (M10 slice)".
+All of: execution continuity docs, backend Gradle scaffold, Ktor foundation (M1), Auth & RBAC (M2), Users module, Courses & Categories (M5 slice), Enrollment/Demo Checkout (M6 slice), Progress (M7 slice), Quiz (M8 slice), Certificates + completion-crossing wiring (M9 slice), Learning Paths (M10 slice), Media/local filesystem storage (M11 slice). Last commit: see `git log` on `main` — "Phase 1: Media module (M11 slice)".
 
-Task 14 (Learning Paths) resumed from the machine-shutdown pause: built/tested the partial work as-is first (per the prior resume plan), found all 4 integration tests failing, root-caused and fixed 3 test-only bugs (an ambiguous-overload bug in the test's `postJson` helper that silently emptied the register/login request bodies, a BSON type mismatch in the test's direct-seed fixture for `createdAt`, and an assertion written against the wrong null-encoding convention). The production module code itself needed no changes — verified correct on direct read (order-preserving course resolution, dangling-course omission from both detail and the progress denominator, idempotent follow/unfollow, guest-safe optional auth). Full details in `DECISIONS_LOG.md` D20. Full `./gradlew build` (25 tests across 8 integration test classes) is green.
+Task 15 (Media): Codex-authored, Claude-reviewed closely. Implements the `MediaStorage` abstraction + local-filesystem impl with canonical-path-escape protection, streaming upload with per-kind size caps (images 5 MB / video 500 MB, aborted-and-cleaned-up mid-stream on overflow, never buffering the full file), public thumbnail/avatar serving, and a gated lesson-video playback flow (a second, purpose-scoped 5-minute JWT, verified by hand — not a second Authentication provider — plus Ktor's `PartialContent` plugin for range-request seeking). Ownership/enrollment authorization reuses the already-exposed `CourseService.requireOwnership`/`EnrollmentService.requireEnrollment` (no new cross-module surface). One correctly-identified and fixed implementation-time conflict: `media.ownerRefId` had to become a `String` (not the originally-assumed `ObjectId`) because `courses` generates lesson ids as UUID strings, not Mongo ObjectIds — see `DECISIONS_LOG.md` D21/D25 for the full reasoning, D22–D24 for the size-limit/token/status-lifecycle decisions, D26 for a real Phase-2-relevant contract note (multipart form fields must precede the file part in the upload request). Verified independently: re-ran `./gradlew test --rerun` myself (not just trusting Codex's self-report) — fresh, non-cached run against live MongoDB, 29 tests/9 suites, 0 failures/errors. Reviewed the diff directly (not just the test outcome): storage-key generation is always server-generated, never client-filename-derived; content-type/kind cross-validation happens before any disk write; `courseId` additive field correctly resolves both the upload-ownership and playback-enrollment checks without a new reverse lookup; public `/file` route correctly 404s for `lessonVideo`-kind media.
 
 ### What is PARTIAL / uncommitted
 
-Nothing. Working tree is clean relative to the task-14 commit.
+Nothing. Working tree is clean relative to the task-15 commit.
 
 ### Exact next steps on resume
 
-1. Task 15 — Media module (local filesystem storage, M11 slice): dispatch Codex with a brief in the same style as prior modules (spec: local filesystem storage under `mediaStorageRoot` from `AppConfig`, upload/serve endpoints, ownership/role gating consistent with Courses module patterns). Build/test/review/commit.
-2. Task 16 — Instructor aggregation endpoints (M11 slice).
+1. Task 16 — Instructor aggregation endpoints (M11 slice): dispatch Codex with a brief in the same style as prior modules (an Instructor-owner-scoped dashboard: their courses across all statuses including Draft, enrollment counts, etc. — read `IMPLEMENTATION_ROADMAP.md`/`API_CONTRACT.md`'s instructor section first). Build/test/review/commit.
 3. Task 17 — Admin aggregation endpoints (M12 slice).
 4. Task 18 — AI Tutor scaffold + `AiProvider` interface + stub impl (M13 boundary only).
 5. Task 19 — Backend test suite completeness review (M15 portion).
@@ -70,7 +69,7 @@ Allowed phase states: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `COMPLETE`.
 | 12 | Quiz module (M8 slice) | DONE — Codex-authored (run 06), Claude-reviewed (isCorrect-stripping per roadmap): confirmed `StudentQuizOption` is structurally a distinct type with no `isCorrect` property (not a serialization-omitted field), verified via raw-JSON substring test; grading math, editor validation, and the authorized `progress.setQuizPassed` addition all verified. Certificate/completion-crossing wiring deferred to next task (D16). All gates green. |
 | 13 | Certificates module + course-completion wiring (M9 slice + D15/D16/D17 follow-through) | DONE — Codex-authored (run 07), Claude-reviewed closely: independently verified via grep that progress/quiz services have zero dependency on certificates (route-layer-only wiring, no circular dependency), confirmed the eligibility check, the reversible human-readable public ID, and order-independence (quiz-first and lessons-first both correctly trigger issuance) with genuine direct-collection-count proof of no double-issuance. All gates green. |
 | 14 | Learning paths module (M10 slice) | DONE — Codex-authored (run 08c, resumed after a usage-limit pause and a machine-shutdown pause, D18/D19), Claude-reviewed: production code correct on first read (order-preserving course resolution, dangling-course omission from detail + progress denominator, idempotent follow/unfollow via unique index + upsert, guest-safe optional auth). Found and fixed 3 test-only bugs (ambiguous helper overload emptying register/login bodies, BSON date-type mismatch in a raw-seed fixture, a null-encoding assertion mismatched to the app's `explicitNulls = false` config) — see D20. All gates green (25 tests, 8 classes). |
-| 15 | Media module — local filesystem storage (M11 slice) | NOT_STARTED |
+| 15 | Media module — local filesystem storage (M11 slice) | DONE — Codex-authored, Claude-reviewed: verified the `MediaStorage` abstraction's path-escape defense, streaming size-cap-with-cleanup, server-generated (never client-derived) storage keys, public-thumbnail vs. gated-lesson-video route split, the two-JWT (session vs. purpose-scoped playback) design, and that ownership/enrollment checks reuse existing cross-module methods with zero new surface. One correctly-caught implementation conflict (lesson ids are UUID strings, not ObjectIds — D25). Independently re-ran the test suite myself (fresh, non-cached, live MongoDB) rather than trusting the self-report. All gates green (29 tests, 9 classes). |
 | 16 | Instructor aggregation endpoints (M11 slice) | NOT_STARTED |
 | 17 | Admin aggregation endpoints (M12 slice) | NOT_STARTED |
 | 18 | AI Tutor scaffold + `AiProvider` interface + stub impl (M13 boundary only) | NOT_STARTED |
@@ -82,4 +81,4 @@ Allowed phase states: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `COMPLETE`.
 
 ## Immediate Next Action
 
-Task 15 — Media module (local filesystem storage, M11 slice). Dispatch Codex with a brief in the established per-module style, then build/test/review/commit.
+Task 16 — Instructor aggregation endpoints (M11 slice). Dispatch Codex with a brief in the established per-module style, then build/test/review/commit.

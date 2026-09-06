@@ -29,6 +29,7 @@ xcuserdata/
 *.xcuserstate
 
 # Mentora local data
+backend/storage/
 local-media/
 uploads/
 mongodb-data/

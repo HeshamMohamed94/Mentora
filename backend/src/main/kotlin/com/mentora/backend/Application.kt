@@ -25,6 +25,10 @@ import com.mentora.backend.learningpaths.learningPathsModule
 import com.mentora.backend.learningpaths.repository.ensureLearningPathIndexes
 import com.mentora.backend.learningpaths.routes.learningPathRoutes
 import com.mentora.backend.learningpaths.service.LearningPathService
+import com.mentora.backend.media.mediaModule
+import com.mentora.backend.media.repository.ensureMediaIndexes
+import com.mentora.backend.media.routes.mediaRoutes
+import com.mentora.backend.media.service.MediaService
 import com.mentora.backend.plugins.configureCors
 import com.mentora.backend.plugins.configureDatabaseLifecycle
 import com.mentora.backend.plugins.configureMonitoring
@@ -52,6 +56,7 @@ import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import io.ktor.server.application.log
 import io.ktor.server.netty.EngineMain
+import io.ktor.server.plugins.partialcontent.PartialContent
 import io.ktor.server.routing.routing
 import org.koin.ktor.ext.get
 import org.koin.ktor.plugin.Koin
@@ -69,6 +74,7 @@ internal fun Application.module(appConfig: AppConfig) {
         modules(
             configKoinModule(appConfig), databaseKoinModule, authModule, usersModule, categoriesModule,
             coursesModule, enrollmentModule, progressModule, quizModule, certificatesModule, learningPathsModule,
+            mediaModule,
         )
     }
     configureDatabaseLifecycle()
@@ -80,6 +86,7 @@ internal fun Application.module(appConfig: AppConfig) {
     configureRequestValidation()
     configureRateLimiting()
     configureStatusPages()
+    install(PartialContent)
 
     kotlinx.coroutines.runBlocking {
         try {
@@ -91,6 +98,7 @@ internal fun Application.module(appConfig: AppConfig) {
             ensureQuizIndexes(get())
             ensureCertificateIndexes(get())
             ensureLearningPathIndexes(get())
+            ensureMediaIndexes(get())
         } catch (error: MongoTimeoutException) {
             log.warn("Could not ensure database indexes because MongoDB is unavailable", error)
         }
@@ -107,5 +115,6 @@ internal fun Application.module(appConfig: AppConfig) {
         quizRoutes(get<QuizService>(), get<CertificateService>())
         certificateRoutes(get<CertificateService>())
         learningPathRoutes(get<LearningPathService>())
+        mediaRoutes(get<MediaService>())
     }
 }
