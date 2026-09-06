@@ -159,7 +159,13 @@ class MediaIntegrationTest {
         assertEquals("FORBIDDEN_NOT_ENROLLED", denied.errorCode())
 
         val validUrl = client.get("/api/v1/media/$mediaId/playback-url") { bearerAuth(instructor) }.dataString("url")
-        val tampered = client.get(validUrl.dropLast(1) + if (validUrl.last() == 'a') 'b' else 'a')
+        // Flip the first character of the JWT signature (right after the last '.'), not the last character
+        // of the whole token: base64url's final character can carry unused padding bits, so flipping *that*
+        // one is flaky — it occasionally decodes to the same signature bytes and the tamper goes undetected.
+        val signatureStart = validUrl.lastIndexOf('.') + 1
+        val flipped = if (validUrl[signatureStart] == 'a') 'b' else 'a'
+        val tamperedUrl = validUrl.take(signatureStart) + flipped + validUrl.substring(signatureStart + 1)
+        val tampered = client.get(tamperedUrl)
         assertEquals(HttpStatusCode.Unauthorized, tampered.status)
         val expired = playbackToken(mediaId, Instant.now().minusSeconds(60))
         assertEquals(HttpStatusCode.Unauthorized, client.get("/api/v1/media/$mediaId/stream?token=$expired").status)
