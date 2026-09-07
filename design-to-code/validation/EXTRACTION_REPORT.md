@@ -1,0 +1,38 @@
+# Design-to-Code — Extraction Report
+
+What was extracted directly from the locked Mentora Showcase, what was sourced from the Design System, what was inferred (and why), every conflict discovered between sources, and unresolved ambiguities. See `design-to-code/SOURCE_MANIFEST.json` for the precedence rule every conflict below was resolved against.
+
+---
+
+## 1. Values extracted directly from the Showcase
+
+Programmatic extraction (not screenshot-eyeballing) from `design-review-locked/Mentora Showcase.dc.html`'s raw HTML/CSS:
+
+- **`grid-template-columns` declarations** — a full family of `repeat(auto-fit/auto-fill, minmax(Npx,1fr))` patterns (96px, 120-360px in ~20px/40px steps) plus fixed multi-column layouts (`104px repeat(6,1fr)`, `2.2fr 1.4fr 1.2fr 1fr 0.5fr` DataTable-shaped ratios, `260px minmax(0,1fr) minmax(0,1fr)`, `repeat(3,1fr)`). These corroborate the design system's grid/courseGrid token structure (fluid card grids at multiple minimum widths) rather than contradicting it.
+- **`max-width` declarations** — `1280px`, `1000px`, `900px`, `360px`, `340px`, `320px`, `280px`. The `1280px` value directly corroborates `design-tokens.json → grid.preferredMarketingWidth` ("1200-1280"), confirming Landing/marketing pages' content cap is a real, showcase-verified number, not an invented one.
+- **`aspect-ratio:16/9`** — exactly one declaration, confirming the 16:9 convention design-tokens.json's `component.videoPlayer.aspectRatio` and `COMPONENTS.md`'s CourseCard thumbnail spec both already state. Used as corroboration in `shared/artwork.json#/aspectRatio`.
+- **Course-artwork governance quote** (§ 12): *"these bases and motifs are an artwork system, not application UI colours — they must never enter the semantic colour tokens"* and *"artwork scales from an 88px list thumbnail to a full-width hero without re-composition"* — quoted verbatim in `shared/artwork.json#/governanceNote` and `#/aspectRatio`.
+
+## 2. Values sourced from the Design System (rank 2, no showcase extraction needed)
+
+The overwhelming majority of `design-to-code/shared/*.json` — every color, typography scale step, spacing step, radius, elevation level, motion duration/easing, icon size, breakpoint, and component-state table — is copied directly from `design-system/design-tokens.json` + `themes/theme-{light,dark}.json` + `COMPONENTS.md`, per `SOURCE_MANIFEST.json` rank 2. These are locked, hand-authored, and were never in question; extraction from the showcase was unnecessary and would have been strictly worse evidence than the token file itself.
+
+## 3. Values marked "inferred"
+
+- `shared/typography.json#/showcaseCorroboration` — per-type-scale-step showcase pixel values were **not** individually cross-referenced, because the showcase's CSS uses component-scoped class names, not `typography.scale.*` names, so a byte-exact per-step mapping would require guessing which showcase rule corresponds to which named step. Marked `inferred`; the design-tokens.json values are used as-is (rank 2 authority) and were visually confirmed at the correct rendered size during the D49 browser pass.
+- `screens/landing.json#/layout/heroCollage` — the showcase's hero collage uses a large+medium+wide mixed-size composition; the current implementation's 3-equal-column grid is an approximation, explicitly marked `inferred proportions` rather than claimed exact.
+- Originally, `shared/artwork.json`'s 5 motif entries were marked `inferred` (gradient stops not given byte-exact by the showcase, which only names the "dark purple/indigo base" rule, not literal hex values per motif). **This was upgraded during the pipeline build**: reading `web/src/components/ui/course-thumbnail.tsx` (rank 4, implementation evidence) surfaced the actual, already-correct gradient CSS in use — copied verbatim into `shared/artwork.json` and re-labeled `source: web/src/components/ui/course-thumbnail.tsx (implementation evidence)`. This is evidence, not new design authority — the values were already correct per the showcase's *rule* (dark purple/indigo base), just not independently re-derivable from the showcase's own bytes with pixel precision.
+
+## 4. Conflicts discovered (recorded, never silently resolved)
+
+1. **Course Player shell.** The showcase's own caption over-states its Course Player exception as *"the one documented exception to authenticated sidebar navigation,"* readable as "no sidebar at all." The locked `ux/SCREEN_UX_SPECS.md § 10` says "Sidebar collapsed by default" — a collapse, not a removal. **Resolved in favor of rank 1 (UX)**: `shared/navigation.json#/shells/coursePlayerShell` encodes the collapse-only rule as locked, with the conflict explicitly recorded there and in `screens/course-player.json#/conflicts`.
+2. **Instructor Dashboard stat cards/columns.** The showcase's reference mockup shows 4 stat cards (incl. "Avg. completion rate") and Publish-toggle/Students/Updated-date DataTable columns. The locked `ux/INSTRUCTOR_ADMIN_UX.md § 1` specifies exactly 3 stat cards and a different column set. **Resolved in favor of rank 1**: `screens/instructor-dashboard.json#/conflicts` and the current implementation both hold the locked 3-card/column set — pre-existing, re-confirmed (not newly discovered), see `execution/DECISIONS_LOG.md` D48 §7/D49.
+3. **Course Editor Media tab / persistent Curriculum rail.** The showcase's mockup shows a 3-tab (Details/Curriculum/Media) layout with a persistent right-hand panel. The locked `product/SCREEN_INVENTORY.md §C` specifies exactly two separate tab-screens, no Media tab, no split panel. **Resolved in favor of rank 1**: `screens/course-editor-overview.json#/conflicts` and `course-editor-curriculum.json#/conflicts` record this as the largest single driver of those two screens' fidelity ceiling — a product/UX decision to re-ratify or not, out of scope for this pipeline to resolve unilaterally.
+4. **Dashboard module count.** The locked `ux/WEB_UX.md § 5` caps the Dashboard at exactly 3 modules and "no more than one StatCard row." The current implementation (pre-existing from D48, extended in D49's Up Next module) ships 4 stat cards + an AI Tutor nudge + an Up Next card. **Recorded as an open, disclosed deviation** in `screens/dashboard.json#/conflicts` — not resolved either direction by this pipeline, since reverting or re-ratifying is a product decision, not a data-modeling one.
+5. **Explore's reference ambiguity.** The showcase's own captured reference frame for Explore is itself a pair of stacked MOBILE mockups (a Dashboard mobile screen + an Explore mobile screen), not an assembled desktop composition — an artifact of how the showcase's own Section 22 capture was organized, not a deliberate mobile-only intent for this screen. Recorded in `screens/explore.json#/conflicts` as a source-quality caveat, not a product/UX conflict.
+
+## 5. Unresolved ambiguities
+
+- The exact per-motif gradient-stop-count rationale (why each of the 5 motifs uses a different repeating-pattern function) is not documented anywhere in the locked sources — it reads as a deliberate "each subject gets a visually distinct texture" design choice, but no source states this explicitly. Left as an observation in `shared/artwork.json`, not asserted as a rule.
+- Whether the Dashboard's 4-module/4-stat-card layout (conflict #4 above) should be formally re-ratified as an intentional deviation from `ux/WEB_UX.md § 5`, or reverted to the locked 3-module cap, is unresolved — flagged for a product/UX decision, not decided here.
+- Whether Admin's screens (25-29) should eventually get `design-to-code/screens/` specs is unresolved by design — deliberately deferred past this phase to avoid any appearance of starting Task 12 (see `COVERAGE_REPORT.md`).

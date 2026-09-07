@@ -1,0 +1,24 @@
+{
+  "screenId": "lesson-editor",
+  "screenNumber": 23,
+  "role": ["Instructor"],
+  "platform": "Web only",
+  "shell": "shared/navigation.json#/shells/instructorWeb",
+  "routeIntent": "/{locale}/instructor/courses/{courseId}/sections/{sectionId}/lessons/{lessonId} (or /new)",
+  "referenceType": "ux-only",
+  "sourceReferences": ["ux/SCREEN_UX_SPECS.md § 23", "design-system/COMPONENTS.md § File & Media Upload, § Inputs", "product/SCREEN_INVENTORY.md § 23"],
+
+  "layout": { "structure": "minimal header ('Edit Lesson'/'New Lesson' + Save/Cancel) -> single-column form, form-width cap" },
+  "sections": [
+    { "order": 1, "id": "form", "content": ["Title TextField", "Description TextField (multiline)", "Video FileUpload (Idle -> Uploading with ProgressBar -> Success with thumbnail/duration)", "Resource links — repeatable TextField list, 'Add Resource'"] },
+    { "order": 2, "id": "actions", "content": ["Save / Delete / Cancel"] }
+  ],
+  "componentSequence": ["textField", "fileUpload", "progressBar", "button.primary", "button.text"],
+  "navigation": { "exitDestinations": ["Course Editor — Curriculum (Save/Cancel/Delete)"] },
+  "states": { "loading": "skeleton form (editing existing)", "error": "inline field validation; upload error uses fileUpload's own Error state", "success": "Snackbar 'Lesson saved'" },
+  "unsavedChangesGuard": "navigating away with unsaved edits prompts a confirmation AppDialog (ux/NAVIGATION_SPEC.md § 6)",
+  "ltrBehavior": "default", "rtlBehavior": "same pattern as Course Editor — Overview",
+  "themeBehavior": "standard semantic token resolution",
+  "responsiveRules": "single-column form, form-width cap",
+  "knownGaps": ["No showcase mockup exists — judged against design-system component specs only."]
+}

@@ -1,0 +1,25 @@
+{
+  "screenId": "quiz-editor",
+  "screenNumber": 24,
+  "role": ["Instructor"],
+  "platform": "Web only",
+  "shell": "shared/navigation.json#/shells/instructorWeb",
+  "routeIntent": "/{locale}/instructor/courses/{courseId}/quiz",
+  "referenceType": "ux-only",
+  "sourceReferences": ["ux/SCREEN_UX_SPECS.md § 24", "design-system/COMPONENTS.md § ReorderableList, § Inputs", "product/SCREEN_INVENTORY.md § 24"],
+
+  "layout": { "structure": "minimal header ('Course Quiz' + Save/Cancel) -> ReorderableList of questions -> 'Add Question' -> Save" },
+  "sections": [
+    { "order": 1, "id": "questions", "content": ["ReorderableList: each question = prompt TextField, 2-4 option TextFields, 'mark correct' selector"] },
+    { "order": 2, "id": "actions", "content": ["'Add Question'", "Save"] }
+  ],
+  "componentSequence": ["reorderableList", "textField", "button.icon", "button.tonal", "button.primary"],
+  "navigation": { "exitDestinations": ["Course Editor — Curriculum (Save/Cancel)"] },
+  "states": { "loading": "skeleton", "empty": "'no questions yet' + CTA 'Add Question' (lightweight in-context prompt, not a full EmptyState)", "error": "inline validation (e.g. 'mark a correct answer before saving')" },
+  "unsavedChangesGuard": "same pattern as Lesson Editor",
+  "accessibilityRule": "same reordering accessibility guarantee as Course Editor Curriculum — Move Up/Down always present per question",
+  "ltrBehavior": "default", "rtlBehavior": "same pattern as Course Editor — Curriculum",
+  "themeBehavior": "standard semantic token resolution",
+  "responsiveRules": "single-column, form-width cap",
+  "knownGaps": ["No showcase mockup exists — judged against design-system component specs only."]
+}

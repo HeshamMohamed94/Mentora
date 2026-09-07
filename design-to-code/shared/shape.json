@@ -1,0 +1,30 @@
+{
+  "$description": "Platform-neutral normalization of design-tokens.json's shape (radius) layer.",
+  "sourceReferences": ["design-system/design-tokens.json#/shape"],
+
+  "radius": { "none": 0, "small": 8, "medium": 12, "large": 16, "xlarge": 24, "full": 999 },
+
+  "componentUsage": {
+    "button": "radius.medium (12)",
+    "input": "radius.medium (12)",
+    "courseCard": "radius.large (16)",
+    "dashboardCard": "radius.large (16)",
+    "modal": "radius.xlarge (24)",
+    "bottomSheet": "radius.xlarge (24) top corners only",
+    "chip": "radius.full (999)",
+    "avatar": "radius.full (999)",
+    "snackbar": "radius.medium (12)",
+    "checkoutSummary": "radius.large (16)",
+    "successState": "n/a (no container shape)",
+    "toggle": "radius.full (999)",
+    "fileUpload": "radius.medium (12)",
+    "dataTableCollapsedCard": "radius.medium (12)",
+    "select": "radius.medium (12) — field; menu also radius.medium (12)"
+  },
+
+  "platformMapping": {
+    "web": "border-radius: var(--radius-*)",
+    "android": "RoundedCornerShape(MentoraTheme.shape.*) / CircleShape or RoundedCornerShape(percent=50) for full",
+    "ios": ".cornerRadius(MentoraRadius.*) / Capsule() or Circle() for full"
+  }
+}

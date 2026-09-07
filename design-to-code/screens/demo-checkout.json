@@ -1,0 +1,42 @@
+{
+  "screenId": "demo-checkout",
+  "screenNumber": 18,
+  "role": ["Student"],
+  "platform": "Both",
+  "shell": "shared/navigation.json#/shells/authenticatedStudent",
+  "routeIntent": "/{locale}/app/checkout/{courseId}",
+  "referenceType": "approved-pattern",
+  "sourceReferences": [
+    "design-review-locked/Mentora Showcase.dc.html § 22 Product Preview — mobile mockup only",
+    "ux/SCREEN_UX_SPECS.md § 18",
+    "product/DEMO_PAYMENT_FLOW.md",
+    "product/SCREEN_INVENTORY.md § 18"
+  ],
+  "highestMatchingScreen": "This screen and purchase-success.json were the two HIGHEST-scoring screens (91%/93%) in the original 24-screen visual audit — both essentially reproduce the mobile reference's copy, structure, and control layout almost exactly, despite being approved-pattern (mobile-mockup) rather than exact-showcase.",
+
+  "layout": { "structure": "single-column card at form-width cap, every breakpoint — Checkout/OrderSummary component" },
+
+  "sections": [
+    { "order": 1, "id": "lineItem", "content": ["course thumbnail + title + instructor (reuses courseCard's compact content pattern)"] },
+    { "order": 2, "id": "priceRows", "content": ["demo price (+ original price if used for discount presentation)"] },
+    { "order": 3, "id": "total", "content": ["order total, heading.h3"] },
+    { "order": 4, "id": "demoNotice", "content": ["\"Demo Payment — no real charges or payment information required.\" — info.container/onInfoContainer"] },
+    { "order": 5, "id": "actions", "content": ["\"Complete Demo Purchase\" PrimaryButton", "\"Cancel\" TextButton"] }
+  ],
+
+  "componentSequence": ["checkout", "button.primary", "button.text"],
+
+  "closedFieldSet": {
+    "rule": "EXHAUSTIVE, CLOSED field list — course line item, price rows, total, demo-payment notice, confirm/cancel actions. MUST NEVER contain card number, CVV, expiry, billing address, bank information, or any payment-provider logo implying real integration.",
+    "sourceReferences": ["design-system/DESIGN_RULES.md rule 15", "product/DEMO_PAYMENT_FLOW.md"]
+  },
+
+  "navigation": { "exitDestinations": ["Purchase Success (success)", "Course Details (cancel)"] },
+
+  "states": { "processing": "confirm button's own Loading state, rest of summary static", "error": "inline 'Demo checkout could not be completed. Try again.' + Try Again" },
+
+  "ltrBehavior": "default", "rtlBehavior": "notice text and price rows follow logical start/end; total amount stays Western Arabic numerals regardless of locale",
+  "themeBehavior": "standard semantic token resolution",
+  "responsiveRules": "single-column card at form-width cap, every breakpoint",
+  "knownGaps": []
+}

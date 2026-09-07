@@ -1,0 +1,12 @@
+{
+  "patternId": "success-state-layout",
+  "description": "Shared celebratory-confirmation composition — icon/illustration -> title -> description -> primary action -> optional secondary action, centered, single column, at every breakpoint.",
+  "derivedFrom": {
+    "components": ["successState", "button.primary", "button.text"],
+    "sourceReferences": ["design-system/COMPONENTS.md § SuccessState"]
+  },
+  "structure": ["icon.large or custom illustration, color.success.default, animated entrance", "title — typography.heading.h3", "description — typography.body.small, max ~2 lines", "primary action — button.primary", "optional secondary action — button.text"],
+  "motionRule": "entrance is motion.duration.slow + easing.decelerate under normal motion preference; an opacity cross-fade at motion.duration.fast (or instant appearance) under reduced-motion — unconditionally, no exception for being a celebratory moment.",
+  "usedBy": ["screens/purchase-success.json"],
+  "futureReuse": "design-system/COMPONENTS.md § SuccessState explicitly notes this is reusable anywhere else a completed, positive action deserves a dedicated confirmation moment (e.g. a future standalone 'course completed' screen) — not built as a separate screen today since Quiz Results already embeds an inline completion banner using the same tokens (screens/quiz-results.json)."
+}

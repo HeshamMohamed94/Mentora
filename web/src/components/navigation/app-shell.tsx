@@ -7,19 +7,12 @@ import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import { Icon, type IconName } from "@/components/ui";
 import { useCurrentUser, CURRENT_USER_QUERY_KEY } from "@/lib/auth/use-current-user";
 import { logout } from "@/lib/auth/actions";
+import { studentNavItems } from "@/lib/design-to-code.generated";
 
 export interface AppShellNavItem { key: string; href: string; icon: IconName }
 
-const NAV_ITEMS: AppShellNavItem[] = [
-  { key: "dashboard", href: "/app", icon: "dashboard" },
-  { key: "explore", href: "/app/explore", icon: "explore" },
-  { key: "myLearning", href: "/app/my-learning", icon: "myLearning" },
-  { key: "learningPaths", href: "/app/paths", icon: "learningPaths" },
-  { key: "aiTutor", href: "/app/ai-tutor", icon: "aiTutor" },
-  { key: "certificates", href: "/app/certificates", icon: "certificates" },
-  { key: "profile", href: "/app/profile", icon: "profile" },
-  { key: "settings", href: "/app/settings", icon: "settings" },
-];
+/** design-to-code/shared/navigation.json#/shells/authenticatedStudent — source of truth for this list. */
+const NAV_ITEMS: AppShellNavItem[] = studentNavItems as AppShellNavItem[];
 
 const COLLAPSE_STORAGE_KEY = "mentora:sidebar-collapsed";
 

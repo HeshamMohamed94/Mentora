@@ -1,0 +1,26 @@
+{
+  "screenId": "profile",
+  "screenNumber": 16,
+  "role": ["Student"],
+  "platform": "Both",
+  "shell": "shared/navigation.json#/shells/authenticatedStudent",
+  "routeIntent": "/{locale}/app/profile",
+  "referenceType": "ux-only",
+  "sourceReferences": ["ux/SCREEN_UX_SPECS.md § 16", "design-system/COMPONENTS.md § Avatar, § Inputs, § Buttons", "product/SCREEN_INVENTORY.md § 16"],
+  "noComponentSpecEither": "No dedicated Profile-layout component spec beyond Avatar itself — weakest evidentiary basis, per the original visual audit's finding #4.",
+
+  "layout": { "structure": "single centered column at every breakpoint" },
+  "sections": [
+    { "order": 1, "id": "identity", "content": ["Avatar (large) + name + email"] },
+    { "order": 2, "id": "stats", "content": ["basic stats: courses completed, certificates earned"] },
+    { "order": 3, "id": "actions", "content": ["'Edit Profile'", "'Settings' entry", "'Logout'"] }
+  ],
+  "componentSequence": ["avatar", "textField (edit mode)", "button.primary", "button.text"],
+  "navigation": { "exitDestinations": ["Settings"] },
+  "states": { "loading": "skeleton", "error": "ErrorState on save failure (inline field errors preferred where applicable)" },
+  "ltrBehavior": "default", "rtlBehavior": "avatar/name block stays start-aligned; edit form follows standard form RTL rules",
+  "themeBehavior": "standard semantic token resolution",
+  "responsiveRules": "single centered column at every breakpoint (ux/WEB_UX.md § 3)",
+  "instructorAdminEquivalent": "Instructor/Admin get their own minimal equivalents, not a new screen (ux/INSTRUCTOR_ADMIN_UX.md).",
+  "knownGaps": ["No showcase mockup and no dedicated layout component spec — judged against Avatar/TextField/Button specs only."]
+}

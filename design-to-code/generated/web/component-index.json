@@ -1,0 +1,31 @@
+{
+  "generatedNote": "GENERATED — DO NOT EDIT. Source: design-to-code/shared/components.json",
+  "components": [
+    "aiTutor",
+    "artworkComponentHooks",
+    "avatar",
+    "button",
+    "card",
+    "checkout",
+    "chip",
+    "dataTable",
+    "dialogsAndSheets",
+    "fileUpload",
+    "mobileBottomNavigation",
+    "navItem",
+    "navbar",
+    "progressBar",
+    "quiz",
+    "reorderableList",
+    "select",
+    "sidebar",
+    "snackbar",
+    "sourceReferences",
+    "statePatterns",
+    "successState",
+    "tabs",
+    "textField",
+    "toggle",
+    "videoPlayer"
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "$description": "Localization/RTL rules that every screen spec and component recipe must respect. This file references CONTENT ROLES, never hardcoded translated copy — actual translated strings live in web/messages/{en,ar}.json (or the future Android/iOS string resource equivalents), not here.",
+  "sourceReferences": ["design-system/LOCALIZATION.md", "design-system/platform-mapping.md § 3.1", "ux/SCREEN_UX_SPECS.md (per-screen RTL notes)"],
+
+  "supportedLocales": {
+    "ui": ["en (LTR)", "ar (RTL)"],
+    "independenceRule": "UI locale and course-CONTENT language are independent axes — a course's Content Language (design-tokens.json-adjacent field on Course Editor Overview) describes what language the lesson video/text is authored in, and is never coupled to the viewer's own UI language selection. Never encode a screen's UI-locale assumption into course-content fields or vice versa."
+  },
+
+  "layoutDirection": {
+    "mechanism": "logical CSS properties (margin-inline-*, padding-inline-*, inset-inline-*, text-align: start/end) on web; LayoutDirection-aware modifiers on Android/iOS — see design-to-code/shared/spacing.json#/logicalApplication.",
+    "switchBehavior": "Selecting a new UI language in Settings (a) swaps all UI strings, (b) flips layout direction app-wide, (c) applies instantly with no navigation away and no app restart — see ux/SCREEN_UX_SPECS.md § 17."
+  },
+
+  "neverMirrors": {
+    "$description": "Duplicated from shared/navigation.json#/rtlMirroring/neverMirrors for discoverability from a localization-first reading path — the two files must stay in sync; navigation.json is the canonical copy.",
+    "canonicalSource": "design-to-code/shared/navigation.json#/rtlMirroring/neverMirrors"
+  },
+
+  "typographyAdjustments": {
+    "arabic": { "letterSpacing": 0, "bodyLineHeightMultiplier": 1.1, "fontFamily": "typography.fontFamily.webArabic (or platform-equivalent)" },
+    "source": "design-to-code/shared/typography.json#/arabicAdjustments"
+  },
+
+  "numeralFormat": {
+    "rule": "Prices/totals/counts always render as Western Arabic numerals regardless of locale — locked decision.",
+    "sourceReferences": ["design-system/LOCALIZATION.md § 7"]
+  },
+
+  "contentRoles": {
+    "$description": "Screen specs reference these ROLE names in their `content` sections, never literal copy. The actual string lives in the app's message catalog under a matching key, resolved per active UI locale.",
+    "examples": {
+      "heroTitle": "role: marketing headline — actual copy in web/messages/{locale}.json under landing.heroTitle",
+      "heroSubtitle": "role: marketing sub-copy",
+      "ctaPrimary": "role: primary call-to-action label",
+      "ctaSecondary": "role: secondary call-to-action label",
+      "emptyStateTitle": "role: empty-state heading, varies per screen/context",
+      "errorFriendlyMessage": "role: user-safe error copy — never raw backend error text"
+    }
+  },
+
+  "certificateException": {
+    "rule": "A Certificate's own rendered content (name, course title) follows the certificate's authored language direction, which may be LTR regardless of the app's current UI direction — surrounding chrome (Share button, back affordance) follows normal app RTL rules.",
+    "sourceReferences": ["ux/SCREEN_UX_SPECS.md § 14"]
+  }
+}

@@ -1,0 +1,273 @@
+{
+  "generatedNote": "GENERATED — DO NOT EDIT. Source: design-to-code/screens/*.json",
+  "screens": [
+    {
+      "screenId": "landing",
+      "screenNumber": 1,
+      "role": [
+        "Guest"
+      ],
+      "routeIntent": "/{locale} (public root)",
+      "referenceType": "exact-showcase",
+      "conflictCount": 0,
+      "knownGapCount": 1
+    },
+    {
+      "screenId": "explore",
+      "screenNumber": 2,
+      "role": [
+        "Guest",
+        "Student"
+      ],
+      "routeIntent": "/{locale}/explore (public) and /{locale}/app/explore (authenticated)",
+      "referenceType": "exact-showcase",
+      "conflictCount": 1,
+      "knownGapCount": 0
+    },
+    {
+      "screenId": "course-details",
+      "screenNumber": 3,
+      "role": [
+        "Guest",
+        "Student"
+      ],
+      "routeIntent": "/{locale}/courses/{id} (public) and /{locale}/app/courses/{id} (authenticated)",
+      "referenceType": "approved-pattern",
+      "conflictCount": 0,
+      "knownGapCount": 1
+    },
+    {
+      "screenId": "learning-paths",
+      "screenNumber": 4,
+      "role": [
+        "Guest",
+        "Student"
+      ],
+      "routeIntent": "/{locale}/paths (public) and /{locale}/app/paths (authenticated)",
+      "referenceType": "ux-only",
+      "conflictCount": 0,
+      "knownGapCount": 1
+    },
+    {
+      "screenId": "learning-path-details",
+      "screenNumber": 5,
+      "role": [
+        "Guest",
+        "Student"
+      ],
+      "routeIntent": "/{locale}/paths/{id} (public) and /{locale}/app/paths/{id} (authenticated)",
+      "referenceType": "ux-only",
+      "conflictCount": 0,
+      "knownGapCount": 1
+    },
+    {
+      "screenId": "login",
+      "screenNumber": 6,
+      "role": [
+        "Guest"
+      ],
+      "routeIntent": "/{locale}/login",
+      "referenceType": "ux-only",
+      "conflictCount": 0,
+      "knownGapCount": 1
+    },
+    {
+      "screenId": "register",
+      "screenNumber": 7,
+      "role": [
+        "Guest"
+      ],
+      "routeIntent": "/{locale}/register",
+      "referenceType": "ux-only",
+      "conflictCount": 0,
+      "knownGapCount": 1
+    },
+    {
+      "screenId": "dashboard",
+      "screenNumber": 8,
+      "role": [
+        "Student"
+      ],
+      "routeIntent": "/{locale}/app",
+      "referenceType": "exact-showcase",
+      "conflictCount": 1,
+      "knownGapCount": 1
+    },
+    {
+      "screenId": "my-learning",
+      "screenNumber": 9,
+      "role": [
+        "Student"
+      ],
+      "routeIntent": "/{locale}/app/my-learning",
+      "referenceType": "approved-pattern",
+      "conflictCount": 0,
+      "knownGapCount": 0
+    },
+    {
+      "screenId": "course-player",
+      "screenNumber": 10,
+      "role": [
+        "Student"
+      ],
+      "routeIntent": "/{locale}/app/learn/{courseId}",
+      "referenceType": "exact-showcase",
+      "conflictCount": 1,
+      "knownGapCount": 1
+    },
+    {
+      "screenId": "quiz",
+      "screenNumber": 11,
+      "role": [
+        "Student"
+      ],
+      "routeIntent": "/{locale}/app/learn/{courseId}/quiz",
+      "referenceType": "ux-only",
+      "conflictCount": 0,
+      "knownGapCount": 1
+    },
+    {
+      "screenId": "quiz-results",
+      "screenNumber": 12,
+      "role": [
+        "Student"
+      ],
+      "routeIntent": "/{locale}/app/learn/{courseId}/quiz/results",
+      "referenceType": "ux-only",
+      "conflictCount": 0,
+      "knownGapCount": 1
+    },
+    {
+      "screenId": "certificates",
+      "screenNumber": 13,
+      "role": [
+        "Student"
+      ],
+      "routeIntent": "/{locale}/app/certificates",
+      "referenceType": "ux-only",
+      "conflictCount": 0,
+      "knownGapCount": 1
+    },
+    {
+      "screenId": "certificate-detail",
+      "screenNumber": 14,
+      "role": [
+        "Student"
+      ],
+      "routeIntent": "/{locale}/app/certificates/{id}",
+      "referenceType": "ux-only",
+      "conflictCount": 0,
+      "knownGapCount": 1
+    },
+    {
+      "screenId": "ai-tutor",
+      "screenNumber": 15,
+      "role": [
+        "Student"
+      ],
+      "routeIntent": "/{locale}/app/ai-tutor",
+      "referenceType": "approved-pattern",
+      "conflictCount": 0,
+      "knownGapCount": 1
+    },
+    {
+      "screenId": "profile",
+      "screenNumber": 16,
+      "role": [
+        "Student"
+      ],
+      "routeIntent": "/{locale}/app/profile",
+      "referenceType": "ux-only",
+      "conflictCount": 0,
+      "knownGapCount": 1
+    },
+    {
+      "screenId": "settings",
+      "screenNumber": 17,
+      "role": [
+        "Student"
+      ],
+      "routeIntent": "/{locale}/app/settings",
+      "referenceType": "ux-only",
+      "conflictCount": 0,
+      "knownGapCount": 1
+    },
+    {
+      "screenId": "demo-checkout",
+      "screenNumber": 18,
+      "role": [
+        "Student"
+      ],
+      "routeIntent": "/{locale}/app/checkout/{courseId}",
+      "referenceType": "approved-pattern",
+      "conflictCount": 0,
+      "knownGapCount": 0
+    },
+    {
+      "screenId": "purchase-success",
+      "screenNumber": 19,
+      "role": [
+        "Student"
+      ],
+      "routeIntent": "/{locale}/app/checkout/{courseId}/success",
+      "referenceType": "approved-pattern",
+      "conflictCount": 0,
+      "knownGapCount": 0
+    },
+    {
+      "screenId": "instructor-dashboard",
+      "screenNumber": 20,
+      "role": [
+        "Instructor"
+      ],
+      "routeIntent": "/{locale}/instructor",
+      "referenceType": "exact-showcase",
+      "conflictCount": 1,
+      "knownGapCount": 1
+    },
+    {
+      "screenId": "course-editor-overview",
+      "screenNumber": 21,
+      "role": [
+        "Instructor"
+      ],
+      "routeIntent": "/{locale}/instructor/courses/{courseId} (Overview tab active)",
+      "referenceType": "exact-showcase",
+      "conflictCount": 1,
+      "knownGapCount": 1
+    },
+    {
+      "screenId": "course-editor-curriculum",
+      "screenNumber": 22,
+      "role": [
+        "Instructor"
+      ],
+      "routeIntent": "/{locale}/instructor/courses/{courseId} (Curriculum tab active)",
+      "referenceType": "exact-showcase",
+      "conflictCount": 1,
+      "knownGapCount": 0
+    },
+    {
+      "screenId": "lesson-editor",
+      "screenNumber": 23,
+      "role": [
+        "Instructor"
+      ],
+      "routeIntent": "/{locale}/instructor/courses/{courseId}/sections/{sectionId}/lessons/{lessonId} (or /new)",
+      "referenceType": "ux-only",
+      "conflictCount": 0,
+      "knownGapCount": 1
+    },
+    {
+      "screenId": "quiz-editor",
+      "screenNumber": 24,
+      "role": [
+        "Instructor"
+      ],
+      "routeIntent": "/{locale}/instructor/courses/{courseId}/quiz",
+      "referenceType": "ux-only",
+      "conflictCount": 0,
+      "knownGapCount": 1
+    }
+  ]
+}

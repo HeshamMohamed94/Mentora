@@ -1,0 +1,23 @@
+{
+  "screenId": "register",
+  "screenNumber": 7,
+  "role": ["Guest"],
+  "platform": "Both",
+  "shell": "minimal — same treatment as Login",
+  "routeIntent": "/{locale}/register",
+  "referenceType": "ux-only",
+  "sourceReferences": ["ux/SCREEN_UX_SPECS.md § 7", "design-system/COMPONENTS.md § Inputs, § Buttons", "product/SCREEN_INVENTORY.md § 7"],
+
+  "layout": { "structure": "identical pattern to Login (§6) — same form-width cap" },
+  "sections": [
+    { "order": 1, "id": "title", "content": ["\"Create your Mentora account\""] },
+    { "order": 2, "id": "form", "content": ["Name TextField", "Email TextField", "Password PasswordField (with strength hint as caption helper text, not blocking)", "\"Create Account\" PrimaryButton"] },
+    { "order": 3, "id": "secondary", "content": ["\"Already have an account? Login\" TextButton"] }
+  ],
+  "componentSequence": ["textField", "textField (passwordField variant)", "button.primary", "button.text"],
+  "navigation": { "exitDestinations": ["role-appropriate landing (always Student for self-registration)", "Login"] },
+  "states": { "loading": "button loading state", "error": "inline field-level (e.g. 'Email already registered' under the email field)" },
+  "ltrBehavior": "default", "rtlBehavior": "same as Login", "themeBehavior": "standard semantic token resolution",
+  "responsiveRules": "same as Login",
+  "knownGaps": ["No showcase mockup exists — judged against design-system component specs only."]
+}

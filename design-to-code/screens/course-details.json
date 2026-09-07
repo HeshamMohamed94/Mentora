@@ -1,0 +1,38 @@
+{
+  "screenId": "course-details",
+  "screenNumber": 3,
+  "role": ["Guest", "Student"],
+  "platform": "Both",
+  "shell": { "guest": "shared/navigation.json#/shells/publicWeb", "student": "shared/navigation.json#/shells/authenticatedStudent" },
+  "routeIntent": "/{locale}/courses/{id} (public) and /{locale}/app/courses/{id} (authenticated)",
+  "referenceType": "approved-pattern",
+  "sourceReferences": [
+    "design-review-locked/Mentora Showcase.dc.html § 22 Product Preview — mobile mockup only, no desktop assembly exists",
+    "ux/SCREEN_UX_SPECS.md § 3",
+    "product/SCREEN_INVENTORY.md § 3",
+    "design-to-code/patterns/mobile-to-desktop-adaptation.json"
+  ],
+
+  "layout": { "structure": "hero (thumbnail 16:9 + category badge + title + instructor + meta row + price/CTA) -> description -> curriculum outline -> instructor detail block", "adaptation": "see patterns/mobile-to-desktop-adaptation.json — hero stacks (thumbnail above meta on mobile, side-by-side on desktop where width allows); CTA inline in hero on web (not sticky, page short enough), sticky bottom CTA pattern reserved for the mobile form factor this screen doesn't yet build" },
+
+  "sections": [
+    { "order": 1, "id": "hero", "content": ["16:9 thumbnail", "category chip/badge", "title (heading.h1/h2)", "instructor name -> InstructorCard summary", "rating + student count + duration meta row", "price OR Continue-Learning ProgressBar if enrolled", "primary CTA"] },
+    { "order": 2, "id": "description", "content": ["body copy"] },
+    { "order": 3, "id": "curriculum", "content": ["section/lesson titles, no video access until enrolled (locked icon or simply no play affordance)"] },
+    { "order": 4, "id": "instructorDetail", "content": ["InstructorCard, expanded"] }
+  ],
+
+  "componentSequence": ["card.courseCard (hero variant)", "card.instructorCard", "chip.categoryChip", "chip.badge", "button.primary", "button.tonal", "progressBar"],
+
+  "typographyHierarchy": { "title": "typography.heading.h1 or h2", "description": "typography.body.medium" },
+
+  "artworkRules": "shared/artwork.json — hero thumbnail.",
+  "navigation": { "exitDestinations": ["Login/Register (enroll-gate, Guest)", "Demo Checkout (Student, not enrolled)", "Course Player (Student, enrolled)"] },
+
+  "states": { "loading": "skeleton hero + text blocks", "error": "ErrorState if course fails to load", "empty": "not applicable — a course either exists or 404s" },
+
+  "ltrBehavior": "default", "rtlBehavior": "meta row (rating/count/duration icons) reorders start->end; curriculum list items follow logical text alignment",
+  "themeBehavior": "standard semantic token resolution",
+  "responsiveRules": "hero stacks (mobile) / side-by-side (desktop); curriculum always single-column full width",
+  "knownGaps": ["No desktop-assembled showcase reference exists for this screen — judged against the mobile mockup + component specs per design-to-code/patterns/mobile-to-desktop-adaptation.json, not a byte-exact desktop layout."]
+}

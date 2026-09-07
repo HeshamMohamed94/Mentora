@@ -1,0 +1,24 @@
+{
+  "screenId": "login",
+  "screenNumber": 6,
+  "role": ["Guest"],
+  "platform": "Both",
+  "shell": "minimal — logo/wordmark only, no Navbar link row",
+  "routeIntent": "/{locale}/login",
+  "referenceType": "ux-only",
+  "sourceReferences": ["ux/SCREEN_UX_SPECS.md § 6", "design-system/COMPONENTS.md § Inputs, § Buttons", "product/SCREEN_INVENTORY.md § 6"],
+
+  "layout": { "structure": "centered form card at form-width cap, every breakpoint" },
+  "sections": [
+    { "order": 1, "id": "title", "content": ["\"Log in to Mentora\""] },
+    { "order": 2, "id": "form", "content": ["Email TextField", "Password PasswordField", "\"Login\" PrimaryButton"] },
+    { "order": 3, "id": "secondary", "content": ["\"New to Mentora? Register\" TextButton"] }
+  ],
+  "componentSequence": ["textField", "textField (passwordField variant)", "button.primary", "button.text"],
+  "navigation": { "exitDestinations": ["role-appropriate landing", "Register"] },
+  "states": { "loading": "Login button's own loading state", "error": "inline, non-field-specific ('Incorrect email or password') for security" },
+  "ltrBehavior": "default", "rtlBehavior": "form fields/labels follow logical start alignment; email field content stays LTR-typed even inside an RTL form",
+  "themeBehavior": "standard semantic token resolution",
+  "responsiveRules": "form-width cap at every breakpoint; full-width fields on Mobile",
+  "knownGaps": ["No showcase mockup of any kind exists for this screen — judged solely against design-system/COMPONENTS.md's TextField/PasswordField/Button specs."]
+}

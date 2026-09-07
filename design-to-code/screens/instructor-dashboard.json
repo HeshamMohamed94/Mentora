@@ -1,0 +1,44 @@
+{
+  "screenId": "instructor-dashboard",
+  "screenNumber": 20,
+  "role": ["Instructor"],
+  "platform": "Web only",
+  "shell": "shared/navigation.json#/shells/instructorWeb",
+  "routeIntent": "/{locale}/instructor",
+  "referenceType": "exact-showcase",
+  "sourceReferences": [
+    "design-review-locked/Mentora Showcase.dc.html § 22 Product Preview — Instructor dashboard mobile mockup (reused as the closest available reference)",
+    "ux/SCREEN_UX_SPECS.md § 20",
+    "ux/INSTRUCTOR_ADMIN_UX.md § 1 (LOCKED: exactly 3 stat cards)",
+    "product/SCREEN_INVENTORY.md § 20"
+  ],
+  "conflicts": [
+    {
+      "description": "The showcase's reference mockup shows 4 stat cards (including 'Avg. completion rate') and a DataTable with Publish-toggle/Students/Updated-date columns. The locked ux/INSTRUCTOR_ADMIN_UX.md § 1 specifies exactly 3 stat cards (total courses, published count, total enrollments) and a Title/Status-Badge/Enrollment-count/Completion-rate column set.",
+      "resolution": "The locked UX spec (rank 1) wins. The current implementation correctly ships 3 stat cards and the locked column set — the showcase's 4th card and different columns are NOT implemented, by design, not by omission.",
+      "recordedIn": "execution/DECISIONS_LOG.md D48 §7 / D49, design-to-code/validation/EXTRACTION_REPORT.md"
+    }
+  ],
+
+  "layout": { "structure": "stat card row -> \"Create Course\" primary action -> DataTable of owned courses", "maxWidth": "grid.maxContentWidth minus sidebar width" },
+
+  "sections": [
+    { "order": 1, "id": "statRow", "content": ["3 statCards: total courses, published count, total enrollments — LOCKED count, never 4"] },
+    { "order": 2, "id": "createCourse", "content": ["PrimaryButton \"Create Course\""] },
+    { "order": 3, "id": "courseList", "content": ["DataTable: title, status Badge, enrollment count, completion rate, row action — header row uppercase (D49 correction)"] }
+  ],
+
+  "componentSequence": ["card.statCard", "button.primary", "dataTable", "chip.badge"],
+
+  "typographyHierarchy": { "statValue": "typography.heading.h2", "tableHeader": "typography.label.medium, uppercase text-transform" },
+
+  "artworkRules": "n/a — DataTable rows, no course-thumbnail artwork on this screen.",
+  "navigation": { "exitDestinations": ["Course Editor — Overview (new or existing course)"] },
+
+  "states": { "loading": "skeleton stat cards + skeleton table rows", "empty": "\"you haven't created a course yet\" + CTA \"Create Course\"", "error": "ErrorState with retry" },
+
+  "ltrBehavior": "default", "rtlBehavior": "table headers/columns and row content mirror per logical properties; status badge stays leading the row's title per logical start",
+  "themeBehavior": "standard semantic token resolution",
+  "responsiveRules": "shared/responsive.json#/perSurfaceRules/dataTable — collapses to stacked cards below tablet; stat cards stack 1-2 per row on narrow viewports",
+  "knownGaps": ["4th stat card and showcase's alternate table columns are an intentional, disclosed, unresolved gap — not a defect (see conflicts above)."]
+}

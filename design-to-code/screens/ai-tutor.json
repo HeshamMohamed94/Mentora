@@ -1,0 +1,34 @@
+{
+  "screenId": "ai-tutor",
+  "screenNumber": 15,
+  "role": ["Student"],
+  "platform": "Both",
+  "shell": "shared/navigation.json#/shells/authenticatedStudent",
+  "routeIntent": "/{locale}/app/ai-tutor",
+  "referenceType": "approved-pattern",
+  "sourceReferences": [
+    "design-review-locked/Mentora Showcase.dc.html § 22 Product Preview — mobile mockup only",
+    "ux/SCREEN_UX_SPECS.md § 15",
+    "design-system/COMPONENTS.md § AI Tutor",
+    "product/SCREEN_INVENTORY.md § 15"
+  ],
+
+  "layout": { "structure": "chat thread (scrolling) -> quick-action row (pinned above input) -> message input + send", "adaptation": "full-screen (Mobile, not built) vs. full-height panel with Sidebar still visible (Web)" },
+
+  "sections": [
+    { "order": 1, "id": "thread", "content": ["AITutorBubble messages — AI on surface.variant, Student on brand.primaryContainer; welcome message on first open, not empty white space"] },
+    { "order": 2, "id": "quickActions", "content": ["horizontally scrollable AITutorQuickAction chips: Explain this lesson, Summarize, Give me an example, Quiz me, What should I learn next?"] },
+    { "order": 3, "id": "input", "content": ["TextField variant + send action"] }
+  ],
+
+  "componentSequence": ["aiTutor.bubble", "aiTutor.quickAction", "textField", "statePatterns.loadingState (thinking indicator)"],
+
+  "navigation": { "entryPoints": ["global Sidebar/bottom-nav", "lesson-context entry from Course Player"] },
+
+  "states": { "empty": "welcome message on first open", "loading": "AI 'thinking' indeterminate indicator", "error": "inline retry within the bubble slot" },
+
+  "ltrBehavior": "default", "rtlBehavior": "AI bubble tail direction mirrors (bottom-start AI / bottom-end Student — swapped, not both-same); quick-action chip order mirrors",
+  "themeBehavior": "standard semantic token resolution",
+  "responsiveRules": "bubble max-width caps at 80% of chat container for readability at wide viewports",
+  "knownGaps": ["No desktop-assembled showcase reference exists — judged against the mobile mockup + design-system/COMPONENTS.md § AI Tutor component spec."]
+}

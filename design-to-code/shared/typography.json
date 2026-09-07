@@ -1,0 +1,50 @@
+{
+  "$description": "Platform-neutral normalization of design-tokens.json's typography layer. fontSize/lineHeight are the shared px-equivalent numbers; each platform generator converts to its own scaling unit (web rem, Android sp, iOS Dynamic Type pt) per shared/tokens.json#/units.",
+  "sourceReferences": ["design-system/design-tokens.json#/typography"],
+
+  "fontFamily": {
+    "web": "Inter, -apple-system, 'Segoe UI', sans-serif",
+    "webArabic": "'IBM Plex Sans Arabic', 'Noto Sans Arabic', sans-serif",
+    "android": "Roboto",
+    "androidArabic": "'Noto Sans Arabic', sans-serif",
+    "ios": "SF Pro",
+    "iosArabic": "SF Arabic"
+  },
+
+  "arabicAdjustments": {
+    "note": "Applied only to text runs detected/tagged as Arabic script, layered on top of the shared scale below — never a separate type scale.",
+    "letterSpacing": 0,
+    "bodyLineHeightMultiplier": 1.1,
+    "sourceReferences": ["design-system/LOCALIZATION.md § 4"]
+  },
+
+  "fontWeight": { "regular": 400, "medium": 500, "semibold": 600, "bold": 700 },
+
+  "scale": {
+    "display.large":  { "fontSize": 48, "lineHeight": 56, "fontWeight": 700, "letterSpacing": -0.25 },
+    "display.medium": { "fontSize": 40, "lineHeight": 48, "fontWeight": 700, "letterSpacing": -0.25 },
+    "heading.h1":      { "fontSize": 32, "lineHeight": 40, "fontWeight": 700, "letterSpacing": 0 },
+    "heading.h2":      { "fontSize": 28, "lineHeight": 36, "fontWeight": 700, "letterSpacing": 0 },
+    "heading.h3":      { "fontSize": 24, "lineHeight": 32, "fontWeight": 600, "letterSpacing": 0 },
+    "heading.h4":      { "fontSize": 20, "lineHeight": 28, "fontWeight": 600, "letterSpacing": 0.15 },
+    "body.large":      { "fontSize": 18, "lineHeight": 28, "fontWeight": 400, "letterSpacing": 0.15 },
+    "body.medium":     { "fontSize": 16, "lineHeight": 24, "fontWeight": 400, "letterSpacing": 0.25 },
+    "body.small":      { "fontSize": 14, "lineHeight": 20, "fontWeight": 400, "letterSpacing": 0.25 },
+    "label.large":     { "fontSize": 14, "lineHeight": 20, "fontWeight": 600, "letterSpacing": 0.1 },
+    "label.medium":    { "fontSize": 12, "lineHeight": 16, "fontWeight": 600, "letterSpacing": 0.5 },
+    "caption":         { "fontSize": 12, "lineHeight": 16, "fontWeight": 400, "letterSpacing": 0.4 }
+  },
+
+  "responsive": {
+    "note": "Only display.* and heading.h1/h2 scale down below desktop — heading.h3/h4, body.*, label.*, and caption stay constant across all breakpoints.",
+    "display.large":  { "mobile": { "fontSize": 34, "lineHeight": 40 }, "tablet": { "fontSize": 40, "lineHeight": 48 }, "desktop": { "fontSize": 48, "lineHeight": 56 }, "largeDesktop": { "fontSize": 48, "lineHeight": 56 } },
+    "display.medium": { "mobile": { "fontSize": 30, "lineHeight": 36 }, "tablet": { "fontSize": 34, "lineHeight": 40 }, "desktop": { "fontSize": 40, "lineHeight": 48 }, "largeDesktop": { "fontSize": 40, "lineHeight": 48 } },
+    "heading.h1":      { "mobile": { "fontSize": 26, "lineHeight": 33 }, "tablet": { "fontSize": 28, "lineHeight": 36 }, "desktop": { "fontSize": 32, "lineHeight": 40 }, "largeDesktop": { "fontSize": 32, "lineHeight": 40 } },
+    "heading.h2":      { "mobile": { "fontSize": 23, "lineHeight": 29 }, "tablet": { "fontSize": 25, "lineHeight": 32 }, "desktop": { "fontSize": 28, "lineHeight": 36 }, "largeDesktop": { "fontSize": 28, "lineHeight": 36 } }
+  },
+
+  "showcaseCorroboration": {
+    "source": "inferred",
+    "reason": "The showcase's raw CSS was grepped for font-size declarations, but the showcase does not label which rule corresponds to which named type-scale step (it uses component-scoped class names, not typography.scale.* names) — so per-step showcase pixel values are not cross-referenced individually here to avoid conflating a component's own font-size with the semantic scale. The design-tokens.json values above are used as-is (rank 2 authority); confirmed present and legible at the showcase's own Landing hero rendering during the D49 visual pass (heading renders at the desktop 48px display.large step, matching)."
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "screenId": "learning-paths",
+  "screenNumber": 4,
+  "role": ["Guest", "Student"],
+  "platform": "Both",
+  "shell": { "guest": "shared/navigation.json#/shells/publicWeb", "student": "shared/navigation.json#/shells/authenticatedStudent" },
+  "routeIntent": "/{locale}/paths (public) and /{locale}/app/paths (authenticated)",
+  "referenceType": "ux-only",
+  "sourceReferences": ["ux/SCREEN_UX_SPECS.md § 4", "design-system/COMPONENTS.md § Cards (LearningPathCard)", "product/SCREEN_INVENTORY.md § 4"],
+
+  "layout": { "structure": "optional one-sentence intro line -> LearningPathCard grid/list" },
+  "sections": [
+    { "order": 1, "id": "intro", "content": ["optional: \"Curated, ordered course sequences\""] },
+    { "order": 2, "id": "grid", "content": ["LearningPathCard grid — 2-3 column max even at Large Desktop, since path cards carry more text than a CourseCard"] }
+  ],
+  "componentSequence": ["card.learningPathCard", "statePatterns.emptyState", "statePatterns.loadingState"],
+  "navigation": { "exitDestinations": ["Learning Path Details"] },
+  "states": { "loading": "skeleton LearningPathCards", "empty": "neutral 'No Learning Paths yet' message, no CTA needed (browsing is already the context)" },
+  "ltrBehavior": "default", "rtlBehavior": "card content start-aligned per logical properties",
+  "themeBehavior": "standard semantic token resolution",
+  "responsiveRules": "standard column rules, capped lower than courseGrid (2-3 max) given card content density",
+  "knownGaps": ["No showcase mockup exists — judged against design-system component specs only."]
+}

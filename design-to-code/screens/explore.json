@@ -1,0 +1,46 @@
+{
+  "screenId": "explore",
+  "screenNumber": 2,
+  "role": ["Guest", "Student"],
+  "platform": "Both (Web spec below; mobile not built)",
+  "shell": { "guest": "shared/navigation.json#/shells/publicWeb", "student": "shared/navigation.json#/shells/authenticatedStudent" },
+  "routeIntent": "/{locale}/explore (public) and /{locale}/app/explore (authenticated)",
+  "referenceType": "exact-showcase",
+  "sourceReferences": [
+    "design-review-locked/Mentora Showcase.dc.html § 22 Product Preview",
+    "ux/SCREEN_UX_SPECS.md § 2",
+    "product/SCREEN_INVENTORY.md § 2"
+  ],
+  "conflicts": [
+    {
+      "description": "The showcase's own captured reference frame for this screen (02-explore-design.png in the visual-audit archive) is itself a pair of stacked MOBILE mockups (a Dashboard mobile screen + an Explore mobile screen), not an assembled desktop composition — an artifact of how the showcase's Section 22 preview was captured, not a deliberate mobile-only design intent for this screen.",
+      "resolution": "The current Web implementation (a real desktop CourseCard grid with SearchField + CategoryChip filter row) is judged against the showcase's atomic § 12/§ 13 component specs (CourseCard, SearchField, CategoryChip) rather than forcing a literal mobile-frame layout onto desktop — rank 2 (Design System component contracts) governs composition here since rank 3's exact-reference evidence for THIS screen is itself ambiguous.",
+      "recordedIn": "design-to-code/validation/EXTRACTION_REPORT.md"
+    }
+  ],
+
+  "layout": { "maxWidth": "grid.maxContentWidth, page padding per breakpoint", "structure": "single column: SearchField -> filter chip row -> result count -> CourseCard grid" },
+
+  "sections": [
+    { "order": 1, "id": "search", "content": ["SearchField, full width"] },
+    { "order": 2, "id": "filters", "content": ["CategoryChip row: category / level / price — fixed set, not faceted search"] },
+    { "order": 3, "id": "resultCount", "content": ["quiet caption text, e.g. \"N courses\""] },
+    { "order": 4, "id": "grid", "content": ["CourseCard grid, columns per shared/responsive.json#/courseGrid"] },
+    { "order": 5, "id": "mobileLearningPathsSegment", "content": ["mobile-only: segment/tab to Learning Paths — NOT built (Web-only implementation to date)"] }
+  ],
+
+  "componentSequence": ["textField (searchField variant)", "chip.categoryChip", "card.courseCard", "statePatterns.emptyState", "statePatterns.loadingState", "statePatterns.errorState"],
+
+  "typographyHierarchy": { "resultCount": "typography.caption" },
+  "artworkRules": "shared/artwork.json — every CourseCard thumbnail in the grid.",
+  "navigation": { "exitDestinations": ["Course Details"] },
+  "states": {
+    "loading": "skeleton grid (shared/components.json#/statePatterns/loadingState)",
+    "empty": "\"No results\" row + \"Clear filters\" action",
+    "error": "full ErrorState"
+  },
+  "ltrBehavior": "default", "rtlBehavior": "search icon and filter chip order mirror per logical properties; grid reading order mirrors",
+  "themeBehavior": "standard semantic token resolution",
+  "responsiveRules": "grid 1/2/3/4 columns per shared/responsive.json#/courseGrid; filter row becomes horizontally scrollable rather than wrapping awkwardly at narrow widths",
+  "knownGaps": []
+}

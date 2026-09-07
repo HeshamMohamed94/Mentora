@@ -1,0 +1,31 @@
+{
+  "screenId": "settings",
+  "screenNumber": 17,
+  "role": ["Student"],
+  "platform": "Both",
+  "shell": "shared/navigation.json#/shells/authenticatedStudent",
+  "routeIntent": "/{locale}/app/settings",
+  "referenceType": "ux-only",
+  "sourceReferences": ["ux/SCREEN_UX_SPECS.md § 17", "design-system/COMPONENTS.md § Select, § Toggle, § Inputs", "product/SCREEN_INVENTORY.md § 17", "product/PRODUCT_SPEC.md § 16"],
+
+  "layout": { "structure": "single centered column at every breakpoint, same pattern as Profile" },
+  "sections": [
+    { "order": 1, "id": "account", "content": ["account/password change fields"] },
+    { "order": 2, "id": "language", "content": ["LOCKED MVP: functional Select (English / العربية native-script labels) — shows currently active language; changing it applies IMMEDIATELY: swaps all UI strings, flips layout direction app-wide, no navigation away, no restart, no confirmation dialog"] },
+    { "order": 3, "id": "theme", "content": ["Light/Dark selector (system-level per Design System, explicit override toggle here)"] },
+    { "order": 4, "id": "logout", "content": ["'Logout'"] }
+  ],
+  "componentSequence": ["textField", "select", "button.primary", "button.text"],
+  "languageFieldBehavior": {
+    "appliesTo": "Guest and every authenticated role identically",
+    "persistence": "conceptual only at planning stage — signed-in user's choice also saves to account for cross-device consistency; Guest's choice saves locally on-device only",
+    "sourceReferences": ["product/PRODUCT_SPEC.md § 16", "ux/SCREEN_UX_SPECS.md § 17"]
+  },
+  "navigation": { "exitDestinations": ["none forward (terminal); back to Profile"] },
+  "states": { "loading": "button loading state on save", "error": "inline field errors" },
+  "ltrBehavior": "default", "rtlBehavior": "identical pattern to Profile; Language Select's own option order (English then العربية) is a fixed convention, never mirrored regardless of current language",
+  "themeBehavior": "standard semantic token resolution — the Theme control here IS one of the things this screen's own spec governs",
+  "responsiveRules": "identical to Profile",
+  "instructorAdminEquivalent": "Instructor/Admin reach the same language control inside their own Profile/Account equivalent, not a separate Settings screen (ux/INSTRUCTOR_ADMIN_UX.md).",
+  "knownGaps": ["No showcase mockup exists — judged against design-system/COMPONENTS.md § Select/Toggle/Inputs specs only."]
+}

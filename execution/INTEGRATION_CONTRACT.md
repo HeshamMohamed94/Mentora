@@ -134,3 +134,7 @@ See `architecture/API_CONTRACT.md § 7` for the full conceptual list (auth, user
 - Do not invent new error codes without updating this file and `API_CONTRACT.md`.
 - Do not build a second media upload/playback mechanism — use § 7.
 - Do not wire a direct AI provider SDK into any client — always go through the backend's `/ai-tutor/*` routes.
+
+## 11. Design-to-Code Pipeline Cross-Reference
+
+**No API/backend contract change.** `design-to-code/` (built 2026-09-07, between Task 11 and Task 12 — see `DECISIONS_LOG.md` D50, `CURRENT_STATUS.md`) is a client-side visual/structural source of truth (design tokens, component recipes, screen layout specs) — it has no bearing on §§ 1-10 above and does not touch any route, DTO, or auth mechanism. Noted here only so a future Android/iOS client effort knows where the platform-neutral design source lives (`design-to-code/shared/platform-contract.json`) alongside this file's API contract — the two are complementary, never overlapping: this file governs what data a client sends/receives, `design-to-code/` governs how that data is laid out and styled.

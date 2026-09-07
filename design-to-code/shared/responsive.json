@@ -1,0 +1,49 @@
+{
+  "$description": "Breakpoint, grid, and per-surface responsive rules. Derived from design-tokens.json breakpoints/grid/courseGrid plus ux/RESPONSIVE_BEHAVIOR.md's per-screen adaptation notes captured in ux/SCREEN_UX_SPECS.md.",
+  "sourceReferences": ["design-system/design-tokens.json#/breakpoints", "design-system/design-tokens.json#/grid", "design-system/design-tokens.json#/courseGrid", "ux/RESPONSIVE_BEHAVIOR.md", "ux/SCREEN_UX_SPECS.md"],
+
+  "breakpoints": { "mobile": { "min": 0, "max": 599 }, "tablet": { "min": 600, "max": 1023 }, "desktop": { "min": 1024, "max": 1439 }, "largeDesktop": { "min": 1440, "max": null } },
+  "grid": { "columns": { "mobile": 4, "tablet": 8, "desktop": 12, "largeDesktop": 12 }, "gutter": { "mobile": 16, "tablet": 24, "desktop": 24, "largeDesktop": 24 }, "maxContentWidth": 1440, "preferredMarketingWidth": "1200-1280" },
+  "pagePadding": { "mobile": 16, "tablet": 24, "desktop": 32, "largeDesktop": 48 },
+  "courseGrid": { "mobile": 1, "tablet": 2, "desktop": 3, "largeDesktop": 4 },
+
+  "perSurfaceRules": {
+    "coursePlayer": {
+      "$description": "The defining responsive behavior in the product — the single largest platform-specific divergence, explicitly sanctioned.",
+      "desktopAndAbove": "two-column: content-left (~70%) / curriculum-right (~30%, persistent sidebar with course-level ProgressBar + section/lesson list)",
+      "belowDesktop": "single-column; curriculum is NOT inline — reached via a 'Curriculum' affordance opening a BottomSheet containing the same section/lesson list",
+      "sourceReferences": ["ux/SCREEN_UX_SPECS.md § 10", "ux/RESPONSIVE_BEHAVIOR.md § 7 (referenced)"]
+    },
+    "dataTable": {
+      "desktopAndAbove": "true table",
+      "belowDesktop": "each row collapses to a stacked label:value card — never horizontally-scrolling or cramped",
+      "sourceReferences": ["design-system/COMPONENTS.md § DataTable", "ux/RESPONSIVE_BEHAVIOR.md § 6 (referenced)"]
+    },
+    "learningPathDetails": {
+      "allBreakpoints": "member-course list is ALWAYS single-column (numbered sequence reads better as a list than a grid, even on Large Desktop) — a deliberate exception to the standard course-grid.",
+      "sourceReferences": ["ux/SCREEN_UX_SPECS.md § 5"]
+    },
+    "certificatesGrid": {
+      "note": "certificate cards may cap at 2-3 columns even at Large Desktop — they carry more visual weight than a CourseCard; a layout judgment, not a token change.",
+      "sourceReferences": ["ux/SCREEN_UX_SPECS.md § 13"]
+    },
+    "myLearningFilter": {
+      "belowDesktop": "status filter renders as a simple 3-segment control near the top rather than chips — functionally identical to CategoryChip selection, no new component.",
+      "sourceReferences": ["ux/SCREEN_UX_SPECS.md § 9"]
+    },
+    "formWidthCap": {
+      "$description": "Login, Register, Quiz, Quiz Results, Demo Checkout, Profile, Settings, Course Editor forms, Lesson Editor, Quiz Editor all use a centered form-width-capped column at every breakpoint rather than stretching full-bleed on wide viewports.",
+      "sourceReferences": ["ux/SCREEN_UX_SPECS.md §§ 6,7,11,12,16,17,21,23,24"]
+    },
+    "courseDetailsSticky": {
+      "mobile": "sticky primary CTA pinned at the bottom of the viewport",
+      "web": "CTA inline in the hero block, not sticky (page short enough at Desktop widths)",
+      "sourceReferences": ["ux/SCREEN_UX_SPECS.md § 3"]
+    }
+  },
+
+  "typographyResponsive": {
+    "note": "Only display.* and heading.h1/h2 scale down below desktop — everything else (heading.h3/h4, body.*, label.*, caption) stays constant across breakpoints.",
+    "source": "design-to-code/shared/typography.json#/responsive"
+  }
+}

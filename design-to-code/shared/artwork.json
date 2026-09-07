@@ -1,0 +1,59 @@
+{
+  "$description": "The approved Mentora course-artwork system — extracted from the locked showcase's § 12 'Course artwork — one family, five recognisable subjects' and cross-referenced against the current web implementation's CourseThumbnail component (implementation EVIDENCE that this system is correctly implemented, per SOURCE_MANIFEST.json rank 4 — not itself a design source). Governs every place a course thumbnail renders: CourseCard, CourseProgressCard, Course Details hero, Checkout line item, Learning Path Details course-list rows.",
+  "sourceReferences": ["design-review-locked/Mentora Showcase.dc.html § 12", "design-system/DESIGN_RULES.md rule 18 (governed literal-value exception)", "web/src/components/ui/course-thumbnail.tsx (implementation evidence)"],
+
+  "governanceNote": {
+    "quote": "these bases and motifs are an artwork system, not application UI colours — they must never enter the semantic colour tokens",
+    "source": "design-review-locked/Mentora Showcase.dc.html § 12 (quoted directly)",
+    "implication": "The 5 gradient bases and their motif icons below are correctly implemented as literal CSS/values in the artwork component, NOT as new design-tokens.json entries. This is the one place in the product where a literal value is governed-and-approved rather than a DESIGN_RULES.md rule-18 violation — the exception is explicit and narrow, scoped to this system only."
+  },
+
+  "aspectRatio": "16:9 — same convention as CourseCard thumbnail and VideoPlayer, so artwork scales from an 88px list thumbnail to a full-width hero without re-composition (source: showcase § 12, exact quote: \"artwork scales from an 88px list thumbnail to a full-width hero without re-composition\").",
+
+  "compositionRecipe": {
+    "$description": "Every course-artwork rendering is composed of exactly these four layers, in this order.",
+    "layers": [
+      "1. Base — a dark purple/indigo gradient, one of 5 (see motifSystem below), selected deterministically from the course's category/seed so the SAME course always renders the SAME artwork.",
+      "2. Motif — one geometric icon/pattern that names the subject (e.g. bar-chart glyph for Data & Analytics), centered or off-center per the showcase composition.",
+      "3. Light source — a soft directional highlight/gradient overlay for depth, not a flat fill.",
+      "4. Category chip — overlaid on the artwork's own scrim (color.overlay.chipScrim), pinned to the logical-start corner, NOT placed below the thumbnail in the card body."
+    ]
+  },
+
+  "motifSystem": {
+    "$description": "5 category-motif pairs, deterministically assigned per category (or per course as a fallback when no category-level assignment exists) — never random per render, so the same course always shows the same artwork. The gradient CSS below is copied verbatim from the current, working implementation (web/src/components/ui/course-thumbnail.tsx's ARTWORK_MOTIFS, D48) — implementation EVIDENCE (SOURCE_MANIFEST.json rank 4) that this is how the showcase's 'dark purple/indigo base' rule (rank 3) was correctly realized as a literal, governed value (design-system/DESIGN_RULES.md rule 18 exception, see governanceNote above). This is now the SOURCE the web generator reads to produce ARTWORK_MOTIFS — course-thumbnail.tsx no longer hand-defines this array (see design-to-code/validation/MAPPING_REPORT.md).",
+    "motifs": [
+      { "id": "analytics", "categoryExamples": ["Data & Analytics"], "icon": "courseAnalytics", "gradient": "radial-gradient(circle at 84% 16%, rgba(255,255,255,0.22), transparent 48%), repeating-linear-gradient(90deg, transparent 0 6%, rgba(255,255,255,0.15) 6% 10%), linear-gradient(135deg, #241C5C 0%, #4A3EB0 58%, #4A62F0 100%)", "source": "web/src/components/ui/course-thumbnail.tsx (implementation evidence)" },
+      { "id": "design", "categoryExamples": ["Design"], "icon": "courseDesign", "gradient": "repeating-linear-gradient(45deg, rgba(255,255,255,0.14) 0 1px, transparent 1px 9%), radial-gradient(circle at 76% 78%, rgba(255,255,255,0.20), transparent 42%), linear-gradient(135deg, #35257F 0%, #6558D3 60%, #7C4DFF 100%)", "source": "web/src/components/ui/course-thumbnail.tsx (implementation evidence)" },
+      { "id": "code", "categoryExamples": ["Software Development"], "icon": "courseCode", "gradient": "repeating-radial-gradient(circle at 72% 50%, rgba(255,255,255,0.16) 0 1.5px, transparent 1.5px 13px), radial-gradient(circle at 72% 50%, rgba(255,255,255,0.22), transparent 30%), linear-gradient(135deg, #1C2470 0%, #3B4278 50%, #4A62F0 100%)", "source": "web/src/components/ui/course-thumbnail.tsx (implementation evidence)" },
+      { "id": "grid", "categoryExamples": ["Business Skills"], "icon": "courseGrid", "gradient": "radial-gradient(circle at 20% 20%, rgba(255,255,255,0.20), transparent 46%), repeating-linear-gradient(0deg, rgba(255,255,255,0.13) 0 1px, transparent 1px 18%), repeating-linear-gradient(90deg, rgba(255,255,255,0.13) 0 1px, transparent 1px 14%), linear-gradient(135deg, #3B2A7A 0%, #6558D3 55%, #7C4DFF 100%)", "source": "web/src/components/ui/course-thumbnail.tsx (implementation evidence)" },
+      { "id": "layers", "categoryExamples": ["general/fallback"], "icon": "courseLayers", "gradient": "repeating-linear-gradient(180deg, rgba(255,255,255,0.14) 0 2px, transparent 2px 22%), radial-gradient(circle at 18% 82%, rgba(255,255,255,0.18), transparent 44%), linear-gradient(135deg, #191A20 0%, #2B2170 55%, #3B4278 100%)", "source": "web/src/components/ui/course-thumbnail.tsx (implementation evidence)" }
+    ],
+    "assignmentRule": "seed = course.categoryId (preferred) falling back to a stable hash of course.courseId if no category mapping exists — never a random per-render pick, so a given course's card looks identical everywhere it appears in the app. Hash function: hash = (hash*31 + charCode) >>> 0 over the seed string, motif index = hash % 5."
+  },
+
+  "categoryChipOverlay": {
+    "position": "logical-start corner of the artwork, overlaid ON the artwork's own scrim — NOT below the thumbnail in the card body.",
+    "background": "color.overlay.chipScrim (rgba(17,18,23,0.72) in both themes — deliberately theme-invariant, same rationale as VideoPlayer's control bar)",
+    "text": "color.text.inverse",
+    "distinctFrom": "color.overlay.scrim (rgba(17,18,23,0.48) light / rgba(0,0,0,0.64) dark) — chipScrim is a separate, higher-contrast, theme-invariant token specifically for a legible chip on top of arbitrary artwork colors."
+  },
+
+  "fallbackBehavior": {
+    "$description": "What happens when a real course thumbnail asset is broken, missing, or (in seed/demo data) literal undecodable placeholder bytes — the artwork system itself IS the fallback, not a secondary fallback behind it.",
+    "detection": "onError + onLoad (checking naturalWidth === 0) + a requestAnimationFrame check after mount for the already-cached case — a broken image can return a normal 200/image content-type with naturalWidth 0, which never fires a plain onError.",
+    "rendering": "the deterministic motif/gradient artwork renders in place of the broken image — there is no secondary flat-color or icon-only fallback, because the artwork system is content-neutral by design (it never depended on a real photo to look intentional)."
+  },
+
+  "constraintsPreventingGenericSameness": {
+    "$description": "What stops every course from reading as 'the same generic purple rectangle,' per the mission's explicit concern.",
+    "rules": [
+      "5 distinct motif/icon pairs, not 1 — a course's category visibly changes its artwork's iconography, not just its category-chip label.",
+      "Deterministic per-course/per-category assignment means a user browsing Explore sees visual variety across the grid, not repetition of a single gradient.",
+      "The category chip overlay itself is a second, independent signal (text + icon-implied category) reinforcing the motif — content resilience holds even if a user can't distinguish two similar gradients at a glance.",
+      "Gradient direction/light-source treatment gives each card a sense of depth distinct from a truly flat single-color rectangle, per the showcase's explicit 'not a generic purple rectangle' composition intent."
+    ]
+  },
+
+  "usedBy": ["shared/components.json#/card/courseCard", "shared/components.json#/card/courseProgressCard", "shared/components.json#/checkout/lineItem", "screens/course-details.json", "screens/learning-path-details.json", "screens/explore.json", "screens/dashboard.json"]
+}

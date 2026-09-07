@@ -1,0 +1,25 @@
+{
+  "screenId": "quiz-results",
+  "screenNumber": 12,
+  "role": ["Student"],
+  "platform": "Both",
+  "shell": "same minimal chrome as Quiz",
+  "routeIntent": "/{locale}/app/learn/{courseId}/quiz/results",
+  "referenceType": "ux-only",
+  "sourceReferences": ["ux/SCREEN_UX_SPECS.md § 12", "design-system/COMPONENTS.md § Quiz System, § Cards (StatCard)", "product/SCREEN_INVENTORY.md § 12"],
+
+  "layout": { "structure": "single column, form-width cap — score summary -> per-question breakdown -> optional inline completion banner -> Continue/Retry" },
+  "sections": [
+    { "order": 1, "id": "scoreSummary", "content": ["large statCard-style number (e.g. '8/10') + pass/fail Badge"] },
+    { "order": 2, "id": "breakdown", "content": ["per-question: icon + label + color (check_circle/'Correct'/success or cancel/'Incorrect'/error) — never color-only"] },
+    { "order": 3, "id": "completionBanner", "content": ["IF passed AND this was the course's last completion condition: inline success-styled banner ('Course Completed!') + 'View Certificate' PrimaryButton — reuses successState tokens, embedded not full-screen"] },
+    { "order": 4, "id": "action", "content": ["'Continue' (passed) or 'Retry Quiz' (failed)"] }
+  ],
+  "componentSequence": ["card.statCard", "chip.badge", "button.primary", "button.tonal"],
+  "navigation": { "exitDestinations": ["Course Player (Retry, if failed)", "My Learning or Certificate Detail (Continue, if passed and course completes)"] },
+  "states": { "submitFailure": "Snackbar retry, retried transparently — not a blocking error screen for a transient save failure" },
+  "ltrBehavior": "default", "rtlBehavior": "correctness icon leads the question text per logical start, mirrored consistently",
+  "themeBehavior": "standard semantic token resolution",
+  "responsiveRules": "single column, form-width cap — identical layout Mobile/Web, no platform fork",
+  "knownGaps": ["No showcase mockup exists — judged against design-system component specs only."]
+}

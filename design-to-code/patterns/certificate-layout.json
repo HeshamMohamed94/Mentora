@@ -1,0 +1,15 @@
+{
+  "patternId": "certificate-layout",
+  "description": "Shared fixed-aspect 'document artifact' rendering pattern for Certificates List / Certificate Detail — the weakest evidentiary basis in the screen inventory (no showcase mockup, no dedicated component spec beyond CertificateCard's own base table).",
+  "derivedFrom": {
+    "components": ["card.certificateCard"],
+    "sourceReferences": ["design-system/COMPONENTS.md § Cards (CertificateCard)", "ux/SCREEN_UX_SPECS.md §§ 13-14"]
+  },
+  "structure": {
+    "list": "CertificateCard grid, 2-3 column cap even at Large Desktop",
+    "detail": "single fixed-aspect certificate artifact (like a document) — centers and scales down on narrow viewports without cropping, never stretches to fill the viewport unnaturally wide on Desktop"
+  },
+  "contentDirectionException": "The certificate's OWN rendered content (name, course title) follows the certificate's authored language direction, which may be LTR regardless of the app's current UI direction — surrounding chrome (Share button, back affordance) follows normal RTL. See design-to-code/shared/localization.json#/certificateException.",
+  "accessibilityRule": "certificate text content (name, course, date) must be available to screen readers as real text, even if the visual rendering is image-based.",
+  "usedBy": ["screens/certificates.json", "screens/certificate-detail.json"]
+}

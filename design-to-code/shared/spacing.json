@@ -1,0 +1,26 @@
+{
+  "$description": "Platform-neutral normalization of design-tokens.json's spacing layer. Fixed layout unit per platform (web px / Android dp / iOS pt) — never scales with text size.",
+  "sourceReferences": ["design-system/design-tokens.json#/spacing"],
+
+  "baseUnit": 4,
+  "scale": {
+    "space.0": 0, "space.1": 4, "space.2": 8, "space.3": 12, "space.4": 16,
+    "space.5": 20, "space.6": 24, "space.8": 32, "space.10": 40, "space.12": 48, "space.16": 64
+  },
+  "pagePadding": { "mobile": 16, "tablet": 24, "desktop": 32, "largeDesktop": 48 },
+  "usage": {
+    "cardPadding": "space.4 (16)",
+    "sectionSpacing": "space.10 (40) mobile / space.12 (48) desktop",
+    "listGap": "space.2 (8) compact / space.3 (12) default",
+    "gridGap": "space.4 (16) mobile / space.6 (24) desktop",
+    "componentInternalGap": "space.2 (8) / space.3 (12)"
+  },
+
+  "logicalApplication": {
+    "$description": "Spacing tokens are direction-neutral numbers; HOW they're applied must be logical (start/end), never physical (left/right) — this is what makes RTL mirroring automatic rather than a per-screen decision.",
+    "sourceReferences": ["design-system/platform-mapping.md § 3.1", "design-system/LOCALIZATION.md § 1"],
+    "web": { "use": ["margin-inline-start", "padding-inline-end", "inset-inline-start", "border-inline-end-width", "text-align: start"], "never": ["margin-left", "padding-right", "left/right", "text-align: left"] },
+    "android": { "use": ["Modifier.padding(start=, end=)", "Arrangement/Alignment via LocalLayoutDirection"], "never": ["Modifier.padding(left=, right=)", "hardcoded Alignment.Start/End ignoring LayoutDirection"] },
+    "ios": { "use": [".padding(.leading,)/.padding(.trailing,)", "HStack(alignment:) with .leading/.trailing", "\\.layoutDirection environment"], "never": [".padding(.left,) — not a real SwiftUI API, or equivalent hardcoded left/right frame math"] }
+  }
+}

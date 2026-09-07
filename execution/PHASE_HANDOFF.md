@@ -69,3 +69,11 @@ None of these block Phase 1's quality gate — each is a deliberate, documented,
 ### 10. Git commit/state reference
 
 `main` branch, working tree clean. Phase 1 spans commits `18040a0`..`bad0d06` (19 commits; `git log --oneline c3a2ed5..HEAD` for the full list with messages). The design-system/product/ux/architecture directories were never modified during Phase 1 (verified via `git log --name-only` over the full commit range) — every locked doc is exactly as it was at Phase 1's start, consulted and adapted-to, never edited. No `web/`/`mobile/`/`infra/` directory exists — Phase 2+ has not been started.
+
+---
+
+## INTERIM NOTE (2026-09-07) — Mentora Design-to-Code Source-of-Truth Pipeline
+
+**This is NOT a Phase 2 completion entry and not a numbered Phase 2 product task** — Phase 2 (Website) remains `IN_PROGRESS` through Task 11 (Instructor Web), Task 12 (Admin Web) has explicitly **not** started, and this note does not supersede or complete Phase 2's own eventual handoff section (which will be written when Phase 2 itself is done). It is recorded here only because it is a durable, cross-cutting artifact (not scoped to one task) that future phases — especially any future Android/iOS client work — need to know exists.
+
+Built between Task 11 and Task 12, per explicit user instruction: a structured, machine-readable `design-to-code/` directory normalizing the locked Design System v1.3.2, the locked Mentora Showcase, and the locked Product/UX specs into a platform-neutral source (tokens, component recipes, navigation/shell rules, the governed course-artwork system, 24 screen specs, 6 reusable layout patterns) — intended to reduce future reliance on developers visually approximating screenshots, and to make a future Android/iOS effort start from data rather than re-deriving everything from `design-system/*.md` prose a second time. No locked document (`design-system/`, `product/`, `ux/`, `architecture/`) was modified — every value in `design-to-code/` traces back to one of them via `design-to-code/SOURCE_MANIFEST.json`'s precedence rule. See `execution/DECISIONS_LOG.md` D50 for the full account, `design-to-code/README.md` for the directory map, and `design-to-code/validation/*.md` for extraction/coverage/mapping detail. Task 12 (Admin Web) still has not started as of this note.

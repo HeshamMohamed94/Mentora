@@ -1,0 +1,27 @@
+{
+  "screenId": "quiz",
+  "screenNumber": 11,
+  "role": ["Student"],
+  "platform": "Both",
+  "shell": "shared/navigation.json#/shells/coursePlayerShell (minimal chrome, Sidebar collapsed on Web, same as Course Player)",
+  "routeIntent": "/{locale}/app/learn/{courseId}/quiz",
+  "referenceType": "ux-only",
+  "sourceReferences": ["ux/SCREEN_UX_SPECS.md § 11", "design-system/COMPONENTS.md § Quiz System", "product/SCREEN_INVENTORY.md § 11"],
+
+  "layout": { "structure": "single-column at every breakpoint — question-progress indicator -> QuestionCard -> answer options -> Next/Submit" },
+  "sections": [
+    { "order": 1, "id": "progress", "content": ["\"Question N of M\" + slim ProgressBar"] },
+    { "order": 2, "id": "question", "content": ["quiz.questionCard question text"] },
+    { "order": 3, "id": "options", "content": ["full-width quiz.answerOption rows"] },
+    { "order": 4, "id": "action", "content": ["\"Next\" or \"Submit Quiz\" (final question)"] }
+  ],
+  "componentSequence": ["quiz.questionCard", "quiz.answerOption", "progressBar", "button.primary"],
+  "noIntroScreen": "no quiz-intro screen in MVP — first question renders immediately, question-progress indicator itself is sufficient framing",
+  "noPreviousControl": "no skip, no back-to-previous-question control in MVP — deliberately linear/simple; already-selected answers ARE preserved if the student navigates away and returns",
+  "navigation": { "exitDestinations": ["Quiz Results"] },
+  "states": { "loading": "question content skeleton if fetched per-question (unlikely necessary)", "error": "ErrorState if quiz fails to load" },
+  "ltrBehavior": "default", "rtlBehavior": "answer option text start-aligned; selection/correct/incorrect icons stay leading the text regardless of direction, mirrored per logical properties",
+  "themeBehavior": "standard semantic token resolution",
+  "responsiveRules": "single-column at every breakpoint; Next/Submit pinned to bottom of viewport for thumb reach on Mobile",
+  "knownGaps": ["No showcase mockup exists — judged against design-system/COMPONENTS.md § Quiz System only."]
+}

@@ -1,0 +1,21 @@
+{
+  "screenId": "certificates",
+  "screenNumber": 13,
+  "role": ["Student"],
+  "platform": "Both",
+  "shell": "shared/navigation.json#/shells/authenticatedStudent",
+  "routeIntent": "/{locale}/app/certificates",
+  "referenceType": "ux-only",
+  "sourceReferences": ["ux/SCREEN_UX_SPECS.md § 13", "product/SCREEN_INVENTORY.md § 13"],
+  "noComponentSpecEither": "No dedicated CertificateCard grid-layout component spec beyond design-system/COMPONENTS.md § Cards (CertificateCard) itself — the weakest evidentiary basis, per the original visual audit's finding #4.",
+
+  "layout": { "structure": "CertificateCard grid" },
+  "sections": [{ "order": 1, "id": "grid", "content": ["CertificateCard grid — caps at 2-3 columns even at Large Desktop, per shared/responsive.json#/perSurfaceRules/certificatesGrid"] }],
+  "componentSequence": ["card.certificateCard", "statePatterns.emptyState"],
+  "navigation": { "exitDestinations": ["Certificate Detail"] },
+  "states": { "loading": "skeleton grid", "empty": "'no certificates yet' + CTA 'Go to My Learning'" },
+  "ltrBehavior": "default", "rtlBehavior": "card content mirrors per logical properties",
+  "themeBehavior": "standard semantic token resolution",
+  "responsiveRules": "shared/responsive.json#/perSurfaceRules/certificatesGrid",
+  "knownGaps": ["No showcase mockup and no dedicated layout component spec — judged against design-system/COMPONENTS.md § Cards (CertificateCard) only."]
+}

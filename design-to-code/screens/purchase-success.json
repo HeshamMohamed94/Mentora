@@ -1,0 +1,35 @@
+{
+  "screenId": "purchase-success",
+  "screenNumber": 19,
+  "role": ["Student"],
+  "platform": "Both",
+  "shell": "none — full-bleed celebratory moment, minimal/no chrome",
+  "routeIntent": "/{locale}/app/checkout/{courseId}/success",
+  "referenceType": "approved-pattern",
+  "sourceReferences": [
+    "design-review-locked/Mentora Showcase.dc.html § 22 Product Preview — mobile mockup only",
+    "ux/SCREEN_UX_SPECS.md § 19",
+    "product/SCREEN_INVENTORY.md § 19"
+  ],
+  "highestMatchingScreen": "Highest-scoring screen (93%) in the original 24-screen visual audit — see demo-checkout.json for the paired note.",
+
+  "layout": { "structure": "centered content, single column, every breakpoint — SuccessState component" },
+
+  "sections": [
+    { "order": 1, "id": "icon", "content": ["success icon/illustration, animated entrance (respecting reduced motion)"] },
+    { "order": 2, "id": "title", "content": ["\"Payment Successful\""] },
+    { "order": 3, "id": "description", "content": ["\"You're now enrolled!\""] },
+    { "order": 4, "id": "actions", "content": ["\"Start Learning\" PrimaryButton", "\"Back to My Learning\" TextButton"] }
+  ],
+
+  "componentSequence": ["successState", "button.primary", "button.text"],
+
+  "navigation": { "exitDestinations": ["Course Player (Start Learning)", "My Learning"], "backNavigationRule": "shared/navigation.json#/backNavigationRules/purchaseSuccess — browser/system back redirects to My Learning rather than re-entering completed checkout" },
+
+  "states": { "entrance": "motion.duration.slow + easing.decelerate, or instant cross-fade under reduced motion — unconditionally, even for this celebratory moment" },
+
+  "ltrBehavior": "default", "rtlBehavior": "text content mirrors per logical properties; success checkmark iconography is non-directional and never mirrors",
+  "themeBehavior": "standard semantic token resolution",
+  "responsiveRules": "centered content, single column, every breakpoint",
+  "knownGaps": []
+}

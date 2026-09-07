@@ -1,0 +1,44 @@
+{
+  "screenId": "course-editor-curriculum",
+  "screenNumber": 22,
+  "role": ["Instructor"],
+  "platform": "Web only",
+  "shell": "shared/navigation.json#/shells/instructorWeb",
+  "routeIntent": "/{locale}/instructor/courses/{courseId} (Curriculum tab active)",
+  "referenceType": "exact-showcase",
+  "sourceReferences": [
+    "design-review-locked/Mentora Showcase.dc.html § 22 Product Preview",
+    "ux/SCREEN_UX_SPECS.md § 22",
+    "product/SCREEN_INVENTORY.md § 22"
+  ],
+  "conflicts": [
+    {
+      "description": "Same Media-tab/persistent-rail conflict as course-editor-overview.json — this screen shares the showcase's single assembled mockup with Overview.",
+      "resolution": "See screens/course-editor-overview.json#/conflicts. The Curriculum tab itself (sections/lessons/reorder) is not directly affected by the Media-tab question — its own structure (section containers, lesson rows, reorder affordances) already matches the showcase's ReorderableList composition closely.",
+      "recordedIn": "execution/DECISIONS_LOG.md D47/D48/D49"
+    }
+  ],
+
+  "layout": { "structure": "Tabs (Curriculum active) -> \"New section title\" input + \"Add Section\"/\"Add Quiz\" -> ordered ReorderableList of section containers, each with a nested ReorderableList of lessons" },
+
+  "sections": [
+    { "order": 1, "id": "tabs", "content": ["Tabs: Overview | Curriculum (active)"] },
+    { "order": 2, "id": "sectionControls", "content": ["new-section-title TextField", "Add Section button", "Add Quiz button"] },
+    { "order": 3, "id": "sectionList", "content": ["per section: title, Delete section, nested lesson ReorderableList (each lesson: title, video-attached Badge, up/down reorder), Add Lesson button, section-level up/down reorder"] }
+  ],
+
+  "componentSequence": ["tabs", "textField", "reorderableList", "chip.badge", "button.tonal", "button.text"],
+
+  "typographyHierarchy": { "sectionTitle": "typography.body.medium (semibold)", "lessonTitle": "typography.body.small" },
+
+  "artworkRules": "n/a — structural editing screen, no course-thumbnail artwork.",
+  "navigation": { "exitDestinations": ["Lesson Editor", "Quiz Editor"] },
+
+  "states": { "loading": "skeleton list", "empty": "\"this course has no content yet\" + CTA \"Add Section\"", "error": "Snackbar on failed reorder/save, retried transparently where possible" },
+
+  "ltrBehavior": "default", "rtlBehavior": "drag handle and Move Up/Down icons are non-directional (vertical), unaffected by RTL; row content (title, badges) mirrors per logical properties",
+  "themeBehavior": "standard semantic token resolution",
+  "responsiveRules": "list stacks full-width below Desktop; nested lesson lists remain legible (indentation reduces but doesn't disappear)",
+  "accessibilityRule": "every section/lesson row exposes Move Up/Move Down IconButtons in addition to the drag handle, always visible — never drag-only (design-system/COMPONENTS.md § ReorderableList)",
+  "knownGaps": []
+}

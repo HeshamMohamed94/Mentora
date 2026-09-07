@@ -1,0 +1,42 @@
+{
+  "screenId": "course-editor-overview",
+  "screenNumber": 21,
+  "role": ["Instructor"],
+  "platform": "Web only",
+  "shell": "shared/navigation.json#/shells/instructorWeb",
+  "routeIntent": "/{locale}/instructor/courses/{courseId} (Overview tab active)",
+  "referenceType": "exact-showcase",
+  "sourceReferences": [
+    "design-review-locked/Mentora Showcase.dc.html § 22 Product Preview",
+    "ux/SCREEN_UX_SPECS.md § 21",
+    "product/SCREEN_INVENTORY.md § 21"
+  ],
+  "conflicts": [
+    {
+      "description": "The showcase's mockup shows a 3-tab (Details/Curriculum/Media) layout with a persistent right-hand 'Curriculum' rail alongside the form. The locked product/SCREEN_INVENTORY.md § 21-22 specifies exactly TWO separate tab-screens (Overview, Curriculum) with no Media tab and no persistent split panel.",
+      "resolution": "The locked product spec (rank 1) wins. Overriding it to match the showcase's panel layout would mean overriding a locked functional-spec document with a visual-reference document, which is out of scope for a visual-correction pass. Two tabs, no Media tab, no persistent rail — implemented as locked.",
+      "recordedIn": "execution/DECISIONS_LOG.md D47/D48 §Instructor Course Editor / D49, design-to-code/validation/EXTRACTION_REPORT.md"
+    }
+  ],
+
+  "layout": { "structure": "Tabs (Overview | Curriculum) -> single-column form panel, bounded max-width (D49 correction from full-bleed stretch)", "maxWidth": "calc(space.16 * 13) — bounded editor panel width" },
+
+  "sections": [
+    { "order": 1, "id": "tabs", "content": ["Tabs: Overview (active) | Curriculum"] },
+    { "order": 2, "id": "form", "content": ["Title TextField", "Description TextField (multiline)", "Category Select", "Level Select (Beginner/Intermediate/Advanced)", "Content Language Select (independent of UI language)", "Price TextField", "Thumbnail FileUpload", "Publish-readiness checklist", "Publish/Unpublish Toggle (labeled, never color/position-only)"] }
+  ],
+
+  "componentSequence": ["tabs", "textField", "select", "fileUpload", "toggle", "chip.badge", "button.primary", "button.tonal"],
+
+  "typographyHierarchy": { "fieldLabels": "typography.label.medium", "checklistItems": "typography.body.small + icon" },
+
+  "artworkRules": "FileUpload's success-state thumbnail preview reuses the same course-artwork rendering as CourseCard (shared/artwork.json) when the uploaded/existing thumbnail resolves through the same component.",
+  "navigation": { "exitDestinations": ["Curriculum tab", "Instructor Dashboard (back/save)"] },
+
+  "states": { "loading": "skeleton form; each Select independently supports \"Loading options…\"", "error": "inline field validation + Snackbar retry on save failure", "success": "Snackbar \"Course saved\" — not a full SuccessState (routine, not a milestone)" },
+
+  "ltrBehavior": "default", "rtlBehavior": "form labels/fields start-aligned; FileUpload dropzone icon/text logical alignment; Select menus open start-aligned to field, trailing indicator at logical end",
+  "themeBehavior": "standard semantic token resolution",
+  "responsiveRules": "form fields stack full-width below Desktop",
+  "knownGaps": ["Media tab / persistent Curriculum rail are an intentional, disclosed, unresolved gap versus the showcase — see conflicts above. This is the largest single driver of this screen's fidelity ceiling."]
+}

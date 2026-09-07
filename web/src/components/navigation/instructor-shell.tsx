@@ -4,12 +4,10 @@ import { useEffect } from "react";
 import { AppShell, type AppShellNavItem } from "./app-shell";
 import { useRouter } from "@/i18n/navigation";
 import { useCurrentUser } from "@/lib/auth/use-current-user";
+import { instructorNavItems } from "@/lib/design-to-code.generated";
 
-const INSTRUCTOR_NAV_ITEMS: AppShellNavItem[] = [
-  { key: "dashboard", href: "/instructor", icon: "dashboard" },
-  { key: "profile", href: "/instructor/profile", icon: "profile" },
-  { key: "settings", href: "/instructor/settings", icon: "settings" },
-];
+/** design-to-code/shared/navigation.json#/shells/instructorWeb — source of truth for this list. */
+const INSTRUCTOR_NAV_ITEMS: AppShellNavItem[] = instructorNavItems as AppShellNavItem[];
 
 export function InstructorShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();

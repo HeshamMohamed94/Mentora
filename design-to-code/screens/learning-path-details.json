@@ -1,0 +1,29 @@
+{
+  "screenId": "learning-path-details",
+  "screenNumber": 5,
+  "role": ["Guest", "Student"],
+  "platform": "Both",
+  "shell": { "guest": "shared/navigation.json#/shells/publicWeb", "student": "shared/navigation.json#/shells/authenticatedStudent" },
+  "routeIntent": "/{locale}/paths/{id} (public) and /{locale}/app/paths/{id} (authenticated)",
+  "referenceType": "ux-only",
+  "sourceReferences": ["ux/SCREEN_UX_SPECS.md § 5", "product/SCREEN_INVENTORY.md § 5"],
+  "noComponentSpecEither": "No dedicated design-system component spec exists for this screen's status-annotation pattern either — the weakest evidentiary basis in the inventory (per the original visual audit's finding #4). The 'Completed/Current/Upcoming' annotation logic below is UX-spec-only.",
+
+  "layout": { "structure": "path title/description -> path-level ProgressBar (if following) or 'Follow Path' CTA -> ordered, numbered member-course list (ALWAYS single-column, even at Large Desktop — a deliberate exception to the standard course grid, since sequence/order is the point)" },
+  "sections": [
+    { "order": 1, "id": "header", "content": ["path title", "description", "ProgressBar (following) or PrimaryButton 'Follow Path' (not following)"] },
+    { "order": 2, "id": "memberCourses", "content": ["numbered CourseCard list, each annotated Completed / Current / Upcoming"] }
+  ],
+  "componentSequence": ["card.learningPathCard (header variant)", "card.courseCard", "progressBar", "chip.badge", "button.primary"],
+  "statusAnnotation": {
+    "completed": "Badge (success variant) + check_circle icon",
+    "current": "exactly ONE course at a time — the first not-yet-completed, enrolled-or-enrollable course, visually emphasized (border.focus outline or 'Continue here' label)",
+    "upcoming": "default CourseCard treatment, NOT locked — out-of-order access is allowed in MVP; 'Upcoming' is informational sequencing only"
+  },
+  "navigation": { "exitDestinations": ["Course Details (per member course)"] },
+  "states": { "loading": "skeleton", "error": "ErrorState" },
+  "ltrBehavior": "default", "rtlBehavior": "sequence numbers/connecting lines mirror position but numbering (1->2->3) never reverses; status conveyed via icon+text+color together, never color alone",
+  "themeBehavior": "standard semantic token resolution",
+  "responsiveRules": "single scrolling column at every breakpoint (no layout fork needed)",
+  "knownGaps": ["No showcase mockup AND no dedicated component spec exists — the weakest evidentiary basis in the screen inventory, per the original visual audit."]
+}

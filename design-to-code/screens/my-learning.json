@@ -1,0 +1,35 @@
+{
+  "screenId": "my-learning",
+  "screenNumber": 9,
+  "role": ["Student"],
+  "platform": "Both",
+  "shell": "shared/navigation.json#/shells/authenticatedStudent",
+  "routeIntent": "/{locale}/app/my-learning",
+  "referenceType": "approved-pattern",
+  "sourceReferences": [
+    "design-review-locked/Mentora Showcase.dc.html § 22 Product Preview — mobile mockup only",
+    "ux/SCREEN_UX_SPECS.md § 9",
+    "product/SCREEN_INVENTORY.md § 9",
+    "design-to-code/patterns/mobile-to-desktop-adaptation.json"
+  ],
+
+  "layout": { "structure": "status filter row -> courseProgressCard list (vertical rows, not a grid) -> followed Learning Paths section", "adaptation": "the showcase's mobile mockup shows courseProgressCard as a vertical-stack card; the current Web implementation adapts this to a horizontal row layout (.mtx-progress-row) — a deliberate, correct desktop-appropriate adaptation per design-to-code/patterns/mobile-to-desktop-adaptation.json, not a defect." },
+
+  "sections": [
+    { "order": 1, "id": "filter", "content": ["status filter: All / In Progress / Completed — chip-style on Web, 3-segment control on Mobile"] },
+    { "order": 2, "id": "progressList", "content": ["courseProgressCard rows, filtered"] },
+    { "order": 3, "id": "learningPaths", "content": ["followed LearningPathCard(s) with path-level progress"] }
+  ],
+
+  "componentSequence": ["chip.categoryChip (filter variant)", "card.courseProgressCard", "card.learningPathCard", "progressBar", "statePatterns.emptyState"],
+
+  "artworkRules": "shared/artwork.json — progress-row thumbnails.",
+  "navigation": { "exitDestinations": ["Course Player", "Learning Path Details"] },
+
+  "states": { "loading": "skeleton grid", "empty": "\"no enrollments yet\" + CTA \"Explore Courses\"" },
+
+  "ltrBehavior": "default", "rtlBehavior": "filter segments and card list mirror per logical properties",
+  "themeBehavior": "standard semantic token resolution",
+  "responsiveRules": "standard courseGrid columns for any grid content; progress rows are always a vertical list, horizontal-row card layout is the desktop adaptation",
+  "knownGaps": []
+}

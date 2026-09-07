@@ -1,0 +1,58 @@
+{
+  "screenId": "landing",
+  "screenNumber": 1,
+  "role": ["Guest"],
+  "platform": "Web only",
+  "shell": "shared/navigation.json#/shells/publicWeb",
+  "routeIntent": "/{locale} (public root)",
+  "referenceType": "exact-showcase",
+  "sourceReferences": [
+    "design-review-locked/Mentora Showcase.dc.html § 22 Product Preview — WEB PREVIEW",
+    "ux/SCREEN_UX_SPECS.md § 1",
+    "product/SCREEN_INVENTORY.md § 1"
+  ],
+
+  "layout": {
+    "maxWidth": "grid.preferredMarketingWidth (1200-1280px)",
+    "structure": "two-column hero (headline column + course-artwork collage column) at desktop+, single column stacked below desktop",
+    "heroCollage": {
+      "description": "one large course-thumbnail card + a row of smaller course-thumbnail cards below it, per the showcase's asymmetric composition — NOT a uniform equal-size grid.",
+      "currentImplementation": "3-equal-column grid with the first item spanning the full row (an approximation of the showcase's mixed-size composition, corrected in D49 from an earlier 2-column layout — see execution/DECISIONS_LOG.md D49). Remaining gap: not byte-identical to the showcase's own mixed large+medium+wide proportions.",
+      "source": "inferred proportions — the showcase's exact per-card width ratios were not individually re-measured pixel-for-pixel; grid-template-columns evidence extracted (repeat(3,1fr) family patterns present in showcase CSS) corroborates a 3-up small-card row is plausible."
+    }
+  },
+
+  "sections": [
+    { "order": 1, "id": "hero", "content": ["eyebrow chip (contentRole: heroEyebrow)", "headline h1 (contentRole: heroTitle) — multi-line, typography.display.large at desktop", "sub-copy (contentRole: heroSubtitle)", "PrimaryButton \"Explore Courses\"", "TonalButton/TextButton \"Get Started\"", "trust markers row (course count, learning-path count, language count)", "course-artwork collage (see layout.heroCollage)"] },
+    { "order": 2, "id": "popularCourses", "content": ["heading \"Popular courses\"", "3-4 courseCard row"] },
+    { "order": 3, "id": "featuredLearningPaths", "content": ["heading", "2-3 learningPathCard"] },
+    { "order": 4, "id": "whyMentora", "content": ["3 short value-prop blocks — icon + heading.h4 + body.small each, composed from existing tokens, no new component"] },
+    { "order": 5, "id": "closingCta", "content": ["repeat of \"Get Started\" CTA band"] }
+  ],
+
+  "componentSequence": ["navbar", "button.primary", "button.tonal", "card.courseCard", "card.learningPathCard"],
+
+  "typographyHierarchy": {
+    "heroTitle": "typography.display.large (responsive: 34px mobile -> 48px desktop)",
+    "heroSubtitle": "typography.body.large",
+    "sectionHeadings": "typography.heading.h2",
+    "valuePropTitle": "typography.heading.h4",
+    "valuePropBody": "typography.body.small"
+  },
+
+  "artworkRules": "shared/artwork.json — hero collage and Popular Courses row both use the governed course-artwork system, never a generic photo or flat placeholder.",
+
+  "navigation": { "shell": "publicWeb", "exitDestinations": ["Explore", "Learning Paths", "Course Details (via cards)", "Login", "Register"] },
+
+  "states": { "loading": "skeleton courseCards if fetched dynamically", "empty": "not applicable — static/seeded marketing content", "error": "not applicable in MVP" },
+
+  "ltrBehavior": "default reading order, hero text/CTAs start-aligned",
+  "rtlBehavior": "hero text/buttons mirror per logical properties; CTA button order (primary first) stays consistent, not physically fixed",
+  "themeBehavior": "standard semantic token resolution, light/dark; no screen-specific hardcoded colors",
+  "responsiveRules": "hero stacks to single column on Mobile, CTA buttons stack full-width; featured rows drop to courseGrid column count per breakpoint",
+
+  "conflicts": [],
+  "knownGaps": [
+    "Hero collage proportions are an approximation of the showcase's mixed large+small composition, not a byte-identical layout (see layout.heroCollage.currentImplementation)."
+  ]
+}

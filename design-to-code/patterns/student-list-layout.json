@@ -1,0 +1,16 @@
+{
+  "patternId": "student-list-layout",
+  "description": "Shared grid/list pattern for Student-facing card collections with no exact showcase composition — Explore, Learning Paths, My Learning, Certificates all reduce to: an optional filter/search row, then a responsive card collection, then standard empty/loading/error states.",
+  "derivedFrom": {
+    "components": ["card.courseCard", "card.learningPathCard", "card.courseProgressCard", "card.certificateCard", "statePatterns.emptyState", "statePatterns.loadingState", "statePatterns.errorState"],
+    "sourceReferences": ["design-system/COMPONENTS.md § Cards, § State Patterns", "design-to-code/shared/responsive.json"]
+  },
+  "structure": ["optional filter/search row (SearchField and/or CategoryChip row and/or status-filter chips)", "optional result-count caption", "responsive card grid or single-column list per screen's own courseGrid/exception rule", "EmptyState if zero results, ErrorState on load failure, skeleton LoadingState while pending"],
+  "gridExceptions": {
+    "learningPathDetails": "always single-column (numbered sequence)",
+    "learningPaths": "2-3 column cap even at Large Desktop",
+    "certificates": "2-3 column cap even at Large Desktop",
+    "explore": "full courseGrid (1/2/3/4 by breakpoint)"
+  },
+  "usedBy": ["screens/explore.json", "screens/learning-paths.json", "screens/my-learning.json", "screens/certificates.json"]
+}

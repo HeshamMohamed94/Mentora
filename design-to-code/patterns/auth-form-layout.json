@@ -1,0 +1,11 @@
+{
+  "patternId": "auth-form-layout",
+  "description": "Shared structural pattern for Login and Register — a centered, form-width-capped card with a minimal header, used because neither screen has any showcase mockup (design-to-code/screens/login.json, register.json).",
+  "derivedFrom": {
+    "components": ["textField", "textField (passwordField variant)", "button.primary", "button.text"],
+    "sourceReferences": ["design-system/COMPONENTS.md § Inputs, § Buttons", "ux/SCREEN_UX_SPECS.md §§ 6-7"]
+  },
+  "structure": ["minimal header — logo/wordmark only, no nav link row", "title (heading.h3-equivalent)", "stacked form fields, full-width", "primary action button, full-width", "secondary text-link action below"],
+  "widthRule": "form-width cap at every breakpoint (RESPONSIVE_BEHAVIOR.md § 4 form-width-cap logic) — never stretches full-bleed on wide viewports",
+  "usedBy": ["screens/login.json", "screens/register.json"]
+}

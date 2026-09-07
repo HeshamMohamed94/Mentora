@@ -1,0 +1,28 @@
+{
+  "screenId": "certificate-detail",
+  "screenNumber": 14,
+  "role": ["Student"],
+  "platform": "Both",
+  "shell": "minimal chrome, back affordance",
+  "routeIntent": "/{locale}/app/certificates/{id}",
+  "referenceType": "ux-only",
+  "sourceReferences": ["ux/SCREEN_UX_SPECS.md § 14", "product/SCREEN_INVENTORY.md § 14"],
+  "noComponentSpecEither": "No dedicated component spec for the full-certificate-rendering layout beyond CertificateCard's base spec — weakest evidentiary basis, per the original visual audit's finding #4.",
+
+  "layout": { "structure": "full certificate rendering (fixed-aspect visual, like a document) -> Share action" },
+  "sections": [
+    { "order": 1, "id": "certificate", "content": ["student name, course title, instructor, completion date, Mentora certificate identifier"] },
+    { "order": 2, "id": "actions", "content": ["'Share' (native share sheet Mobile / styled share affordance Web — UI-only, no real LinkedIn API call)"] }
+  ],
+  "componentSequence": ["card.certificateCard (expanded/detail variant)", "button.primary", "button.text"],
+  "navigation": { "exitDestinations": ["none forward (terminal)"], "back": "Certificates List" },
+  "states": { "loading": "skeleton", "error": "ErrorState if certificate fails to render/load" },
+  "ltrBehavior": "surrounding chrome (Share, back) follows normal app RTL",
+  "rtlBehavior": {
+    "certificateContentException": "The certificate's OWN content (name, course title) follows the certificate's authored language direction, which may be LTR regardless of the app's current UI direction — a deliberate, narrow exception similar in spirit to the VideoPlayer scrubber rule. Surrounding chrome follows normal RTL.",
+    "sourceReferences": ["ux/SCREEN_UX_SPECS.md § 14", "design-to-code/shared/localization.json#/certificateException"]
+  },
+  "themeBehavior": "standard semantic token resolution",
+  "responsiveRules": "fixed-aspect certificate artifact centers and scales down on narrow viewports without cropping, never stretches unnaturally wide on Desktop",
+  "knownGaps": ["No showcase mockup and no dedicated component spec — the weakest evidentiary basis in the screen inventory."]
+}

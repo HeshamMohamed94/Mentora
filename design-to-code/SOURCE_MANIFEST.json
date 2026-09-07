@@ -1,0 +1,83 @@
+{
+  "$description": "Authoritative source registry for the Mentora Design-to-Code pipeline. Every shared/screen/pattern JSON file under design-to-code/ must trace every value back to one of the sources below via a `sourceReferences` array. This file is read by humans and by validation/generate scripts alike — do not add a source here without also using it, and do not use a source not listed here.",
+  "version": "1.0.0",
+  "generatedFrom": "Mentora Phase 2 — Design-to-Code Source-of-Truth phase, between Task 11 (Instructor Web, complete) and Task 12 (Admin Web, not started)",
+  "createdAt": "2026-09-07",
+  "startingGitCommit": "bf72907",
+
+  "precedence": {
+    "$description": "When two sources disagree about the SAME concrete decision (a layout, a behavior, an information-architecture choice), resolve in this order. A lower-numbered source always wins over a higher-numbered one. Never silently pick one without recording the conflict in validation/EXTRACTION_REPORT.md.",
+    "order": [
+      {
+        "rank": 1,
+        "domain": "Product / UX behavior and information architecture",
+        "sources": ["product/*.md", "ux/*.md"],
+        "authority": "final — locked. Defines WHAT exists, WHO sees it, and HOW it behaves. A visual reference can never override a locked IA decision (e.g. Course Player's focused-learning-shell rule, Instructor Dashboard's exactly-3-stat-cards rule, Course Editor's two-tab-not-three-tab structure)."
+      },
+      {
+        "rank": 2,
+        "domain": "Mentora Design System v1.3.2 semantic rules and tokens",
+        "sources": ["design-system/design-tokens.json", "design-system/themes/theme-light.json", "design-system/themes/theme-dark.json", "design-system/COMPONENTS.md", "design-system/DESIGN_SYSTEM.md", "design-system/DESIGN_RULES.md", "design-system/LOCALIZATION.md", "design-system/CONTENT_RESILIENCE.md", "design-system/ACCESSIBILITY.md", "design-system/platform-mapping.md"],
+        "authority": "final for HOW something looks/tokens/component contracts, subject to rank 1. Never overridden by the showcase's own literal CSS values when the two disagree on a token's resolved value — the token file is the source of the value, the showcase is evidence the value was used correctly."
+      },
+      {
+        "rank": 3,
+        "domain": "Locked Mentora Showcase — visual composition",
+        "sources": ["design-review-locked/Mentora Showcase.dc.html", "design-review-locked/MANIFEST.md"],
+        "authority": "authoritative for VISUAL COMPOSITION ONLY (layout proportions, spacing rhythm, typographic scale-in-context, artwork treatment) where it does not contradict rank 1 or rank 2. Never authoritative for information architecture, functional behavior, or a component's token values when those are already defined elsewhere. Every value pulled from this file must be extracted from its real HTML/CSS (see EXTRACTION_REPORT.md), never guessed from a screenshot impression."
+      },
+      {
+        "rank": 4,
+        "domain": "Current Web implementation (web/)",
+        "sources": ["web/src/**", "web/messages/*.json", "web/styles/*.css"],
+        "authority": "IMPLEMENTATION EVIDENCE ONLY — never design authority. Used only to (a) confirm what already exists as a baseline before migrating it onto the shared source, and (b) identify hardcoded/duplicated visual values that should be replaced. A pattern found in web/ that contradicts ranks 1-3 is a defect to fix, not a tie-breaker."
+      }
+    ],
+    "conflictRule": "If the Showcase (rank 3) shows a UI element, layout, or field set that contradicts a locked Product/UX decision (rank 1) or a locked Design System rule (rank 2), the higher-ranked source wins and the conflict is recorded — never silently resolved — in design-to-code/validation/EXTRACTION_REPORT.md's \"Conflicts discovered\" section, and referenced again from the affected screen spec's own `conflicts` array."
+  },
+
+  "sources": {
+    "product": {
+      "path": "product/",
+      "role": "Locked Product specs — feature scope, screen inventory, user roles, flows.",
+      "keyFiles": ["product/SCREEN_INVENTORY.md", "product/MVP_SCOPE.md", "product/USER_ROLES.md", "product/USER_FLOWS.md", "product/PRODUCT_SPEC.md", "product/INFORMATION_ARCHITECTURE.md", "product/DEMO_PAYMENT_FLOW.md"],
+      "mutable": false
+    },
+    "ux": {
+      "path": "ux/",
+      "role": "Locked UX specs — per-screen behavior, states, navigation, responsive rules, instructor/admin-specific rules.",
+      "keyFiles": ["ux/SCREEN_UX_SPECS.md", "ux/WEB_UX.md", "ux/RESPONSIVE_BEHAVIOR.md", "ux/NAVIGATION_SPEC.md", "ux/UX_STATES.md", "ux/INSTRUCTOR_ADMIN_UX.md", "ux/MOBILE_UX.md"],
+      "mutable": false
+    },
+    "designSystem": {
+      "path": "design-system/",
+      "role": "Locked Mentora Design System v1.3.2 — the single hand-authored source of tokens, component contracts, and platform-mapping conventions.",
+      "keyFiles": ["design-system/design-tokens.json", "design-system/themes/theme-light.json", "design-system/themes/theme-dark.json", "design-system/COMPONENTS.md", "design-system/DESIGN_SYSTEM.md", "design-system/platform-mapping.md", "design-system/LOCALIZATION.md", "design-system/CONTENT_RESILIENCE.md", "design-system/ACCESSIBILITY.md", "design-system/DESIGN_RULES.md"],
+      "mutable": false
+    },
+    "showcase": {
+      "path": "design-review-locked/Mentora Showcase.dc.html",
+      "role": "Locked, frozen visual showcase — the byte-verified export named authoritative for the final external audit (its own MANIFEST.md). Parsed programmatically for real HTML/CSS evidence, never treated as a screenshot to eyeball.",
+      "manifest": "design-review-locked/MANIFEST.md",
+      "mutable": false
+    },
+    "webImplementation": {
+      "path": "web/",
+      "role": "Current Next.js/React implementation. Evidence and migration target only — never a design source.",
+      "mutable": true,
+      "note": "The only source in this manifest that IS the intended write target of the generation pipeline (step 12/14) — its design-relevant constants are meant to be replaced by generated output, its business logic/routes/auth/state are explicitly out of scope for this phase."
+    }
+  },
+
+  "outOfScope": {
+    "$description": "Explicitly not touched or authored by this phase, per the phase brief.",
+    "doNotModify": ["design-system/", "product/", "ux/", "architecture/", "backend/ (unless a future, separately-approved change)"],
+    "doNotImplement": ["Task 12 — Admin Web (product/SCREEN_INVENTORY.md §D, screens 25-29). Admin screen specs are deliberately NOT generated this phase — see design-to-code/validation/COVERAGE_REPORT.md for the explicit reasoning — to avoid any appearance of starting Task 12 implementation."]
+  },
+
+  "screenScope": {
+    "$description": "The 24 MVP screens actually implemented through Phase 2 Task 11 (product/SCREEN_INVENTORY.md §A-C, screens 1-24). Task 12's Admin screens (25-29) exist in the locked product/ux docs but are out of scope for design-to-code/screens/ this phase.",
+    "count": 24,
+    "excludedThisPhase": ["admin-dashboard", "admin-manage-courses", "admin-manage-users", "admin-manage-instructors", "admin-manage-categories"]
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "patternId": "form-editor-layout",
+  "description": "Shared single-column, form-width-capped editing pattern for Instructor authoring screens with no exact showcase composition — Lesson Editor and Quiz Editor (Course Editor Overview/Curriculum have their own exact-showcase specs and are NOT included here, since they have a real assembled reference).",
+  "derivedFrom": {
+    "components": ["textField", "fileUpload", "reorderableList", "progressBar", "button.primary", "button.text"],
+    "sourceReferences": ["design-system/COMPONENTS.md § Inputs, § File & Media Upload, § ReorderableList", "ux/SCREEN_UX_SPECS.md §§ 23-24"]
+  },
+  "structure": ["minimal header — screen title + Save/Cancel, no Tabs row (unlike Course Editor)", "single-column stacked form fields, form-width cap", "Save / Delete / Cancel action row"],
+  "unsavedChangesGuard": "navigating away with unsaved edits prompts a confirmation AppDialog — applies to both screens using this pattern (ux/NAVIGATION_SPEC.md § 6)",
+  "usedBy": ["screens/lesson-editor.json", "screens/quiz-editor.json"]
+}

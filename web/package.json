@@ -10,6 +10,8 @@
     "lint:logical-properties": "node scripts/check-logical-properties.js",
     "typecheck": "tsc --noEmit",
     "generate-tokens": "node ../tools/token-pipeline/generate.js",
+    "validate:design-to-code": "node ../tools/design-to-code/validate.js",
+    "generate:design-to-code": "node ../tools/design-to-code/generate.js",
     "test:e2e": "playwright test"
   },
   "dependencies": {

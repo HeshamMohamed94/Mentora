@@ -1,0 +1,82 @@
+{
+  "$description": "Locked shell/navigation rules per role and surface. Derived from ux/WEB_UX.md, ux/NAVIGATION_SPEC.md, ux/SCREEN_UX_SPECS.md §10, design-system/COMPONENTS.md § Navigation. This file is what a generic AppShell mapping must consult BEFORE assuming every authenticated route gets the same shell — Course Player is the one locked exception.",
+  "sourceReferences": ["ux/WEB_UX.md", "ux/NAVIGATION_SPEC.md", "ux/SCREEN_UX_SPECS.md § 10", "design-system/COMPONENTS.md § Navigation"],
+
+  "shells": {
+    "publicWeb": {
+      "component": "navbar",
+      "appliesTo": "Guest, every unauthenticated route (Landing, Explore (public), Course Details (public), Learning Paths (public), Login, Register)",
+      "links": ["Explore", "Learning Paths"],
+      "authActions": ["Login (text button)", "Get Started (primary button)"],
+      "lockedRule": "No language-toggle control in this Navbar — language selection lives only in Settings (post-auth) and is reached the same way by Guest per ux/WEB_UX.md § 5 (a guest-accessible Settings-equivalent is NOT implemented — this is a known, disclosed scope boundary of the current implementation, not a design-to-code decision)."
+    },
+
+    "authenticatedStudent": {
+      "component": "sidebar",
+      "appliesTo": "Student role, all /app/* routes EXCEPT Course Player and Quiz (see coursePlayerShell below)",
+      "items": ["Dashboard", "Explore", "My Learning", "Learning Paths", "AI Tutor", "Certificates", "Profile", "Settings"],
+      "itemsStructured": [
+        { "key": "dashboard", "href": "/app", "icon": "dashboard" },
+        { "key": "explore", "href": "/app/explore", "icon": "explore" },
+        { "key": "myLearning", "href": "/app/my-learning", "icon": "myLearning" },
+        { "key": "learningPaths", "href": "/app/paths", "icon": "learningPaths" },
+        { "key": "aiTutor", "href": "/app/ai-tutor", "icon": "aiTutor" },
+        { "key": "certificates", "href": "/app/certificates", "icon": "certificates" },
+        { "key": "profile", "href": "/app/profile", "icon": "profile" },
+        { "key": "settings", "href": "/app/settings", "icon": "settings" }
+      ],
+      "itemsStructuredSource": "web/src/components/navigation/app-shell.tsx NAV_ITEMS (implementation evidence) — now the generation SOURCE; app-shell.tsx consumes the generated constant instead of hand-defining this array (see design-to-code/validation/MAPPING_REPORT.md)",
+      "width": { "expanded": 264, "collapsed": 72 },
+      "topBar": { "content": "hamburger/collapse toggle + current user name", "height": "component-specific, see web implementation for the exact px value — not separately tokenized as its own component in COMPONENTS.md" }
+    },
+
+    "coursePlayerShell": {
+      "$description": "LOCKED RULE — the single most important navigation exception in the product. Do NOT let a generic AppShell mapping override this.",
+      "name": "Focused Learning Shell",
+      "appliesTo": ["Course Player (screen 10)", "Quiz (screen 11)"],
+      "rule": "The normal authenticated Sidebar COLLAPSES to its 72px icon-only state while these screens are active — this is a COLLAPSE, not a full removal, and not a distinct second shell component. ux/SCREEN_UX_SPECS.md § 10: 'Web — reduced-chrome (Sidebar collapsed by default), a slim top bar with course title + close/back affordance.'",
+      "mechanism": "A React Context (SidebarForceCollapseContext in the current web implementation) that the Course Player/Quiz screen sets on mount and clears on unmount — NOT a route-level shell swap.",
+      "topBar": {
+        "content": ["back affordance -> My Learning", "course title + \"Lesson N of M · X% complete\"", "Ask AI Tutor entry point"],
+        "replaces": "the normal Sidebar top bar's hamburger+username row while this screen is active"
+      },
+      "showcaseDeviationNote": "The locked showcase's own caption over-states this as 'the one documented exception to authenticated sidebar navigation,' which could be misread as 'no sidebar at all.' The authoritative source (ux/SCREEN_UX_SPECS.md § 10, 'Sidebar collapsed by default') says collapsed, not removed — rank 1 (UX) wins per SOURCE_MANIFEST.json precedence. This conflict is recorded, not silently resolved."
+    },
+
+    "instructorWeb": {
+      "component": "sidebar (instructor variant)",
+      "appliesTo": "Instructor role, all /instructor/* routes",
+      "items": ["Dashboard", "Profile", "Settings"],
+      "itemsStructured": [
+        { "key": "dashboard", "href": "/instructor", "icon": "dashboard" },
+        { "key": "profile", "href": "/instructor/profile", "icon": "profile" },
+        { "key": "settings", "href": "/instructor/settings", "icon": "settings" }
+      ],
+      "itemsStructuredSource": "web/src/components/navigation/instructor-shell.tsx INSTRUCTOR_NAV_ITEMS (implementation evidence) — now the generation SOURCE.",
+      "note": "Course/Lesson/Quiz Editor are reached by drilling into a course from the Dashboard's course list, not via top-level Sidebar items."
+    },
+
+    "adminWeb": {
+      "$description": "Mapping only — NOT implemented. Task 12 has not started. Included here because the locked ux/product docs already define this shell's shape; recording it does not constitute starting Task 12 implementation.",
+      "component": "sidebar (admin variant)",
+      "appliesTo": "Admin role, all /admin/* routes (NOT YET BUILT)",
+      "items": ["Dashboard", "Courses", "Users", "Instructors", "Categories"],
+      "status": "specification only — no implementation"
+    }
+  },
+
+  "rtlMirroring": {
+    "mirrors": ["Sidebar position (moves to end/right edge in RTL)", "Navbar link order", "icon.directional.mirrorInRtl icons (chevrons, arrow_back/forward, etc.)", "Tabs indicator position", "form field start-alignment"],
+    "neverMirrors": {
+      "$description": "The one locked, product-wide exception list.",
+      "videoPlayerScrubber": "Course Player's VideoPlayer scrubber/timeline always renders LTR regardless of app layout direction (design-system/COMPONENTS.md § Media & Playback, design-system/LOCALIZATION.md § 2-3).",
+      "icons": "icon.directional.neverMirror list (play/pause, check, cancel, search, add, remove, drag_indicator, more_vert, etc.) — non-directional glyphs never flip.",
+      "certificateContent": "Certificate Detail's own rendered content (name, course title) follows the certificate's authored language direction, which may be LTR regardless of current app UI direction — a narrow, deliberate exception similar in spirit to the VideoPlayer rule.",
+      "numerals": "Total/price amounts always render as Western Arabic numerals regardless of locale (design-system/LOCALIZATION.md § 7)."
+    }
+  },
+
+  "backNavigationRules": {
+    "purchaseSuccess": "Browser/system back is redirected to My Learning rather than re-entering the completed checkout (ux/NAVIGATION_SPEC.md § 6)."
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "patternId": "mobile-to-desktop-adaptation",
+  "description": "How a screen whose ONLY showcase reference is a mobile mockup (referenceType: approved-pattern) should be read for a desktop Web implementation — the rule that stops a mobile-only reference from being mis-scored as a desktop layout defect.",
+  "derivedFrom": { "sourceReferences": ["ux/RESPONSIVE_BEHAVIOR.md § 4 (form-width-cap logic)", "design-to-code/validation/EXTRACTION_REPORT.md"] },
+  "rule": "A mobile mockup shows CONTENT and HIERARCHY (what appears, in what order, with what emphasis) — it does not show a desktop layout, because none was assembled. A correct desktop adaptation preserves the mobile mockup's content/hierarchy while applying standard desktop layout rules (wider content column up to form-width-cap or grid.maxContentWidth, side-by-side composition where the mobile version stacked purely for narrow-viewport reasons, horizontal-row card variants where a vertical-stack mobile card would waste horizontal space).",
+  "knownCorrectAdaptations": [
+    { "screen": "my-learning", "mobileForm": "vertical-stack courseProgressCard", "desktopForm": "horizontal-row courseProgressCard (.mtx-progress-row) — a deliberate, correct desktop-appropriate adaptation, not a defect (design-to-code/screens/my-learning.json)." },
+    { "screen": "course-details", "mobileForm": "stacked hero (thumbnail above meta), sticky bottom CTA", "desktopForm": "hero stacks side-by-side where width allows; CTA inline, not sticky (page short enough at Desktop widths)." }
+  ],
+  "misreadingToAvoid": "Never score a desktop implementation against a mobile mockup as if the mobile mockup were itself the desktop target — that conflates 'different from the reference image' with 'wrong,' when the reference image was never a desktop composition in the first place.",
+  "usedBy": ["screens/course-details.json", "screens/my-learning.json", "screens/ai-tutor.json", "screens/demo-checkout.json", "screens/purchase-success.json"]
+}

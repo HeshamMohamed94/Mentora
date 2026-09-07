@@ -1,0 +1,415 @@
+{
+  "$description": "Machine-readable component recipes derived from design-system/COMPONENTS.md (v1.3.2) and the design-tokens.json component.* alias layer. Every value is a token dot-path reference (e.g. \"color.brand.primary\") resolved against design-to-code/shared/tokens.json — never a raw literal. No business logic (data fetching, validation rules, routing) appears here — visual/structural recipe only. Consumers: web (React), and future Android (Compose)/iOS (SwiftUI) generators per shared/platform-contract.json.",
+  "sourceReferences": ["design-system/COMPONENTS.md", "design-system/design-tokens.json#/component"],
+
+  "button": {
+    "primary": {
+      "height": 48, "radius": "shape.radius.medium", "paddingX": "spacing.space.6", "minWidth": 88,
+      "typography": "typography.label.large", "iconSize": "icon.medium", "iconGap": "spacing.space.2",
+      "states": {
+        "default": { "background": "color.brand.primary", "text": "color.brand.onPrimary" },
+        "hover": { "background": "color.brand.primaryHover", "text": "color.brand.onPrimary", "motion": "150ms motion.easing.standard" },
+        "pressed": { "background": "color.brand.primaryPressed", "text": "color.brand.onPrimary" },
+        "focused": { "background": "color.brand.primary", "text": "color.brand.onPrimary", "focusRing": "border.width.focus color.border.focus, 2px offset" },
+        "disabled": { "background": "color.brand.primary @ state.disabledContainerOpacity over color.surface.default", "text": "color.text.disabled" },
+        "loading": { "background": "color.brand.primary", "spinner": "color.brand.onPrimary", "note": "label hidden/dimmed to 0 opacity, width preserved; button non-interactive" }
+      },
+      "border": "none"
+    },
+    "secondary": {
+      "height": 48, "radius": "shape.radius.medium", "paddingX": "spacing.space.6",
+      "typography": "typography.label.large", "variant": "outlined",
+      "states": {
+        "default": { "background": "transparent", "border": "border.width.default color.brand.primary", "text": "color.brand.primary" },
+        "hover": { "background": "color.brand.primary @ state.hoverOpacity", "border": "color.brand.primary", "text": "color.brand.primary" },
+        "pressed": { "background": "color.brand.primary @ state.pressedOpacity", "border": "color.brand.primary", "text": "color.brand.primary" },
+        "focused": { "background": "transparent", "border": "border.width.focus color.border.focus", "text": "color.brand.primary" },
+        "disabled": { "background": "transparent", "border": "color.border.default", "text": "color.text.disabled" }
+      }
+    },
+    "tonal": {
+      "height": 48, "radius": "shape.radius.medium", "paddingX": "spacing.space.6",
+      "typography": "typography.label.large", "role": "second-most-prominent action",
+      "states": {
+        "default": { "background": "color.brand.primaryContainer", "text": "color.brand.onPrimaryContainer" },
+        "hover": { "background": "color.brand.primaryContainer + color.brand.onPrimaryContainer @ state.hoverOpacity state layer", "text": "color.brand.onPrimaryContainer" },
+        "pressed": { "background": "color.brand.primaryContainer + color.brand.onPrimaryContainer @ state.pressedOpacity state layer", "text": "color.brand.onPrimaryContainer" },
+        "focused": { "background": "color.brand.primaryContainer", "focusRing": "color.border.focus" },
+        "disabled": { "background": "color.surface.variant", "text": "color.text.disabled" }
+      }
+    },
+    "text": {
+      "height": 40, "paddingX": "spacing.space.3", "radius": "shape.radius.medium (hit area only, no visible fill by default)",
+      "typography": "typography.label.large",
+      "states": {
+        "default": { "background": "transparent", "text": "color.brand.primary" },
+        "hover": { "background": "color.brand.primary @ state.hoverOpacity", "text": "color.brand.primary" },
+        "pressed": { "background": "color.brand.primary @ state.pressedOpacity", "text": "color.brand.primary" },
+        "focused": { "background": "transparent", "focusRing": true },
+        "disabled": { "background": "transparent", "text": "color.text.disabled" }
+      }
+    },
+    "icon": {
+      "size": "40x40 touch area, icon rendered at icon.default (24)", "radius": "shape.radius.full",
+      "states": {
+        "default": { "background": "transparent", "icon": "color.text.secondary" },
+        "hover": { "background": "color.text.primary @ state.hoverOpacity", "icon": "color.text.primary" },
+        "pressed": { "background": "color.text.primary @ state.pressedOpacity", "icon": "color.text.primary" },
+        "focused": { "background": "transparent", "icon": "color.text.primary", "focusRing": true },
+        "disabled": { "background": "transparent", "icon": "color.text.disabled" }
+      },
+      "activeSelectedIcon": "color.brand.primary"
+    }
+  },
+
+  "textField": {
+    "$appliesTo": ["TextField", "PasswordField (extends)", "SearchField (extends)"],
+    "height": 52, "radius": "shape.radius.medium", "paddingX": "spacing.space.4", "paddingY": "spacing.space.3",
+    "typography": { "input": "typography.body.medium", "label": "typography.label.medium", "placeholder": "typography.body.medium", "helper": "typography.caption", "error": "typography.caption" },
+    "borderWidth": { "default": "border.width.default", "focused": "border.width.focus" },
+    "leadingTrailingIcon": "icon.medium",
+    "states": {
+      "default": { "border": "color.border.default", "background": "color.surface.default" },
+      "hover": { "border": "color.border.strong", "background": "color.surface.default", "platform": "pointer only" },
+      "focused": { "border": "color.border.focus", "background": "color.surface.default", "note": "label shrinks/floats above field" },
+      "filled": { "border": "color.border.default", "background": "color.surface.default", "note": "label stays floated" },
+      "error": { "border": "color.border.error", "background": "color.surface.default", "note": "error text+icon below; overrides focus color" },
+      "success": { "border": "color.success.default", "background": "color.surface.default", "note": "optional trailing check icon" },
+      "disabled": { "border": "color.border.default", "background": "color.surface.variant", "text": "color.text.disabled" }
+    },
+    "variants": {
+      "passwordField": { "trailing": "IconButton toggling visibility/visibility_off, icon.medium", "masking": "typography.body.medium rendered as bullet chars", "rule": "must always ship the reveal toggle" },
+      "searchField": { "leading": "search icon.medium color.text.secondary (fixed)", "trailing": "close IconButton, appears only when field has a value", "embeddedInNavbarBackground": "color.surface.variant" }
+    }
+  },
+
+  "select": {
+    "$description": "v1.3. Field styling identical to textField (input variant, not a distinct control). Web maps to a styled trigger + ARIA combobox/listbox — never a bare native <select> (can't be styled to match the menu surface across browsers).",
+    "height": 52, "radius": "shape.radius.medium", "paddingX": "spacing.space.4",
+    "typography": { "value": "typography.body.medium", "label": "typography.label.medium", "helper": "typography.caption", "error": "typography.caption" },
+    "leadingIconSize": "icon.medium", "trailingIcon": { "closed": "expand_more", "open": "expand_less", "size": "icon.medium", "neverMirror": true },
+    "states": {
+      "default": { "border": "color.border.default", "background": "color.surface.default" },
+      "hover": { "border": "color.border.strong" },
+      "focused": { "border": "color.border.focus" },
+      "open": { "border": "color.border.focus", "note": "trailing indicator flips to expand_less" },
+      "selected": { "border": "color.border.default", "note": "same treatment as textField Filled" },
+      "error": { "border": "color.border.error" },
+      "disabled": { "border": "color.border.default", "background": "color.surface.variant", "text": "color.text.disabled" }
+    },
+    "menu": {
+      "surface": "color.surface.elevated", "elevation": "elevation.3", "radius": "shape.radius.medium",
+      "optionHeight": "touchTarget.web_px (44)", "optionPaddingX": "spacing.space.4", "optionTypography": "typography.body.medium",
+      "optionStates": {
+        "default": { "background": "transparent", "text": "color.text.primary" },
+        "hover": { "background": "color.text.primary @ state.hoverOpacity" },
+        "selected": { "background": "color.brand.primaryContainer", "text": "color.brand.onPrimaryContainer" },
+        "disabled": { "text": "color.text.disabled", "note": "not selectable, not focusable" }
+      }
+    },
+    "keyboard": "Tab/Shift+Tab focus; Enter/Space opens; arrows move highlight; Enter/Space selects+closes; Escape closes without change",
+    "nativeMapping": { "android": "ExposedDropdownMenuBox-style Compose control", "ios": "Menu/Picker-style control" }
+  },
+
+  "toggle": {
+    "$description": "v1.2/v1.3. MUST use the platform native switch control, styled to these tokens (Web input[type=checkbox][role=switch], Compose Switch, SwiftUI Toggle).",
+    "trackWidth": "spacing.space.10", "trackHeight": "spacing.space.6", "trackRadius": "shape.radius.full",
+    "thumbSize": "spacing.space.5", "thumbInset": "border.width.focus", "thumbTravel": "spacing.space.4",
+    "states": {
+      "on": { "track": "color.brand.primary", "thumb": "color.surface.default, elevation.1" },
+      "off": { "track": "color.border.strong", "thumb": "color.surface.default, elevation.1" },
+      "focused": { "focusRing": "color.border.focus" },
+      "disabled": { "track": "color.border.default @ state.disabledContainerOpacity", "thumb": "color.surface.default" }
+    },
+    "lockedRule": "v1.3: whenever a Toggle conveys a meaningful named state (e.g. Published/Draft) it MUST be paired with a visible text label naming the state, typography.label.large, spacing.space.2 gap — never color/position alone."
+  },
+
+  "fileUpload": {
+    "$description": "v1.2. Visual states only — no upload/storage implementation here.",
+    "radius": "shape.radius.medium", "padding": "spacing.space.6",
+    "instructionalIcon": "icon.large", "instructionalText": "typography.body.small",
+    "states": {
+      "idle": { "border": "color.border.default (dashed)", "background": "color.surface.default", "content": "icon + \"Drag a file here or Browse\" + TonalButton" },
+      "dragOver": { "border": "color.border.focus", "background": "color.brand.primaryContainer" },
+      "uploading": { "border": "color.border.default", "content": "filename (typography.body.medium) + ProgressBar + cancel IconButton" },
+      "success": { "border": "color.border.default", "content": "preview/file-type icon + filename + size (typography.caption) + success icon (icon.medium, color.success.default) + remove IconButton" },
+      "error": { "border": "color.border.error", "content": "error icon (color.error.default) + message (typography.caption) + retry TextButton" },
+      "disabled": { "border": "color.border.default", "background": "color.surface.variant", "text": "color.text.disabled" }
+    },
+    "contentResilience": "filenames truncate to the MIDDLE (name…ext), not end-truncated — the one deliberate departure from the default end-ellipsis rule, so the extension stays visible"
+  },
+
+  "reorderableList": {
+    "$description": "v1.2. Drag-and-drop MUST ship with the always-visible non-drag Move Up/Down controls as a fully equivalent alternative — never drag-only.",
+    "rowMinHeight": "spacing.space.12", "rowPaddingX": "spacing.space.4", "rowGap": "spacing.space.3",
+    "background": "color.surface.default", "border": "color.border.default",
+    "dragHandle": { "icon": "drag_indicator", "size": "icon.medium", "touchTarget": "touchTarget.web_px", "color": "color.text.secondary", "hoverColor": "color.text.primary" },
+    "states": {
+      "default": { "elevation": "elevation.0 (flat, border only)" },
+      "hover": { "background": "color.text.primary @ state.hoverOpacity" },
+      "focused": { "focusRing": "color.border.focus" },
+      "dragging": { "elevation": "elevation.3", "background": "color.surface.elevated" },
+      "dropIndicator": { "color": "color.brand.primary", "height": "border.width.focus" },
+      "disabled": { "text": "color.text.disabled", "note": "drag handle and Move controls inert" }
+    },
+    "nonDragControls": { "up": { "icon": "arrow_upward" }, "down": { "icon": "arrow_downward" }, "alwaysVisible": true, "neverMirror": true }
+  },
+
+  "dataTable": {
+    "$description": "v1.2. Web-primary (Instructor/Admin). Responsive: collapses to stacked cards below tablet breakpoint — never a cramped/scrolled desktop table on a narrow viewport.",
+    "header": { "background": "color.surface.variant", "typography": "typography.label.medium", "color": "color.text.secondary", "sortIcon": { "asc": "arrow_upward", "desc": "arrow_downward" } },
+    "row": { "typography": "typography.body.medium", "color": "color.text.primary", "border": "color.border.default", "hoverBackground": "color.text.primary @ state.hoverOpacity" },
+    "rowActions": { "trigger": "more_vert", "menu": "reuses popover convention: elevation.3, color.surface.elevated" },
+    "collapsedCard": { "breakpoint": "below tablet", "radius": "shape.radius.medium", "background": "color.surface.default", "border": "color.border.default", "padding": "spacing.space.4", "pairFormat": "label.medium (color.text.secondary) : body.medium (color.text.primary), stacked" },
+    "pagination": { "action": "button.text", "label": "typography.body.small" },
+    "contentResilience": "cell text 1-line-clamp with ellipsis; full value available via row detail or accessible title"
+  },
+
+  "card": {
+    "base": { "radius": "shape.radius.large", "padding": "spacing.space.4", "background": "color.surface.default", "border": "color.border.default", "elevation": { "default": "elevation.1", "hover": "elevation.2 (web/desktop only)" } },
+
+    "courseCard": {
+      "radius": "shape.radius.large", "border": "border.width.default color.border.default", "background": "color.surface.default",
+      "elevation": { "default": "elevation.1", "hover": "elevation.2" }, "padding": "spacing.space.4",
+      "thumbnailAspectRatio": "16:9 (top corners clipped to card radius)",
+      "width": { "web": "280-340px fluid within grid column", "mobile": "100% of grid column" },
+      "contentHierarchy": [
+        "1. Thumbnail (16:9)",
+        "2. Category chip (overlaid bottom-start of thumbnail — consistent site-wide placement)",
+        "3. Title — typography.heading.h4, color.text.primary, max 2 lines ellipsis",
+        "4. Instructor name — typography.body.small, color.text.secondary",
+        "5. Rating + student count + duration row — typography.caption, icon.small",
+        "6. ProgressBar (only if enrolled)",
+        "7. Primary action — TonalButton (\"Continue\"/\"Enroll\"), full-width mobile / auto-width web"
+      ],
+      "states": {
+        "default": { "elevation": "elevation.1", "border": "color.border.default" },
+        "hover": { "elevation": "elevation.2", "border": "color.border.strong", "motion": "150ms" },
+        "pressed": { "transform": "scale(0.98) motion.duration.fast, or background tint color.text.primary @ state.pressedOpacity" },
+        "focused": { "focusRing": "color.border.focus around whole card" }
+      }
+    },
+
+    "courseProgressCard": {
+      "$description": "Variant of courseCard for My Learning/Dashboard 'Continue Learning'.",
+      "extends": "courseCard",
+      "always": ["ProgressBar + \"% complete\" (typography.caption, color.text.secondary)", "\"Resume\" TonalButton"],
+      "drops": ["rating/student-count row"]
+    },
+
+    "learningPathCard": {
+      "radius": "shape.radius.large", "background": "color.brand.primaryContainer", "padding": "spacing.space.5",
+      "title": "typography.heading.h4, color.brand.onPrimaryContainer",
+      "description": "typography.body.small, color.brand.onPrimaryContainer",
+      "meta": "typography.caption, color.brand.onPrimaryContainer",
+      "action": "TextButton in color.brand.onPrimaryContainer, or a small PrimaryButton",
+      "hierarchyPrinciple": "hierarchy via type-scale step (h4 -> body.small -> caption), NOT via fading text color — all text stays full opacity"
+    },
+
+    "instructorCard": {
+      "radius": "shape.radius.large", "background": "color.surface.default", "border": "color.border.default", "padding": "spacing.space.4",
+      "layout": "Avatar(large,64) + name (heading.h4) + title/expertise (body.small, color.text.secondary) + stats row (caption)"
+    },
+
+    "statCard": {
+      "radius": "shape.radius.large", "background": "color.surface.default", "border": "color.border.default", "padding": "spacing.space.4",
+      "value": "typography.heading.h2, color.text.primary",
+      "label": "typography.body.small, color.text.secondary",
+      "trendIndicator": { "optional": true, "typography": "typography.caption", "icon": "icon.small", "up": "color.success.default", "down": "color.error.default" }
+    },
+
+    "certificateCard": {
+      "radius": "shape.radius.large", "background": "color.surface.default", "border": "color.border.default", "padding": "spacing.space.5",
+      "preview": "16:9 or A4-ish, shape.radius.medium on the preview itself",
+      "title": "typography.heading.h4",
+      "meta": "typography.caption, color.text.secondary",
+      "actions": ["TonalButton \"View\"", "TextButton \"Share\"/\"Download\""]
+    }
+  },
+
+  "chip": {
+    "categoryChip": {
+      "height": 28, "radius": "shape.radius.full", "paddingX": "spacing.space.3", "typography": "typography.label.medium",
+      "states": {
+        "default": { "background": "color.surface.variant", "text": "color.text.secondary" },
+        "selected": { "background": "color.brand.primaryContainer", "text": "color.brand.onPrimaryContainer" },
+        "onImage": { "background": "color.overlay.chipScrim", "text": "color.text.inverse" },
+        "disabled": { "background": "color.surface.variant", "text": "color.text.disabled" }
+      }
+    },
+    "badge": {
+      "height": "20 (text) / 8 (dot)", "radius": "shape.radius.full", "paddingX": "spacing.space.2", "typography": "typography.label.medium",
+      "variants": {
+        "neutral": { "background": "color.surface.variant", "text": "color.text.secondary" },
+        "success": { "background": "color.success.container", "text": "color.success.onSuccessContainer" },
+        "warning": { "background": "color.warning.container", "text": "color.warning.onWarningContainer" },
+        "error": { "background": "color.error.container", "text": "color.error.onErrorContainer" },
+        "info": { "background": "color.info.container", "text": "color.info.onInfoContainer" },
+        "brand": { "background": "color.brand.primaryContainer", "text": "color.brand.onPrimaryContainer" }
+      }
+    }
+  },
+
+  "avatar": {
+    "sizes": { "small": 24, "medium": 40, "large": 64, "xlarge": 96 },
+    "radius": "shape.radius.full",
+    "fallback": { "content": "initials", "background": "color.brand.primaryContainer", "text": "color.brand.onPrimaryContainer", "typography": "typography.label.large (scaled to avatar size)" },
+    "statusDot": { "optional": true, "diameter": "25% of avatar diameter", "color": "color.success.default", "ring": "border.width.default color.surface.default" }
+  },
+
+  "progressBar": {
+    "height": 8, "radius": "shape.radius.full", "track": "color.surface.variant",
+    "states": {
+      "default": { "fill": "color.brand.primary", "motion": "motion.duration.normal + motion.easing.standard on width change" },
+      "complete": { "fill": "color.success.default", "note": "optional checkmark at end" },
+      "paused": { "fill": "color.text.disabled", "note": "static, no animation" },
+      "indeterminate": { "note": "looping linear sweep, motion.easing linear (never easing.standard)" }
+    }
+  },
+
+  "snackbar": {
+    "radius": "shape.radius.medium", "background": "color.surface.inverse", "text": "color.text.inverse",
+    "paddingX": "spacing.space.4", "paddingY": "spacing.space.3", "typography": "typography.body.small",
+    "action": "color.brand.onSurfaceInverse", "elevation": "elevation.3",
+    "motion": { "in": "slide-up + fade, motion.duration.normal + easing.decelerate", "out": "fade, motion.duration.fast" },
+    "autoDismiss": "4s default, paused on hover/focus/touch"
+  },
+
+  "navItem": {
+    "height": 44, "paddingX": "spacing.space.4", "typography": "typography.label.large", "icon": "icon.default",
+    "states": {
+      "default": { "background": "transparent", "text": "color.text.secondary" },
+      "hover": { "background": "color.text.primary @ state.hoverOpacity", "text": "color.text.primary" },
+      "active": { "background": "color.brand.primaryContainer", "text": "color.brand.onPrimaryContainer" },
+      "focused": { "focusRing": true }
+    }
+  },
+
+  "navbar": {
+    "$appliesTo": "Public web only",
+    "height": 64, "background": "color.surface.default", "border": "border.width.default color.border.default (bottom)",
+    "paddingX": "spacing.pagePadding per breakpoint",
+    "logo": "start-aligned",
+    "navLinks": { "typography": "typography.label.large", "default": "color.text.secondary", "active": "color.text.primary", "activeIndicator": "2px underline color.brand.primary" },
+    "search": { "component": "searchField", "background": "color.surface.variant" },
+    "authActions": { "login": "button.text", "getStarted": "button.primary" },
+    "lockedRule": "No language-toggle control lives in this Navbar (ux/WEB_UX.md) — language selection is Settings-only, for both Guest and every authenticated role."
+  },
+
+  "sidebar": {
+    "$appliesTo": "Authenticated web (Student/Instructor)",
+    "width": { "expanded": 264, "collapsed": 72 }, "background": "color.surface.default", "border": "border.width.default color.border.default (end side)",
+    "itemHeight": 44, "itemPaddingX": "spacing.space.4", "itemTypography": "typography.label.large", "itemIcon": "icon.default",
+    "states": {
+      "default": { "background": "transparent", "text": "color.text.secondary" },
+      "hover": { "background": "color.text.primary @ state.hoverOpacity", "text": "color.text.primary" },
+      "active": { "background": "color.brand.primaryContainer", "text": "color.brand.onPrimaryContainer" }
+    },
+    "studentItems": ["Dashboard", "Explore", "My Learning", "Learning Paths", "AI Tutor", "Certificates", "Profile", "Settings"],
+    "instructorItems": ["Dashboard", "Profile", "Settings"],
+    "collapseRule": {
+      "$description": "LOCKED — Course Player and Quiz force the Sidebar into its 72px icon-only collapsed state while active (ux/WEB_UX.md § 3) — this is a COLLAPSE, not a removal. See navigation.json#/coursePlayerShell for the full focused-learning-shell rule this must never be overridden by a generic AppShell mapping.",
+      "mechanism": "context-provided force-collapse flag, restored on unmount"
+    }
+  },
+
+  "mobileBottomNavigation": {
+    "$appliesTo": "Mobile app (not built this phase — Web is the only implemented platform through Task 11)",
+    "height": "64 + safe-area inset", "background": "color.surface.default", "border": "border.width.default color.border.default (top)",
+    "maxItems": 5, "items": ["Home", "Explore", "My Learning", "AI Tutor", "Profile"],
+    "item": { "icon": "icon.default", "label": "typography.caption" },
+    "states": { "default": "color.text.secondary", "active": "color.brand.primary" }
+  },
+
+  "tabs": {
+    "height": 44, "typography": "typography.label.large",
+    "indicator": { "height": 2, "style": "underline", "color": "color.brand.primary", "motion": "motion.duration.normal + easing.standard on position change" },
+    "states": { "default": "color.text.secondary", "active": "color.text.primary + indicator", "disabled": "color.text.disabled" }
+  },
+
+  "videoPlayer": {
+    "$description": "v1.2. Contract only. A deliberate, documented exception to normal theming: control bar sits on top of arbitrary video pixels, not an app surface, so its tokens are the SAME in both Light and Dark theme (not a hardcoded-color violation — color.overlay.scrim/color.text.inverse are semantic tokens that already resolve to dark-chrome-appropriate values in both themes by design).",
+    "aspectRatio": "16:9",
+    "controlBar": { "background": "color.overlay.scrim", "paddingX": "spacing.space.3", "paddingY": "spacing.space.2" },
+    "controlButton": { "touchTarget": "touchTarget.web_px", "iconSize": "icon.default", "icon": "color.text.inverse (both themes)" },
+    "timeLabel": { "typography": "typography.caption", "color": "color.text.inverse" },
+    "scrubber": {
+      "direction": "ltr-always — LOCKED EXCEPTION, never mirrors regardless of app layout direction",
+      "trackHeight": { "resting": "spacing.space.1", "active": "8 (matches progressBar height)" },
+      "radius": "shape.radius.full",
+      "track": "color.text.inverse @ state.hoverOpacity", "buffered": "color.text.inverse @ state.pressedOpacity", "fill": "color.brand.primary",
+      "thumbSize": { "resting": "spacing.space.3", "active": "spacing.space.4" }, "thumbColor": "color.brand.primary"
+    },
+    "speedControl": { "trigger": "typography.label.medium, color.text.inverse", "menu": "elevation.3, color.surface.elevated, color.text.primary (reuses popover convention)" },
+    "neverMirrorControls": "play/pause, volume, fullscreen, speed — all non-directional per icon.directional.neverMirror",
+    "contentResilience": "lesson title truncates 1 line ellipsis; loading = 16:9 skeleton; error = inline icon+title+retry sized to video frame"
+  },
+
+  "checkout": {
+    "$description": "v1.2. Order-summary/confirmation shell for the simulated Demo Payment flow only. Field set is CLOSED and EXHAUSTIVE — course summary, demo price, demo-payment notice, primary confirm action. MUST NEVER contain card/CVV/expiry/billing-address/bank fields.",
+    "radius": "shape.radius.large", "padding": "spacing.space.5", "background": "color.surface.default", "border": "color.border.default",
+    "lineItem": { "layout": "reuses courseCard's compact content pattern (thumbnail + title + instructor)" },
+    "priceLabel": "typography.body.medium, color.text.secondary",
+    "priceTotal": "typography.heading.h3, color.text.primary",
+    "demoNotice": { "background": "color.info.container", "text": "color.info.onInfoContainer", "radius": "shape.radius.medium", "paddingX": "spacing.space.3", "paddingY": "spacing.space.2", "typography": "typography.body.small", "copy": "\"Demo Payment — no real charges or payment information required.\"" },
+    "confirmAction": "button.primary — \"Complete Demo Purchase\"", "cancelAction": "button.text — back to Course Details",
+    "states": { "processing": "confirm button's own Loading state, rest of summary static", "error": "color.error.default inline message + TextButton \"Try Again\"" }
+  },
+
+  "successState": {
+    "$description": "v1.2. Sibling of EmptyState/ErrorState for a celebratory confirmation moment.",
+    "icon": { "size": "icon.large", "color": "color.success.default" },
+    "title": "typography.heading.h3, color.text.primary",
+    "description": "typography.body.small, color.text.secondary, max ~2 lines",
+    "primaryAction": "button.primary",
+    "containerPaddingY": "spacing.space.10",
+    "motion": { "entrance": "motion.duration.slow + easing.decelerate, scale/fade in", "reducedMotion": "opacity cross-fade only at motion.duration.fast" }
+  },
+
+  "statePatterns": {
+    "loadingState": { "skeletonBackground": "color.surface.variant", "shimmer": "color.surface.variant -> color.border.default -> color.surface.variant, motion.duration.slow loop", "radius": "matches the component it stands in for", "spinner": "color.brand.primary stroke" },
+    "emptyState": { "icon": "icon.large, color.text.secondary", "title": "typography.heading.h4, color.text.primary", "description": "typography.body.small, color.text.secondary, max ~2 lines", "action": "button.primary or button.tonal", "containerPaddingY": "spacing.space.10" },
+    "errorState": { "icon": "icon.large, color.error.default", "title": "friendly copy, never raw backend error text", "description": "typography.body.small, color.text.secondary", "retryAction": "button.primary or button.tonal, label \"Try again\"", "containerPaddingY": "spacing.space.10" }
+  },
+
+  "aiTutor": {
+    "bubble": {
+      "ai": { "background": "color.surface.variant", "text": "color.text.primary", "tailCorner": "bottom-start reduced to shape.radius.small" },
+      "user": { "background": "color.brand.primaryContainer", "text": "color.brand.onPrimaryContainer", "tailCorner": "bottom-end reduced to shape.radius.small (mirrored)" },
+      "radius": "shape.radius.large", "padding": "spacing.space.3 vertical, spacing.space.4 horizontal", "typography": "typography.body.medium", "maxWidth": "80% of chat container",
+      "principle": "must read as a Mentora feature (same surfaces/radii/type scale as rest of product), not a bolted-on chat widget"
+    },
+    "quickAction": {
+      "height": 36, "radius": "shape.radius.full", "paddingX": "spacing.space.4", "background": "color.surface.default", "border": "border.width.default color.border.default",
+      "typography": "typography.label.medium", "text": "color.brand.primary",
+      "states": { "default": { "background": "color.surface.default", "border": "color.border.default" }, "hoverPressed": { "background": "color.brand.primaryContainer", "border": "color.brand.primary" } },
+      "defaultActions": ["Explain this lesson", "Summarize", "Give me an example", "Quiz me", "What should I learn next?"]
+    }
+  },
+
+  "quiz": {
+    "questionCard": { "extends": "card.statCard shell (radius.large, border.default, padding.space.5)", "progressIndicator": "\"Question N of M\" typography.caption + slim ProgressBar", "questionText": "typography.heading.h4" },
+    "answerOption": {
+      "height": 52, "radius": "shape.radius.medium", "border": "border.width.default", "paddingX": "spacing.space.4",
+      "states": {
+        "default": { "background": "color.surface.default", "border": "color.border.default", "text": "color.text.primary" },
+        "selectedUnsubmitted": { "background": "color.brand.primaryContainer", "border": "color.brand.primary", "text": "color.brand.onPrimaryContainer", "icon": "radio/check filled color.brand.primary" },
+        "correct": { "background": "color.success.container", "border": "color.success.default", "text": "color.success.onSuccessContainer", "icon": "check_circle color.success.default" },
+        "incorrect": { "background": "color.error.container", "border": "color.error.default", "text": "color.error.onErrorContainer", "icon": "cancel color.error.default" },
+        "disabledPostSubmitUnselected": { "background": "color.surface.variant", "border": "color.border.default", "text": "color.text.disabled" }
+      },
+      "lockedRule": "correctness is never color-only — always icon + color, text where space allows (WCAG 1.4.1)"
+    },
+    "resultScreen": { "scoreNumber": "typography.display.medium", "perQuestion": "success/error semantic colors", "continueRetry": "button.primary" }
+  },
+
+  "dialogsAndSheets": {
+    "appDialog": { "radius": "shape.radius.xlarge", "background": "color.surface.elevated", "elevation": "elevation.4", "padding": "spacing.space.6", "scrim": "color.overlay.scrim", "title": "typography.heading.h3", "body": "typography.body.medium, color.text.secondary", "actionsGap": "spacing.space.2", "motion": { "open": "motion.duration.normal + easing.decelerate, scale 0.95->1 + fade", "close": "motion.duration.fast + easing.accelerate" } },
+    "bottomSheet": { "radius": "shape.radius.xlarge (top corners only)", "background": "color.surface.elevated", "elevation": "elevation.4", "padding": "spacing.space.5 + safe-area inset", "dragHandle": "32x4, shape.radius.full, color.border.strong, centered, spacing.space.2 from top", "motion": { "open": "slide-up motion.duration.normal + easing.decelerate", "close": "slide-down motion.duration.fast + easing.accelerate" } }
+  },
+
+  "artworkComponentHooks": {
+    "$description": "CourseThumbnail is not a separate design-system component table — it is CourseCard/CourseProgressCard/Checkout's thumbnail slot rendering the governed artwork system. See design-to-code/shared/artwork.json for the full motif/gradient/scrim spec.",
+    "usedBy": ["card.courseCard", "card.courseProgressCard", "checkout.lineItem", "screens/course-details", "screens/learning-path-details"]
+  }
+}

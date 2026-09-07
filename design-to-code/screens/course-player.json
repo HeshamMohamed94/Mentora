@@ -1,0 +1,52 @@
+{
+  "screenId": "course-player",
+  "screenNumber": 10,
+  "role": ["Student"],
+  "platform": "Both (Web spec below; mobile Bottom-Sheet curriculum variant not built)",
+  "shell": "shared/navigation.json#/shells/coursePlayerShell",
+  "routeIntent": "/{locale}/app/learn/{courseId}",
+  "referenceType": "exact-showcase",
+  "sourceReferences": [
+    "design-review-locked/Mentora Showcase.dc.html § 22 Product Preview",
+    "ux/SCREEN_UX_SPECS.md § 10 (authoritative desktop layout)",
+    "design-system/COMPONENTS.md § Media & Playback",
+    "product/SCREEN_INVENTORY.md § 10"
+  ],
+  "conflicts": [
+    {
+      "description": "The showcase's own caption over-states its Course Player exception as 'the one documented exception to authenticated sidebar navigation,' which reads as 'no sidebar at all.' The authoritative ux/SCREEN_UX_SPECS.md § 10 says the Sidebar is 'collapsed by default,' not removed.",
+      "resolution": "shared/navigation.json#/shells/coursePlayerShell is the locked rule: COLLAPSE to 72px icon-only, never full removal. This spec's `shell` field points there and must not be reinterpreted by any generic AppShell mapping.",
+      "recordedIn": "design-to-code/shared/navigation.json, design-to-code/validation/EXTRACTION_REPORT.md"
+    }
+  ],
+
+  "layout": {
+    "$description": "LOCKED two-column desktop layout, restructured in D49 from an earlier single-column/no-tabs implementation (55% fidelity at the time).",
+    "topBar": ["back affordance -> My Learning", "course title + \"Lesson N of M · X% complete\"", "Ask AI Tutor entry point"],
+    "grid": "content-left (~70%) / curriculum-right (~30%, persistent)",
+    "contentColumn": ["VideoPlayer (16:9)", "lesson title", "Overview | Resources tabs (exactly these two — no Notes/Discussion, both Post-MVP)", "tab content", "Previous / Mark Complete / Next row", "AI Tutor entry (now in top bar, not inline)"],
+    "curriculumColumn": ["\"Your Progress\" heading + course-level ProgressBar", "section/lesson list with per-lesson completion Badge, current lesson highlighted"]
+  },
+
+  "sections": [
+    { "order": 1, "id": "topBar", "content": ["back", "title+progress", "askAiTutor"] },
+    { "order": 2, "id": "video", "content": ["VideoPlayer 16:9 — loading skeleton / inline error+retry on failure"] },
+    { "order": 3, "id": "lessonContent", "content": ["lesson title (heading.h2)", "Tabs: Overview, Resources", "Previous/MarkComplete/Next row"] },
+    { "order": 4, "id": "curriculum", "content": ["ProgressBar", "section headings (h3) + lesson rows with completion Badge"] }
+  ],
+
+  "componentSequence": ["videoPlayer", "tabs", "button.tonal", "button.primary", "progressBar", "chip.badge"],
+
+  "typographyHierarchy": { "lessonTitle": "typography.heading.h2", "curriculumSectionHeading": "typography.label.large (h3 element)", "topBarMeta": "typography.label.large + typography.caption" },
+
+  "artworkRules": "n/a — video content, no course-thumbnail artwork on this screen.",
+  "navigation": { "shell": "coursePlayerShell", "exitDestinations": ["Quiz (automatic, last lesson)", "AI Tutor (contextual)", "My Learning (back)"] },
+
+  "states": { "loading": "16:9 video skeleton", "error": "inline error sized to video frame, icon+title+retry", "completion": "not a separate screen state — routes to Quiz or an inline completion confirmation (see quiz-results.json)" },
+
+  "ltrBehavior": "default two-column layout",
+  "rtlBehavior": "top bar, tabs, Previous/Next row, curriculum panel all mirror (curriculum moves to logical-start/left side in RTL). LOCKED EXCEPTION: the VideoPlayer scrubber/timeline NEVER mirrors, regardless of app layout direction — verified live in Arabic/RTL during D49 browser verification (video-player.tsx's dir=\"ltr\" on the scrubber, untouched).",
+  "themeBehavior": "video control bar tokens (color.overlay.scrim, color.text.inverse) are deliberately theme-invariant by design — not a hardcoded-color violation, see shared/components.json#/videoPlayer",
+  "responsiveRules": "shared/responsive.json#/perSurfaceRules/coursePlayer — two-column desktop+, single-column + BottomSheet curriculum below desktop (BottomSheet variant not built, Web-only implementation to date)",
+  "knownGaps": ["Video-control chrome's visual polish against real footage could not be fully re-verified in D49 because the seeded lesson's video asset does not play in this dev environment — a pre-existing, unrelated media/backend limitation."]
+}

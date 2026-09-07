@@ -1,0 +1,20 @@
+{
+  "$description": "Platform-neutral normalization of design-tokens.json's elevation layer. Elevation is resolved through the same semantic surface/elevation tokens in both themes — components never branch on theme to decide shadow strength; the token value already differs per theme.",
+  "sourceReferences": ["design-system/design-tokens.json#/elevation"],
+
+  "levels": {
+    "0": { "web": "none", "compose_dp": 0, "ios": { "radius": 0, "y": 0, "opacity": 0 }, "usage": "flat, resting elements using border only" },
+    "1": { "web": "0 1px 2px rgba(17,18,23,0.06)", "compose_dp": 1, "ios": { "radius": 2, "y": 1, "opacity": 0.06 }, "usage": "resting cards" },
+    "2": { "web": "0 2px 8px rgba(17,18,23,0.08)", "compose_dp": 3, "ios": { "radius": 6, "y": 2, "opacity": 0.08 }, "usage": "hovered/raised cards, dropdown triggers" },
+    "3": { "web": "0 4px 16px rgba(17,18,23,0.10)", "compose_dp": 6, "ios": { "radius": 12, "y": 4, "opacity": 0.10 }, "usage": "menus, popovers, tooltips" },
+    "4": { "web": "0 8px 24px rgba(17,18,23,0.12)", "compose_dp": 12, "ios": { "radius": 20, "y": 8, "opacity": 0.12 }, "usage": "modals, dialogs, bottom sheets" }
+  },
+
+  "darkModeNote": "Dark surfaces prefer a lighter surface tone (surface.elevated) over heavier shadow. Shadow color stays black; opacity reduces ~30% relative to light values since dark backgrounds already read as elevated via tone.",
+
+  "platformMapping": {
+    "web": "box-shadow: var(--elevation-N)",
+    "android": "Modifier.shadow(elevation = MentoraTheme.elevation.N), paired with Surface(tonalElevation=) in dark theme",
+    "ios": ".shadow(color: .mentoraShadow, radius: N.radius, x: 0, y: N.y)"
+  }
+}
