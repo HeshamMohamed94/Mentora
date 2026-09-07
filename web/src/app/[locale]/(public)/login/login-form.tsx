@@ -48,13 +48,13 @@ export function LoginForm({ redirectTo }: { redirectTo: string }) {
         label={t("emailLabel")}
         type="email"
         autoComplete="email"
-        error={errors.email ? t("emailLabel") : undefined}
+        error={errors.email ? t("emailInvalid") : undefined}
         {...register("email")}
       />
       <PasswordField
         label={t("passwordLabel")}
         autoComplete="current-password"
-        error={errors.password ? t("passwordLabel") : undefined}
+        error={errors.password ? t("passwordRequired") : undefined}
         showPasswordLabel={t("showPassword")}
         hidePasswordLabel={t("hidePassword")}
         {...register("password")}

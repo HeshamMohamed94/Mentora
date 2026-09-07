@@ -443,6 +443,11 @@
     "emailAlreadyRegistered": "An account with this email already exists.",
     "genericError": "Something went wrong. Please try again.",
     "showPassword": "Show password",
-    "hidePassword": "Hide password"
+    "hidePassword": "Hide password",
+    "nameRequired": "Enter your name.",
+    "emailInvalid": "Enter a valid email address.",
+    "passwordRequired": "Enter your password.",
+    "passwordTooShort": "Password must be at least 8 characters.",
+    "passwordHint": "At least 8 characters"
   }
 }

@@ -192,10 +192,23 @@ screens' `ErrorState` retry buttons displayed the full error sentence instead of
 props were accidentally passed the same translation key). Zero product behavior, routes, or
 backend contracts changed. Full detail and verification performed: see D46.
 
+**Login/Register design-derived auth-screen refinement (2026-09-07, D51) — done after the D50
+post-pipeline visual audit, by explicit user follow-up request** ("rebuild them as DESIGN-DERIVED
+screens... not exact-reference"): reworked strictly from `design-system/COMPONENTS.md` §
+Inputs/§ Buttons and `ux/SCREEN_UX_SPECS.md` §§ 6-7, no showcase mockup exists for either screen.
+Fixed real defects: field-level errors previously rendered the field's own label text instead of
+a message; Register's password strength hint (already called for in `register.json`) had no
+`PasswordField` support at all; Register's "email already registered" server error rendered as a
+generic banner instead of inline under the Email field as this project's own spec already said;
+`.mtx-auth-page` didn't vertically center on tall viewports. Both screens' `referenceType`
+reclassified `"ux-only"` → `"approved-pattern"` in `design-to-code/screens/{login,register}.json`.
+Zero product behavior, routes, backend, or `design-system`/`product`/`ux` document changes. Full
+detail and verification performed: see D51.
+
 ## Immediate Next Action
 
-**Per explicit user instruction (2026-09-07 session): the strict visual-matching pass (D48) is
-the last work done this session. Do not start Task 12 without a new go-ahead — this note is for
+**Per explicit user instruction (2026-09-07 session): D51 (Login/Register refinement) is the
+last work done this session. Do not start Task 12 without a new go-ahead — this note is for
 whenever that go-ahead comes.**
 
 Task 12: Admin Web — Dashboard, Manage Courses/Users/Instructors/Categories. Read the real

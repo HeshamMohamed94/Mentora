@@ -5,8 +5,9 @@
   "platform": "Both",
   "shell": "minimal — same treatment as Login",
   "routeIntent": "/{locale}/register",
-  "referenceType": "ux-only",
+  "referenceType": "approved-pattern",
   "sourceReferences": ["ux/SCREEN_UX_SPECS.md § 7", "design-system/COMPONENTS.md § Inputs, § Buttons", "product/SCREEN_INVENTORY.md § 7"],
+  "d51Note": "D51 (2026-09-07): reclassified from 'ux-only' to 'approved-pattern' — no screen-specific showcase mockup exists (the archived '07-register-design-component-spec.png' is the same generic, multi-screen-reused Form Controls sheet used for Login/Quiz/Profile/etc.), but the screen is now deliberately and strictly derived from the locked design-system Form Controls pattern (COMPONENTS.md § Inputs/§ Buttons) rather than approximated ad hoc. See execution/DECISIONS_LOG.md D51.",
 
   "layout": { "structure": "identical pattern to Login (§6) — same form-width cap" },
   "sections": [
@@ -19,5 +20,5 @@
   "states": { "loading": "button loading state", "error": "inline field-level (e.g. 'Email already registered' under the email field)" },
   "ltrBehavior": "default", "rtlBehavior": "same as Login", "themeBehavior": "standard semantic token resolution",
   "responsiveRules": "same as Login",
-  "knownGaps": ["No showcase mockup exists — judged against design-system component specs only."]
+  "knownGaps": ["No showcase mockup exists — judged against design-system component specs only.", "D51 fix: the password strength hint this spec already called for ('caption helper text, not blocking') was not implemented — PasswordField had no helperText support at all. Added. D51 fix: server-side 'email already registered' error rendered as a generic top-of-form banner instead of the field-level placement this spec's own states.error already documented ('under the email field') — now uses react-hook-form's setError to place it inline. D51 fix: field-level client errors previously rendered the field's own label text instead of a real message."]
 }

@@ -443,6 +443,11 @@
     "emailAlreadyRegistered": "يوجد حساب مسجَّل بهذا البريد الإلكتروني بالفعل.",
     "genericError": "حدث خطأ ما. يرجى المحاولة مرة أخرى.",
     "showPassword": "إظهار كلمة المرور",
-    "hidePassword": "إخفاء كلمة المرور"
+    "hidePassword": "إخفاء كلمة المرور",
+    "nameRequired": "أدخل اسمك.",
+    "emailInvalid": "أدخل بريدًا إلكترونيًا صحيحًا.",
+    "passwordRequired": "أدخل كلمة المرور.",
+    "passwordTooShort": "يجب ألا تقل كلمة المرور عن 8 أحرف.",
+    "passwordHint": "8 أحرف على الأقل"
   }
 }

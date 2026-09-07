@@ -7,6 +7,9 @@ import { Icon } from "./icon";
 export interface PasswordFieldProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "id" | "type"> {
   label: string;
   error?: string;
+  /** COMPONENTS.md § Inputs "Helper text" row (typography.caption, color.text.secondary) — e.g.
+   * register.json's password strength hint. Hidden whenever `error` is present. */
+  helperText?: string;
   id?: string;
   showPasswordLabel: string;
   hidePasswordLabel: string;
@@ -18,12 +21,13 @@ export interface PasswordFieldProps extends Omit<React.InputHTMLAttributes<HTMLI
  * password field with no reveal option."
  */
 export const PasswordField = forwardRef<HTMLInputElement, PasswordFieldProps>(function PasswordField(
-  { label, error, id, className, placeholder, showPasswordLabel, hidePasswordLabel, ...props },
+  { label, error, helperText, id, className, placeholder, showPasswordLabel, hidePasswordLabel, ...props },
   ref
 ) {
   const generatedId = useId();
   const fieldId = id ?? generatedId;
   const errorId = `${fieldId}-error`;
+  const helperId = `${fieldId}-helper`;
   const [visible, setVisible] = useState(false);
 
   return (
@@ -38,7 +42,7 @@ export const PasswordField = forwardRef<HTMLInputElement, PasswordFieldProps>(fu
         className={clsx("mtx-input", className)}
         placeholder={placeholder ?? " "}
         aria-invalid={Boolean(error) || undefined}
-        aria-describedby={error ? errorId : undefined}
+        aria-describedby={error ? errorId : helperText ? helperId : undefined}
         {...props}
       />
       <button
@@ -50,10 +54,16 @@ export const PasswordField = forwardRef<HTMLInputElement, PasswordFieldProps>(fu
       >
         <Icon name={visible ? "visibilityOff" : "visibility"} size={20} />
       </button>
-      {error && (
+      {error ? (
         <p id={errorId} className="mtx-field-error" role="alert">
           {error}
         </p>
+      ) : (
+        helperText && (
+          <p id={helperId} className="mtx-field-helper">
+            {helperText}
+          </p>
+        )
       )}
     </div>
   );

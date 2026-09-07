@@ -23,6 +23,7 @@ export function RegisterForm({ redirectTo }: { redirectTo: string }) {
   const {
     register: registerField,
     handleSubmit,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm<RegisterInput>({ resolver: zodResolver(registerSchema) });
 
@@ -34,7 +35,9 @@ export function RegisterForm({ redirectTo }: { redirectTo: string }) {
       router.push(redirectTo || "/app");
     } catch (err) {
       if (err instanceof ApiError && err.code === "EMAIL_ALREADY_REGISTERED") {
-        setFormError(t("emailAlreadyRegistered"));
+        // ux/SCREEN_UX_SPECS.md § 7: this error is actionable/specific, shown inline under
+        // the email field — unlike Login's deliberately-vague, non-field-specific error.
+        setError("email", { type: "server", message: t("emailAlreadyRegistered") });
       } else {
         setFormError(t("genericError"));
       }
@@ -46,20 +49,23 @@ export function RegisterForm({ redirectTo }: { redirectTo: string }) {
       <TextField
         label={t("nameLabel")}
         autoComplete="name"
-        error={errors.name ? t("nameLabel") : undefined}
+        error={errors.name ? t("nameRequired") : undefined}
         {...registerField("name")}
       />
       <TextField
         label={t("emailLabel")}
         type="email"
         autoComplete="email"
-        error={errors.email ? t("emailLabel") : undefined}
+        error={
+          errors.email?.type === "server" ? errors.email.message : errors.email ? t("emailInvalid") : undefined
+        }
         {...registerField("email")}
       />
       <PasswordField
         label={t("passwordLabel")}
         autoComplete="new-password"
-        error={errors.password ? t("passwordLabel") : undefined}
+        error={errors.password ? t("passwordTooShort") : undefined}
+        helperText={t("passwordHint")}
         showPasswordLabel={t("showPassword")}
         hidePasswordLabel={t("hidePassword")}
         {...registerField("password")}
