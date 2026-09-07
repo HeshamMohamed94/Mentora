@@ -11,7 +11,7 @@
     "ux/SCREEN_UX_SPECS.md § 19",
     "product/SCREEN_INVENTORY.md § 19"
   ],
-  "highestMatchingScreen": "Highest-scoring screen (93%) in the original 24-screen visual audit — see demo-checkout.json for the paired note.",
+  "highestMatchingScreen": "Highest-scoring screen (93%) in the ORIGINAL 24-screen visual audit (pre-D48) — see demo-checkout.json for the paired note. D52 correction: by the D50 post-pipeline audit this had regressed to 78% — the success icon rendered at icon.large (32) instead of a celebratory custom-illustration size, and the container did not vertically center within the page. Both fixed in D52 (execution/DECISIONS_LOG.md D52).",
 
   "layout": { "structure": "centered content, single column, every breakpoint — SuccessState component" },
 
@@ -31,5 +31,5 @@
   "ltrBehavior": "default", "rtlBehavior": "text content mirrors per logical properties; success checkmark iconography is non-directional and never mirrors",
   "themeBehavior": "standard semantic token resolution",
   "responsiveRules": "centered content, single column, every breakpoint",
-  "knownGaps": []
+  "knownGaps": ["D52, NOT fixed, disclosed rather than silently patched: this spec's own `shell` field has always said 'none — full-bleed celebratory moment, minimal/no chrome,' but web/src/app/[locale]/app/layout.tsx wraps every /app/* route (this one included) in the same AppShell (sidebar + topbar) unconditionally — there is no existing mechanism to fully hide the shell (only Course Player's SidebarForceCollapseContext, which COLLAPSES to 72px, never removes). Closing this gap requires either a new SidebarForceHiddenContext (a small extension of an already-approved pattern) or a route-level layout exception, both of which touch the shared shell every /app/* screen depends on — out of scope for a targeted, low-risk visual pass; needs an explicit go-ahead before touching shared shell code."]
 }

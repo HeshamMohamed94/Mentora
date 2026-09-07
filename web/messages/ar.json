@@ -118,6 +118,8 @@
   },
   "checkout": {
     "title": "الدفع التجريبي",
+    "orderSummary": "ملخص الطلب",
+    "courseRow": "الدورة",
     "total": "الإجمالي",
     "demoNotice": "دفع تجريبي — لا توجد رسوم حقيقية أو حاجة لبيانات دفع.",
     "confirmAction": "إتمام الشراء التجريبي",
@@ -294,6 +296,7 @@
     },
     "dashboard": {
       "title": "لوحة المدرّس",
+      "byline": "{name} · {count, plural, one {دورة واحدة} two {دورتان} few {# دورات} many {# دورة} other {# دورة}}",
       "createCourse": "إنشاء دورة",
       "totalCourses": "إجمالي الدورات",
       "publishedCourses": "الدورات المنشورة",

@@ -18,7 +18,7 @@
   "sections": [
     { "order": 1, "id": "thread", "content": ["AITutorBubble messages — AI on surface.variant, Student on brand.primaryContainer; welcome message on first open, not empty white space"] },
     { "order": 2, "id": "quickActions", "content": ["horizontally scrollable AITutorQuickAction chips: Explain this lesson, Summarize, Give me an example, Quiz me, What should I learn next?"] },
-    { "order": 3, "id": "input", "content": ["TextField variant + send action"] }
+    { "order": 3, "id": "input", "content": ["pill-shaped composer (D52) + circular icon send action"] }
   ],
 
   "componentSequence": ["aiTutor.bubble", "aiTutor.quickAction", "textField", "statePatterns.loadingState (thinking indicator)"],
@@ -30,5 +30,5 @@
   "ltrBehavior": "default", "rtlBehavior": "AI bubble tail direction mirrors (bottom-start AI / bottom-end Student — swapped, not both-same); quick-action chip order mirrors",
   "themeBehavior": "standard semantic token resolution",
   "responsiveRules": "bubble max-width caps at 80% of chat container for readability at wide viewports",
-  "knownGaps": ["No desktop-assembled showcase reference exists — judged against the mobile mockup + design-system/COMPONENTS.md § AI Tutor component spec."]
+  "knownGaps": ["No desktop-assembled showcase reference exists — judged against the mobile mockup + design-system/COMPONENTS.md § AI Tutor component spec.", "D52 fix: the reference mockup's header shows an AI-identity icon badge alongside the 'AI Tutor' title; the implementation previously rendered a bare text heading with no identity treatment. Added a circular icon badge (aiTutor icon on brand.primaryContainer) reusing the same icon+badge language as the Dashboard AI Tutor nudge card. D52 fix: the composer previously rendered as a bordered TextField box + a separate text-label 'Send' button; now a single pill-shaped input row (radius.full, component.input tokens) with a circular icon send button (arrowForward, RTL-mirrored) — message-streaming/quick-action/backend logic unchanged."]
 }

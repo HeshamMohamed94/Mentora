@@ -24,7 +24,7 @@
 
   "sections": [
     { "order": 1, "id": "statRow", "content": ["3 statCards: total courses, published count, total enrollments — LOCKED count, never 4"] },
-    { "order": 2, "id": "createCourse", "content": ["PrimaryButton \"Create Course\""] },
+    { "order": 2, "id": "createCourse", "content": ["PrimaryButton \"Create Course\" with leading + icon (D52)"] },
     { "order": 3, "id": "courseList", "content": ["DataTable: title, status Badge, enrollment count, completion rate, row action — header row uppercase (D49 correction)"] }
   ],
 
@@ -40,5 +40,5 @@
   "ltrBehavior": "default", "rtlBehavior": "table headers/columns and row content mirror per logical properties; status badge stays leading the row's title per logical start",
   "themeBehavior": "standard semantic token resolution",
   "responsiveRules": "shared/responsive.json#/perSurfaceRules/dataTable — collapses to stacked cards below tablet; stat cards stack 1-2 per row on narrow viewports",
-  "knownGaps": ["4th stat card and showcase's alternate table columns are an intentional, disclosed, unresolved gap — not a defect (see conflicts above)."]
+  "knownGaps": ["4th stat card and showcase's alternate table columns are an intentional, disclosed, unresolved gap — not a defect (see conflicts above).", "D52 fix: the header had no instructor-name byline (the reference mockup shows 'Dr. Layla Hassan · 6 courses' under the title) — added, sourced from the already-available useCurrentUser() (name) + dashboard stats (course count), no new backend call. D52 fix: 'Create Course' button had no leading icon (reference shows a '+') — added. The reference's per-row '⋮' action menu was NOT added — product/SCREEN_INVENTORY.md § 20 defines no secondary row action beyond opening the editor, so a menu with no destination would be a fabricated affordance."]
 }

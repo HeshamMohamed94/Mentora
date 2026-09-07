@@ -40,5 +40,5 @@
   "themeBehavior": "standard semantic token resolution",
   "responsiveRules": "list stacks full-width below Desktop; nested lesson lists remain legible (indentation reduces but doesn't disappear)",
   "accessibilityRule": "every section/lesson row exposes Move Up/Move Down IconButtons in addition to the drag handle, always visible — never drag-only (design-system/COMPONENTS.md § ReorderableList)",
-  "knownGaps": []
+  "knownGaps": ["D52: section-block surface color was implicit (inherited from the parent panel) rather than an explicit color.surface.default — made explicit so each section container reads as a distinct card, matching sectionList's own card-container intent. Section/lesson row structure, spacing, and reorder affordances were already spec-compliant against COMPONENTS.md § ReorderableList (verified D52) — no other change made, per 'do not change instructor authoring behavior unnecessarily.'"]
 }

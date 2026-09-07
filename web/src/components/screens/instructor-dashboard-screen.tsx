@@ -1,9 +1,10 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
-import { Badge, Button, EmptyState, ErrorState, StatCard } from "@/components/ui";
+import { Badge, Button, EmptyState, ErrorState, Icon, StatCard } from "@/components/ui";
 import { Link, useRouter } from "@/i18n/navigation";
 import { useInstructorDashboard } from "@/lib/api/instructor";
+import { useCurrentUser } from "@/lib/auth/use-current-user";
 import { formatCount } from "@/lib/i18n/format";
 
 export function InstructorDashboardScreen() {
@@ -11,6 +12,7 @@ export function InstructorDashboardScreen() {
   const locale = useLocale();
   const router = useRouter();
   const dashboard = useInstructorDashboard();
+  const { data: user } = useCurrentUser();
 
   if (dashboard.isError) {
     return <div className="mtx-instructor-page"><ErrorState description={t("dashboard.loadError")} retryLabel={t("common.retry")} onRetry={() => dashboard.refetch()} /></div>;
@@ -22,8 +24,18 @@ export function InstructorDashboardScreen() {
   return (
     <div className="mtx-instructor-page">
       <div className="mtx-instructor-header">
-        <h1 className="mtx-text-heading-h1">{t("dashboard.title")}</h1>
-        <Button type="button" onClick={() => router.push("/instructor/courses/new")}>{t("dashboard.createCourse")}</Button>
+        <div>
+          <h1 className="mtx-text-heading-h1">{t("dashboard.title")}</h1>
+          {user && (
+            <p className="mtx-text-body-small mtx-instructor-byline">
+              {t("dashboard.byline", { name: user.name, count: dashboard.data.stats.totalCourses })}
+            </p>
+          )}
+        </div>
+        <Button type="button" onClick={() => router.push("/instructor/courses/new")}>
+          <Icon name="add" size={20} aria-hidden="true" />
+          {t("dashboard.createCourse")}
+        </Button>
       </div>
       <div className="mtx-instructor-stats">
         <StatCard value={formatCount(dashboard.data.stats.totalCourses, locale)} label={t("dashboard.totalCourses")} />

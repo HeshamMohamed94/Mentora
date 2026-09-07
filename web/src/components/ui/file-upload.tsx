@@ -17,6 +17,11 @@ export interface FileUploadProps {
   success?: boolean;
   error?: string;
   disabled?: boolean;
+  /** COMPONENTS.md § FileUpload Success state: "Thumbnail preview (image/video)... " — an
+   * optional rich visual preview (e.g. a CourseThumbnail) rendered above the filename row when
+   * the upload target is an image. Lesson video/resource uploads omit this and keep the plain
+   * filename + status-icon treatment. */
+  preview?: React.ReactNode;
   onFile: (file: File) => void;
   onRemove: () => void;
 }
@@ -55,16 +60,19 @@ export function FileUpload(props: FileUploadProps) {
         onDrop={acceptDrop}
       >
         {filename ? (
-          <div className="mtx-file-upload-file">
-            <Icon name={props.error ? "cancel" : props.success ? "checkCircle" : "upload"} size={20} />
-            <span className="mtx-file-upload-name" title={filename}>{middleTruncate(filename)}</span>
-            {props.file && <span className="mtx-file-upload-size">{Math.ceil(props.file.size / 1024)} KB</span>}
-            {props.file && (
-              <button type="button" className="mtx-icon-button" aria-label={props.removeLabel} disabled={props.disabled || props.uploading} onClick={props.onRemove}>
-                <Icon name="close" size={20} />
-              </button>
-            )}
-          </div>
+          <>
+            {props.preview && <div className="mtx-file-upload-preview">{props.preview}</div>}
+            <div className="mtx-file-upload-file">
+              <Icon name={props.error ? "cancel" : props.success ? "checkCircle" : "upload"} size={20} />
+              <span className="mtx-file-upload-name" title={filename}>{middleTruncate(filename)}</span>
+              {props.file && <span className="mtx-file-upload-size">{Math.ceil(props.file.size / 1024)} KB</span>}
+              {props.file && (
+                <button type="button" className="mtx-icon-button" aria-label={props.removeLabel} disabled={props.disabled || props.uploading} onClick={props.onRemove}>
+                  <Icon name="close" size={20} />
+                </button>
+              )}
+            </div>
+          </>
         ) : (
           <>
             <Icon name="upload" size={32} />

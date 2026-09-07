@@ -118,6 +118,8 @@
   },
   "checkout": {
     "title": "Demo Checkout",
+    "orderSummary": "Order Summary",
+    "courseRow": "Course",
     "total": "Total",
     "demoNotice": "Demo Payment — no real charges or payment information required.",
     "confirmAction": "Complete Demo Purchase",
@@ -294,6 +296,7 @@
     },
     "dashboard": {
       "title": "Instructor Dashboard",
+      "byline": "{name} · {count, plural, one {# course} other {# courses}}",
       "createCourse": "Create Course",
       "totalCourses": "Total courses",
       "publishedCourses": "Published courses",

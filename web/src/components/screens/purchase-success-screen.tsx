@@ -14,7 +14,7 @@ export function PurchaseSuccessScreen({ courseId }: { courseId: string }) {
   const router = useRouter();
 
   return (
-    <div className="px-4 py-16">
+    <div className="mtx-success-page">
       <SuccessState
         title={t("successTitle")}
         description={t("successDescription")}

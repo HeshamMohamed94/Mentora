@@ -22,7 +22,7 @@ import {
 import { useCategories } from "@/lib/api/categories";
 import { uploadMedia } from "@/lib/api/media";
 import { useUnsavedChanges } from "@/lib/hooks/use-unsaved-changes";
-import { Badge, Button, ErrorState, FileUpload, Icon, ReorderableList, Select, Tabs, TextField, Toggle, type SelectOption, type TabOption } from "@/components/ui";
+import { Badge, Button, CourseThumbnail, ErrorState, FileUpload, Icon, ReorderableList, Select, Tabs, TextField, Toggle, type SelectOption, type TabOption } from "@/components/ui";
 import { Link, useRouter } from "@/i18n/navigation";
 
 type EditorTab = "overview" | "curriculum";
@@ -204,6 +204,11 @@ function OverviewEditor({ course, tabs, onTabChange }: { course?: CourseResponse
     <>
       {course && <Tabs options={tabs} active="overview" label={t("tabs.label")} onChange={(tab) => guard.requestAction(() => onTabChange(tab))} />}
       <form className="mtx-editor-panel" onSubmit={save}>
+        <div className="mtx-editor-actions mtx-editor-actions-top">
+          <Button type="submit" loading={saving}>{t("overview.save")}</Button>
+          {course && <Toggle checked={course.status === "published"} label={t(`status.${course.status}`)} disabled={publishCourse.isPending || unpublishCourse.isPending || dirty} onChange={togglePublished} />}
+        </div>
+        {formError && <p className="mtx-editor-error" role="alert">{formError}</p>}
         <TextField label={t("overview.titleLabel")} value={form.title} onChange={(event) => setField("title", event.target.value)} disabled={saving} />
         <TextField label={t("overview.descriptionLabel")} value={form.description} onChange={(event) => setField("description", event.target.value)} disabled={saving} />
         <div className="mtx-editor-grid">
@@ -213,12 +218,32 @@ function OverviewEditor({ course, tabs, onTabChange }: { course?: CourseResponse
           <TextField label={t("overview.amountLabel")} type="number" min="0" step="0.01" value={form.amount} onChange={(event) => setField("amount", event.target.value)} disabled={saving} />
           <TextField label={t("overview.currencyLabel")} maxLength={3} value={form.currency} onChange={(event) => setField("currency", event.target.value.toUpperCase())} disabled={saving} />
         </div>
-        <FileUpload label={t("overview.thumbnailLabel")} instruction={t("upload.imageInstruction")} browseLabel={t("upload.browse")} retryLabel={t("common.retry")} removeLabel={t("upload.remove")} accept="image/jpeg,image/png,image/webp" file={thumbnail} existingName={course?.thumbnailMediaId ? t("upload.attachedThumbnail") : undefined} uploading={uploading} success={Boolean(course?.thumbnailMediaId) && !thumbnail} error={fileError} disabled={saving} onFile={selectThumbnail} onRemove={() => { setThumbnail(undefined); setFileError(undefined); }} />
-        {formError && <p className="mtx-editor-error" role="alert">{formError}</p>}
-        <div className="mtx-editor-actions">
-          <Button type="submit" loading={saving}>{t("overview.save")}</Button>
-          {course && <Toggle checked={course.status === "published"} label={t(`status.${course.status}`)} disabled={publishCourse.isPending || unpublishCourse.isPending || dirty} onChange={togglePublished} />}
-        </div>
+        <FileUpload
+          label={t("overview.thumbnailLabel")}
+          instruction={t("upload.imageInstruction")}
+          browseLabel={t("upload.browse")}
+          retryLabel={t("common.retry")}
+          removeLabel={t("upload.remove")}
+          accept="image/jpeg,image/png,image/webp"
+          file={thumbnail}
+          existingName={course?.thumbnailMediaId ? t("upload.attachedThumbnail") : undefined}
+          uploading={uploading}
+          success={Boolean(course?.thumbnailMediaId) && !thumbnail}
+          error={fileError}
+          disabled={saving}
+          onFile={selectThumbnail}
+          onRemove={() => { setThumbnail(undefined); setFileError(undefined); }}
+          preview={
+            course?.thumbnailMediaId && !thumbnail ? (
+              <CourseThumbnail
+                mediaId={course.thumbnailMediaId}
+                className="mtx-editor-thumbnail-preview"
+                seed={course.id}
+                categoryId={course.categoryId}
+              />
+            ) : undefined
+          }
+        />
         {course && (
           <section aria-labelledby="readiness-heading">
             <h2 id="readiness-heading" className="mtx-text-heading-h3">{t("overview.readiness")}</h2>

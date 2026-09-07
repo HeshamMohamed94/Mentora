@@ -59,10 +59,14 @@ export function SuccessState({
 }) {
   return (
     <div className="mtx-success-container">
+      {/* COMPONENTS.md § SuccessState: "icon.large (32) or a custom illustration" — sized to
+       * avatar.xlarge (96, the design system's own largest circular-illustration precedent,
+       * avatar.tsx's AVATAR_DIMENSIONS.xlarge) so the celebratory moment reads as a genuine
+       * full-page confirmation rather than an inline message icon. */}
       <svg
         className="mtx-success-icon"
-        width="32"
-        height="32"
+        width="96"
+        height="96"
         viewBox="0 0 24 24"
         fill="none"
         aria-hidden="true"
@@ -72,7 +76,7 @@ export function SuccessState({
       </svg>
       <h2 className="mtx-text-heading-h3 mtx-success-title">{title}</h2>
       <p className="mtx-text-body-small mtx-success-description">{description}</p>
-      <div className="flex flex-col gap-2" style={{ width: "100%" }}>
+      <div className="mtx-success-actions">
         <Button variant="primary" onClick={onAction} className="w-full">
           {actionLabel}
         </Button>

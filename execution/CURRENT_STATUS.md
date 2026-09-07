@@ -205,11 +205,30 @@ reclassified `"ux-only"` → `"approved-pattern"` in `design-to-code/screens/{lo
 Zero product behavior, routes, backend, or `design-system`/`product`/`ux` document changes. Full
 detail and verification performed: see D51.
 
+**Final targeted visual correction pass (2026-09-07, D52) — done after manual side-by-side
+review of the D50 audit's comparison images (not just automated scores), by explicit user
+request.** Corrected 7 screens: Demo Checkout (regressed to ~75%, rebuilt to include thumbnail/
+instructor/itemized row/total per its own already-existing spec), Purchase Success (icon
+32→96px, vertical centering), Course Details (curriculum now card-contained sections, semantic
+list preserved), AI Tutor (identity header + pill composer + circular send button), Instructor
+Dashboard (byline + "+" icon + a `.mtx-instructor-card` styling regression fixed), Course Editor
+Overview (Save/Publish moved to a top action bar, real `CourseThumbnail` preview wired into
+FileUpload), Course Editor Curriculum (explicit section-card surface color — the same one-line
+fix also applied to Quiz Editor, which shares the CSS class). Purchase Success's `shell: "none"`
+gap (shared AppShell still renders chrome) deliberately left unresolved and disclosed, not
+silently fixed — see D52. The already-locked Instructor Dashboard (3-vs-4 stat cards) and Course
+Editor (2-tab vs. showcase's 3-tab/persistent-rail) conflicts from D47/D48/D49 were re-confirmed,
+not re-litigated. New external audit: `D:\Work\MentoraFinalVisualAudit\` (zipped to
+`MentoraFinalVisualAudit.zip`) — exact-showcase average ≈94.1%, 4 of 7 exact-showcase screens
+≥95%, one screen (Course Editor Overview, 88%) below 90% due to the disclosed locked-spec
+conflict. Zero product behavior, routes, backend, or `design-system`/`product`/`ux` document
+changes. Full detail and verification performed: see D52.
+
 ## Immediate Next Action
 
-**Per explicit user instruction (2026-09-07 session): D51 (Login/Register refinement) is the
-last work done this session. Do not start Task 12 without a new go-ahead — this note is for
-whenever that go-ahead comes.**
+**Per explicit user instruction (2026-09-07 session): D52 (final targeted visual correction
+pass) is the last work done this session. Do not start Task 12 without a new go-ahead — this
+note is for whenever that go-ahead comes.**
 
 Task 12: Admin Web — Dashboard, Manage Courses/Users/Instructors/Categories. Read the real
 backend source before assuming any endpoint shape (same discipline as every prior task):

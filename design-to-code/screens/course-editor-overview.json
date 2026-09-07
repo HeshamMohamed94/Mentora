@@ -23,7 +23,8 @@
 
   "sections": [
     { "order": 1, "id": "tabs", "content": ["Tabs: Overview (active) | Curriculum"] },
-    { "order": 2, "id": "form", "content": ["Title TextField", "Description TextField (multiline)", "Category Select", "Level Select (Beginner/Intermediate/Advanced)", "Content Language Select (independent of UI language)", "Price TextField", "Thumbnail FileUpload", "Publish-readiness checklist", "Publish/Unpublish Toggle (labeled, never color/position-only)"] }
+    { "order": 1.5, "id": "actionsTop", "content": ["Save PrimaryButton + Publish/Unpublish Toggle, moved to a prominent action bar at the top of the form (D52) — previously buried after every field, requiring a scroll before the primary action was visible"] },
+    { "order": 2, "id": "form", "content": ["Title TextField", "Description TextField (multiline)", "Category Select", "Level Select (Beginner/Intermediate/Advanced)", "Content Language Select (independent of UI language)", "Price TextField", "Thumbnail FileUpload with real CourseThumbnail preview image (D52 — previously text label + checkmark only)", "Publish-readiness checklist"] }
   ],
 
   "componentSequence": ["tabs", "textField", "select", "fileUpload", "toggle", "chip.badge", "button.primary", "button.tonal"],
@@ -38,5 +39,5 @@
   "ltrBehavior": "default", "rtlBehavior": "form labels/fields start-aligned; FileUpload dropzone icon/text logical alignment; Select menus open start-aligned to field, trailing indicator at logical end",
   "themeBehavior": "standard semantic token resolution",
   "responsiveRules": "form fields stack full-width below Desktop",
-  "knownGaps": ["Media tab / persistent Curriculum rail are an intentional, disclosed, unresolved gap versus the showcase — see conflicts above. This is the largest single driver of this screen's fidelity ceiling."]
+  "knownGaps": ["Media tab / persistent Curriculum rail are an intentional, disclosed, unresolved gap versus the showcase — see conflicts above. This is the largest single driver of this screen's fidelity ceiling.", "D52 fix: Save button + Publish Toggle moved to a top-of-form action bar (see sections.actionsTop) — matches the reference's prominent header actions without merging into the shared outer instructor-page header, which would have required lifting form state across components; same save/publish logic, unchanged. D52 fix: the FileUpload success state for the course thumbnail now renders a real CourseThumbnail image preview instead of a bare text label + checkmark, closing the gap this file's own (pre-existing) artworkRules field already called for but was never actually wired up."]
 }

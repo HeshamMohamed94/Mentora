@@ -27,7 +27,7 @@ export function CheckoutScreen({ courseId }: { courseId: string }) {
 
   if (previewQuery.isLoading) {
     return (
-      <div className="mx-auto px-4 py-16" style={{ maxWidth: "560px" }}>
+      <div className="mtx-checkout-page">
         <div className="mtx-skeleton" style={{ height: 280, borderRadius: "var(--radius-large)" }} />
       </div>
     );
@@ -35,18 +35,19 @@ export function CheckoutScreen({ courseId }: { courseId: string }) {
 
   if (previewQuery.isError || !previewQuery.data) {
     return (
-      <div className="px-4 py-16">
+      <div className="mtx-checkout-page">
         <ErrorState description={t("errorTitle")} retryLabel={tCommon("retry")} onRetry={() => previewQuery.refetch()} />
       </div>
     );
   }
 
   const preview = previewQuery.data;
+  const price = formatPrice(preview.priceDisplay.amount, preview.priceDisplay.currency, locale);
 
   return (
-    <div className="mx-auto px-4 py-16" style={{ maxWidth: "560px" }}>
-      <h1 className="mtx-text-heading-h3 mb-6 text-center">{t("title")}</h1>
-      <div className="mtx-checkout-card flex flex-col gap-4">
+    <div className="mtx-checkout-page">
+      <h1 className="mtx-text-heading-h3 mtx-checkout-title">{t("title")}</h1>
+      <div className="mtx-checkout-card">
         <div className="mtx-checkout-line-item">
           <CourseThumbnail
             mediaId={preview.course.thumbnailMediaId}
@@ -62,11 +63,16 @@ export function CheckoutScreen({ courseId }: { courseId: string }) {
           </div>
         </div>
 
+        <p className="mtx-checkout-eyebrow mtx-text-label-large">{t("orderSummary")}</p>
+
+        <div className="mtx-checkout-price-row">
+          <span className="mtx-text-body-medium mtx-checkout-price-label">{t("courseRow")}</span>
+          <span className="mtx-text-body-medium mtx-checkout-price-label">{price}</span>
+        </div>
+
         <div className="mtx-checkout-summary-row">
           <span className="mtx-text-body-medium mtx-checkout-price-label">{t("total")}</span>
-          <span className="mtx-text-heading-h3 mtx-checkout-price-total">
-            {formatPrice(preview.priceDisplay.amount, preview.priceDisplay.currency, locale)}
-          </span>
+          <span className="mtx-text-heading-h3 mtx-checkout-price-total">{price}</span>
         </div>
 
         <p className="mtx-checkout-notice mtx-text-body-small">{t("demoNotice")}</p>
@@ -77,7 +83,7 @@ export function CheckoutScreen({ courseId }: { courseId: string }) {
           </p>
         )}
 
-        <div className="flex flex-col gap-2">
+        <div className="mtx-checkout-actions">
           <Button variant="primary" loading={completeMutation.isPending} onClick={handleConfirm} className="w-full">
             {t("confirmAction")}
           </Button>

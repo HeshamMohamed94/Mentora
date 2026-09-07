@@ -12,7 +12,7 @@
     "product/DEMO_PAYMENT_FLOW.md",
     "product/SCREEN_INVENTORY.md § 18"
   ],
-  "highestMatchingScreen": "This screen and purchase-success.json were the two HIGHEST-scoring screens (91%/93%) in the original 24-screen visual audit — both essentially reproduce the mobile reference's copy, structure, and control layout almost exactly, despite being approved-pattern (mobile-mockup) rather than exact-showcase.",
+  "highestMatchingScreen": "This screen and purchase-success.json were the two HIGHEST-scoring screens (91%/93%) in the ORIGINAL 24-screen visual audit (pre-D48). D52 correction: by the D50 post-pipeline audit this had regressed to 75% (lowest of all 24) — the sections.priceRows row this spec always documented had been silently dropped from the implementation at some point between the original audit and D50, collapsing the itemized Course row into a single Total-only row. Fixed in D52 (execution/DECISIONS_LOG.md D52) — do not treat this note's historical 91% as the current state.",
 
   "layout": { "structure": "single-column card at form-width cap, every breakpoint — Checkout/OrderSummary component" },
 

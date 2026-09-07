@@ -2,7 +2,7 @@
 
 import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { AiTutorBubble, AiTutorQuickAction, Button, ErrorState } from "@/components/ui";
+import { AiTutorBubble, AiTutorQuickAction, Button, ErrorState, Icon } from "@/components/ui";
 import {
   AiTutorStreamError,
   streamAiMessage,
@@ -185,9 +185,16 @@ export function AiTutorScreen() {
   return (
     <div className="mtx-ai-tutor-page">
       <section className="mtx-ai-tutor-panel" aria-labelledby="ai-tutor-title">
-        <h1 id="ai-tutor-title" className="mtx-text-heading-h2 mtx-ai-tutor-title">
-          {t("title")}
-        </h1>
+        <div className="mtx-ai-tutor-title">
+          <div className="mtx-ai-tutor-identity">
+            <span className="mtx-ai-tutor-avatar" aria-hidden="true">
+              <Icon name="aiTutor" size={20} />
+            </span>
+            <h1 id="ai-tutor-title" className="mtx-text-heading-h2">
+              {t("title")}
+            </h1>
+          </div>
+        </div>
 
         <div className="mtx-ai-tutor-thread" role="log" aria-live="polite" aria-relevant="additions">
           {messages.map((message) => (
@@ -224,16 +231,22 @@ export function AiTutorScreen() {
             </label>
             <textarea
               id="ai-tutor-message"
-              className="mtx-input mtx-ai-tutor-input"
+              className="mtx-ai-tutor-input"
               value={draft}
               maxLength={MAX_MESSAGE_LENGTH}
-              rows={2}
+              rows={1}
               placeholder={t("inputPlaceholder")}
               onChange={(event) => setDraft(event.target.value)}
               onKeyDown={handleDraftKeyDown}
             />
-            <Button type="submit" variant="primary" disabled={isStreaming || !draft.trim()}>
-              {t("send")}
+            <Button
+              type="submit"
+              variant="primary"
+              className="mtx-ai-tutor-send"
+              disabled={isStreaming || !draft.trim()}
+              aria-label={t("send")}
+            >
+              <Icon name="arrowForward" size={20} className="mtx-icon-mirror-rtl" />
             </Button>
           </form>
         </div>

@@ -88,13 +88,13 @@ export function CourseDetailsScreen({ courseId }: { courseId: string }) {
         <h2 className="mtx-text-heading-h3 mt-4">
           {t("curriculum")} — {t("lessonsCount", { count: totalLessons })}
         </h2>
-        <ol className="flex flex-col gap-3">
+        <ol className="mtx-course-details-curriculum">
           {course.sections.map((section) => (
-            <li key={section.sectionId}>
+            <li key={section.sectionId} className="mtx-course-details-curriculum-section">
               <p className="mtx-text-label-large">{section.title}</p>
-              <ul className="flex flex-col gap-1 ps-4" style={{ listStyleType: "disc" }}>
+              <ul>
                 {section.lessons.map((lesson) => (
-                  <li key={lesson.lessonId} className="mtx-text-body-small">
+                  <li key={lesson.lessonId} className="mtx-text-body-small mtx-course-details-lesson-row">
                     {lesson.title}
                   </li>
                 ))}
