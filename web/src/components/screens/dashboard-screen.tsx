@@ -2,13 +2,73 @@
 
 import { useTranslations, useLocale } from "next-intl";
 import { useCurrentUser } from "@/lib/auth/use-current-user";
-import { useMyLearning } from "@/lib/api/my-learning";
-import { useCourses } from "@/lib/api/courses";
+import { useMyLearning, type MyLearningItem } from "@/lib/api/my-learning";
+import { useCourses, type LessonResponse, type SectionResponse } from "@/lib/api/courses";
 import { useFollowedLearningPaths } from "@/lib/api/learning-paths";
 import { CourseProgressCard, CourseCard, LearningPathCard, StatCard, EmptyState, Icon } from "@/components/ui";
 import { LEVEL_LABEL_KEYS } from "@/lib/i18n/course-labels";
 import { formatCount } from "@/lib/i18n/format";
 import { Link, useRouter } from "@/i18n/navigation";
+
+/** Same ordering rule as CoursePlayerScreen — sections then lessons, both by `order`. */
+function orderedLessons(sections: SectionResponse[]): LessonResponse[] {
+  return [...sections]
+    .sort((first, second) => first.order - second.order)
+    .flatMap((section) => [...section.lessons].sort((first, second) => first.order - second.order));
+}
+
+interface UpNextEntry {
+  key: string;
+  kind: "next-lesson" | "continue";
+  courseId: string;
+  courseTitle: string;
+  lessonNumber: number;
+  lessonTitle: string;
+}
+
+/**
+ * Reference showcase's Dashboard "UP NEXT" module (Section 22, Student Dashboard mockup) lists
+ * concrete next actions rather than a static widget. Built only from data already on
+ * `MyLearningItem` (course sections + progress.currentLessonId) — no extra endpoints, no
+ * fabricated content (a quiz-due line would need per-course quiz metadata this screen doesn't
+ * fetch, so it's intentionally omitted rather than faked).
+ */
+function upNextEntries(continueItems: MyLearningItem[]): UpNextEntry[] {
+  const entries: UpNextEntry[] = [];
+  const primary = continueItems[0];
+  if (primary) {
+    const lessons = orderedLessons(primary.course.sections);
+    const currentIndex = lessons.findIndex((lesson) => lesson.lessonId === primary.progress.currentLessonId);
+    const nextLesson = lessons[currentIndex + 1];
+    if (nextLesson) {
+      entries.push({
+        key: `next-${primary.course.id}`,
+        kind: "next-lesson",
+        courseId: primary.course.id,
+        courseTitle: primary.course.title,
+        lessonNumber: currentIndex + 2,
+        lessonTitle: nextLesson.title,
+      });
+    }
+  }
+  const secondary = continueItems[1];
+  if (secondary) {
+    const lessons = orderedLessons(secondary.course.sections);
+    const currentIndex = lessons.findIndex((lesson) => lesson.lessonId === secondary.progress.currentLessonId);
+    const current = lessons[currentIndex] ?? lessons[0];
+    if (current) {
+      entries.push({
+        key: `continue-${secondary.course.id}`,
+        kind: "continue",
+        courseId: secondary.course.id,
+        courseTitle: secondary.course.title,
+        lessonNumber: Math.max(currentIndex, 0) + 1,
+        lessonTitle: current.title,
+      });
+    }
+  }
+  return entries.slice(0, 3);
+}
 
 /**
  * product/SCREEN_INVENTORY.md § 8 (Dashboard / Home). "Certificates" stat reuses the completed-
@@ -33,6 +93,7 @@ export function DashboardScreen() {
   const inProgress = myLearning.items.filter((item) => item.progress.completionPercent < 100);
   const completedCount = myLearning.items.length - inProgress.length;
   const continueItems = inProgress.slice(0, 3);
+  const upNext = upNextEntries(continueItems);
   const avgProgress = myLearning.items.length
     ? Math.round(
         myLearning.items.reduce((sum, item) => sum + item.progress.completionPercent, 0) / myLearning.items.length,
@@ -116,17 +177,39 @@ export function DashboardScreen() {
           )}
         </div>
 
-        <aside className="mtx-dashboard-ai-nudge">
-          <span className="mtx-dashboard-ai-nudge-eyebrow">
-            <Icon name="aiTutor" size={20} />
-            {t("aiTutorEyebrow")}
-          </span>
-          <h2 className="mtx-text-heading-h4">{t("aiTutorNudgeTitle")}</h2>
-          <p className="mtx-text-body-small">{t("aiTutorNudgeDescription")}</p>
-          <Link href="/app/ai-tutor" className="mtx-btn mtx-btn-primary">
-            {t("aiTutorNudgeCta")}
-          </Link>
-        </aside>
+        <div className="flex flex-col gap-6">
+          <aside className="mtx-dashboard-ai-nudge">
+            <span className="mtx-dashboard-ai-nudge-eyebrow">
+              <Icon name="aiTutor" size={20} />
+              {t("aiTutorEyebrow")}
+            </span>
+            <h2 className="mtx-text-heading-h4">{t("aiTutorNudgeTitle")}</h2>
+            <p className="mtx-text-body-small">{t("aiTutorNudgeDescription")}</p>
+            <Link href="/app/ai-tutor" className="mtx-btn mtx-btn-primary">
+              {t("aiTutorNudgeCta")}
+            </Link>
+          </aside>
+
+          {upNext.length > 0 && (
+            <aside className="mtx-dashboard-upnext">
+              <span className="mtx-dashboard-upnext-eyebrow">{t("upNextTitle")}</span>
+              <ul className="mtx-dashboard-upnext-list">
+                {upNext.map((entry) => (
+                  <li key={entry.key}>
+                    <Link href={`/app/learn/${entry.courseId}`} className="mtx-dashboard-upnext-link">
+                      {entry.kind === "next-lesson"
+                        ? t("upNextLesson", { number: formatCount(entry.lessonNumber, locale), title: entry.lessonTitle })
+                        : t("upNextContinue", {
+                            title: entry.courseTitle,
+                            number: formatCount(entry.lessonNumber, locale),
+                          })}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </aside>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -27,8 +27,8 @@
   },
   "landing": {
     "heroEyebrow": "تعلّم. اِبنِ. تطوّر.",
-    "heroTitle": "تعلّم. اِبنِ. تطوّر.",
-    "heroSubtitle": "دورات عملية تأخذك من الفضول إلى الإتقان.",
+    "heroTitle": "تعلّم المهارة. اِبنِ المشروع. طوّر مسيرتك المهنية.",
+    "heroSubtitle": "دورات منظّمة ومسارات تعلّم موجّهة بالإنجليزية والعربية، مع معلّم ذكي يعرف بالضبط الدرس الذي تتابعه.",
     "exploreCourses": "استكشف الدورات",
     "getStarted": "ابدأ الآن",
     "statCourses": "{count} دورة",
@@ -96,7 +96,10 @@
     "aiTutorEyebrow": "المعلّم الذكي",
     "aiTutorNudgeTitle": "عالق في شيء ما؟",
     "aiTutorNudgeDescription": "اطلب ملخصًا أو مثالًا عمليًا أو تحققًا سريعًا من فهمك.",
-    "aiTutorNudgeCta": "اسأل المعلّم الذكي"
+    "aiTutorNudgeCta": "اسأل المعلّم الذكي",
+    "upNextTitle": "التالي",
+    "upNextLesson": "الدرس التالي · {number} · {title}",
+    "upNextContinue": "متابعة: {title} · الدرس {number}"
   },
   "myLearning": {
     "title": "تعلّمي",
@@ -145,6 +148,12 @@
     "completionDescription": "شهادتك جاهزة.",
     "viewCertificate": "عرض الشهادة",
     "backToLearning": "العودة إلى تعلّمي",
+    "yourProgress": "تقدّمك",
+    "overview": "نظرة عامة",
+    "previousLesson": "السابق",
+    "nextLesson": "التالي",
+    "lessonOf": "الدرس {current} من {total}",
+    "noResources": "لا توجد مصادر لهذا الدرس بعد.",
     "video": {
       "play": "تشغيل",
       "pause": "إيقاف مؤقت",

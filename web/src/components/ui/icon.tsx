@@ -43,7 +43,8 @@ export type IconName =
   | "courseCode"
   | "courseGrid"
   | "courseLayers"
-  | "arrowForward";
+  | "arrowForward"
+  | "arrowBack";
 
 const PATHS: Record<IconName, React.ReactNode> = {
   dashboard: (
@@ -184,6 +185,7 @@ const PATHS: Record<IconName, React.ReactNode> = {
     </>
   ),
   arrowForward: <path d="M5 12h14M13 6l6 6-6 6" />,
+  arrowBack: <path d="M19 12H5M11 6l-6 6 6 6" />,
 };
 
 export function Icon({ name, size = 24, className }: { name: IconName; size?: number; className?: string }) {

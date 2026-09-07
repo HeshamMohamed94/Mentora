@@ -27,8 +27,8 @@
   },
   "landing": {
     "heroEyebrow": "Learn. Build. Grow.",
-    "heroTitle": "Learn. Build. Grow.",
-    "heroSubtitle": "Practical courses that take you from curious to capable.",
+    "heroTitle": "Learn the skill. Build the project. Grow the career.",
+    "heroSubtitle": "Structured courses and guided learning paths in English and Arabic, with an AI Tutor that knows the lesson you're on.",
     "exploreCourses": "Explore Courses",
     "getStarted": "Get Started",
     "statCourses": "{count} courses",
@@ -96,7 +96,10 @@
     "aiTutorEyebrow": "AI Tutor",
     "aiTutorNudgeTitle": "Stuck on something?",
     "aiTutorNudgeDescription": "Ask for a recap, a worked example, or a quick check of your understanding.",
-    "aiTutorNudgeCta": "Ask the AI Tutor"
+    "aiTutorNudgeCta": "Ask the AI Tutor",
+    "upNextTitle": "Up next",
+    "upNextLesson": "Next lesson · {number} · {title}",
+    "upNextContinue": "Continue: {title} · Lesson {number}"
   },
   "myLearning": {
     "title": "My Learning",
@@ -145,6 +148,12 @@
     "completionDescription": "Your certificate is ready.",
     "viewCertificate": "View Certificate",
     "backToLearning": "Back to My Learning",
+    "yourProgress": "Your progress",
+    "overview": "Overview",
+    "previousLesson": "Previous",
+    "nextLesson": "Next",
+    "lessonOf": "Lesson {current} of {total}",
+    "noResources": "No resources for this lesson yet.",
     "video": {
       "play": "Play",
       "pause": "Pause",
