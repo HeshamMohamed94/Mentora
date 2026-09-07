@@ -2,6 +2,35 @@
   "$description": "The platform-neutral contract every generator (Web now, Android/iOS later) must satisfy. Restates design-system/platform-mapping.md's conventions in a form the design-to-code pipeline itself can be validated against. Android and iOS are NOT implemented this phase — this file only makes the shared JSON structurally suitable for them later.",
   "sourceReferences": ["design-system/platform-mapping.md"],
 
+  "visualParityRule": {
+    "$title": "MENTORA VISUAL PARITY RULE (D53)",
+    "rule": "Web, Android, and iOS use the same semantic visual system. Platform-native UI implementation is allowed (each platform renders with its own toolkit — Tailwind/CSS on Web, Jetpack Compose on Android, SwiftUI on iOS), but visual semantics must remain equivalent across all three. No platform may independently choose a different visual identity.",
+    "mustBeTheSameAcrossPlatforms": [
+      "colors — every color a screen shows must resolve from shared/tokens.json#/color/semantic (light and dark), never a platform-local palette",
+      "background hierarchy — the same background.primary/background.secondary/surface.default/surface.elevated/surface.variant layering, in the same relative order of lightness",
+      "typography hierarchy — the same shared/typography.json scale and weight relationships (display/heading/body/label/caption), even though the concrete unit differs (rem vs sp vs Dynamic-Type pt)",
+      "spacing scale — the same shared/spacing.json 4px-based step values, converted to the platform's fixed layout unit (px/dp/pt), never a platform-invented scale",
+      "radius family — the same shared/shape.json radius steps mapped to the same component types (e.g. radius.large for all cards on every platform)",
+      "surface hierarchy — the same card/panel/sheet elevation relationships from shared/elevation.json",
+      "component intent — the same shared/components.json recipes (e.g. PrimaryButton, CourseCard, Checkout) resolve to the same token references regardless of platform; only the rendering technology changes",
+      "artwork system — the same shared/artwork.json 5-motif course-artwork composition (gradient + icon + category chip), never a platform-specific illustration style"
+    ],
+    "platformNativeDifferencesAllowed": [
+      "native navigation mechanics — e.g. Android back-stack/gesture nav, iOS swipe-back, Web browser history — the navigation MODEL is native, the navigation SURFACE'S color/typography/spacing is not",
+      "platform-safe-area behavior — status bar / notch / home-indicator insets are platform-native concerns with no Web equivalent",
+      "native interaction affordances — e.g. Android ripple, iOS haptic feedback / press-scale, Web :hover — the interaction MECHANISM is native, the resulting state color (hover/pressed containers from shared/tokens.json) is not",
+      "native control behavior where required by platform convention — e.g. a native iOS date/time picker sheet, an Android native Snackbar host — as long as the control's own visible colors/typography still resolve from the shared semantic tokens, not a platform default theme"
+    ],
+    "explicitlyNotAllowed": [
+      "an independent Android color palette (e.g. Material You dynamic color) replacing shared/tokens.json's semantic colors",
+      "an independent iOS color palette (e.g. raw UIColor system colors) replacing shared/tokens.json's semantic colors",
+      "separate auth (Login/Register) styling that diverges from the same background/surface/card treatment used elsewhere on that platform",
+      "a separate CourseCard identity per platform — artwork motifs, category chip treatment, and card surface must be recognizably the same component everywhere",
+      "unrelated dark/light systems — dark mode on every platform must be the same semantic structure re-resolved (shared/tokens.json#/color/semantic/dark), never a platform-specific dark palette invented independently"
+    ],
+    "enforcementToday": "No Android/iOS code exists yet (still NOT IMPLEMENTED, see android/ios sections below) — this rule governs how that future code must be generated from shared/*.json, and is the criterion a future PR review must check against. Today it also re-states why Web's own Login/Register (D51) and Purchase Success/Instructor Dashboard/etc. (D52) corrections were required to consume the SAME shared background/surface tokens as every other Web screen rather than any screen-invented alternative."
+  },
+
   "pipeline": {
     "diagram": "Shared JSON (design-to-code/shared/*.json, design-to-code/screens/*.json, design-to-code/patterns/*.json) -> Web generator (tools/design-to-code/generate.js) -> [Android generator later] -> [iOS generator later]",
     "rule": "A generator READS shared JSON and WRITES platform-specific generated artifacts. A generator never writes back into shared/screens/patterns JSON, and a generated artifact is never hand-edited — regenerate from source instead.",
@@ -28,7 +57,26 @@
       "shared/tokens.json's dot-path names already match platform-mapping.md's documented Android naming convention 1:1 — a generator only needs a dot-path -> camelCase transform, already implemented once in tools/token-pipeline/generate.js's kebabPath()/camelToKebabSegment() helpers (inverse direction needed for Android/iOS, not yet written).",
       "shared/components.json's token references (e.g. \"color.brand.primary\") resolve identically regardless of target platform — no Android-specific re-authoring of component recipes is anticipated, only a new renderer for the same recipe data.",
       "shared/navigation.json's shell definitions are Web-shaped (Sidebar/Navbar) since Instructor/Admin are Web-only by product design (product/USER_ROLES.md) — an Android app (Student-only surfaces) would consume shared/navigation.json#/shells/coursePlayerShell and a new, not-yet-specified MobileBottomNavigation-driven shell, not Sidebar/Navbar."
-    ]
+    ],
+    "colorSchemeMapping": {
+      "$description": "Every dot-path in shared/tokens.json#/color/semantic mapped to its Jetpack Compose Material 3 ColorScheme slot, for BOTH light and dark — the generator's job is filling these slots from the SAME resolved values already in tokens.json, never choosing new ones (e.g. never Material You dynamic color).",
+      "light": {
+        "background.primary": "ColorScheme.background", "surface.default": "ColorScheme.surface", "surface.elevated": "ColorScheme.surfaceContainerHigh", "surface.variant": "ColorScheme.surfaceVariant", "surface.inverse": "ColorScheme.inverseSurface",
+        "text.primary": "ColorScheme.onBackground / ColorScheme.onSurface", "text.secondary": "ColorScheme.onSurfaceVariant", "text.disabled": "ColorScheme.onSurface @ disabledContentOpacity", "text.inverse": "ColorScheme.inverseOnSurface", "text.link": "ColorScheme.primary (rendered as a clickable AnnotatedString span, not a separate slot)",
+        "border.default": "ColorScheme.outlineVariant", "border.strong": "ColorScheme.outline", "border.focus": "ColorScheme.primary", "border.error": "ColorScheme.error",
+        "brand.primary": "ColorScheme.primary", "brand.primaryContainer": "ColorScheme.primaryContainer", "brand.onPrimary": "ColorScheme.onPrimary", "brand.onPrimaryContainer": "ColorScheme.onPrimaryContainer", "brand.onSurfaceInverse": "ColorScheme.inversePrimary",
+        "secondary.default": "ColorScheme.secondary", "secondary.container": "ColorScheme.secondaryContainer", "secondary.onSecondary": "ColorScheme.onSecondary", "secondary.onSecondaryContainer": "ColorScheme.onSecondaryContainer",
+        "success.default/container/onSuccess/onSuccessContainer": "custom ColorScheme extension (M3 has no built-in success role) — extend MaterialTheme via a CompositionLocal, same pattern web uses for --color-success-*",
+        "warning.*": "custom ColorScheme extension, same reasoning as success",
+        "error.default": "ColorScheme.error", "error.container": "ColorScheme.errorContainer", "error.onError": "ColorScheme.onError", "error.onErrorContainer": "ColorScheme.onErrorContainer",
+        "info.*": "custom ColorScheme extension, same reasoning as success",
+        "overlay.scrim": "ColorScheme.scrim"
+      },
+      "dark": "Same slot mapping as light — Compose's darkColorScheme(...) is filled from shared/tokens.json#/color/semantic/dark's values for the identical slot names above. No slot is ever re-mapped between light/dark; only the resolved value differs, per the Layer-1/Layer-2/Layer-3 rule shared/tokens.json itself documents."
+    },
+    "typographyMapping": { "$description": "shared/typography.json scale -> Compose Typography slots.", "display.large": "Typography.displayLarge", "display.medium": "Typography.displayMedium", "heading.h1": "Typography.headlineLarge", "heading.h2": "Typography.headlineMedium", "heading.h3": "Typography.headlineSmall", "heading.h4": "Typography.titleLarge", "body.large": "Typography.bodyLarge", "body.medium": "Typography.bodyMedium", "body.small": "Typography.bodySmall", "label.large": "Typography.labelLarge", "label.medium": "Typography.labelMedium", "caption": "Typography.labelSmall" },
+    "shapeMapping": { "$description": "shared/shape.json radius steps -> Compose Shapes slots.", "radius.small": "Shapes.extraSmall", "radius.medium": "Shapes.small", "radius.large": "Shapes.medium (cards, dashboard cards, all cards per shared/shape.json)", "radius.xlarge": "Shapes.large (dialogs, bottom sheets — top corners only, via a custom RoundedCornerShape not Shapes.extraLarge's all-corner default)", "radius.full": "CircleShape / RoundedCornerShape(percent = 50) (chips, badges, avatar, progress bar, switch)" },
+    "elevationMapping": "shared/elevation.json's e1-e4 shadow values map to Compose `tonalElevation`/`shadowElevation` Dp values on Surface/Card composables — per the design system's own 'borders over shadow' principle (see visualParityRule above), Compose cards should prefer a `border` stroke (BorderStroke(1.dp, ColorScheme.outlineVariant)) with LOW tonalElevation, not a heavy shadowElevation, to visually match Web's subtle e1/e2 shadows rather than Material's default elevated-card shadow weight."
   },
 
   "ios": {
@@ -40,7 +88,16 @@
       "Typography must wrap each token in a Dynamic-Type-aware Font style per shared/tokens.json#/units — the shared JSON already carries the base fontSize/lineHeight numbers a SwiftUI generator needs; it does not yet carry an explicit Dynamic-Type category mapping (inferred to be a straightforward relative-scale wrap, not a new value set).",
       "shared/components.json's `select` recipe explicitly maps to a Menu/Picker-style SwiftUI control (design-system/COMPONENTS.md § Select, Native mapping) — already documented, no additional shared-JSON change needed to support it later.",
       "shared/artwork.json's motif system is platform-agnostic (gradient + icon + chip composition) and requires no iOS-specific restructuring — only a new SwiftUI view implementing the same composition recipe."
-    ]
+    ],
+    "colorMapping": {
+      "$description": "Every dot-path in shared/tokens.json#/color/semantic mapped to a Color Set asset name (Any Appearance = light values, Dark Appearance = dark values, generated into ONE asset per dot-path so SwiftUI's automatic dark-mode resolution does the theme switch, mirroring Web's [data-theme] and Android's ColorScheme — never a manually-branched `if colorScheme == .dark` in view code).",
+      "assetNamingConvention": "mentora<PascalCase dot-path>, e.g. background.primary -> mentoraBackgroundPrimary, brand.primaryContainer -> mentoraBrandPrimaryContainer",
+      "swiftAccessorConvention": "Color.mentora<PascalCase>, e.g. Color.mentoraBrandPrimary, generated as a Color extension reading the asset catalog entry above — the SAME name for every dot-path in the semantic table (background.*, surface.*, text.*, border.*, brand.*, secondary.*, accent.*, success.*, warning.*, error.*, info.*, overlay.*).",
+      "systemColorRule": "Never substitute a raw UIKit/SwiftUI system color (Color.gray, Color(.systemBackground), etc.) for a semantic token slot — every one of the dot-paths above must resolve through its mentora-prefixed asset, per explicitlyNotAllowed above."
+    },
+    "typographyMapping": { "$description": "shared/typography.json scale -> SwiftUI Font styles, each wrapped for Dynamic Type via `.font(.mentora<Name>)` custom Font extensions rather than raw `.system(size:)` calls.", "display.large": "Font.mentoraDisplayLarge (relativeTo: .largeTitle)", "display.medium": "Font.mentoraDisplayMedium (relativeTo: .largeTitle)", "heading.h1": "Font.mentoraHeadingH1 (relativeTo: .title)", "heading.h2": "Font.mentoraHeadingH2 (relativeTo: .title2)", "heading.h3": "Font.mentoraHeadingH3 (relativeTo: .title3)", "heading.h4": "Font.mentoraHeadingH4 (relativeTo: .headline)", "body.large": "Font.mentoraBodyLarge (relativeTo: .body)", "body.medium": "Font.mentoraBodyMedium (relativeTo: .body)", "body.small": "Font.mentoraBodySmall (relativeTo: .subheadline)", "label.large": "Font.mentoraLabelLarge (relativeTo: .subheadline)", "label.medium": "Font.mentoraLabelMedium (relativeTo: .footnote)", "caption": "Font.mentoraCaption (relativeTo: .caption)" },
+    "shapeMapping": { "$description": "shared/shape.json radius steps -> SwiftUI shape values.", "radius.small": "RoundedRectangle(cornerRadius: 8)", "radius.medium": "RoundedRectangle(cornerRadius: 12) — buttons, inputs, select, snackbar, menus", "radius.large": "RoundedRectangle(cornerRadius: 16) — course card, dashboard card, all cards", "radius.xlarge": "UnevenRoundedRectangle (top corners only, 24pt) — dialog / bottom sheet", "radius.full": "Capsule() — chip, badge, avatar (Circle() when 1:1), progress bar" },
+    "elevationMapping": "shared/elevation.json's e1-e4 map to a `.mentoraElevation(_:)` ViewModifier applying `.shadow(color:radius:y:)` tuned to the SAME subtle rgba/blur/offset values Web's e1-e4 use — per the 'borders over shadow' principle, pair every elevated Card view with a `.overlay(RoundedRectangle(...).stroke(Color.mentoraBorderDefault, lineWidth: 1))` rather than relying on shadow weight alone, matching shared/components.json's card recipe (border + subtle shadow, not shadow-only)."
   },
 
   "generatorFailureContract": {

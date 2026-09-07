@@ -224,11 +224,29 @@ not re-litigated. New external audit: `D:\Work\MentoraFinalVisualAudit\` (zipped
 conflict. Zero product behavior, routes, backend, or `design-system`/`product`/`ux` document
 changes. Full detail and verification performed: see D52.
 
+**Primary Light Visual Alignment pass (2026-09-07, D53) — done by explicit user request to make
+Light Mode the primary visual validation baseline.** Investigated first rather than assuming a
+defect: byte-level comparison of `theme-light.json` against generated `tokens.css` (identical),
+a repo-wide grep for hardcoded/generic-gray colors (zero matches), and live verification of all
+24 screens in freshly-reset Light Mode — **no CSS/token defect was found**. Login/Register
+already share the same page background as every other screen (`.mtx-auth-page` has no
+background rule of its own). Likely explanation for the "feels dark" perception: this dev
+machine's OS/browser reports `prefers-color-scheme: dark`, and the app correctly defers to
+system preference when no explicit override exists (unchanged this pass, per instruction not to
+remove system-preference support). Since no CSS fix was needed, the concrete work was extending
+`design-to-code/shared/platform-contract.json` with an explicit "MENTORA VISUAL PARITY RULE" plus
+Android (Compose ColorScheme/Typography/Shapes) and iOS (SwiftUI Color/Font/shape) mapping
+tables — mapping only, no native code written. New external audit:
+`D:\Work\MentoraLightVisualAudit\` (zipped to `MentoraLightVisualAudit.zip`) — Light-mode overall
+consistency 97%, exact-showcase Light average ≈93.9% (materially unchanged from D52, since no
+screen structure changed). Zero product behavior, routes, backend, or
+`design-system`/`product`/`ux` document changes. Full detail and verification performed: see D53.
+
 ## Immediate Next Action
 
-**Per explicit user instruction (2026-09-07 session): D52 (final targeted visual correction
-pass) is the last work done this session. Do not start Task 12 without a new go-ahead — this
-note is for whenever that go-ahead comes.**
+**Per explicit user instruction (2026-09-07 session): D53 (primary Light visual alignment pass)
+is the last work done this session. Do not start Task 12 without a new go-ahead — this note is
+for whenever that go-ahead comes.**
 
 Task 12: Admin Web — Dashboard, Manage Courses/Users/Instructors/Categories. Read the real
 backend source before assuming any endpoint shape (same discipline as every prior task):
