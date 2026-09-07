@@ -15,14 +15,14 @@ import { formatCount } from "@/lib/i18n/format";
 
 const MAX_NAME_LENGTH = 120;
 
-export function ProfileScreen() {
+export function ProfileScreen({ settingsHref = "/app/settings", showLearningStats = true }: { settingsHref?: string; showLearningStats?: boolean }) {
   const t = useTranslations("profile");
   const locale = useLocale();
   const router = useRouter();
   const queryClient = useQueryClient();
   const userQuery = useCurrentUser();
   const myLearning = useMyLearning();
-  const certificatesQuery = useCertificates();
+  const certificatesQuery = useCertificates(showLearningStats);
   const updateUser = useUpdateCurrentUser();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState("");
@@ -69,15 +69,17 @@ export function ProfileScreen() {
 
   function retryProfile() {
     void userQuery.refetch();
-    void myLearning.refetch();
-    void certificatesQuery.refetch();
+    if (showLearningStats) {
+      void myLearning.refetch();
+      void certificatesQuery.refetch();
+    }
   }
 
-  if (userQuery.isError || myLearning.isError || certificatesQuery.isError) {
+  if (userQuery.isError || (showLearningStats && (myLearning.isError || certificatesQuery.isError))) {
     return <div className="mtx-account-page"><ErrorState description={t("loadError")} retryLabel={t("retry")} onRetry={retryProfile} /></div>;
   }
 
-  if (!userQuery.data || myLearning.isLoading || certificatesQuery.isLoading) {
+  if (!userQuery.data || (showLearningStats && (myLearning.isLoading || certificatesQuery.isLoading))) {
     return (
       <div className="mtx-account-page" role="status" aria-label={t("loading")}>
         <div className="mtx-skeleton mtx-account-skeleton" aria-hidden="true" />
@@ -100,10 +102,12 @@ export function ProfileScreen() {
           </div>
         </div>
 
-        <div className="mtx-profile-stats">
-          <StatCard value={formatCount(completedCount, locale)} label={t("coursesCompleted")} />
-          <StatCard value={formatCount(certificatesQuery.data?.length ?? 0, locale)} label={t("certificates")} />
-        </div>
+        {showLearningStats && (
+          <div className="mtx-profile-stats">
+            <StatCard value={formatCount(completedCount, locale)} label={t("coursesCompleted")} />
+            <StatCard value={formatCount(certificatesQuery.data?.length ?? 0, locale)} label={t("certificates")} />
+          </div>
+        )}
 
         {editing ? (
           <form className="mtx-profile-edit" onSubmit={saveName}>
@@ -128,7 +132,7 @@ export function ProfileScreen() {
         ) : (
           <div className="mtx-account-actions">
             <Button type="button" variant="primary" onClick={startEditing}>{t("editProfile")}</Button>
-            <Link href="/app/settings" className="mtx-btn mtx-btn-secondary">{t("settings")}</Link>
+            <Link href={settingsHref} className="mtx-btn mtx-btn-secondary">{t("settings")}</Link>
           </div>
         )}
 

@@ -31,7 +31,13 @@ export type IconName =
   | "visibility"
   | "visibilityOff"
   | "search"
-  | "close";
+  | "close"
+  | "add"
+  | "delete"
+  | "arrowUpward"
+  | "arrowDownward"
+  | "dragHandle"
+  | "upload";
 
 const PATHS: Record<IconName, React.ReactNode> = {
   dashboard: (
@@ -141,6 +147,12 @@ const PATHS: Record<IconName, React.ReactNode> = {
     </>
   ),
   close: <path d="M6 6l12 12M18 6L6 18" />,
+  add: <path d="M12 5v14M5 12h14" />,
+  delete: <path d="M5 7h14M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5" />,
+  arrowUpward: <path d="M12 19V5M6.5 10.5L12 5l5.5 5.5" />,
+  arrowDownward: <path d="M12 5v14M6.5 13.5L12 19l5.5-5.5" />,
+  dragHandle: <path d="M8 7h8M8 12h8M8 17h8" />,
+  upload: <path d="M12 16V4M7 9l5-5 5 5M5 20h14" />,
 };
 
 export function Icon({ name, size = 24, className }: { name: IconName; size?: number; className?: string }) {

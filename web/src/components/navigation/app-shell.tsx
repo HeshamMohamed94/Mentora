@@ -8,7 +8,9 @@ import { Icon, type IconName } from "@/components/ui";
 import { useCurrentUser, CURRENT_USER_QUERY_KEY } from "@/lib/auth/use-current-user";
 import { logout } from "@/lib/auth/actions";
 
-const NAV_ITEMS: { key: string; href: string; icon: IconName }[] = [
+export interface AppShellNavItem { key: string; href: string; icon: IconName }
+
+const NAV_ITEMS: AppShellNavItem[] = [
   { key: "dashboard", href: "/app", icon: "dashboard" },
   { key: "explore", href: "/app/explore", icon: "explore" },
   { key: "myLearning", href: "/app/my-learning", icon: "myLearning" },
@@ -24,7 +26,8 @@ const COLLAPSE_STORAGE_KEY = "mentora:sidebar-collapsed";
 export const SidebarForceCollapseContext = createContext<(collapsed: boolean) => void>(() => undefined);
 
 function isActive(pathname: string, href: string): boolean {
-  return href === "/app" ? pathname === "/app" : pathname === href || pathname.startsWith(`${href}/`);
+  const landing = href === "/app" || href === "/instructor";
+  return landing ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
 }
 
 /**
@@ -32,7 +35,7 @@ function isActive(pathname: string, href: string): boolean {
  * public Navbar — the Sidebar replaces it." Wraps every `/app/*` page (see
  * `app/[locale]/app/layout.tsx`) — previously those pages rendered with no chrome at all.
  */
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({ children, navItems = NAV_ITEMS }: { children: React.ReactNode; navItems?: AppShellNavItem[] }) {
   const t = useTranslations("nav");
   const pathname = usePathname();
   const router = useRouter();
@@ -80,7 +83,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         className={`mtx-sidebar ${mobileOpen ? "flex" : "hidden"} tablet:flex fixed inset-y-0 start-0 z-50 tablet:static tablet:z-auto w-[264px] tablet:w-[72px] ${effectiveCollapsed ? "desktop:w-[72px]" : "desktop:w-[264px]"}`}
       >
         <nav className="mtx-sidebar-nav" aria-label={t("primaryNavigation")}>
-          {NAV_ITEMS.map((item) => (
+          {navItems.map((item) => (
             <Link
               key={item.key}
               href={item.href}

@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch, apiRequest } from "./client";
 
 // Shapes verified against backend/src/main/kotlin/com/mentora/backend/courses/service/CourseService.kt
@@ -92,4 +92,125 @@ export function useCourse(id: string) {
     queryFn: () => getCourse(id),
     enabled: Boolean(id),
   });
+}
+
+export interface CourseWriteRequest {
+  title: string;
+  description: string;
+  categoryId: string;
+  level: "beginner" | "intermediate" | "advanced";
+  contentLanguage: "en" | "ar";
+  priceDisplay: PriceDisplay;
+  thumbnailMediaId?: string;
+}
+
+export type CourseUpdateRequest = Partial<CourseWriteRequest>;
+
+export function updateCourse(courseId: string, request: CourseUpdateRequest) {
+  return apiFetch<CourseResponse>(`/courses/${courseId}`, { method: "PATCH", body: JSON.stringify(request) });
+}
+
+export function updateLesson(courseId: string, sectionId: string, lessonId: string, request: Partial<LessonWriteRequest>) {
+  return apiFetch<CourseResponse>(`/courses/${courseId}/sections/${sectionId}/lessons/${lessonId}`, {
+    method: "PATCH", body: JSON.stringify(request),
+  });
+}
+
+function useCourseMutation<TVariables, TResponse>(
+  mutationFn: (variables: TVariables) => Promise<TResponse>,
+  courseId?: string,
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["instructor-dashboard"] });
+      if (courseId) queryClient.invalidateQueries({ queryKey: ["courses", courseId] });
+    },
+  });
+}
+
+export function useCreateCourse() {
+  return useCourseMutation((request: CourseWriteRequest) =>
+    apiFetch<CourseResponse>("/courses", { method: "POST", body: JSON.stringify(request) }),
+  );
+}
+
+export function useUpdateCourse(courseId: string) {
+  return useCourseMutation((request: CourseUpdateRequest) => updateCourse(courseId, request), courseId);
+}
+
+export function usePublishCourse(courseId: string) {
+  return useCourseMutation(() =>
+    apiFetch<CourseResponse>(`/courses/${courseId}/publish`, { method: "POST" }), courseId,
+  );
+}
+
+export function useUnpublishCourse(courseId: string) {
+  return useCourseMutation(() =>
+    apiFetch<CourseResponse>(`/courses/${courseId}/unpublish`, { method: "POST" }), courseId,
+  );
+}
+
+export function useAddSection(courseId: string) {
+  return useCourseMutation((title: string) =>
+    apiFetch<CourseResponse>(`/courses/${courseId}/sections`, {
+      method: "POST", body: JSON.stringify({ title }),
+    }), courseId,
+  );
+}
+
+export function useUpdateSection(courseId: string, sectionId: string) {
+  return useCourseMutation((title: string) =>
+    apiFetch<CourseResponse>(`/courses/${courseId}/sections/${sectionId}`, {
+      method: "PATCH", body: JSON.stringify({ title }),
+    }), courseId,
+  );
+}
+
+export function useDeleteSection(courseId: string) {
+  return useCourseMutation((sectionId: string) =>
+    apiFetch<void>(`/courses/${courseId}/sections/${sectionId}`, { method: "DELETE" }), courseId,
+  );
+}
+
+export function useReorderSections(courseId: string) {
+  return useCourseMutation((sectionIds: string[]) =>
+    apiFetch<CourseResponse>(`/courses/${courseId}/sections/reorder`, {
+      method: "PATCH", body: JSON.stringify({ sectionIds }),
+    }), courseId,
+  );
+}
+
+export interface LessonWriteRequest {
+  title: string;
+  description: string;
+  videoMediaId?: string;
+  resources: ResourceLink[];
+}
+
+export function useAddLesson(courseId: string, sectionId: string) {
+  return useCourseMutation((request: LessonWriteRequest) =>
+    apiFetch<CourseResponse>(`/courses/${courseId}/sections/${sectionId}/lessons`, {
+      method: "POST", body: JSON.stringify(request),
+    }), courseId,
+  );
+}
+
+export function useUpdateLesson(courseId: string, sectionId: string, lessonId: string) {
+  return useCourseMutation((request: Partial<LessonWriteRequest>) => updateLesson(courseId, sectionId, lessonId, request), courseId);
+}
+
+export function useDeleteLesson(courseId: string, sectionId: string) {
+  return useCourseMutation((lessonId: string) =>
+    apiFetch<void>(`/courses/${courseId}/sections/${sectionId}/lessons/${lessonId}`, { method: "DELETE" }), courseId,
+  );
+}
+
+export function useReorderLessons(courseId: string, sectionId: string) {
+  return useCourseMutation((lessonIds: string[]) =>
+    apiFetch<CourseResponse>(`/courses/${courseId}/sections/${sectionId}/lessons/reorder`, {
+      method: "PATCH", body: JSON.stringify({ lessonIds }),
+    }), courseId,
+  );
 }

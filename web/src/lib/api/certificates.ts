@@ -27,10 +27,11 @@ async function getCertificate(id: string): Promise<CertificateDetailResponse | n
   }
 }
 
-export function useCertificates() {
+export function useCertificates(enabled = true) {
   return useQuery({
     queryKey: ["certificates"],
     queryFn: listCertificates,
+    enabled,
   });
 }
 

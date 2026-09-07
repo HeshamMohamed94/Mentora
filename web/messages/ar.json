@@ -259,6 +259,149 @@
     "languageSaveError": "تعذّر حفظ تفضيل اللغة. حاول مرة أخرى.",
     "logout": "تسجيل الخروج"
   },
+  "instructor": {
+    "common": {
+      "loading": "جارٍ تحميل مساحة المدرّس…",
+      "retry": "أعد المحاولة",
+      "cancel": "إلغاء"
+    },
+    "status": {
+      "draft": "مسودة",
+      "published": "منشورة"
+    },
+    "dashboard": {
+      "title": "لوحة المدرّس",
+      "createCourse": "إنشاء دورة",
+      "totalCourses": "إجمالي الدورات",
+      "publishedCourses": "الدورات المنشورة",
+      "totalEnrollments": "إجمالي التسجيلات",
+      "yourCourses": "دوراتك",
+      "enrollments": "{count} تسجيلات",
+      "completion": "اكتمال {percent}%",
+      "emptyTitle": "لا توجد دورات بعد",
+      "emptyDescription": "أنشئ دورتك الأولى وابدأ التدريس.",
+      "loadError": "تعذّر تحميل لوحة المدرّس."
+    },
+    "tabs": {
+      "label": "محرر الدورة",
+      "overview": "نظرة عامة",
+      "curriculum": "المنهج"
+    },
+    "overview": {
+      "createTitle": "إنشاء دورة",
+      "titleLabel": "العنوان",
+      "descriptionLabel": "الوصف",
+      "categoryLabel": "الفئة",
+      "categoryPlaceholder": "اختر فئة",
+      "categoryError": "تعذّر تحميل الفئات. أعد المحاولة.",
+      "levelLabel": "المستوى",
+      "languageLabel": "لغة المحتوى",
+      "amountLabel": "السعر",
+      "currencyLabel": "العملة",
+      "thumbnailLabel": "صورة الدورة",
+      "save": "حفظ",
+      "readiness": "جاهزية النشر",
+      "ready": "جاهز",
+      "missing": "يحتاج إلى مراجعة",
+      "requirements": {
+        "title": "أضف عنوانًا للدورة",
+        "description": "أضف وصفًا للدورة",
+        "categoryId": "اختر فئة",
+        "priceDisplay": "حدّد السعر",
+        "thumbnail": "ارفع صورة للدورة",
+        "curriculum": "أضف قسمًا واحدًا على الأقل",
+        "sectionLessons": "أضف درسًا إلى «{title}»",
+        "lessonVideo": "أرفق فيديو بالدرس «{title}»"
+      },
+      "requiredError": "أكمل جميع الحقول المطلوبة.",
+      "priceError": "أدخل مبلغًا صحيحًا غير سالب ورمز عملة من ثلاثة أحرف كبيرة.",
+      "thumbnailError": "اختر صورة JPEG أو PNG أو WebP لا يتجاوز حجمها 5 ميجابايت.",
+      "saveError": "تعذّر حفظ الدورة. أعد المحاولة.",
+      "publishError": "تعذّر تغيير حالة النشر. أعد المحاولة.",
+      "loadError": "تعذّر تحميل هذه الدورة.",
+      "levels": {
+        "beginner": "مبتدئ",
+        "intermediate": "متوسط",
+        "advanced": "متقدم"
+      },
+      "languages": {
+        "en": "الإنجليزية",
+        "ar": "العربية"
+      }
+    },
+    "curriculum": {
+      "newSectionTitle": "عنوان القسم الجديد",
+      "addSection": "إضافة قسم",
+      "deleteSection": "حذف القسم",
+      "addLesson": "إضافة درس",
+      "addQuiz": "إضافة اختبار",
+      "videoAttached": "الفيديو مرفق",
+      "videoMissing": "الفيديو مفقود",
+      "actionError": "تعذّر تحديث المنهج. أعد المحاولة."
+    },
+    "reorder": {
+      "moveUp": "تحريك لأعلى",
+      "moveDown": "تحريك لأسفل",
+      "drag": "اسحب لإعادة الترتيب"
+    },
+    "upload": {
+      "imageInstruction": "اسحب صورة هنا أو تصفّح الملفات",
+      "videoInstruction": "اسحب فيديو هنا أو تصفّح الملفات",
+      "browse": "تصفّح",
+      "remove": "إزالة الملف",
+      "uploadError": "تعذّر رفع الملف. حاول الحفظ مرة أخرى.",
+      "attachedThumbnail": "صورة الدورة الحالية",
+      "attachedVideo": "فيديو الدرس الحالي"
+    },
+    "lesson": {
+      "createTitle": "إضافة درس",
+      "editTitle": "تعديل الدرس",
+      "titleLabel": "العنوان",
+      "descriptionLabel": "الوصف",
+      "videoLabel": "فيديو الدرس",
+      "resources": "روابط الموارد",
+      "addResource": "إضافة مورد",
+      "resourceLabel": "اسم المورد",
+      "resourceUrl": "رابط المورد",
+      "removeResource": "إزالة المورد",
+      "save": "حفظ الدرس",
+      "delete": "حذف الدرس",
+      "deleteTitle": "حذف هذا الدرس؟",
+      "deleteDescription": "لا يمكن التراجع عن هذا الإجراء.",
+      "deleteError": "تعذّر حذف الدرس. أعد المحاولة.",
+      "requiredError": "أدخل العنوان والوصف.",
+      "videoError": "اختر فيديو MP4 أو WebM لا يتجاوز حجمه 500 ميجابايت.",
+      "saveError": "تعذّر حفظ الدرس. أعد المحاولة.",
+      "loadError": "تعذّر تحميل هذا الدرس."
+    },
+    "quiz": {
+      "title": "محرر الاختبار",
+      "addQuestion": "إضافة سؤال",
+      "questionNumber": "السؤال {number}",
+      "deleteQuestion": "حذف السؤال",
+      "promptLabel": "نص السؤال",
+      "correctOption": "تعيين كإجابة صحيحة",
+      "optionLabel": "الخيار {number}",
+      "removeOption": "إزالة الخيار",
+      "addOption": "إضافة خيار",
+      "save": "حفظ الاختبار",
+      "saveError": "تعذّر حفظ الاختبار. أعد المحاولة.",
+      "loadError": "تعذّر تحميل هذا الاختبار.",
+      "validation": {
+        "REQUIRED": "أضف سؤالًا واحدًا على الأقل.",
+        "PROMPT_REQUIRED": "أدخل نص السؤال.",
+        "AT_LEAST_TWO_OPTIONS_REQUIRED": "أضف خيارين على الأقل.",
+        "OPTION_TEXT_REQUIRED": "أدخل نصًا لكل خيار.",
+        "EXACTLY_ONE_CORRECT_OPTION_REQUIRED": "عيّن خيارًا صحيحًا واحدًا فقط."
+      }
+    },
+    "unsaved": {
+      "title": "تجاهل التغييرات غير المحفوظة؟",
+      "description": "ستفقد تعديلاتك.",
+      "discard": "تجاهل",
+      "keepEditing": "متابعة التعديل"
+    }
+  },
   "auth": {
     "loginTitle": "سجّل الدخول إلى Mentora",
     "registerTitle": "أنشئ حسابك في Mentora",

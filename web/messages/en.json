@@ -259,6 +259,149 @@
     "languageSaveError": "Your language preference couldn't be saved. Try again.",
     "logout": "Logout"
   },
+  "instructor": {
+    "common": {
+      "loading": "Loading instructor workspace…",
+      "retry": "Try again",
+      "cancel": "Cancel"
+    },
+    "status": {
+      "draft": "Draft",
+      "published": "Published"
+    },
+    "dashboard": {
+      "title": "Instructor Dashboard",
+      "createCourse": "Create Course",
+      "totalCourses": "Total courses",
+      "publishedCourses": "Published courses",
+      "totalEnrollments": "Total enrollments",
+      "yourCourses": "Your courses",
+      "enrollments": "{count} enrollments",
+      "completion": "{percent}% completion",
+      "emptyTitle": "No courses yet",
+      "emptyDescription": "Create your first course to start teaching.",
+      "loadError": "Your instructor dashboard couldn't be loaded."
+    },
+    "tabs": {
+      "label": "Course editor",
+      "overview": "Overview",
+      "curriculum": "Curriculum"
+    },
+    "overview": {
+      "createTitle": "Create Course",
+      "titleLabel": "Title",
+      "descriptionLabel": "Description",
+      "categoryLabel": "Category",
+      "categoryPlaceholder": "Choose a category",
+      "categoryError": "Categories couldn't be loaded. Try again.",
+      "levelLabel": "Level",
+      "languageLabel": "Content language",
+      "amountLabel": "Price amount",
+      "currencyLabel": "Currency",
+      "thumbnailLabel": "Course thumbnail",
+      "save": "Save",
+      "readiness": "Publish readiness",
+      "ready": "Ready",
+      "missing": "Needs attention",
+      "requirements": {
+        "title": "Add a course title",
+        "description": "Add a course description",
+        "categoryId": "Choose a category",
+        "priceDisplay": "Set a price",
+        "thumbnail": "Upload a course thumbnail",
+        "curriculum": "Add at least one section",
+        "sectionLessons": "Add a lesson to “{title}”",
+        "lessonVideo": "Attach a video to “{title}”"
+      },
+      "requiredError": "Complete all required fields.",
+      "priceError": "Enter a valid non-negative amount and a three-letter uppercase currency.",
+      "thumbnailError": "Choose a JPEG, PNG, or WebP image no larger than 5 MB.",
+      "saveError": "The course couldn't be saved. Try again.",
+      "publishError": "The publish state couldn't be changed. Try again.",
+      "loadError": "This course couldn't be loaded.",
+      "levels": {
+        "beginner": "Beginner",
+        "intermediate": "Intermediate",
+        "advanced": "Advanced"
+      },
+      "languages": {
+        "en": "English",
+        "ar": "Arabic"
+      }
+    },
+    "curriculum": {
+      "newSectionTitle": "New section title",
+      "addSection": "Add Section",
+      "deleteSection": "Delete section",
+      "addLesson": "Add Lesson",
+      "addQuiz": "Add Quiz",
+      "videoAttached": "Video attached",
+      "videoMissing": "Video missing",
+      "actionError": "The curriculum couldn't be updated. Try again."
+    },
+    "reorder": {
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "drag": "Drag to reorder"
+    },
+    "upload": {
+      "imageInstruction": "Drag an image here or browse",
+      "videoInstruction": "Drag a video here or browse",
+      "browse": "Browse",
+      "remove": "Remove file",
+      "uploadError": "The file couldn't be uploaded. Try saving again.",
+      "attachedThumbnail": "Current thumbnail",
+      "attachedVideo": "Current lesson video"
+    },
+    "lesson": {
+      "createTitle": "Add Lesson",
+      "editTitle": "Edit Lesson",
+      "titleLabel": "Title",
+      "descriptionLabel": "Description",
+      "videoLabel": "Lesson video",
+      "resources": "Resource links",
+      "addResource": "Add resource",
+      "resourceLabel": "Resource label",
+      "resourceUrl": "Resource URL",
+      "removeResource": "Remove resource",
+      "save": "Save Lesson",
+      "delete": "Delete Lesson",
+      "deleteTitle": "Delete this lesson?",
+      "deleteDescription": "This action cannot be undone.",
+      "deleteError": "The lesson couldn't be deleted. Try again.",
+      "requiredError": "Enter a title and description.",
+      "videoError": "Choose an MP4 or WebM video no larger than 500 MB.",
+      "saveError": "The lesson couldn't be saved. Try again.",
+      "loadError": "This lesson couldn't be loaded."
+    },
+    "quiz": {
+      "title": "Quiz Editor",
+      "addQuestion": "Add Question",
+      "questionNumber": "Question {number}",
+      "deleteQuestion": "Delete question",
+      "promptLabel": "Question prompt",
+      "correctOption": "Mark as the correct option",
+      "optionLabel": "Option {number}",
+      "removeOption": "Remove option",
+      "addOption": "Add option",
+      "save": "Save Quiz",
+      "saveError": "The quiz couldn't be saved. Try again.",
+      "loadError": "This quiz couldn't be loaded.",
+      "validation": {
+        "REQUIRED": "Add at least one question.",
+        "PROMPT_REQUIRED": "Enter a question prompt.",
+        "AT_LEAST_TWO_OPTIONS_REQUIRED": "Add at least two options.",
+        "OPTION_TEXT_REQUIRED": "Enter text for every option.",
+        "EXACTLY_ONE_CORRECT_OPTION_REQUIRED": "Mark exactly one correct option."
+      }
+    },
+    "unsaved": {
+      "title": "Discard unsaved changes?",
+      "description": "Your edits will be lost.",
+      "discard": "Discard",
+      "keepEditing": "Keep editing"
+    }
+  },
   "auth": {
     "loginTitle": "Log in to Mentora",
     "registerTitle": "Create your Mentora account",

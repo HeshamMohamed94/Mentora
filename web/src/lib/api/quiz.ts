@@ -36,6 +36,24 @@ export interface AttemptResponse {
   breakdown: AttemptBreakdown[];
 }
 
+export interface EditorQuizOption {
+  optionId?: string;
+  text: string;
+  isCorrect: boolean;
+}
+
+export interface EditorQuizQuestion {
+  questionId?: string;
+  prompt: string;
+  order: number;
+  options: EditorQuizOption[];
+}
+
+export interface EditorQuizResponse {
+  courseId: string;
+  questions: EditorQuizQuestion[];
+}
+
 async function getQuiz(courseId: string): Promise<StudentQuizResponse | null> {
   try {
     return await apiFetch<StudentQuizResponse>(`/courses/${courseId}/quiz`);
@@ -82,5 +100,25 @@ export function useLatestAttempt(courseId: string) {
     queryKey: ["quiz-attempt", courseId],
     queryFn: () => getLatestAttempt(courseId),
     enabled: Boolean(courseId),
+  });
+}
+
+export function useEditorQuiz(courseId: string) {
+  return useQuery({
+    queryKey: ["editor-quiz", courseId],
+    queryFn: () => apiFetch<EditorQuizResponse>(`/courses/${courseId}/quiz/editor`),
+    enabled: Boolean(courseId),
+  });
+}
+
+export function useReplaceQuiz(courseId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (questions: EditorQuizQuestion[]) =>
+      apiFetch<EditorQuizResponse>(`/courses/${courseId}/quiz/editor`, {
+        method: "PUT",
+        body: JSON.stringify({ questions }),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["editor-quiz", courseId] }),
   });
 }
