@@ -5,7 +5,7 @@ import { useCourse } from "@/lib/api/courses";
 import { useCategories } from "@/lib/api/categories";
 import { useCurrentUser } from "@/lib/auth/use-current-user";
 import { useIsEnrolled } from "@/lib/api/enrollment";
-import { Button, Badge, InstructorCard, ErrorState, CourseThumbnail } from "@/components/ui";
+import { Button, InstructorCard, ErrorState, CourseThumbnail } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
 import { formatPrice } from "@/lib/i18n/format";
 import { LEVEL_LABEL_KEYS } from "@/lib/i18n/course-labels";
@@ -67,14 +67,16 @@ export function CourseDetailsScreen({ courseId }: { courseId: string }) {
 
   return (
     <div className="mx-auto max-w-[900px] px-4 py-8 tablet:px-6 desktop:px-8">
-      <CourseThumbnail mediaId={course.thumbnailMediaId} className="mtx-course-hero-thumbnail" iconSize={48} />
+      <CourseThumbnail
+        mediaId={course.thumbnailMediaId}
+        className="mtx-course-hero-thumbnail"
+        iconSize={48}
+        seed={course.id}
+        categoryId={course.categoryId}
+        badge={categoryName && <span className="mtx-thumbnail-badge">{categoryName}</span>}
+      />
 
       <div className="mt-4 flex flex-col gap-3">
-        {categoryName && (
-          <span className="self-start">
-            <Badge variant="brand">{categoryName}</Badge>
-          </span>
-        )}
         <h1 className="mtx-text-heading-h1">{course.title}</h1>
         <p className="mtx-text-body-medium" style={{ color: "var(--color-text-secondary)" }}>
           {course.instructorName} · ★ {course.ratingSeed.toFixed(1)} · {tExplore(LEVEL_LABEL_KEYS[course.level])}

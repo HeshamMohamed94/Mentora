@@ -26,10 +26,18 @@
     "collapseSidebar": "Collapse sidebar"
   },
   "landing": {
+    "heroEyebrow": "Learn. Build. Grow.",
     "heroTitle": "Learn. Build. Grow.",
     "heroSubtitle": "Practical courses that take you from curious to capable.",
     "exploreCourses": "Explore Courses",
-    "getStarted": "Get Started"
+    "getStarted": "Get Started",
+    "statCourses": "{count} courses",
+    "statPaths": "{count} learning paths",
+    "statLanguages": "English & العربية",
+    "popularCoursesTitle": "Popular courses",
+    "popularCoursesSubtitle": "Most enrolled this month",
+    "seeAllCourses": "See all courses",
+    "learningPathsSubtitle": "A sequenced route, not a pile of courses"
   },
   "explore": {
     "title": "Explore",
@@ -65,12 +73,14 @@
     "unfollow": "Unfollow",
     "loginToFollow": "Login to Follow",
     "errorTitle": "This learning path couldn't be loaded",
-    "viewPath": "View Path"
+    "viewPath": "View Path",
+    "eyebrow": "Learning Path"
   },
   "dashboard": {
     "title": "Dashboard",
     "greeting": "Welcome back, {name}",
     "statInProgress": "Courses in progress",
+    "statAvgProgress": "Avg. progress",
     "statCompleted": "Courses completed",
     "statCertificates": "Certificates earned",
     "continueLearning": "Continue Learning",
@@ -82,7 +92,11 @@
     "emptyTitle": "No courses yet",
     "emptyDescription": "Enroll in a course to see your progress here",
     "exploreCourses": "Explore Courses",
-    "viewPath": "View Path"
+    "viewPath": "View Path",
+    "aiTutorEyebrow": "AI Tutor",
+    "aiTutorNudgeTitle": "Stuck on something?",
+    "aiTutorNudgeDescription": "Ask for a recap, a worked example, or a quick check of your understanding.",
+    "aiTutorNudgeCta": "Ask the AI Tutor"
   },
   "myLearning": {
     "title": "My Learning",
@@ -276,6 +290,10 @@
       "publishedCourses": "Published courses",
       "totalEnrollments": "Total enrollments",
       "yourCourses": "Your courses",
+      "columnCourse": "Course",
+      "columnStatus": "Status",
+      "columnEnrollments": "Enrollments",
+      "columnCompletion": "Completion",
       "enrollments": "{count} enrollments",
       "completion": "{percent}% completion",
       "emptyTitle": "No courses yet",

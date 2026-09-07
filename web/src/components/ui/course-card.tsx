@@ -1,15 +1,17 @@
 import { Link } from "@/i18n/navigation";
 import type { CourseSummary } from "@/lib/api/courses";
 import { formatPrice } from "@/lib/i18n/format";
-import { CategoryChip } from "./category-chip";
 import { CourseThumbnail } from "./course-thumbnail";
 
 /**
- * design-system/COMPONENTS.md § Course Card. Content hierarchy: thumbnail → category chip →
- * title (2-line clamp) → instructor → rating/level/price meta row. No duration/student-count
- * fields exist on the backend's `CourseSummary` (MVP doesn't track them per course), so the
- * meta row is rating + level + price rather than the full rating/students/duration spec —
- * a content-availability adaptation, not a design change.
+ * design-system/COMPONENTS.md § Course Card, artwork/badge placement per the locked visual
+ * reference (design-review-locked showcase § 12): the category chip sits at the thumbnail's
+ * logical start corner over the artwork's scrim, not below it in the card body. Content
+ * hierarchy: thumbnail (with overlaid category chip) → title (2-line clamp) → instructor →
+ * rating/level/price meta row. No duration/student-count fields exist on the backend's
+ * `CourseSummary` (MVP doesn't track them per course), so the meta row is rating + level + price
+ * rather than the full rating/students/duration spec — a content-availability adaptation, not a
+ * design change.
  */
 export function CourseCard({
   course,
@@ -30,15 +32,20 @@ export function CourseCard({
 }) {
   return (
     <Link href={`${basePath}/courses/${course.id}`} className="mtx-card" aria-label={course.title}>
-      <CourseThumbnail mediaId={course.thumbnailMediaId} className="mtx-card-thumbnail" />
+      <CourseThumbnail
+        mediaId={course.thumbnailMediaId}
+        className="mtx-card-thumbnail"
+        seed={course.id}
+        categoryId={course.categoryId}
+        badge={categoryName && <span className="mtx-thumbnail-badge">{categoryName}</span>}
+      />
       <div className="mtx-card-body">
-        {categoryName && <CategoryChip label={categoryName} />}
         <h3 className="mtx-text-heading-h4 mtx-card-title">{course.title}</h3>
         <p className="mtx-text-body-small" style={{ color: "var(--color-text-secondary)" }}>
           {course.instructorName}
         </p>
         <div className="mtx-card-meta-row mtx-text-caption">
-          <span>★ {course.ratingSeed.toFixed(1)}</span>
+          <span className="mtx-card-meta-rating">★ {course.ratingSeed.toFixed(1)}</span>
           <span>{levelLabel}</span>
         </div>
         <p className="mtx-text-label-large" style={{ color: "var(--color-text-primary)" }}>

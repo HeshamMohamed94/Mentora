@@ -35,7 +35,13 @@ export function InstructorDashboardScreen() {
         {dashboard.data.courses.length === 0 ? (
           <EmptyState title={t("dashboard.emptyTitle")} description={t("dashboard.emptyDescription")} actionLabel={t("dashboard.createCourse")} onAction={() => router.push("/instructor/courses/new")} />
         ) : (
-          <div className="mtx-instructor-list">
+          <div className="mtx-management-table">
+            <div className="mtx-management-table-header" aria-hidden="true">
+              <span>{t("dashboard.columnCourse")}</span>
+              <span>{t("dashboard.columnStatus")}</span>
+              <span>{t("dashboard.columnEnrollments")}</span>
+              <span>{t("dashboard.columnCompletion")}</span>
+            </div>
             {dashboard.data.courses.map((course) => (
               <Link key={course.id} href={`/instructor/courses/${course.id}`} className="mtx-management-card">
                 <strong>{course.title}</strong>

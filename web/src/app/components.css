@@ -510,23 +510,62 @@ a.mtx-card:hover {
   aspect-ratio: 16 / 9;
   width: 100%;
   background-color: var(--color-surface-variant);
-  object-fit: cover;
   display: block;
-}
-.mtx-thumbnail-fallback {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: var(--color-brand-primary-container);
-  color: var(--color-brand-on-primary-container);
+  position: relative;
+  overflow: hidden;
 }
 .mtx-course-hero-thumbnail {
   aspect-ratio: 16 / 9;
   width: 100%;
   border-radius: var(--radius-large);
   background-color: var(--color-surface-variant);
+  display: block;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Governed course-artwork treatment — see course-thumbnail.tsx for the motif set/governance. */
+.mtx-thumbnail-fallback {
+  display: flex;
+  align-items: flex-end;
+  padding: var(--space-3);
+  background-size: cover;
+  background-position: center;
+}
+.mtx-thumbnail-fallback-icon {
+  position: absolute;
+  top: 50%;
+  inset-inline-start: 50%;
+  transform: translate(-50%, -50%);
+  color: rgba(255, 255, 255, 0.92);
+}
+.mtx-thumbnail-media {
+  position: relative;
+}
+.mtx-thumbnail-media-img {
+  width: 100%;
+  height: 100%;
   object-fit: cover;
   display: block;
+}
+.mtx-thumbnail-badge {
+  height: 28px;
+  padding-inline: var(--space-3);
+  border-radius: var(--radius-full);
+  /* Matches the governed artwork "chipscrim" overlay — a deliberately higher-contrast scrim
+   * than color.overlay.scrim (used for video control chrome), so a category label reads
+   * reliably over any of the five artwork gradients. Not a semantic token: chips-on-artwork are
+   * scoped to the artwork system's own governance, same as the gradients themselves. */
+  background-color: rgba(17, 18, 23, 0.72);
+  color: #ffffff;
+  font-family: var(--font-family-latin);
+  font-size: var(--typography-label-medium-font-size);
+  font-weight: var(--typography-label-medium-font-weight);
+  line-height: 28px;
+  white-space: nowrap;
+}
+html[lang="ar"] .mtx-thumbnail-badge {
+  font-family: var(--font-family-arabic);
 }
 
 .mtx-card-body {
@@ -549,12 +588,168 @@ a.mtx-card:hover {
   gap: var(--space-3);
   color: var(--color-text-secondary);
 }
+.mtx-card-meta-rating {
+  color: var(--color-warning-default);
+}
 
 .mtx-card-cta {
   margin-block-start: var(--space-1);
   width: 100%;
   text-align: center;
   justify-content: center;
+}
+
+/* ---------- Landing hero ---------- */
+
+.mtx-hero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  padding-block: var(--space-12);
+}
+@media (min-width: 1024px) {
+  .mtx-hero {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-12);
+  }
+}
+
+.mtx-hero-content {
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+  gap: var(--space-6);
+  text-align: start;
+  flex: 1;
+  min-width: 0;
+}
+
+.mtx-hero-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+}
+.mtx-hero-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-secondary);
+  font-family: var(--font-family-latin);
+  font-size: var(--typography-body-small-font-size);
+}
+html[lang="ar"] .mtx-hero-stat {
+  font-family: var(--font-family-arabic);
+}
+
+.mtx-hero-collage {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+  flex: 1;
+  min-width: 0;
+  max-width: 480px;
+}
+.mtx-hero-collage-item:first-child {
+  grid-column: span 2;
+}
+.mtx-hero-collage-thumbnail {
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  border-radius: var(--radius-large);
+  background-color: var(--color-surface-variant);
+  display: block;
+  position: relative;
+  overflow: hidden;
+}
+.mtx-hero-collage-title {
+  margin-block-start: var(--space-2);
+}
+
+/* ---------- Dashboard AI Tutor nudge card ---------- */
+
+.mtx-dashboard-ai-nudge {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-5);
+  border-radius: var(--radius-large);
+  background-color: var(--color-brand-primary-container);
+  color: var(--color-brand-on-primary-container);
+}
+.mtx-dashboard-ai-nudge .mtx-btn-primary {
+  margin-block-start: var(--space-2);
+  align-self: start;
+}
+.mtx-dashboard-ai-nudge-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-family-latin);
+  font-size: var(--typography-label-medium-font-size);
+  font-weight: var(--typography-label-medium-font-weight);
+  letter-spacing: var(--typography-label-medium-letter-spacing);
+}
+html[lang="ar"] .mtx-dashboard-ai-nudge-eyebrow {
+  font-family: var(--font-family-arabic);
+}
+
+/* ---------- Course progress row (Dashboard "Continue" / My Learning) ---------- */
+
+.mtx-progress-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.mtx-progress-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border-radius: var(--component-card-radius);
+  border: var(--border-width-default) solid var(--component-card-border);
+  background-color: var(--component-card-background);
+  box-shadow: var(--elevation-1);
+}
+
+.mtx-progress-row-thumbnail {
+  width: 112px;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-medium);
+  background-color: var(--color-surface-variant);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.mtx-progress-row-thumbnail .mtx-thumbnail-fallback-icon {
+  position: static;
+  transform: none;
+}
+
+.mtx-progress-row-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.mtx-progress-row-cta {
+  flex-shrink: 0;
+}
+
+@media (max-width: 599px) {
+  .mtx-progress-row {
+    flex-wrap: wrap;
+  }
+  .mtx-progress-row-cta {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 /* ---------- Certificates ---------- */
@@ -724,6 +919,18 @@ a.mtx-card:hover {
 .mtx-path-card:hover {
   box-shadow: var(--elevation-2);
 }
+.mtx-path-card-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-family-latin);
+  font-size: var(--typography-label-medium-font-size);
+  font-weight: var(--typography-label-medium-font-weight);
+  letter-spacing: var(--typography-label-medium-letter-spacing);
+}
+html[lang="ar"] .mtx-path-card-eyebrow {
+  font-family: var(--font-family-arabic);
+}
 .mtx-path-card-description {
   flex-grow: 1;
 }
@@ -731,6 +938,13 @@ a.mtx-card:hover {
   align-self: start;
   margin-inline: calc(var(--space-3) * -1);
   color: var(--color-brand-on-primary-container);
+}
+
+.mtx-icon-mirror-rtl {
+  transform: scaleX(1);
+}
+html[dir="rtl"] .mtx-icon-mirror-rtl {
+  transform: scaleX(-1);
 }
 
 /* InstructorCard */
@@ -988,8 +1202,9 @@ html[lang="ar"] .mtx-sidebar-item { font-family: var(--font-family-arabic); }
   aspect-ratio: 16 / 9;
   border-radius: var(--radius-medium);
   background-color: var(--color-surface-variant);
-  object-fit: cover;
   flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
 }
 
 .mtx-path-course-row {
@@ -1733,6 +1948,10 @@ html[dir="rtl"] .mtx-toggle input:checked + .mtx-toggle-track .mtx-toggle-thumb 
 .mtx-instructor-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); margin-block-end: var(--space-8); }
 .mtx-instructor-list { display: flex; flex-direction: column; gap: var(--space-3); }
 .mtx-management-card { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; align-items: center; gap: var(--space-4); padding: var(--space-4); border: var(--border-width-default) solid var(--color-border-default); border-radius: var(--radius-large); background-color: var(--color-surface-default); color: var(--color-text-primary); text-decoration: none; }
+.mtx-management-table { display: flex; flex-direction: column; border: var(--border-width-default) solid var(--color-border-default); border-radius: var(--radius-large); overflow: hidden; }
+.mtx-management-table-header { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; gap: var(--space-4); padding: var(--space-3) var(--space-4); background-color: var(--color-surface-variant); color: var(--color-text-secondary); font-family: var(--font-family-latin); font-size: var(--typography-label-medium-font-size); font-weight: var(--typography-label-medium-font-weight); letter-spacing: var(--typography-label-medium-letter-spacing); }
+html[lang="ar"] .mtx-management-table-header { font-family: var(--font-family-arabic); }
+.mtx-management-table .mtx-management-card { border: none; border-radius: 0; border-block-start: var(--border-width-default) solid var(--color-border-default); }
 .mtx-editor-panel { display: flex; flex-direction: column; gap: var(--space-5); margin-block-start: var(--space-6); padding: var(--space-6); border: var(--border-width-default) solid var(--color-border-default); border-radius: var(--radius-large); background-color: var(--color-surface-default); }
 .mtx-editor-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
 .mtx-editor-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
@@ -1750,6 +1969,7 @@ html[dir="rtl"] .mtx-toggle input:checked + .mtx-toggle-track .mtx-toggle-thumb 
   .mtx-instructor-stats, .mtx-editor-grid { grid-template-columns: 1fr; }
   .mtx-management-card { grid-template-columns: 1fr auto; }
   .mtx-management-card > :nth-child(3), .mtx-management-card > :nth-child(4) { grid-column: 1 / -1; }
+  .mtx-management-table-header { display: none; }
   .mtx-resource-row { grid-template-columns: 1fr auto; }
   .mtx-resource-row > :nth-child(2) { grid-column: 1; }
   .mtx-dialog-actions { flex-direction: column-reverse; }

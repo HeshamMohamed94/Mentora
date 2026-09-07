@@ -26,10 +26,18 @@
     "collapseSidebar": "طي الشريط الجانبي"
   },
   "landing": {
+    "heroEyebrow": "تعلّم. اِبنِ. تطوّر.",
     "heroTitle": "تعلّم. اِبنِ. تطوّر.",
     "heroSubtitle": "دورات عملية تأخذك من الفضول إلى الإتقان.",
     "exploreCourses": "استكشف الدورات",
-    "getStarted": "ابدأ الآن"
+    "getStarted": "ابدأ الآن",
+    "statCourses": "{count} دورة",
+    "statPaths": "{count} مسار تعلّم",
+    "statLanguages": "الإنجليزية والعربية",
+    "popularCoursesTitle": "الدورات الأكثر رواجًا",
+    "popularCoursesSubtitle": "الأكثر تسجيلًا هذا الشهر",
+    "seeAllCourses": "عرض كل الدورات",
+    "learningPathsSubtitle": "مسار متسلسل، لا كومة من الدورات"
   },
   "explore": {
     "title": "استكشف",
@@ -65,12 +73,14 @@
     "unfollow": "إلغاء المتابعة",
     "loginToFollow": "سجّل الدخول للمتابعة",
     "errorTitle": "تعذّر تحميل مسار التعلّم هذا",
-    "viewPath": "عرض المسار"
+    "viewPath": "عرض المسار",
+    "eyebrow": "مسار تعلّم"
   },
   "dashboard": {
     "title": "لوحة التحكم",
     "greeting": "مرحبًا بعودتك، {name}",
     "statInProgress": "دورات قيد التقدم",
+    "statAvgProgress": "متوسط التقدم",
     "statCompleted": "دورات مكتملة",
     "statCertificates": "شهادات محصَّلة",
     "continueLearning": "متابعة التعلّم",
@@ -82,7 +92,11 @@
     "emptyTitle": "لا توجد دورات بعد",
     "emptyDescription": "سجّل في دورة لترى تقدمك هنا",
     "exploreCourses": "استكشف الدورات",
-    "viewPath": "عرض المسار"
+    "viewPath": "عرض المسار",
+    "aiTutorEyebrow": "المعلّم الذكي",
+    "aiTutorNudgeTitle": "عالق في شيء ما؟",
+    "aiTutorNudgeDescription": "اطلب ملخصًا أو مثالًا عمليًا أو تحققًا سريعًا من فهمك.",
+    "aiTutorNudgeCta": "اسأل المعلّم الذكي"
   },
   "myLearning": {
     "title": "تعلّمي",
@@ -276,6 +290,10 @@
       "publishedCourses": "الدورات المنشورة",
       "totalEnrollments": "إجمالي التسجيلات",
       "yourCourses": "دوراتك",
+      "columnCourse": "الدورة",
+      "columnStatus": "الحالة",
+      "columnEnrollments": "التسجيلات",
+      "columnCompletion": "الاكتمال",
       "enrollments": "{count} تسجيلات",
       "completion": "اكتمال {percent}%",
       "emptyTitle": "لا توجد دورات بعد",

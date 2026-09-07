@@ -77,7 +77,7 @@ export function LearningPathDetailsScreen({ pathId }: { pathId: string }) {
           <li key={course.id}>
             <Link href={`${basePath}/courses/${course.id}`} className="mtx-card mtx-path-course-row">
               <span className="mtx-text-heading-h4 mtx-path-course-index">{index + 1}</span>
-              <CourseThumbnail mediaId={course.thumbnailMediaId} className="mtx-checkout-thumbnail" iconSize={20} />
+              <CourseThumbnail mediaId={course.thumbnailMediaId} className="mtx-checkout-thumbnail" iconSize={20} seed={course.id} />
               <span className="mtx-text-label-large">{course.title}</span>
             </Link>
           </li>

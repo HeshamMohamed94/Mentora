@@ -37,7 +37,13 @@ export type IconName =
   | "arrowUpward"
   | "arrowDownward"
   | "dragHandle"
-  | "upload";
+  | "upload"
+  | "courseAnalytics"
+  | "courseDesign"
+  | "courseCode"
+  | "courseGrid"
+  | "courseLayers"
+  | "arrowForward";
 
 const PATHS: Record<IconName, React.ReactNode> = {
   dashboard: (
@@ -153,6 +159,31 @@ const PATHS: Record<IconName, React.ReactNode> = {
   arrowDownward: <path d="M12 5v14M6.5 13.5L12 19l5.5-5.5" />,
   dragHandle: <path d="M8 7h8M8 12h8M8 17h8" />,
   upload: <path d="M12 16V4M7 9l5-5 5 5M5 20h14" />,
+  courseAnalytics: <path d="M6 20V13M12 20V9M18 20V5" />,
+  courseDesign: (
+    <>
+      <circle cx="8" cy="9" r="2.3" />
+      <circle cx="16" cy="9" r="2.3" />
+      <circle cx="12" cy="16" r="2.3" />
+    </>
+  ),
+  courseCode: <path d="M9 8l-5 4 5 4M15 8l5 4-5 4" />,
+  courseGrid: (
+    <>
+      <rect x="4" y="4" width="7" height="7" rx="1" />
+      <rect x="13" y="4" width="7" height="7" rx="1" />
+      <rect x="4" y="13" width="7" height="7" rx="1" />
+      <rect x="13" y="13" width="7" height="7" rx="1" />
+    </>
+  ),
+  courseLayers: (
+    <>
+      <path d="M12 4l8 4-8 4-8-4z" />
+      <path d="M4 12l8 4 8-4" />
+      <path d="M4 16l8 4 8-4" />
+    </>
+  ),
+  arrowForward: <path d="M5 12h14M13 6l6 6-6 6" />,
 };
 
 export function Icon({ name, size = 24, className }: { name: IconName; size?: number; className?: string }) {

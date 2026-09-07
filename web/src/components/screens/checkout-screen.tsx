@@ -48,7 +48,12 @@ export function CheckoutScreen({ courseId }: { courseId: string }) {
       <h1 className="mtx-text-heading-h3 mb-6 text-center">{t("title")}</h1>
       <div className="mtx-checkout-card flex flex-col gap-4">
         <div className="mtx-checkout-line-item">
-          <CourseThumbnail mediaId={preview.course.thumbnailMediaId} className="mtx-checkout-thumbnail" iconSize={20} />
+          <CourseThumbnail
+            mediaId={preview.course.thumbnailMediaId}
+            className="mtx-checkout-thumbnail"
+            iconSize={20}
+            seed={preview.course.id}
+          />
           <div>
             <p className="mtx-text-label-large mtx-card-title">{preview.course.title}</p>
             <p className="mtx-text-body-small" style={{ color: "var(--color-text-secondary)" }}>

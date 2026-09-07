@@ -50,7 +50,7 @@ export function MyLearningScreen() {
       )}
 
       {!myLearning.isLoading && filtered.length > 0 && (
-        <div className="mtx-course-grid">
+        <div className="mtx-progress-list">
           {filtered.map((item) => (
             <CourseProgressCard
               key={item.course.id}

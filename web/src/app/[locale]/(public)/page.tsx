@@ -1,7 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { PublicNavbar } from "@/components/navigation/public-navbar";
-import { Button, CourseCard, LearningPathCard } from "@/components/ui";
+import { Button, CategoryChip, CourseCard, CourseThumbnail, Icon, LearningPathCard } from "@/components/ui";
 import { listCourses } from "@/lib/api/courses";
 import { listLearningPaths } from "@/lib/api/learning-paths";
 import { listCategories } from "@/lib/api/categories";
@@ -27,32 +27,79 @@ export default async function LandingPage({ params }: { params: Promise<{ locale
     listCategories(),
   ]);
   const categoryNameById = new Map(categories.map((c) => [c.id, c.name]));
+  const totalCourseCount = categories.reduce((sum, c) => sum + c.courseCount, 0);
+  const collageCourses = courses.slice(0, 4);
 
   return (
     <>
       <PublicNavbar sticky />
       <main id="main-content" className="mx-auto max-w-[1280px] px-4 py-12 tablet:px-6 desktop:px-8">
-        <section className="flex flex-col items-start gap-6 py-12 text-start">
+        <section className="mtx-hero">
           {/* Responsive sizing comes from the generated media-query blocks on the CSS vars
               themselves (tools/token-pipeline/generate.js), not a Tailwind breakpoint variant —
               custom classes like mtx-text-* aren't Tailwind utilities Tailwind can prefix. */}
-          <h1 className="mtx-text-display-large">{t("heroTitle")}</h1>
-          <p className="mtx-text-body-large" style={{ color: "var(--color-text-secondary)", maxWidth: "60ch" }}>
-            {t("heroSubtitle")}
-          </p>
-          <div className="flex flex-wrap gap-3">
-            <Link href="/explore">
-              <Button variant="primary">{t("exploreCourses")}</Button>
-            </Link>
-            <Link href="/register">
-              <Button variant="secondary">{t("getStarted")}</Button>
-            </Link>
+          <div className="mtx-hero-content">
+            <CategoryChip label={t("heroEyebrow")} />
+            <h1 className="mtx-text-display-large">{t("heroTitle")}</h1>
+            <p className="mtx-text-body-large" style={{ color: "var(--color-text-secondary)", maxWidth: "60ch" }}>
+              {t("heroSubtitle")}
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <Link href="/explore">
+                <Button variant="primary">{t("exploreCourses")}</Button>
+              </Link>
+              <Link href="/register">
+                <Button variant="secondary">{t("getStarted")}</Button>
+              </Link>
+            </div>
+            <div className="mtx-hero-stats">
+              <span className="mtx-hero-stat">
+                <Icon name="myLearning" size={20} />
+                {t("statCourses", { count: totalCourseCount })}
+              </span>
+              <span className="mtx-hero-stat">
+                <Icon name="learningPaths" size={20} />
+                {t("statPaths", { count: learningPaths.length })}
+              </span>
+              <span className="mtx-hero-stat">
+                <Icon name="search" size={20} />
+                {t("statLanguages")}
+              </span>
+            </div>
           </div>
+
+          {collageCourses.length > 0 && (
+            <div className="mtx-hero-collage">
+              {collageCourses.map((course) => (
+                <div key={course.id} className="mtx-hero-collage-item">
+                  <CourseThumbnail
+                    mediaId={course.thumbnailMediaId}
+                    className="mtx-hero-collage-thumbnail"
+                    seed={course.id}
+                    categoryId={course.categoryId}
+                    iconSize={24}
+                  />
+                  <p className="mtx-text-label-large mtx-hero-collage-title">{course.title}</p>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
 
         {courses.length > 0 && (
           <section className="py-8">
-            <h2 className="mtx-text-heading-h2 mb-4">{explore("title")}</h2>
+            <div className="mb-4 flex items-end justify-between gap-4">
+              <div>
+                <h2 className="mtx-text-heading-h2">{t("popularCoursesTitle")}</h2>
+                <p className="mtx-text-body-small" style={{ color: "var(--color-text-secondary)" }}>
+                  {t("popularCoursesSubtitle")}
+                </p>
+              </div>
+              <Link href="/explore" className="mtx-btn mtx-btn-text" style={{ whiteSpace: "nowrap" }}>
+                {t("seeAllCourses")}
+                <Icon name="arrowForward" size={20} className="mtx-icon-mirror-rtl" />
+              </Link>
+            </div>
             <div className="mtx-course-grid">
               {courses.map((course) => (
                 <CourseCard
@@ -70,7 +117,10 @@ export default async function LandingPage({ params }: { params: Promise<{ locale
 
         {learningPaths.length > 0 && (
           <section className="py-8">
-            <h2 className="mtx-text-heading-h2 mb-4">{paths("title")}</h2>
+            <h2 className="mtx-text-heading-h2">{paths("title")}</h2>
+            <p className="mtx-text-body-small mb-4" style={{ color: "var(--color-text-secondary)" }}>
+              {t("learningPathsSubtitle")}
+            </p>
             <div className="mtx-course-grid">
               {learningPaths.slice(0, 3).map((path) => (
                 <LearningPathCard
