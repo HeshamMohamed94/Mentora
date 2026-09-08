@@ -35,6 +35,9 @@ uploads/
 mongodb-data/
 data/db/
 
+# Mentora local dev-script runtime state (PID tracking for start/stop scripts)
+.local-runtime/
+
 # Logs
 *.log
 

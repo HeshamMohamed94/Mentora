@@ -5,6 +5,26 @@ client yet (Phases 2–5) — everything here is verified via `curl`/an HTTP cli
 suite. See `architecture/DEPLOYMENT.md` for the full (all-phases) local-only deployment design this
 follows; this file is the concrete, as-built "do this" version of that architecture for Phase 1.
 
+## Quick start: one-command local environment (backend + website)
+
+Two scripts at the repo root start/stop MongoDB check, backend, and website together, waiting for both
+`/healthz` (backend) and `/en` (website) to actually respond before opening the site in your browser:
+
+```
+.\start-mentora.ps1     # start everything (safe to re-run — skips anything already running)
+.\stop-mentora.ps1      # stop the backend/website processes these scripts started (MongoDB is left running)
+```
+
+If PowerShell's execution policy blocks running them directly, either run once with:
+```
+powershell -ExecutionPolicy Bypass -File .\start-mentora.ps1
+```
+or set the policy for your user permanently: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
+
+These scripts track the processes they start under `.local-runtime/` (git-ignored) so `stop-mentora.ps1`
+only ever stops what it started. They don't replace the manual steps below — read on if you're setting up
+the backend for the first time (MongoDB replica set, `.env`) or want to run/test it directly.
+
 ## Prerequisites
 
 - **JDK 21** (Temurin or equivalent). Verify: `java -version`.
