@@ -17,34 +17,41 @@
       "description": "The locked ux/WEB_UX.md § 5 caps the Dashboard at exactly 3 modules and 'no more than one StatCard row.' The current implementation (carried forward from an earlier D48 pass and extended in D49) renders a 4-stat-card row + an AI Tutor nudge card + an Up Next card in a 2-column right rail — a deliberate, disclosed deviation from the letter of the 3-module cap, extending an existing pre-D49 divergence rather than introducing a new one.",
       "resolution": "This screen spec records the CURRENT implementation's structure as-built (rank 4 evidence) while flagging the rank-1 conflict explicitly — chasing either direction (reverting to strict 3-module, or re-ratifying the richer layout) is a product/UX decision, not something this design-to-code pass resolves unilaterally.",
       "recordedIn": "design-to-code/validation/EXTRACTION_REPORT.md"
+    },
+    {
+      "description": "D55 (2026-09-10 acceptance-criteria ticket): the showcase's header row (eyebrow + greeting on the left, a 280px search box + avatar on the right, no page title, no theme toggle) was replaced with a search bar + theme toggle row above a standalone 'Dashboard' h1 title, a dynamic local-time greeting ('Good {morning|afternoon|evening|night}, {firstName}'), and a supporting subtitle. Neither a page title nor a theme toggle exists anywhere in the locked showcase or ux/SCREEN_UX_SPECS.md § 8 for Web — this is new composition, not a showcase deviation in the usual sense. Separately, the stat row's 4th-of-4 metric was evaluated against 'Learning hours' (the showcase's actual 4th card) and found impossible to compute truthfully: no watch-time/duration field exists anywhere in the backend (Progress/Enrollment/Lesson models all checked) or frontend DTOs. Avg. progress — already real, already shown — fills that slot instead of a fabricated hours figure.",
+      "resolution": "Both changes were surfaced to the user before implementation (title/greeting hierarchy and toggle placement via an explicit clarifying question; the Learning-hours data gap via investigation, reported rather than invented) and built to the user's explicit direction, recorded in execution/DECISIONS_LOG.md D54 and D55. Not silently resolved.",
+      "recordedIn": "execution/DECISIONS_LOG.md D54, D55"
     }
   ],
 
   "layout": {
     "grid": "desktop: grid-cols-[minmax(0,2fr)_minmax(0,1fr)] — left column (Continue Learning + Recommended), right column (AI Tutor nudge + Up Next, stacked)",
-    "stackBelowDesktop": "single column, right-rail content moves below left-column content"
+    "stackBelowDesktop": "single column, right-rail content moves below left-column content",
+    "header": "D55: search bar (SearchField, tablet+: max-width 440px) + ThemeToggle (IconButton) in their own row, full content width, ABOVE the title block — not part of the showcase's original greeting row"
   },
 
   "sections": [
-    { "order": 1, "id": "greeting", "content": ["\"Welcome back, {name}\" — real heading (h2-equivalent)"] },
-    { "order": 2, "id": "statRow", "content": ["4 statCards: courses in progress, avg. progress, courses completed, certificates earned"] },
+    { "order": 0, "id": "topControls", "content": ["D55: SearchField (submits on Enter to /app/explore?q=; placeholder 'Search for courses, skills or anything...') + ThemeToggle (IconButton, moon in light/sun in dark), justify-between in one row"] },
+    { "order": 1, "id": "titleAndGreeting", "content": ["D55: 'Dashboard' — real h1 (was previously the greeting's slot)", "dynamic local-device-time greeting: 'Good morning/afternoon/evening/night, {firstName} 👋' (05–11:59/12–16:59/17–20:59/21–04:59), firstName parsed from the authenticated user's existing single `name` field — no backend change", "supporting subtitle: \"Let's continue your learning journey.\""] },
+    { "order": 2, "id": "statRow", "content": ["4 statCards: courses in progress, avg. progress, courses completed, certificates earned — see conflicts[1] re: 'Learning hours' evaluated and rejected as unable to be computed truthfully"] },
     { "order": 3, "id": "continueLearning", "content": ["1 courseProgressCard (most recent in-progress course) — replaced by a single 'Start your first course' prompt if none in progress (module-level empty state, not a separate Empty screen)"] },
     { "order": 4, "id": "recommended", "content": ["3-4 courseCard row, from followed Learning Paths' next course or catalog highlights"] },
     { "order": 5, "id": "aiTutorNudge", "content": ["static brand-tinted card linking to /app/ai-tutor — no fabricated content"] },
     { "order": 6, "id": "upNext", "content": ["real-data-driven module (D49): up to 2 entries derived from CourseResponse/ProgressResponse — next lesson after primary Continue item's currentLessonId, plus secondary Continue item's own resume point. Hidden entirely if zero entries (no fabricated placeholder rows)."] }
   ],
 
-  "componentSequence": ["card.statCard", "card.courseProgressCard", "card.courseCard", "card.learningPathCard", "progressBar"],
+  "componentSequence": ["textField.searchField", "card.statCard", "card.courseProgressCard", "card.courseCard", "card.learningPathCard", "progressBar"],
 
-  "typographyHierarchy": { "greeting": "typography.heading.h2 (or h1-equivalent per implementation)", "moduleHeadings": "typography.heading.h2 (real headings, not styled divs — screen-reader jumpability)", "statValue": "typography.heading.h2", "statLabel": "typography.body.small" },
+  "typographyHierarchy": { "title": "typography.heading.h1 (D55: 'Dashboard', real page title)", "greeting": "typography.heading.h3 (D55: demoted one level under the new h1 title; dynamic per-time-of-day text)", "subtitle": "typography.body.large, color.text.secondary", "moduleHeadings": "typography.heading.h2 (real headings, not styled divs — screen-reader jumpability)", "statValue": "typography.heading.h2", "statLabel": "typography.body.small" },
 
   "artworkRules": "shared/artwork.json — Continue Learning and Recommended course thumbnails.",
-  "navigation": { "exitDestinations": ["Course Player (Continue)", "Explore", "My Learning", "AI Tutor"] },
+  "navigation": { "exitDestinations": ["Course Player (Continue)", "Explore", "My Learning", "AI Tutor", "Explore (search submit, D55)"] },
 
   "states": { "loading": "skeletons per module", "empty": "module 1 degrades to a single prompt; module 'Up Next' hides entirely if no real data exists — never fabricated" },
 
-  "ltrBehavior": "default", "rtlBehavior": "greeting and module titles start-aligned; Continue CTA position follows logical end",
-  "themeBehavior": "standard semantic token resolution, verified Light/Dark/EN/AR live (D49 browser verification)",
-  "responsiveRules": "modules stack vertically at every breakpoint; module 2's course row uses courseGrid column count",
-  "knownGaps": ["4-stat-card + AI-nudge + Up-Next layout exceeds ux/WEB_UX.md § 5's literal 3-module/1-StatCard-row cap — disclosed conflict above, not silently resolved."]
+  "ltrBehavior": "default", "rtlBehavior": "greeting and module titles start-aligned; Continue CTA position follows logical end; D55: search bar + theme toggle row mirrors via logical flex order (toggle after search in DOM = visually left of search in RTL), no manual dir branching",
+  "themeBehavior": "standard semantic token resolution, verified Light/Dark/EN/AR live (D49 browser verification; D55 re-verified for the new header row and toggle)",
+  "responsiveRules": "modules stack vertically at every breakpoint; module 2's course row uses courseGrid column count; D55: search bar shrinks to fill available row width below its 440px tablet+ cap, ThemeToggle stays fixed 40x40",
+  "knownGaps": ["4-stat-card + AI-nudge + Up-Next layout exceeds ux/WEB_UX.md § 5's literal 3-module/1-StatCard-row cap — disclosed conflict above, not silently resolved.", "No real Learning Time/hours data exists in the backend — the showcase's 4th stat metric could not be reproduced truthfully; disclosed in conflicts[1], not fabricated."]
 }

@@ -272,9 +272,43 @@ Zero changes to Dashboard stats, Continue Learning, Learning Paths, AI Tutor, Si
 authentication, or any `design-system`/`product`/`ux` document. Full detail and verification
 performed: see D54.
 
+**Student Dashboard Full Acceptance Criteria Alignment (2026-09-10, D55) — done per a follow-up
+acceptance-criteria ticket extending D54, not a Task 12 start.** Restructured the header: search
+bar + theme toggle now sit in their own row above a standalone `Dashboard` h1 (previously the
+title/greeting shared a row with search+toggle); search placeholder text changed to the ticket's
+exact new string ("Search for courses, skills or anything...") and the field widened
+(`tablet:max-w-[440px]`, up from 280px) so it renders unclipped. Replaced the static "Welcome
+back, {name}" greeting with a dynamic, client-local-time greeting (`new Date().getHours()`, never
+server time) across 4 buckets — morning/afternoon/evening/night — using the authenticated user's
+first name (parsed client-side from the existing single `name` field; no backend change) plus a
+new supporting subtitle line, both via new i18n keys in `en.json`/`ar.json` (old unused
+`dashboard.greeting` key removed, confirmed no other references first). Investigated the 4th stat
+card before touching it: the showcase's actual 4th metric is "Learning hours," and a full
+backend+frontend sweep (Progress/Enrollment/Lesson/Media models, all DTOs) found **no real
+watch-time data anywhere in the system** — fabricating an hours figure was explicitly disallowed
+by the ticket, so the existing, real Avg. progress metric was kept in that slot instead and the
+gap disclosed here and in `design-to-code/screens/dashboard.json`'s `conflicts[]`, rather than
+inventing a number. `design-to-code/screens/dashboard.json` (not a locked source — explicitly
+permitted to be kept current per this ticket's own instruction) updated to record the new header
+composition, typography hierarchy, and both conflicts; `design-system/product/ux` documents
+themselves were not touched. Verified live in Chrome as two seeded students (`student1`/
+`student2@mentora.dev`): dynamic greeting with real first name and correct time bucket in both EN
+and AR, theme toggle Light↔Dark with refresh persistence in both locales, search (case-insensitive
+partial match via "koTLIN", no-result query, empty-Enter no-op) landing on Explore pre-filled, a
+real Continue Learning card (thumbnail/progress/Resume) produced by enrolling and partially
+completing a course through the actual demo-checkout flow, accessible name for the search field
+confirmed via DOM inspection to come from its associated `<label>` (not the placeholder). Narrow-
+viewport responsive behavior could **not** be live-verified this session — `resize_window`
+returned success but the tab's `window.innerWidth` never changed from 2048px in this environment;
+the new header row reuses the same shrinkable-flex-item pattern already relied on elsewhere in the
+app, but this is disclosed as unverified rather than claimed. `typecheck`/`lint`/
+`lint:logical-properties`/`validate:design-to-code` (24 screens, re-passed after the
+`dashboard.json` edit)/production `build` (37 routes) all clean. Full detail and verification
+performed: see D55.
+
 ## Immediate Next Action
 
-**Per explicit user instruction (most recently reaffirmed 2026-09-09, D54): do not start Task 12
+**Per explicit user instruction (most recently reaffirmed 2026-09-10, D55): do not start Task 12
 without a new go-ahead — this note is for whenever that go-ahead comes.**
 
 Task 12: Admin Web — Dashboard, Manage Courses/Users/Instructors/Categories. Read the real

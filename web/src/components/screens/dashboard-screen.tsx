@@ -27,6 +27,24 @@ function orderedLessons(sections: SectionResponse[]): LessonResponse[] {
     .flatMap((section) => [...section.lessons].sort((first, second) => first.order - second.order));
 }
 
+type GreetingBucket = "morning" | "afternoon" | "evening" | "night";
+
+const GREETING_KEYS: Record<GreetingBucket, string> = {
+  morning: "greetingMorning",
+  afternoon: "greetingAfternoon",
+  evening: "greetingEvening",
+  night: "greetingNight",
+};
+
+/** ux/SCREEN_UX_SPECS.md § 8 acceptance criteria (2026-09-10 ticket): local device time, not
+ * server/backend time — `hour` must come from a client-side `Date`. */
+function greetingBucket(hour: number): GreetingBucket {
+  if (hour >= 5 && hour < 12) return "morning";
+  if (hour >= 12 && hour < 17) return "afternoon";
+  if (hour >= 17 && hour < 21) return "evening";
+  return "night";
+}
+
 interface UpNextEntry {
   key: string;
   kind: "next-lesson" | "continue";
@@ -104,6 +122,9 @@ export function DashboardScreen() {
     if (query) router.push(`/app/explore?q=${encodeURIComponent(query)}`);
   }
 
+  const firstName = user?.name.split(" ")[0] ?? "";
+  const greetingKey = GREETING_KEYS[greetingBucket(new Date().getHours())];
+
   const enrolledIds = new Set(myLearning.items.map((item) => item.course.id));
   const recommendedQuery = useCourses({ limit: 8 });
   const recommended = (recommendedQuery.data?.items ?? []).filter((c) => !enrolledIds.has(c.id)).slice(0, 4);
@@ -120,28 +141,29 @@ export function DashboardScreen() {
 
   return (
     <div className="mx-auto max-w-[1280px] px-4 py-8 tablet:px-6 desktop:px-8">
-      <div className="mb-8 flex flex-col gap-4 tablet:flex-row tablet:items-center tablet:justify-between">
-        <div>
-          <h1 className="mtx-text-heading-h1">{t("title")}</h1>
-          {user && (
-            <p className="mtx-text-body-large mt-1" style={{ color: "var(--color-text-secondary)" }}>
-              {t("greeting", { name: user.name })}
-            </p>
-          )}
-        </div>
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <form onSubmit={handleSearchSubmit} className="w-full tablet:max-w-[440px]">
+          <SearchField
+            value={search}
+            onChange={setSearch}
+            label={t("searchLabel")}
+            placeholder={t("searchPlaceholder")}
+            clearLabel={tCommon("clearSearch")}
+          />
+        </form>
+        <ThemeToggle />
+      </div>
 
-        <div className="flex items-center gap-3">
-          <form onSubmit={handleSearchSubmit} className="w-full tablet:w-[280px]">
-            <SearchField
-              value={search}
-              onChange={setSearch}
-              label={t("searchLabel")}
-              placeholder={t("searchPlaceholder")}
-              clearLabel={tCommon("clearSearch")}
-            />
-          </form>
-          <ThemeToggle />
-        </div>
+      <div className="mb-8">
+        <h1 className="mtx-text-heading-h1">{t("title")}</h1>
+        {user && (
+          <>
+            <p className="mtx-text-heading-h3 mt-2">{t(greetingKey, { name: firstName })}</p>
+            <p className="mtx-text-body-large mt-1" style={{ color: "var(--color-text-secondary)" }}>
+              {t("subtitle")}
+            </p>
+          </>
+        )}
       </div>
 
       <div className="mb-8 grid grid-cols-2 gap-4 tablet:grid-cols-4">
