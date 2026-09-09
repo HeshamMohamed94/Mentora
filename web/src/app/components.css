@@ -2165,6 +2165,7 @@ html[dir="rtl"] .mtx-toggle input:checked + .mtx-toggle-track .mtx-toggle-thumb 
   cursor: pointer;
 }
 .mtx-icon-button:hover:not(:disabled), .mtx-drag-handle:hover:not(:disabled) { background-color: color-mix(in srgb, var(--color-text-primary) calc(var(--state-hover-opacity) * 100%), transparent); color: var(--color-text-primary); }
+.mtx-icon-button:active:not(:disabled), .mtx-drag-handle:active:not(:disabled) { background-color: color-mix(in srgb, var(--color-text-primary) calc(var(--state-pressed-opacity) * 100%), transparent); color: var(--color-text-primary); }
 .mtx-icon-button:focus-visible, .mtx-drag-handle:focus-visible { outline: var(--border-width-focus) solid var(--color-border-focus); outline-offset: var(--border-width-focus); }
 .mtx-icon-button:disabled, .mtx-drag-handle:disabled { color: var(--color-text-disabled); cursor: not-allowed; }
 

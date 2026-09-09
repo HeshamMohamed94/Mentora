@@ -242,11 +242,40 @@ consistency 97%, exact-showcase Light average ≈93.9% (materially unchanged fro
 screen structure changed). Zero product behavior, routes, backend, or
 `design-system`/`product`/`ux` document changes. Full detail and verification performed: see D53.
 
+**Student Dashboard Acceptance Criteria — Search + Theme Toggle + Title (2026-09-09, D54) — done
+per an explicit user acceptance-criteria ticket, not a Task 12 start.** Investigated first:
+neither `design-to-code/screens/dashboard.json` nor the locked `Mentora Showcase.dc.html` Student
+Dashboard mockup (light or dark) specs a distinct "Dashboard" title or a theme-toggle control —
+the showcase's top row is only an eyebrow + "Welcome back, {name}" greeting (already the page's
+h1) next to an inline search box and an avatar. This gap was disclosed to the user before
+implementation (not silently resolved); the user made the product call: "Dashboard" becomes the
+page h1 (matching the h1-as-screen-name pattern already used by Explore/Settings), the existing
+greeting demotes to a secondary line beneath it, and the search bar + a new theme-toggle
+`IconButton` sit in the same top-right control area, toggle directly after the search bar in
+DOM/logical order (mirrors correctly in RTL). Implementation reused existing pieces throughout:
+the approved `SearchField` component (previously only used on Explore), the locked `IconButton`
+spec (`design-system/COMPONENTS.md § IconButton`) via the existing `.mtx-icon-button` class (which
+was missing its specced `:active`/pressed state — added, benefiting every existing consumer, not
+just this control), and the existing `useTheme()` hook/`mentora-theme` localStorage mechanism
+(extended, non-breaking, with a `resolvedTheme` field so the toggle can show the icon for the
+theme actually in effect, including live system-preference changes when no explicit override is
+set — Settings' theme `Select` is unaffected). Two new hand-drawn `Icon` entries (`darkMode`
+moon / `lightMode` sun) added following the existing inline-SVG icon pattern; both are
+non-directional and were left out of `design-system/design-tokens.json`'s `icon.directional`
+lists on purpose (that locked file was not touched) — the documented default for an undeclared
+icon is already `neverMirror`, which is correct here. Dashboard's search submits on Enter to
+`/app/explore?q=<value>` (the only place Mentora actually filters courses/categories by text);
+`ExploreScreen` gained a one-line `useSearchParams()` read to seed its existing search state from
+that `?q=`, wrapped in the `Suspense` boundary Next.js requires for it in both places `ExploreScreen`
+is mounted — the only screen besides Dashboard this change touched, and only for this reason.
+Zero changes to Dashboard stats, Continue Learning, Learning Paths, AI Tutor, Sidebar,
+authentication, or any `design-system`/`product`/`ux` document. Full detail and verification
+performed: see D54.
+
 ## Immediate Next Action
 
-**Per explicit user instruction (2026-09-07 session): D53 (primary Light visual alignment pass)
-is the last work done this session. Do not start Task 12 without a new go-ahead — this note is
-for whenever that go-ahead comes.**
+**Per explicit user instruction (most recently reaffirmed 2026-09-09, D54): do not start Task 12
+without a new go-ahead — this note is for whenever that go-ahead comes.**
 
 Task 12: Admin Web — Dashboard, Manage Courses/Users/Instructors/Categories. Read the real
 backend source before assuming any endpoint shape (same discipline as every prior task):

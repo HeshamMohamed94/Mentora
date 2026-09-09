@@ -25,3 +25,4 @@ export { Tabs, type TabOption } from "./tabs";
 export { FileUpload, type FileUploadProps } from "./file-upload";
 export { ReorderableList, type ReorderableEntry } from "./reorderable-list";
 export { AppDialog } from "./app-dialog";
+export { ThemeToggle } from "./theme-toggle";

@@ -1,11 +1,21 @@
 "use client";
 
+import { useState, type FormEvent } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { useCurrentUser } from "@/lib/auth/use-current-user";
 import { useMyLearning, type MyLearningItem } from "@/lib/api/my-learning";
 import { useCourses, type LessonResponse, type SectionResponse } from "@/lib/api/courses";
 import { useFollowedLearningPaths } from "@/lib/api/learning-paths";
-import { CourseProgressCard, CourseCard, LearningPathCard, StatCard, EmptyState, Icon } from "@/components/ui";
+import {
+  CourseProgressCard,
+  CourseCard,
+  LearningPathCard,
+  StatCard,
+  EmptyState,
+  Icon,
+  SearchField,
+  ThemeToggle,
+} from "@/components/ui";
 import { LEVEL_LABEL_KEYS } from "@/lib/i18n/course-labels";
 import { formatCount } from "@/lib/i18n/format";
 import { Link, useRouter } from "@/i18n/navigation";
@@ -80,11 +90,19 @@ function upNextEntries(continueItems: MyLearningItem[]): UpNextEntry[] {
 export function DashboardScreen() {
   const t = useTranslations("dashboard");
   const tExplore = useTranslations("explore");
+  const tCommon = useTranslations("common");
   const locale = useLocale();
   const router = useRouter();
   const { data: user } = useCurrentUser();
   const myLearning = useMyLearning();
   const followedPaths = useFollowedLearningPaths();
+  const [search, setSearch] = useState("");
+
+  function handleSearchSubmit(event: FormEvent) {
+    event.preventDefault();
+    const query = search.trim();
+    if (query) router.push(`/app/explore?q=${encodeURIComponent(query)}`);
+  }
 
   const enrolledIds = new Set(myLearning.items.map((item) => item.course.id));
   const recommendedQuery = useCourses({ limit: 8 });
@@ -102,9 +120,29 @@ export function DashboardScreen() {
 
   return (
     <div className="mx-auto max-w-[1280px] px-4 py-8 tablet:px-6 desktop:px-8">
-      <h1 className="mtx-text-heading-h1 mb-6">
-        {user ? t("greeting", { name: user.name }) : t("title")}
-      </h1>
+      <div className="mb-8 flex flex-col gap-4 tablet:flex-row tablet:items-center tablet:justify-between">
+        <div>
+          <h1 className="mtx-text-heading-h1">{t("title")}</h1>
+          {user && (
+            <p className="mtx-text-body-large mt-1" style={{ color: "var(--color-text-secondary)" }}>
+              {t("greeting", { name: user.name })}
+            </p>
+          )}
+        </div>
+
+        <div className="flex items-center gap-3">
+          <form onSubmit={handleSearchSubmit} className="w-full tablet:w-[280px]">
+            <SearchField
+              value={search}
+              onChange={setSearch}
+              label={t("searchLabel")}
+              placeholder={t("searchPlaceholder")}
+              clearLabel={tCommon("clearSearch")}
+            />
+          </form>
+          <ThemeToggle />
+        </div>
+      </div>
 
       <div className="mb-8 grid grid-cols-2 gap-4 tablet:grid-cols-4">
         <StatCard value={formatCount(inProgress.length, locale)} label={t("statInProgress")} />

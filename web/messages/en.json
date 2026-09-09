@@ -7,7 +7,9 @@
     "retry": "Try again",
     "cancel": "Cancel",
     "save": "Save",
-    "clearSearch": "Clear search"
+    "clearSearch": "Clear search",
+    "switchToDarkTheme": "Switch to dark theme",
+    "switchToLightTheme": "Switch to light theme"
   },
   "nav": {
     "explore": "Explore",
@@ -79,6 +81,8 @@
   "dashboard": {
     "title": "Dashboard",
     "greeting": "Welcome back, {name}",
+    "searchLabel": "Search courses, skills, or learning paths",
+    "searchPlaceholder": "Search for courses, skills, or anything",
     "statInProgress": "Courses in progress",
     "statAvgProgress": "Avg. progress",
     "statCompleted": "Courses completed",

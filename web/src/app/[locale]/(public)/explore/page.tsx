@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { PublicNavbar } from "@/components/navigation/public-navbar";
 import { ExploreScreen } from "@/components/screens/explore-screen";
 
@@ -6,7 +7,9 @@ export default function PublicExplorePage() {
     <>
       <PublicNavbar sticky />
       <main id="main-content">
-        <ExploreScreen />
+        <Suspense>
+          <ExploreScreen />
+        </Suspense>
       </main>
     </>
   );

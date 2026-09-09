@@ -7,7 +7,9 @@
     "retry": "أعد المحاولة",
     "cancel": "إلغاء",
     "save": "حفظ",
-    "clearSearch": "مسح البحث"
+    "clearSearch": "مسح البحث",
+    "switchToDarkTheme": "التبديل إلى المظهر الداكن",
+    "switchToLightTheme": "التبديل إلى المظهر الفاتح"
   },
   "nav": {
     "explore": "استكشف",
@@ -79,6 +81,8 @@
   "dashboard": {
     "title": "لوحة التحكم",
     "greeting": "مرحبًا بعودتك، {name}",
+    "searchLabel": "البحث عن الدورات أو المهارات أو مسارات التعلّم",
+    "searchPlaceholder": "ابحث عن الدورات أو المهارات أو أي شيء",
     "statInProgress": "دورات قيد التقدم",
     "statAvgProgress": "متوسط التقدم",
     "statCompleted": "دورات مكتملة",

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import { useCourses } from "@/lib/api/courses";
 import { useCategories } from "@/lib/api/categories";
@@ -23,7 +24,8 @@ export function ExploreScreen() {
   const locale = useLocale();
   const { data: user } = useCurrentUser();
   const basePath = user ? "/app" : "";
-  const [search, setSearch] = useState("");
+  const searchParams = useSearchParams();
+  const [search, setSearch] = useState(() => searchParams.get("q") ?? "");
   const [category, setCategory] = useState<string | undefined>();
   const [level, setLevel] = useState<string | undefined>();
   const debouncedSearch = useDebouncedValue(search);

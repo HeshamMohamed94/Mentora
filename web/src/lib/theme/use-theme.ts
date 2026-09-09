@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { THEME_STORAGE_KEY } from "./theme-script";
 
 export type ThemePreference = "light" | "dark" | "system";
+export type ResolvedTheme = "light" | "dark";
 
 function readStoredPreference(): ThemePreference {
   if (typeof window === "undefined") return "system";
@@ -11,13 +12,28 @@ function readStoredPreference(): ThemePreference {
   return stored === "light" || stored === "dark" ? stored : "system";
 }
 
-/** Client-side theme control for Settings (SCREEN_INVENTORY.md § 17) — persists an explicit
- * override; "system" clears the override and defers to prefers-color-scheme. */
+function readSystemTheme(): ResolvedTheme {
+  if (typeof window === "undefined") return "light";
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+/** Client-side theme control for Settings (SCREEN_INVENTORY.md § 17) and the Dashboard theme
+ * toggle — persists an explicit override; "system" clears the override and defers to
+ * prefers-color-scheme. `resolvedTheme` is the theme actually in effect right now (preference
+ * resolved against the live OS setting when preference is "system"), for controls that need to
+ * show/act on the current appearance rather than the stored preference. */
 export function useTheme() {
   const [preference, setPreferenceState] = useState<ThemePreference>("system");
+  const [systemTheme, setSystemTheme] = useState<ResolvedTheme>("light");
 
   useEffect(() => {
     setPreferenceState(readStoredPreference());
+    setSystemTheme(readSystemTheme());
+
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = (event: MediaQueryListEvent) => setSystemTheme(event.matches ? "dark" : "light");
+    media.addEventListener("change", onChange);
+    return () => media.removeEventListener("change", onChange);
   }, []);
 
   const setPreference = useCallback((next: ThemePreference) => {
@@ -31,5 +47,7 @@ export function useTheme() {
     }
   }, []);
 
-  return { preference, setPreference };
+  const resolvedTheme: ResolvedTheme = preference === "system" ? systemTheme : preference;
+
+  return { preference, setPreference, resolvedTheme };
 }
