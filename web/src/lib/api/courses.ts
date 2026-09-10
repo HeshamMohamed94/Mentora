@@ -44,14 +44,28 @@ export interface SectionResponse {
   lessons: LessonResponse[];
 }
 
+export interface CourseTranslation {
+  title: string;
+  description: string;
+}
+
 export interface CourseResponse extends CourseSummary {
   status: "draft" | "published";
   sections: SectionResponse[];
+  /** Every locale this course has localized metadata for, keyed by locale ("en"/"ar") — never
+   * includes an entry for `contentLanguage` itself (that's already `title`/`description`). Not
+   * used for display (the top-level `title`/`description` are already resolved for whatever
+   * `language` was requested) — present for a future editing UI. */
+  translations: Record<string, CourseTranslation>;
 }
 
 export interface CourseListFilters {
   category?: string;
   level?: string;
+  /** UI locale to resolve `title`/`description` for. Also narrows the result set: a course is
+   * included only when its `contentLanguage` matches or it has a translation for this locale —
+   * never omit a course just because its content language differs from a locale it has been
+   * translated into (see execution/DECISIONS_LOG.md D57). */
   language?: string;
   maxPrice?: number;
   q?: string;
@@ -77,8 +91,9 @@ export async function listCourses(filters: CourseListFilters = {}) {
   return { items: data, nextCursor: meta.nextCursor };
 }
 
-export async function getCourse(id: string): Promise<CourseResponse> {
-  return apiFetch<CourseResponse>(`/courses/${id}`);
+export async function getCourse(id: string, language?: string): Promise<CourseResponse> {
+  const qs = language ? `?language=${language}` : "";
+  return apiFetch<CourseResponse>(`/courses/${id}${qs}`);
 }
 
 export function useCourses(filters: CourseListFilters = {}) {
@@ -88,10 +103,13 @@ export function useCourses(filters: CourseListFilters = {}) {
   });
 }
 
-export function useCourse(id: string) {
+/** Omit `language` when fetching a course to edit (Course Editor/Lesson Editor) — the base,
+ * original-language title/description round-trip unchanged, which is what an instructor editing
+ * their own course needs. Pass the current UI locale for any student/guest-facing display. */
+export function useCourse(id: string, language?: string) {
   return useQuery({
-    queryKey: ["courses", id],
-    queryFn: () => getCourse(id),
+    queryKey: ["courses", id, language],
+    queryFn: () => getCourse(id, language),
     enabled: Boolean(id),
   });
 }

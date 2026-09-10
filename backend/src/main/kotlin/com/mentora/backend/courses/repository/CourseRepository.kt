@@ -2,8 +2,10 @@ package com.mentora.backend.courses.repository
 
 import com.mongodb.client.model.Filters.and
 import com.mongodb.client.model.Filters.eq
+import com.mongodb.client.model.Filters.exists
 import com.mongodb.client.model.Filters.gt
 import com.mongodb.client.model.Filters.lte
+import com.mongodb.client.model.Filters.or
 import com.mongodb.client.model.Filters.text
 import com.mongodb.client.model.ReplaceOptions
 import com.mongodb.client.model.Sorts.ascending
@@ -41,12 +43,25 @@ data class Section(
     val lessons: List<Lesson> = emptyList(),
 )
 
+/**
+ * A course's metadata (title/description) localized for one UI locale. Distinct from
+ * `CourseDocument.contentLanguage` — a course's actual lesson content is authored in exactly one
+ * language, but its discovery metadata may be translated for display in the other supported UI
+ * locale (see `resolvedTitle`/`resolvedDescription` below).
+ */
+@Serializable
+data class CourseTranslation(val title: String, val description: String)
+
 @Serializable
 data class CourseDocument(
     @SerialName("_id") @Contextual val id: ObjectId? = null,
     @Contextual val instructorId: ObjectId,
     val title: String,
     val description: String,
+    /** Keyed by locale ("en"/"ar"). The entry for `contentLanguage` itself is never stored here —
+     * `title`/`description` above already are that language's text; a legacy/base-only record
+     * simply has an empty map, which `resolvedTitle`/`resolvedDescription` fall back through. */
+    val translations: Map<String, CourseTranslation> = emptyMap(),
     @Contextual val categoryId: ObjectId,
     val level: String,
     val contentLanguage: String,
@@ -58,6 +73,14 @@ data class CourseDocument(
     val createdAt: Instant,
     val updatedAt: Instant,
 )
+
+/** The single localization-resolution rule reused by every endpoint that returns course metadata
+ * (list, single-course get, checkout preview, learning-path courses, instructor dashboard) — see
+ * `execution/DECISIONS_LOG.md` D57. Requested locale's translation if present, else the course's
+ * own base (original/content-language) text — never blank, never a second implementation. */
+fun CourseDocument.resolvedTitle(language: String?): String = language?.let { translations[it]?.title } ?: title
+fun CourseDocument.resolvedDescription(language: String?): String =
+    language?.let { translations[it]?.description } ?: description
 
 class CourseRepository(database: MongoDatabase) {
     private val courses = database.getCollection<CourseDocument>("courses")
@@ -74,7 +97,10 @@ class CourseRepository(database: MongoDatabase) {
             add(eq("status", "published"))
             filter.categoryId?.let { add(eq("categoryId", it)) }
             filter.level?.let { add(eq("level", it)) }
-            filter.contentLanguage?.let { add(eq("contentLanguage", it)) }
+            // A course "belongs" to a requested locale when its content is authored in that
+            // language OR it has been translated for it — never hide a course that has usable
+            // metadata for the requested locale, per the Course Localized Metadata ticket (D57).
+            filter.contentLanguage?.let { add(or(eq("contentLanguage", it), exists("translations.$it"))) }
             filter.maxPrice?.let { add(lte("priceDisplay.amount", it)) }
             filter.query?.takeIf { it.isNotBlank() }?.let { add(text(it)) }
             filter.cursor?.let { add(gt("_id", it)) }

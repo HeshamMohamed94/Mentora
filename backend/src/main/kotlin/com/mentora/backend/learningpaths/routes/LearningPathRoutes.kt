@@ -23,6 +23,7 @@ fun Route.learningPathRoutes(service: LearningPathService) {
                 call.respondData(service.get(
                     requireNotNull(call.parameters["id"]),
                     call.authentication.principal<MentoraPrincipal>(),
+                    call.request.queryParameters["language"],
                 ))
             }
         }

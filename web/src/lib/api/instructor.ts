@@ -18,9 +18,10 @@ export interface InstructorDashboardResponse {
   courses: InstructorCourseSummary[];
 }
 
-export function useInstructorDashboard() {
+export function useInstructorDashboard(language?: string) {
   return useQuery({
-    queryKey: ["instructor-dashboard"],
-    queryFn: () => apiFetch<InstructorDashboardResponse>("/instructor/dashboard"),
+    queryKey: ["instructor-dashboard", language],
+    queryFn: () =>
+      apiFetch<InstructorDashboardResponse>(`/instructor/dashboard${language ? `?language=${language}` : ""}`),
   });
 }

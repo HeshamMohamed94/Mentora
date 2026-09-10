@@ -16,7 +16,7 @@ export function CheckoutScreen({ courseId }: { courseId: string }) {
   const tCommon = useTranslations("common");
   const locale = useLocale();
   const router = useRouter();
-  const previewQuery = useCheckoutPreview(courseId);
+  const previewQuery = useCheckoutPreview(courseId, locale);
   const completeMutation = useCompleteCheckout(courseId);
 
   function handleConfirm() {

@@ -20,7 +20,9 @@ fun Route.enrollmentRoutes(service: EnrollmentService) {
         route("/api/v1/courses/{id}/checkout") {
             get {
                 val principal = call.student()
-                call.respondData(service.preview(requireNotNull(call.parameters["id"]), principal))
+                call.respondData(service.preview(
+                    requireNotNull(call.parameters["id"]), principal, call.request.queryParameters["language"],
+                ))
             }
             post("/complete") {
                 call.requireCsrfHeader()

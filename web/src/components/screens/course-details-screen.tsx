@@ -8,7 +8,7 @@ import { useIsEnrolled } from "@/lib/api/enrollment";
 import { Button, InstructorCard, ErrorState, CourseThumbnail } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
 import { formatPrice } from "@/lib/i18n/format";
-import { LEVEL_LABEL_KEYS } from "@/lib/i18n/course-labels";
+import { LEVEL_LABEL_KEYS, CONTENT_LANGUAGE_LABEL_KEYS } from "@/lib/i18n/course-labels";
 
 /**
  * product/SCREEN_INVENTORY.md § 3 (Course Details). Shared between Guest (`/courses/:id`) and
@@ -19,7 +19,7 @@ export function CourseDetailsScreen({ courseId }: { courseId: string }) {
   const tExplore = useTranslations("explore");
   const tCommon = useTranslations("common");
   const locale = useLocale();
-  const courseQuery = useCourse(courseId);
+  const courseQuery = useCourse(courseId, locale);
   const categoriesQuery = useCategories();
   const { data: user } = useCurrentUser();
   const isEnrolled = useIsEnrolled(courseId);
@@ -81,6 +81,13 @@ export function CourseDetailsScreen({ courseId }: { courseId: string }) {
         <p className="mtx-text-body-medium" style={{ color: "var(--color-text-secondary)" }}>
           {course.instructorName} · ★ {course.ratingSeed.toFixed(1)} · {tExplore(LEVEL_LABEL_KEYS[course.level])}
         </p>
+        {course.contentLanguage !== locale && (
+          <p className="mtx-text-body-small" style={{ color: "var(--color-text-secondary)" }}>
+            {tExplore("contentLanguageBadge", {
+              language: tExplore(CONTENT_LANGUAGE_LABEL_KEYS[course.contentLanguage as "en" | "ar"]),
+            })}
+          </p>
+        )}
         <p className="mtx-text-heading-h3">{formatPrice(course.priceDisplay.amount, course.priceDisplay.currency, locale)}</p>
         <div>{cta}</div>
         <p className="mtx-text-body-medium mt-4">{course.description}</p>

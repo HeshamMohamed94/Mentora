@@ -15,7 +15,7 @@ export function MyLearningScreen() {
   const tCommon = useTranslations("common");
   const locale = useLocale();
   const router = useRouter();
-  const myLearning = useMyLearning();
+  const myLearning = useMyLearning(locale);
   const [status, setStatus] = useState<StatusFilter>("all");
 
   const filtered = myLearning.items.filter((item) => {

@@ -7,7 +7,7 @@ import { useCourses } from "@/lib/api/courses";
 import { useCategories } from "@/lib/api/categories";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { CourseCard, CategoryChip, SearchField, EmptyState, ErrorState, CourseGridSkeleton } from "@/components/ui";
-import { LEVEL_LABEL_KEYS, type CourseLevel } from "@/lib/i18n/course-labels";
+import { LEVEL_LABEL_KEYS, CONTENT_LANGUAGE_LABEL_KEYS, type CourseLevel } from "@/lib/i18n/course-labels";
 import { useCurrentUser } from "@/lib/auth/use-current-user";
 
 const LEVELS: CourseLevel[] = ["beginner", "intermediate", "advanced"];
@@ -35,6 +35,7 @@ export function ExploreScreen() {
     q: debouncedSearch || undefined,
     category,
     level,
+    language: locale,
     limit: 24,
   });
 
@@ -109,6 +110,13 @@ export function ExploreScreen() {
                 locale={locale}
                 viewLabel={t("viewCourse")}
                 basePath={basePath}
+                contentLanguageLabel={
+                  course.contentLanguage !== locale
+                    ? t("contentLanguageBadge", {
+                        language: t(CONTENT_LANGUAGE_LABEL_KEYS[course.contentLanguage as "en" | "ar"]),
+                      })
+                    : undefined
+                }
               />
             ))}
           </div>

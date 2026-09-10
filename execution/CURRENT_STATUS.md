@@ -328,10 +328,55 @@ change): English Dashboard now shows only English-titled recommended cards, Arab
 still correctly shows the Arabic course with instructor/rating/level/price intact. See
 `DECISIONS_LOG.md` D56 for the full account.
 
+**Course Localized Metadata — EN/AR (2026-09-10, D57) — done per a follow-up acceptance-criteria
+ticket extending D56, not a Task 12 start.** Added first-class per-locale title/description
+translations to the course model: `CourseDocument` gained `translations: Map<String,
+CourseTranslation> = emptyMap()` (keyed by locale — the entry for the course's own
+`contentLanguage` is never stored, `title`/`description` already are that language's text), with
+`CourseDocument.resolvedTitle(language)`/`.resolvedDescription(language)` as the single
+resolution rule (requested locale's translation if present, else the base text — never blank)
+reused everywhere a course renders: `CourseService.list/get`, `EnrollmentService.preview`
+(Checkout), `LearningPathService.get`, and `InstructorService.dashboard`, each newly threading an
+optional `language` query param down to it — no duplicated resolution logic per endpoint. The
+list endpoint's inclusion rule changed from "`contentLanguage` equals the requested locale" to
+"equals OR has a translation for it" (`Filters.or(eq(...), exists("translations.$it"))`), so a
+translated course is never hidden from its translated locale's catalog/recommendations — while a
+single specific course (Course Details, Checkout, My Learning, Learning Path, Instructor's own
+course) is never hidden regardless, since only list/catalog contexts filter at all. The seeded
+Arabic UX course now carries a real English translation ("User Experience Design Fundamentals" +
+an English description) via `SeedData.kt`'s `CourseSeed.translations`, flowing through the real
+`CourseService.create`/`update` — not hardcoded in React. `CourseCard`/Course Details gained an
+explicit "Course content: {language}" indicator (new `explore.contentLanguageBadge` + `en`/`ar`
+key, `CONTENT_LANGUAGE_LABEL_KEYS`) shown only when `contentLanguage !== locale`, so a translated
+title is never mistaken for translated lesson content. Mongo's single text index was widened to
+cover `translations.{en,ar}.{title,description}` (search matches localized metadata) via a named,
+drop-and-recreate-safe index in `CoursesIndexes.kt` — necessary because a differently-specced text
+index already existed in this dev database from before this change, and Mongo allows only one per
+collection. Backward compatibility: `translations` defaults to `emptyMap()` so a legacy document
+with no such field at all still deserializes and resolves to its base title (test-covered by
+directly `$unset`-ing the field on a real document, not just relying on the default). Validation
+reuses `validateLanguage()` (now field-name-parameterized) for translation locale keys and
+`required()` for blank-string rejection — no second validation implementation. Three new backend
+integration tests (locale resolution + fallback + list inclusion + search, unsupported-locale/
+blank-text rejection, legacy-document compatibility); full `gradlew build` (test+assemble) clean;
+frontend `tsc --noEmit`/`lint`/`lint:logical-properties`/`validate:design-to-code`/`build` all
+clean; en/ar key parity manually re-verified (395/395). Live-verified in Chrome (backend+website
+restarted, required for the compiled Kotlin change, then `gradlew seedDemoData` re-run to apply
+the new translation to the already-seeded dev course — required a second fix, `allSeedDataExists`
+gained a narrow existence-isn't-enough check for courses whose seed spec carries translations not
+yet on the persisted document, since the top-level idempotency gate was short-circuiting before
+`seedCourses`'s own update-if-existing branch could run): English Dashboard/Explore/Course Details
+all show "User Experience Design Fundamentals" with the Arabic content-language badge and intact
+instructor/rating/price; Arabic Dashboard/Course Details show the original Arabic title with no
+badge; Dashboard search for "Experience" correctly lands on the translated course via Explore.
+Admin course-list localization was deliberately left untouched — no Admin Web UI exists yet to
+consume it (Task 12 not started), so a `language` param there would be unverifiable dead code.
+See `DECISIONS_LOG.md` D57 for the full account.
+
 ## Immediate Next Action
 
-**Per explicit user instruction (most recently reaffirmed 2026-09-10, D55, unchanged by D56):
-do not start Task 12 without a new go-ahead — this note is for whenever that go-ahead comes.**
+**Per explicit user instruction (most recently reaffirmed 2026-09-10, D55/D56/D57): do not start
+Task 12 without a new go-ahead — this note is for whenever that go-ahead comes.**
 
 Task 12: Admin Web — Dashboard, Manage Courses/Users/Instructors/Categories. Read the real
 backend source before assuming any endpoint shape (same discipline as every prior task):

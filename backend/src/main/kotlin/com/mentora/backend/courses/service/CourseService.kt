@@ -10,10 +10,13 @@ import com.mentora.backend.common.toPage
 import com.mentora.backend.courses.repository.CourseDocument
 import com.mentora.backend.courses.repository.CourseRepository
 import com.mentora.backend.courses.repository.CourseResource
+import com.mentora.backend.courses.repository.CourseTranslation
 import com.mentora.backend.courses.repository.Lesson
 import com.mentora.backend.courses.repository.PriceDisplay
 import com.mentora.backend.courses.repository.PublishedCourseFilter
 import com.mentora.backend.courses.repository.Section
+import com.mentora.backend.courses.repository.resolvedDescription
+import com.mentora.backend.courses.repository.resolvedTitle
 import com.mentora.backend.users.service.UserService
 import kotlinx.datetime.Clock
 import kotlinx.serialization.Serializable
@@ -29,6 +32,9 @@ import java.util.UUID
 @Serializable data class SectionResponse(
     val sectionId: String, val title: String, val order: Int, val lessons: List<LessonResponse>,
 )
+/** Request/response shape for one locale's title+description. Keyed by locale ("en"/"ar") in the
+ * `translations` maps below — see `CourseDocument.translations`/`CourseTranslation`. */
+@Serializable data class CourseTranslationDto(val title: String, val description: String)
 @Serializable data class CourseSummary(
     val id: String, val title: String, val description: String, val categoryId: String, val level: String,
     val contentLanguage: String, val priceDisplay: PriceDisplayDto, val thumbnailMediaId: String?,
@@ -38,16 +44,17 @@ import java.util.UUID
     val id: String, val title: String, val description: String, val categoryId: String, val level: String,
     val contentLanguage: String, val priceDisplay: PriceDisplayDto, val thumbnailMediaId: String?,
     val status: String, val ratingSeed: Double, val instructorId: String, val instructorName: String,
-    val sections: List<SectionResponse>,
+    val sections: List<SectionResponse>, val translations: Map<String, CourseTranslationDto> = emptyMap(),
 )
 @Serializable data class CreateCourseRequest(
     val title: String, val description: String, val categoryId: String, val level: String,
     val contentLanguage: String, val priceDisplay: PriceDisplayDto, val thumbnailMediaId: String? = null,
+    val translations: Map<String, CourseTranslationDto> = emptyMap(),
 )
 @Serializable data class UpdateCourseRequest(
     val title: String? = null, val description: String? = null, val categoryId: String? = null,
     val level: String? = null, val contentLanguage: String? = null, val priceDisplay: PriceDisplayDto? = null,
-    val thumbnailMediaId: String? = null,
+    val thumbnailMediaId: String? = null, val translations: Map<String, CourseTranslationDto>? = null,
 )
 @Serializable data class SectionTitleRequest(val title: String)
 @Serializable data class ReorderSectionsRequest(val sectionIds: List<String>)
@@ -73,24 +80,25 @@ class CourseService(
     suspend fun list(query: CourseListQuery): Page<CourseSummary> {
         val price = query.maxPrice?.toIntOrNull()?.takeIf { it >= 0 }
             ?: query.maxPrice?.let { throw ApiException.Validation(fields = mapOf("maxPrice" to "INVALID")) }
+        val language = query.language?.let { validateLanguage(it) }
         val filter = PublishedCourseFilter(
             query.category?.let { objectId(it, "category") }, query.level?.let { validateLevel(it) },
-            query.language?.let { validateLanguage(it) }, price,
+            language, price,
             query.keyword?.trim(), query.page.cursor, query.page.limit,
         )
         val documents = repository.listPublished(filter)
         return documents.toPage(query.page.limit) { requireNotNull(it.id) }.let { result ->
             val names = users.getNamesByIds(result.items.map { it.instructorId }.distinct())
-            Page(result.items.map { it.toSummary(instructorName(it.instructorId, names)) }, result.nextCursor)
+            Page(result.items.map { it.toSummary(instructorName(it.instructorId, names), language) }, result.nextCursor)
         }
     }
 
-    suspend fun get(id: String, principal: MentoraPrincipal?): CourseResponse {
+    suspend fun get(id: String, principal: MentoraPrincipal?, language: String? = null): CourseResponse {
         val course = findCourse(id)
         if (course.status == DRAFT && principal?.role != Role.admin && principal?.userId != course.instructorId) {
             throw courseNotFound()
         }
-        return course.toResponseResolved()
+        return course.toResponseResolved(language?.let { validateLanguage(it) })
     }
 
     suspend fun create(principal: MentoraPrincipal, request: CreateCourseRequest): CourseResponse {
@@ -101,6 +109,7 @@ class CourseService(
             instructorId = principal.userId,
             title = required(request.title, "title"),
             description = required(request.description, "description"),
+            translations = validateTranslations(request.translations),
             categoryId = categoryId,
             level = validateLevel(request.level),
             contentLanguage = validateLanguage(request.contentLanguage),
@@ -122,6 +131,7 @@ class CourseService(
         val updated = current.copy(
             title = request.title?.let { required(it, "title") } ?: current.title,
             description = request.description?.let { required(it, "description") } ?: current.description,
+            translations = request.translations?.let { validateTranslations(it) } ?: current.translations,
             categoryId = nextCategoryId,
             level = request.level?.let { validateLevel(it) } ?: current.level,
             contentLanguage = request.contentLanguage?.let { validateLanguage(it) } ?: current.contentLanguage,
@@ -265,9 +275,17 @@ class CourseService(
     private fun validateLevel(value: String) = value.lowercase().also {
         if (it !in LEVELS) throw ApiException.Validation(fields = mapOf("level" to "UNSUPPORTED"))
     }
-    private fun validateLanguage(value: String) = value.lowercase().also {
-        if (it !in LANGUAGES) throw ApiException.Validation(fields = mapOf("contentLanguage" to "UNSUPPORTED"))
+    private fun validateLanguage(value: String, field: String = "contentLanguage") = value.lowercase().also {
+        if (it !in LANGUAGES) throw ApiException.Validation(fields = mapOf(field to "UNSUPPORTED"))
     }
+    private fun validateTranslations(translations: Map<String, CourseTranslationDto>): Map<String, CourseTranslation> =
+        translations.entries.associate { (locale, translation) ->
+            val validLocale = validateLanguage(locale, "translations.$locale")
+            validLocale to CourseTranslation(
+                required(translation.title, "translations.$locale.title"),
+                required(translation.description, "translations.$locale.description"),
+            )
+        }
     private fun validatePrice(dto: PriceDisplayDto): PriceDisplay {
         if (dto.amount < 0) throw ApiException.Validation(fields = mapOf("priceDisplay.amount" to "INVALID"))
         val currency = dto.currency.trim().uppercase()
@@ -285,21 +303,27 @@ class CourseService(
     private fun courseNotFound() = ApiException.NotFound("COURSE_NOT_FOUND", "The course was not found.")
 
     /** Resolves the one instructor name a single-course response needs. Not the N+1 concern
-     * `list()` avoids via a bulk lookup — this is always exactly one id. */
-    private suspend fun CourseDocument.toResponseResolved(): CourseResponse =
-        toResponse(instructorName(instructorId, users.getNamesByIds(listOf(instructorId))))
+     * `list()` avoids via a bulk lookup — this is always exactly one id. `language` is null for
+     * every write/mutation call site (an instructor editing their course always sees its own
+     * base-language text back, never a translation) — only the public `get()` read path passes
+     * one through, threaded from the request's `language` query parameter. */
+    private suspend fun CourseDocument.toResponseResolved(language: String? = null): CourseResponse =
+        toResponse(instructorName(instructorId, users.getNamesByIds(listOf(instructorId))), language)
 
     private fun instructorName(id: ObjectId, names: Map<ObjectId, String>): String =
         requireNotNull(names[id]) { "Course references instructor $id with no matching user document" }
 
-    private fun CourseDocument.toSummary(instructorName: String) = CourseSummary(
-        requireNotNull(id).toHexString(), title, description, categoryId.toHexString(), level, contentLanguage,
+    private fun CourseDocument.toSummary(instructorName: String, language: String?) = CourseSummary(
+        requireNotNull(id).toHexString(), resolvedTitle(language), resolvedDescription(language),
+        categoryId.toHexString(), level, contentLanguage,
         priceDisplay.toDto(), thumbnailMediaId?.toHexString(), ratingSeed, instructorId.toHexString(), instructorName,
     )
-    private fun CourseDocument.toResponse(instructorName: String) = CourseResponse(
-        requireNotNull(id).toHexString(), title, description, categoryId.toHexString(), level, contentLanguage,
+    private fun CourseDocument.toResponse(instructorName: String, language: String? = null) = CourseResponse(
+        requireNotNull(id).toHexString(), resolvedTitle(language), resolvedDescription(language),
+        categoryId.toHexString(), level, contentLanguage,
         priceDisplay.toDto(), thumbnailMediaId?.toHexString(), status, ratingSeed, instructorId.toHexString(), instructorName,
         sections.sortedBy { it.order }.map { it.toResponse() },
+        translations.mapValues { (_, translation) -> CourseTranslationDto(translation.title, translation.description) },
     )
     private fun PriceDisplay.toDto() = PriceDisplayDto(amount, currency)
     private fun Section.toResponse() = SectionResponse(sectionId, title, order, lessons.sortedBy { it.order }.map { it.toResponse() })

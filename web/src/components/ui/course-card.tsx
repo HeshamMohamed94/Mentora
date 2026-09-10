@@ -20,6 +20,7 @@ export function CourseCard({
   locale,
   viewLabel,
   basePath = "",
+  contentLanguageLabel,
 }: {
   course: CourseSummary;
   categoryName?: string;
@@ -29,6 +30,11 @@ export function CourseCard({
   /** "/app" when rendered for an authenticated Student so the link stays inside the
    * authenticated shell instead of dropping them onto the Guest-styled public route. */
   basePath?: string;
+  /** Pre-translated "Course content: <Language>" string — pass only when
+   * `course.contentLanguage !== locale`, so a translated title is never mistaken for translated
+   * lesson content (the course's title may be localized while its content stays in the language
+   * this badge names — see execution/DECISIONS_LOG.md D57). Omit entirely when they match. */
+  contentLanguageLabel?: string;
 }) {
   return (
     <Link href={`${basePath}/courses/${course.id}`} className="mtx-card" aria-label={course.title}>
@@ -48,6 +54,11 @@ export function CourseCard({
           <span className="mtx-card-meta-rating">★ {course.ratingSeed.toFixed(1)}</span>
           <span>{levelLabel}</span>
         </div>
+        {contentLanguageLabel && (
+          <p className="mtx-text-caption" style={{ color: "var(--color-text-secondary)" }}>
+            {contentLanguageLabel}
+          </p>
+        )}
         <p className="mtx-text-label-large" style={{ color: "var(--color-text-primary)" }}>
           {formatPrice(course.priceDisplay.amount, course.priceDisplay.currency, locale)}
         </p>

@@ -54,7 +54,10 @@
     "levelBeginner": "Beginner",
     "levelIntermediate": "Intermediate",
     "levelAdvanced": "Advanced",
-    "viewCourse": "View Course"
+    "viewCourse": "View Course",
+    "contentLanguageEnglish": "English",
+    "contentLanguageArabic": "Arabic",
+    "contentLanguageBadge": "Course content: {language}"
   },
   "courseDetails": {
     "enroll": "Enroll",

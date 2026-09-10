@@ -54,7 +54,10 @@
     "levelBeginner": "مبتدئ",
     "levelIntermediate": "متوسط",
     "levelAdvanced": "متقدم",
-    "viewCourse": "عرض الدورة"
+    "viewCourse": "عرض الدورة",
+    "contentLanguageEnglish": "الإنجليزية",
+    "contentLanguageArabic": "العربية",
+    "contentLanguageBadge": "محتوى الدورة: {language}"
   },
   "courseDetails": {
     "enroll": "التسجيل",

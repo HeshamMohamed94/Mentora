@@ -32,18 +32,19 @@ export async function listLearningPaths(): Promise<LearningPathSummary[]> {
   return apiFetch<LearningPathSummary[]>("/learning-paths");
 }
 
-export async function getLearningPath(id: string): Promise<LearningPathResponse> {
-  return apiFetch<LearningPathResponse>(`/learning-paths/${id}`);
+export async function getLearningPath(id: string, language?: string): Promise<LearningPathResponse> {
+  const qs = language ? `?language=${language}` : "";
+  return apiFetch<LearningPathResponse>(`/learning-paths/${id}${qs}`);
 }
 
 export function useLearningPaths() {
   return useQuery({ queryKey: ["learning-paths"], queryFn: listLearningPaths });
 }
 
-export function useLearningPath(id: string) {
+export function useLearningPath(id: string, language?: string) {
   return useQuery({
-    queryKey: ["learning-paths", id],
-    queryFn: () => getLearningPath(id),
+    queryKey: ["learning-paths", id, language],
+    queryFn: () => getLearningPath(id, language),
     enabled: Boolean(id),
   });
 }
@@ -62,14 +63,14 @@ export function useFollowLearningPath(id: string) {
  * fetches every path's detail (fine at MVP demo scale — a handful of paths total, per the seed
  * data) and filters client-side, the same N+1-at-small-scale tradeoff as `useMyLearning`.
  */
-export function useFollowedLearningPaths() {
+export function useFollowedLearningPaths(language?: string) {
   const listQuery = useLearningPaths();
   const paths = listQuery.data ?? [];
 
   const detailQueries = useQueries({
     queries: paths.map((p) => ({
-      queryKey: ["learning-paths", p.id],
-      queryFn: () => getLearningPath(p.id),
+      queryKey: ["learning-paths", p.id, language],
+      queryFn: () => getLearningPath(p.id, language),
     })),
   });
 

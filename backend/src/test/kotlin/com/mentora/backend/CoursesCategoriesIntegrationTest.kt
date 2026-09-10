@@ -3,6 +3,7 @@ package com.mentora.backend
 import com.mentora.backend.config.AppConfig
 import com.mongodb.client.model.Filters.eq
 import com.mongodb.client.model.Updates.set
+import com.mongodb.client.model.Updates.unset
 import com.mongodb.kotlin.client.coroutine.MongoClient
 import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.delete
@@ -27,6 +28,7 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.bson.Document
+import org.bson.types.ObjectId
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -150,6 +152,102 @@ class CoursesCategoriesIntegrationTest {
             setOf(englishCourseId, arabicCourseId),
             unfiltered.map { it.jsonObject.getValue("id").jsonPrimitive.content }.toSet(),
         )
+    }
+
+    @Test
+    fun `course metadata resolves per requested locale with fallback, and stays searchable in both languages`() = testApplication {
+        application { module(config()) }
+        val admin = provision("i18n-admin@example.com", "admin")
+        val instructor = provision("i18n-teacher@example.com", "instructor")
+        val categoryId = postJson("/api/v1/categories", """{"name":"Localization"}""", admin).dataString("id")
+        val courseId = createPublishedCourse(instructor, categoryId, "أساسيات تصميم تجربة المستخدم", 50)
+        val translated = patchJson(
+            "/api/v1/courses/$courseId",
+            """{"contentLanguage":"ar","translations":{"en":{"title":"User Experience Design Fundamentals","description":"Learn UX design fundamentals."}}}""",
+            instructor,
+        )
+        assertEquals(HttpStatusCode.OK, translated.status)
+        // The full translations map round-trips back on the single-course response.
+        assertEquals(
+            "User Experience Design Fundamentals",
+            translated.dataObject().getValue("translations").jsonObject.getValue("en").jsonObject
+                .getValue("title").jsonPrimitive.content,
+        )
+
+        // Requested locale has a translation -> use it.
+        val englishView = client.get("/api/v1/courses/$courseId?language=en").dataObject()
+        assertEquals("User Experience Design Fundamentals", englishView.getValue("title").jsonPrimitive.content)
+        assertEquals("ar", englishView.getValue("contentLanguage").jsonPrimitive.content, "resolving a title never hides the real content language")
+
+        // Requested locale equals the content language -> base text, no translation entry needed for it.
+        val arabicView = client.get("/api/v1/courses/$courseId?language=ar").dataObject()
+        assertEquals("أساسيات تصميم تجربة المستخدم", arabicView.getValue("title").jsonPrimitive.content)
+
+        // No `language` param at all -> base/original text, never blank (the instructor-editing default).
+        val unresolvedView = client.get("/api/v1/courses/$courseId").dataObject()
+        assertEquals("أساسيات تصميم تجربة المستخدم", unresolvedView.getValue("title").jsonPrimitive.content)
+
+        // The list endpoint no longer hides this course from an English-locale query now that an
+        // English translation exists, and returns it with the resolved English title.
+        val englishList = client.get("/api/v1/courses?language=en").dataArray()
+        assertEquals(listOf(courseId), englishList.map { it.jsonObject.getValue("id").jsonPrimitive.content })
+        assertEquals("User Experience Design Fundamentals", englishList.single().jsonObject.getValue("title").jsonPrimitive.content)
+
+        // Search matches the English translation...
+        val englishSearch = client.get("/api/v1/courses?q=Experience").dataArray()
+        assertTrue(englishSearch.map { it.jsonObject.getValue("id").jsonPrimitive.content }.contains(courseId))
+        // ...and the Arabic base title, through the same single `q` mechanism.
+        val arabicSearch = client.get(
+            "/api/v1/courses?q=" + java.net.URLEncoder.encode("تجربة", "UTF-8"),
+        ).dataArray()
+        assertTrue(arabicSearch.map { it.jsonObject.getValue("id").jsonPrimitive.content }.contains(courseId))
+    }
+
+    @Test
+    fun `unsupported translation locale and blank translated text are both rejected`() = testApplication {
+        application { module(config()) }
+        val admin = provision("i18n-validation-admin@example.com", "admin")
+        val instructor = provision("i18n-validation-teacher@example.com", "instructor")
+        val categoryId = postJson("/api/v1/categories", """{"name":"Localization Validation"}""", admin).dataString("id")
+        val courseId = createPublishedCourse(instructor, categoryId, "Validation Course", 55)
+
+        val unsupportedLocale = patchJson(
+            "/api/v1/courses/$courseId",
+            """{"translations":{"fr":{"title":"Titre","description":"Description"}}}""",
+            instructor,
+        )
+        assertEquals(HttpStatusCode.BadRequest, unsupportedLocale.status)
+        assertEquals("UNSUPPORTED", unsupportedLocale.errorFields()["translations.fr"]?.jsonPrimitive?.content)
+
+        val blankTitle = patchJson(
+            "/api/v1/courses/$courseId",
+            """{"translations":{"ar":{"title":"   ","description":"وصف"}}}""",
+            instructor,
+        )
+        assertEquals(HttpStatusCode.BadRequest, blankTitle.status)
+        assertEquals("REQUIRED", blankTitle.errorFields()["translations.ar.title"]?.jsonPrimitive?.content)
+    }
+
+    @Test
+    fun `a legacy course document with no translations field still resolves to its base title`() = testApplication {
+        application { module(config()) }
+        val admin = provision("legacy-admin@example.com", "admin")
+        val instructor = provision("legacy-teacher@example.com", "instructor")
+        val categoryId = postJson("/api/v1/categories", """{"name":"Legacy"}""", admin).dataString("id")
+        val courseId = createPublishedCourse(instructor, categoryId, "Legacy Course Without Translations", 60)
+
+        // `courses.create` always writes a `translations` field now (possibly empty) — physically
+        // remove it to simulate a document persisted before this field existed at all, proving
+        // deserialization and resolution both degrade gracefully rather than erroring.
+        MongoClient.create(MONGO_URI).use { client ->
+            client.getDatabase(DATABASE).getCollection<Document>("courses")
+                .updateOne(eq("_id", ObjectId(courseId)), unset("translations"))
+        }
+
+        val response = client.get("/api/v1/courses/$courseId?language=ar").dataObject()
+        assertEquals("Legacy Course Without Translations", response.getValue("title").jsonPrimitive.content)
+        val listed = client.get("/api/v1/courses?language=en").dataArray()
+        assertTrue(listed.map { it.jsonObject.getValue("id").jsonPrimitive.content }.contains(courseId))
     }
 
     @Test

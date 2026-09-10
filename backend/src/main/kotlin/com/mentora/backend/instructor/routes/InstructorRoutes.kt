@@ -13,7 +13,7 @@ fun Route.instructorRoutes(service: InstructorService) {
     authenticate("jwt-auth") {
         get("/api/v1/instructor/dashboard") {
             val principal = call.mentoraPrincipal().also { it.requireRole(Role.instructor) }
-            call.respondData(service.dashboard(principal))
+            call.respondData(service.dashboard(principal, call.request.queryParameters["language"]))
         }
     }
 }

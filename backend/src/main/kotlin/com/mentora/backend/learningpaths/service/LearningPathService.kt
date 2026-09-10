@@ -33,11 +33,11 @@ class LearningPathService(
 ) {
     suspend fun list(): List<LearningPathSummary> = repository.list().map { it.toSummary() }
 
-    suspend fun get(id: String, principal: MentoraPrincipal?): LearningPathResponse {
+    suspend fun get(id: String, principal: MentoraPrincipal?, language: String? = null): LearningPathResponse {
         val path = findPath(id)
         val resolved = path.courseIds.mapNotNull { courseId ->
             try {
-                courses.get(courseId.toHexString(), principal).let {
+                courses.get(courseId.toHexString(), principal, language).let {
                     LearningPathCourse(it.id, it.title, it.thumbnailMediaId)
                 }
             } catch (error: ApiException.NotFound) {

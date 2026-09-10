@@ -24,7 +24,7 @@ export function CoursePlayerScreen({ courseId }: { courseId: string }) {
   const locale = useLocale();
   const router = useRouter();
   const forceSidebarCollapse = useContext(SidebarForceCollapseContext);
-  const courseQuery = useCourse(courseId);
+  const courseQuery = useCourse(courseId, locale);
   const progressQuery = useProgress(courseId);
   const quizQuery = useQuiz(courseId);
   const completeLesson = useCompleteLesson(courseId);

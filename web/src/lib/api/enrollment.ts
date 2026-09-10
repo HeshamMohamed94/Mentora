@@ -24,10 +24,11 @@ export interface EnrollmentCompletion {
   alreadyEnrolled: boolean;
 }
 
-export function useCheckoutPreview(courseId: string, enabled = true) {
+export function useCheckoutPreview(courseId: string, language?: string, enabled = true) {
   return useQuery({
-    queryKey: ["checkout", courseId],
-    queryFn: () => apiFetch<CheckoutPreview>(`/courses/${courseId}/checkout`),
+    queryKey: ["checkout", courseId, language],
+    queryFn: () =>
+      apiFetch<CheckoutPreview>(`/courses/${courseId}/checkout${language ? `?language=${language}` : ""}`),
     enabled: Boolean(courseId) && enabled,
   });
 }

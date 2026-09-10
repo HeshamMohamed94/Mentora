@@ -16,7 +16,7 @@ import {
   SearchField,
   ThemeToggle,
 } from "@/components/ui";
-import { LEVEL_LABEL_KEYS } from "@/lib/i18n/course-labels";
+import { LEVEL_LABEL_KEYS, CONTENT_LANGUAGE_LABEL_KEYS } from "@/lib/i18n/course-labels";
 import { formatCount } from "@/lib/i18n/format";
 import { Link, useRouter } from "@/i18n/navigation";
 
@@ -112,8 +112,8 @@ export function DashboardScreen() {
   const locale = useLocale();
   const router = useRouter();
   const { data: user } = useCurrentUser();
-  const myLearning = useMyLearning();
-  const followedPaths = useFollowedLearningPaths();
+  const myLearning = useMyLearning(locale);
+  const followedPaths = useFollowedLearningPaths(locale);
   const [search, setSearch] = useState("");
 
   function handleSearchSubmit(event: FormEvent) {
@@ -126,9 +126,11 @@ export function DashboardScreen() {
   const greetingKey = GREETING_KEYS[greetingBucket(new Date().getHours())];
 
   const enrolledIds = new Set(myLearning.items.map((item) => item.course.id));
-  /** Recommendations are filtered to the Dashboard's UI language so a course whose
-   * content language differs from the current locale (e.g. an Arabic-only seeded
-   * course) never surfaces in the wrong-language recommendation list. */
+  /** `language: locale` both narrows results (only courses with usable metadata for this
+   * locale — matching content language or a translation) and resolves each course's
+   * title/description for it, so a translated course (e.g. the seeded Arabic UX course, which
+   * now has an English translation) surfaces with its localized title instead of being hidden
+   * or leaking untranslated text — see execution/DECISIONS_LOG.md D56/D57. */
   const recommendedQuery = useCourses({ limit: 8, language: locale });
   const recommended = (recommendedQuery.data?.items ?? []).filter((c) => !enrolledIds.has(c.id)).slice(0, 4);
 
@@ -233,6 +235,13 @@ export function DashboardScreen() {
                     locale={locale}
                     viewLabel={tExplore("viewCourse")}
                     basePath="/app"
+                    contentLanguageLabel={
+                      course.contentLanguage !== locale
+                        ? tExplore("contentLanguageBadge", {
+                            language: tExplore(CONTENT_LANGUAGE_LABEL_KEYS[course.contentLanguage as "en" | "ar"]),
+                          })
+                        : undefined
+                    }
                   />
                 ))}
               </div>

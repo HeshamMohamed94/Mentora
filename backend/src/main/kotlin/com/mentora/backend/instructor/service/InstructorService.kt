@@ -2,6 +2,7 @@ package com.mentora.backend.instructor.service
 
 import com.mentora.backend.common.MentoraPrincipal
 import com.mentora.backend.courses.repository.CourseDocument
+import com.mentora.backend.courses.repository.resolvedTitle
 import com.mentora.backend.instructor.repository.InstructorDashboardDocuments
 import com.mentora.backend.instructor.repository.InstructorRepository
 import kotlinx.serialization.Serializable
@@ -28,7 +29,7 @@ import kotlin.math.roundToInt
 )
 
 class InstructorService(private val repository: InstructorRepository) {
-    suspend fun dashboard(principal: MentoraPrincipal): InstructorDashboardResponse {
+    suspend fun dashboard(principal: MentoraPrincipal, language: String? = null): InstructorDashboardResponse {
         val documents = repository.dashboard(principal.userId)
         val enrollmentCounts = documents.enrollments.groupingBy { it.courseId }.eachCount()
         val completionRates = documents.progress.groupBy { it.courseId }
@@ -40,18 +41,19 @@ class InstructorService(private val repository: InstructorRepository) {
                 publishedCount = documents.courses.count { it.status == "published" },
                 totalEnrollments = documents.enrollments.size,
             ),
-            courses = documents.courses.map { it.toDashboard(enrollmentCounts, completionRates) },
+            courses = documents.courses.map { it.toDashboard(enrollmentCounts, completionRates, language) },
         )
     }
 
     private fun CourseDocument.toDashboard(
         enrollmentCounts: Map<ObjectId, Int>,
         completionRates: Map<ObjectId, Int>,
+        language: String?,
     ): InstructorCourseDashboard {
         val courseId = requireNotNull(id)
         return InstructorCourseDashboard(
             id = courseId.toHexString(),
-            title = title,
+            title = resolvedTitle(language),
             status = status,
             enrollmentCount = enrollmentCounts[courseId] ?: 0,
             completionRate = completionRates[courseId] ?: 0,

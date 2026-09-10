@@ -17,6 +17,7 @@ import com.mentora.backend.courses.coursesModule
 import com.mentora.backend.courses.repository.CourseDocument
 import com.mentora.backend.courses.repository.ensureCoursesIndexes
 import com.mentora.backend.courses.service.CourseService
+import com.mentora.backend.courses.service.CourseTranslationDto
 import com.mentora.backend.courses.service.CreateCourseRequest
 import com.mentora.backend.courses.service.CreateLessonRequest
 import com.mentora.backend.courses.service.PriceDisplayDto
@@ -71,6 +72,10 @@ private data class CourseSeed(
     val language: String,
     val price: Int,
     val sections: List<SectionSeed> = emptyList(),
+    /** Localized title/description for other locales — see the Course Localized Metadata ticket
+     * (D57). Keyed by locale ("en"/"ar"), never the course's own `language` (that's already
+     * `title`/`description` above). Empty for every course except the seeded showcase example. */
+    val translations: Map<String, CourseTranslationDto> = emptyMap(),
 ) {
     val published: Boolean get() = sections.isNotEmpty()
 }
@@ -156,6 +161,13 @@ private suspend fun allSeedDataExists(database: MongoDatabase): Boolean {
     if (ACCOUNTS.any { users.find(eq("email", it.email)).firstOrNull()?.role != it.role }) return false
     if (CATEGORIES.any { categories.find(eq("name", it)).firstOrNull() == null }) return false
     if (COURSES.any { courses.find(eq("title", it.title)).firstOrNull() == null }) return false
+    // Existence alone isn't enough for a course whose seed spec carries translations added after
+    // it was first seeded (D57) — re-run seedCourses's update-if-existing branch until they land.
+    if (COURSES.any { seed ->
+            seed.translations.isNotEmpty() &&
+                courses.find(eq("title", seed.title)).firstOrNull()?.translations.isNullOrEmpty()
+        }
+    ) return false
     val quizCourse = courses.find(eq("title", QUIZ_COURSE)).firstOrNull() ?: return false
     val quizExists = database.getCollection<QuizDocument>("quizzes")
         .find(eq("courseId", requireNotNull(quizCourse.id))).firstOrNull() != null
@@ -199,6 +211,14 @@ private suspend fun seedCourses(
         val id = existing?.id?.toHexString() ?: createCourse(
             services, principals.getValue(seed.instructorEmail), categoryIds.getValue(seed.category), seed,
         ).also { summary.courses++ }
+        // A course already seeded in an earlier run (before D57's translations field existed)
+        // won't have picked up seed.translations from createCourse — converge it here too, so
+        // re-running seedDemoData against an existing dev database stays idempotent.
+        if (existing != null && seed.translations.isNotEmpty()) {
+            services.courses.update(
+                principals.getValue(seed.instructorEmail), id, UpdateCourseRequest(translations = seed.translations),
+            )
+        }
         seed.title to id
     }
 }
@@ -211,7 +231,7 @@ private suspend fun createCourse(
 ): String {
     val course = services.courses.create(principal, CreateCourseRequest(
         seed.title, seed.description, categoryId, seed.level, seed.language,
-        PriceDisplayDto(seed.price, "EGP"),
+        PriceDisplayDto(seed.price, "EGP"), translations = seed.translations,
     ))
     val thumbnail = services.media.upload(MediaUpload(
         "courseThumbnail", course.id, "image/jpeg", null, null,
@@ -335,6 +355,12 @@ private val COURSES = listOf(
         "أساسيات تصميم تجربة المستخدم", "تعلّم مبادئ البحث والتخطيط لبناء تجارب رقمية واضحة وسهلة الاستخدام.",
         "Design", "instructor2@mentora.dev", "beginner", "ar", 600,
         sections("فهم احتياجات المستخدم", "من الفكرة إلى النموذج الأولي"),
+        translations = mapOf(
+            "en" to CourseTranslationDto(
+                "User Experience Design Fundamentals",
+                "Learn the principles of research and planning to build clear, usable digital experiences.",
+            ),
+        ),
     ),
     CourseSeed(
         "تحليل البيانات لاتخاذ القرارات", "حوّل بيانات العمل إلى مؤشرات واضحة تدعم القرارات اليومية.",

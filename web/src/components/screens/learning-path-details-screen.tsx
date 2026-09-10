@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import {
   useLearningPath,
@@ -13,7 +13,8 @@ import { Button, ProgressBar, ErrorState, CourseThumbnail } from "@/components/u
 export function LearningPathDetailsScreen({ pathId }: { pathId: string }) {
   const t = useTranslations("learningPaths");
   const tCommon = useTranslations("common");
-  const query = useLearningPath(pathId);
+  const locale = useLocale();
+  const query = useLearningPath(pathId, locale);
   const { data: user } = useCurrentUser();
   const follow = useFollowLearningPath(pathId);
   const unfollow = useUnfollowLearningPath(pathId);

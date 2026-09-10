@@ -18,14 +18,14 @@ export interface MyLearningItem {
  * simpler choice over proposing another backend addition (see D37 for when that bar is worth
  * crossing).
  */
-export function useMyLearning() {
+export function useMyLearning(language?: string) {
   const enrollmentsQuery = useEnrollments();
   const enrollments = enrollmentsQuery.data ?? [];
 
   const courseQueries = useQueries({
     queries: enrollments.map((e) => ({
-      queryKey: ["courses", e.courseId],
-      queryFn: () => getCourse(e.courseId),
+      queryKey: ["courses", e.courseId, language],
+      queryFn: () => getCourse(e.courseId, language),
     })),
   });
 

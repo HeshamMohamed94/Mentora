@@ -48,8 +48,8 @@ class EnrollmentService(
         if (repository.find(userId, courseId) == null) throw ApiException.ForbiddenNotEnrolled()
     }
 
-    suspend fun preview(courseId: String, principal: MentoraPrincipal): CheckoutPreview {
-        val course = publishedCourse(courseId, principal)
+    suspend fun preview(courseId: String, principal: MentoraPrincipal, language: String? = null): CheckoutPreview {
+        val course = publishedCourse(courseId, principal, language)
         val instructor = users.getProfile(ObjectId(course.instructorId))
         return CheckoutPreview(
             CheckoutCourse(course.id, course.title, course.thumbnailMediaId),
@@ -106,8 +106,8 @@ class EnrollmentService(
         return CompletionOutcome(EnrollmentCompletion(enrollment.toResponse(), false), true)
     }
 
-    private suspend fun publishedCourse(courseId: String, principal: MentoraPrincipal): CourseResponse =
-        courses.get(courseId, principal).also {
+    private suspend fun publishedCourse(courseId: String, principal: MentoraPrincipal, language: String? = null): CourseResponse =
+        courses.get(courseId, principal, language).also {
             if (it.status != "published") throw ApiException.NotFound("COURSE_NOT_FOUND", "The course was not found.")
         }
 

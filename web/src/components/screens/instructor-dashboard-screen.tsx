@@ -11,7 +11,7 @@ export function InstructorDashboardScreen() {
   const t = useTranslations("instructor");
   const locale = useLocale();
   const router = useRouter();
-  const dashboard = useInstructorDashboard();
+  const dashboard = useInstructorDashboard(locale);
   const { data: user } = useCurrentUser();
 
   if (dashboard.isError) {
