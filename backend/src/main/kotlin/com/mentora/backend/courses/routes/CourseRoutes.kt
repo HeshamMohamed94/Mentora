@@ -34,6 +34,7 @@ fun Route.courseRoutes(service: CourseService) {
             call.respondPage(service.list(CourseListQuery(
                 call.request.queryParameters["category"],
                 call.request.queryParameters["level"],
+                call.request.queryParameters["language"],
                 call.request.queryParameters["maxPrice"],
                 call.request.queryParameters["q"],
                 PageRequest.fromCall(call),

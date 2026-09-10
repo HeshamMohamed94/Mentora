@@ -126,7 +126,10 @@ export function DashboardScreen() {
   const greetingKey = GREETING_KEYS[greetingBucket(new Date().getHours())];
 
   const enrolledIds = new Set(myLearning.items.map((item) => item.course.id));
-  const recommendedQuery = useCourses({ limit: 8 });
+  /** Recommendations are filtered to the Dashboard's UI language so a course whose
+   * content language differs from the current locale (e.g. an Arabic-only seeded
+   * course) never surfaces in the wrong-language recommendation list. */
+  const recommendedQuery = useCourses({ limit: 8, language: locale });
   const recommended = (recommendedQuery.data?.items ?? []).filter((c) => !enrolledIds.has(c.id)).slice(0, 4);
 
   const inProgress = myLearning.items.filter((item) => item.progress.completionPercent < 100);

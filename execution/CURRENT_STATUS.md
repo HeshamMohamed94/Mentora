@@ -306,10 +306,32 @@ app, but this is disclosed as unverified rather than claimed. `typecheck`/`lint`
 `dashboard.json` edit)/production `build` (37 routes) all clean. Full detail and verification
 performed: see D55.
 
+**Dashboard Course Card Language correction (2026-09-10, D56) — done per a follow-up
+acceptance-criteria ticket, not a Task 12 start.** The English Dashboard's "Recommended for
+you" section could surface the single Arabic-only seeded course (`SeedData.kt`'s
+"أساسيات تصميم تجربة المستخدم", `contentLanguage: "ar"`) inside the English UI. Investigated
+the seed/backend data first per the ticket's instruction: the course model has one title per
+course (no bilingual title pair anywhere in the schema), so the course is genuinely Arabic-only
+by seed design — the real defect was that `GET /api/v1/courses` had no `contentLanguage` filter
+at all, so `DashboardScreen`'s recommended-courses query returned courses regardless of content
+language. Fixed at the data-selection layer, end-to-end: `PublishedCourseFilter`/
+`CourseRepository.listPublished` gained a `contentLanguage` filter, `CourseListQuery`/
+`CourseService.list`/`CourseRoutes` plumbed a new `language` query param through the existing
+`validateLanguage()` allow-list, and the frontend `CourseListFilters`/`buildQuery` gained a
+matching `language` param; `DashboardScreen` now calls `useCourses({ limit: 8, language: locale })`
+instead of the previously unfiltered `useCourses({ limit: 8 })`. No title was hardcoded, no CSS
+hid anything — `CourseCard` renders `course.title` unchanged. Added a new backend integration
+test asserting `?language=en`/`?language=ar` each return only the matching course; full
+`gradlew test` clean, `tsc --noEmit`/`lint` clean. Live-verified in Chrome (backend+website
+restarted via `stop-mentora.ps1`/`start-mentora.ps1`, required since this is a compiled Kotlin
+change): English Dashboard now shows only English-titled recommended cards, Arabic Dashboard
+still correctly shows the Arabic course with instructor/rating/level/price intact. See
+`DECISIONS_LOG.md` D56 for the full account.
+
 ## Immediate Next Action
 
-**Per explicit user instruction (most recently reaffirmed 2026-09-10, D55): do not start Task 12
-without a new go-ahead — this note is for whenever that go-ahead comes.**
+**Per explicit user instruction (most recently reaffirmed 2026-09-10, D55, unchanged by D56):
+do not start Task 12 without a new go-ahead — this note is for whenever that go-ahead comes.**
 
 Task 12: Admin Web — Dashboard, Manage Courses/Users/Instructors/Categories. Read the real
 backend source before assuming any endpoint shape (same discipline as every prior task):

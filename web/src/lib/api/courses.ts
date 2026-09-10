@@ -52,6 +52,7 @@ export interface CourseResponse extends CourseSummary {
 export interface CourseListFilters {
   category?: string;
   level?: string;
+  language?: string;
   maxPrice?: number;
   q?: string;
   cursor?: string;
@@ -62,6 +63,7 @@ function buildQuery(filters: CourseListFilters): string {
   const params = new URLSearchParams();
   if (filters.category) params.set("category", filters.category);
   if (filters.level) params.set("level", filters.level);
+  if (filters.language) params.set("language", filters.language);
   if (filters.maxPrice !== undefined) params.set("maxPrice", String(filters.maxPrice));
   if (filters.q) params.set("q", filters.q);
   if (filters.cursor) params.set("cursor", filters.cursor);

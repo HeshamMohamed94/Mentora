@@ -74,6 +74,7 @@ class CourseRepository(database: MongoDatabase) {
             add(eq("status", "published"))
             filter.categoryId?.let { add(eq("categoryId", it)) }
             filter.level?.let { add(eq("level", it)) }
+            filter.contentLanguage?.let { add(eq("contentLanguage", it)) }
             filter.maxPrice?.let { add(lte("priceDisplay.amount", it)) }
             filter.query?.takeIf { it.isNotBlank() }?.let { add(text(it)) }
             filter.cursor?.let { add(gt("_id", it)) }
@@ -91,6 +92,7 @@ class CourseRepository(database: MongoDatabase) {
 data class PublishedCourseFilter(
     val categoryId: ObjectId?,
     val level: String?,
+    val contentLanguage: String?,
     val maxPrice: Int?,
     val query: String?,
     val cursor: ObjectId?,

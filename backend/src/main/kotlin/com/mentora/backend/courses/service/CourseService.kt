@@ -61,7 +61,8 @@ import java.util.UUID
 )
 @Serializable data class ReorderLessonsRequest(val lessonIds: List<String>)
 data class CourseListQuery(
-    val category: String?, val level: String?, val maxPrice: String?, val keyword: String?, val page: PageRequest,
+    val category: String?, val level: String?, val language: String?, val maxPrice: String?,
+    val keyword: String?, val page: PageRequest,
 )
 
 class CourseService(
@@ -73,7 +74,8 @@ class CourseService(
         val price = query.maxPrice?.toIntOrNull()?.takeIf { it >= 0 }
             ?: query.maxPrice?.let { throw ApiException.Validation(fields = mapOf("maxPrice" to "INVALID")) }
         val filter = PublishedCourseFilter(
-            query.category?.let { objectId(it, "category") }, query.level?.let { validateLevel(it) }, price,
+            query.category?.let { objectId(it, "category") }, query.level?.let { validateLevel(it) },
+            query.language?.let { validateLanguage(it) }, price,
             query.keyword?.trim(), query.page.cursor, query.page.limit,
         )
         val documents = repository.listPublished(filter)

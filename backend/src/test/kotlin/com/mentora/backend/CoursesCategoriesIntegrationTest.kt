@@ -127,6 +127,32 @@ class CoursesCategoriesIntegrationTest {
     }
 
     @Test
+    fun `course listing filters by contentLanguage without mixing courses across languages`() = testApplication {
+        application { module(config()) }
+        val admin = provision("language-filter-admin@example.com", "admin")
+        val instructor = provision("language-filter-teacher@example.com", "instructor")
+        val categoryId = postJson("/api/v1/categories", """{"name":"Language Filtering"}""", admin).dataString("id")
+        val englishCourseId = createPublishedCourse(instructor, categoryId, "English Course", 40)
+        val arabicCourseId = createPublishedCourse(instructor, categoryId, "Arabic Course", 42)
+        assertEquals(
+            HttpStatusCode.OK,
+            patchJson("/api/v1/courses/$arabicCourseId", """{"contentLanguage":"ar"}""", instructor).status,
+        )
+
+        val englishOnly = client.get("/api/v1/courses?language=en").dataArray()
+        assertEquals(listOf(englishCourseId), englishOnly.map { it.jsonObject.getValue("id").jsonPrimitive.content })
+
+        val arabicOnly = client.get("/api/v1/courses?language=ar").dataArray()
+        assertEquals(listOf(arabicCourseId), arabicOnly.map { it.jsonObject.getValue("id").jsonPrimitive.content })
+
+        val unfiltered = client.get("/api/v1/courses").dataArray()
+        assertEquals(
+            setOf(englishCourseId, arabicCourseId),
+            unfiltered.map { it.jsonObject.getValue("id").jsonPrimitive.content }.toSet(),
+        )
+    }
+
+    @Test
     fun `section reorder persists contiguous order and rejects incomplete ids`() = testApplication {
         application { module(config()) }
         val admin = provision("reorder-admin@example.com", "admin")
