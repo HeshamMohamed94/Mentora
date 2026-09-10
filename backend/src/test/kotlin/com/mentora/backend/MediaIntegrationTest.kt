@@ -193,6 +193,37 @@ class MediaIntegrationTest {
         assertEquals(HttpStatusCode.Unauthorized, client.get("/api/v1/media/$mediaId/stream?token=$expired").status)
     }
 
+    @Test
+    fun `lesson video streaming supports byte-range requests for seeking`() = testApplication {
+        application { module(config()) }
+        val admin = provision("range-admin@example.com", "admin")
+        val instructor = provision("range-instructor@example.com", "instructor")
+        val enrolled = register("range-enrolled@example.com").dataString("accessToken")
+        val categoryId = createCategory(admin, "Range")
+        val course = createCourse(instructor, categoryId, "Range Course")
+        publishCourse(course, instructor)
+        completeEnrollment(course.id, enrolled)
+        // Large enough to have a meaningful middle byte range, unlike the tiny fixtures other tests use.
+        val videoBytes = ByteArray(5000) { (it % 256).toByte() }
+        val upload = upload(instructor, videoBytes, "lessonVideo", course.lessonId, "video/mp4", course.id, "10")
+        val mediaId = upload.dataString("mediaId")
+        val url = client.get("/api/v1/media/$mediaId/playback-url") { bearerAuth(enrolled) }.dataString("url")
+
+        val full = client.get(url)
+        assertEquals(HttpStatusCode.OK, full.status)
+        assertEquals("bytes", full.headers[HttpHeaders.AcceptRanges])
+
+        val partial = client.get(url) { header(HttpHeaders.Range, "bytes=100-199") }
+        assertEquals(HttpStatusCode.PartialContent, partial.status)
+        assertEquals("bytes 100-199/5000", partial.headers[HttpHeaders.ContentRange])
+        assertEquals("100", partial.headers[HttpHeaders.ContentLength])
+        assertContentEquals(videoBytes.copyOfRange(100, 200), partial.bodyAsBytes())
+
+        val suffix = client.get(url) { header(HttpHeaders.Range, "bytes=4990-") }
+        assertEquals(HttpStatusCode.PartialContent, suffix.status)
+        assertContentEquals(videoBytes.copyOfRange(4990, 5000), suffix.bodyAsBytes())
+    }
+
     private suspend fun ApplicationTestBuilder.upload(
         token: String,
         bytes: ByteArray,

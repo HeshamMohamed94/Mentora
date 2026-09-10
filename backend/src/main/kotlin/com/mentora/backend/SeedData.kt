@@ -60,10 +60,10 @@ private const val DEMO_PASSWORD = "MentoraDemo1"
 private const val PATH_TITLE = "Modern Backend Developer Path"
 
 private data class AccountSeed(val email: String, val name: String, val role: Role)
-private data class LessonSeed(val title: String, val description: String)
-private data class SectionSeed(val title: String, val lessons: List<LessonSeed>)
+internal data class LessonSeed(val title: String, val description: String)
+internal data class SectionSeed(val title: String, val lessons: List<LessonSeed>)
 private data class CourseSection(val courseId: String, val sectionId: String)
-private data class CourseSeed(
+internal data class CourseSeed(
     val title: String,
     val description: String,
     val category: String,
@@ -140,7 +140,7 @@ private suspend fun seedDemoData(services: SeedServices) {
     val courseIds = seedCourses(services, principals, categoryIds, summary)
     seedQuiz(services, principals.getValue("instructor1@mentora.dev"), courseIds.getValue(QUIZ_COURSE), summary)
     seedLearningPath(services.database, courseIds, summary)
-    ensureRestApiLessonVideo(services, principals.getValue("instructor1@mentora.dev"), courseIds.getValue(QUIZ_COURSE), summary)
+    ensureLessonVideos(services, principals, courseIds, summary)
     println("Demo seed complete: ${summary.accounts} accounts, ${summary.categories} categories, " +
         "${summary.courses} courses, ${summary.quizzes} quizzes, ${summary.learningPaths} learning paths, " +
         "${summary.videoUpgrades} real lesson video(s) created.")
@@ -174,11 +174,14 @@ private suspend fun allSeedDataExists(database: MongoDatabase): Boolean {
     val quizCourse = courses.find(eq("title", QUIZ_COURSE)).firstOrNull() ?: return false
     val quizExists = database.getCollection<QuizDocument>("quizzes")
         .find(eq("courseId", requireNotNull(quizCourse.id))).firstOrNull() != null
-    // Converge the Course Player's real-lesson-video demo lesson even against a database seeded
-    // before this upgrade existed — see ensureRestApiLessonVideo.
-    val restLessonConverged = quizCourse.sections.firstOrNull { it.title == REST_LESSON_SECTION }
-        ?.lessons?.firstOrNull()?.title == REST_LESSON_TITLE
-    if (!restLessonConverged) return false
+    // Converge every course's real-lesson-video demo lesson even against a database seeded
+    // before this upgrade existed — see ensureLessonVideos.
+    val videoLessonsConverged = LESSON_VIDEO_SEEDS.all { seed ->
+        val course = courses.find(eq("title", seed.courseTitle)).firstOrNull() ?: return@all false
+        course.sections.firstOrNull { it.title == seed.sectionTitle }
+            ?.lessons?.firstOrNull()?.title == seed.lessonTitle
+    }
+    if (!videoLessonsConverged) return false
     return quizExists && paths.find(eq("title", PATH_TITLE)).firstOrNull() != null
 }
 
@@ -283,38 +286,44 @@ private suspend fun addLesson(
     )
 }
 
-/** Upgrades the first lesson of [QUIZ_COURSE]'s first section from the generic fake-bytes
- * placeholder every other seeded lesson still uses (see [addLesson]) to a real, browser-playable
- * demo video — the Course Player real-lesson-video acceptance criteria targets this exact
- * course/lesson. Idempotent via the lesson title as the convergence marker, same pattern
- * `allSeedDataExists` already uses for translations (D57). */
-private suspend fun ensureRestApiLessonVideo(
+/** Upgrades the first lesson of each [LESSON_VIDEO_SEEDS] course/section from the generic
+ * fake-bytes placeholder every other seeded lesson still uses (see [addLesson]) to a real,
+ * browser-playable, topic-relevant demo video — one per currently-published seeded course, so no
+ * course opens into a Course Player with missing/broken media. Idempotent per-course via the
+ * lesson title as the convergence marker, same pattern `allSeedDataExists` already uses for
+ * translations (D57). Draft courses (no sections/lessons at all) are out of scope: they cannot be
+ * enrolled in or opened in the Course Player, so there is nothing to attach a video to. */
+private suspend fun ensureLessonVideos(
     services: SeedServices,
-    principal: MentoraPrincipal,
-    courseId: String,
+    principals: Map<String, MentoraPrincipal>,
+    courseIds: Map<String, String>,
     summary: SeedSummary,
 ) {
-    val course = services.courses.get(courseId, principal)
-    val section = course.sections.first { it.title == REST_LESSON_SECTION }
-    val lesson = section.lessons.first()
-    if (lesson.title == REST_LESSON_TITLE) return
+    LESSON_VIDEO_SEEDS.forEach { seed ->
+        val courseId = courseIds.getValue(seed.courseTitle)
+        val principal = principals.getValue(COURSES.first { it.title == seed.courseTitle }.instructorEmail)
+        val course = services.courses.get(courseId, principal)
+        val section = course.sections.first { it.title == seed.sectionTitle }
+        val lesson = section.lessons.first()
+        if (lesson.title == seed.lessonTitle) return@forEach
 
-    val bytes = requireNotNull(
-        Thread.currentThread().contextClassLoader.getResourceAsStream(REST_LESSON_VIDEO_RESOURCE)
-    ) { "Missing seed resource: $REST_LESSON_VIDEO_RESOURCE" }.use { it.readBytes() }
+        val bytes = requireNotNull(
+            Thread.currentThread().contextClassLoader.getResourceAsStream(seed.videoResource)
+        ) { "Missing seed resource: ${seed.videoResource}" }.use { it.readBytes() }
 
-    val video = services.media.upload(
-        MediaUpload(
-            "lessonVideo", lesson.lessonId, "video/mp4", courseId,
-            REST_LESSON_VIDEO_DURATION_SECONDS.toString(), ByteReadChannel(bytes),
-        ),
-        principal,
-    )
-    services.courses.updateLesson(
-        principal, courseId, section.sectionId, lesson.lessonId,
-        UpdateLessonRequest(title = REST_LESSON_TITLE, description = REST_LESSON_DESCRIPTION, videoMediaId = video.mediaId),
-    )
-    summary.videoUpgrades++
+        val video = services.media.upload(
+            MediaUpload(
+                "lessonVideo", lesson.lessonId, "video/mp4", courseId,
+                seed.durationSeconds.toString(), ByteReadChannel(bytes),
+            ),
+            principal,
+        )
+        services.courses.updateLesson(
+            principal, courseId, section.sectionId, lesson.lessonId,
+            UpdateLessonRequest(title = seed.lessonTitle, description = seed.lessonDescription, videoMediaId = video.mediaId),
+        )
+        summary.videoUpgrades++
+    }
 }
 
 private suspend fun seedQuiz(
@@ -376,32 +385,70 @@ private val ACCOUNTS = listOf(
 
 private val CATEGORIES = listOf("Software Development", "Data & Analytics", "Design", "Business Skills")
 private const val QUIZ_COURSE = "Building Reliable REST APIs"
-/** See [ensureRestApiLessonVideo]. */
-private const val REST_LESSON_SECTION = "API Design Foundations"
-private const val REST_LESSON_TITLE = "REST API Reliability Fundamentals"
-private const val REST_LESSON_DESCRIPTION = "Learn the core principles behind reliable REST APIs, " +
-    "including resource design, HTTP semantics, validation, status codes, and predictable error handling."
-private const val REST_LESSON_VIDEO_RESOURCE = "seed-media/rest-api-fundamentals.mp4"
-private const val REST_LESSON_VIDEO_DURATION_SECONDS = 27
-private val PATH_COURSES = listOf(QUIZ_COURSE, "Practical MongoDB for Application Developers", "Kotlin Coroutines in Practice")
-private val COURSES = listOf(
+private const val MONGODB_COURSE = "Practical MongoDB for Application Developers"
+private const val KOTLIN_COURSE = "Kotlin Coroutines in Practice"
+private const val UX_COURSE = "أساسيات تصميم تجربة المستخدم"
+
+/** One real-video upgrade target per currently-published seeded course — see [ensureLessonVideos].
+ * Each entry's `lessonTitle`/`lessonDescription` is written in that course's own real
+ * `contentLanguage` (English for the three English courses, Arabic for [UX_COURSE]) so the
+ * upgraded lesson never claims a content language the video itself doesn't truthfully have. */
+internal data class LessonVideoSeed(
+    val courseTitle: String,
+    val sectionTitle: String,
+    val lessonTitle: String,
+    val lessonDescription: String,
+    val videoResource: String,
+    val durationSeconds: Int,
+)
+
+internal val LESSON_VIDEO_SEEDS = listOf(
+    LessonVideoSeed(
+        QUIZ_COURSE, "API Design Foundations", "REST API Reliability Fundamentals",
+        "Learn the core principles behind reliable REST APIs, including resource design, HTTP " +
+            "semantics, validation, status codes, and predictable error handling.",
+        "seed-media/rest-api-fundamentals.mp4", 27,
+    ),
+    LessonVideoSeed(
+        MONGODB_COURSE, "Document Modeling", "MongoDB Fundamentals for Application Developers",
+        "Learn how to model documents, perform CRUD operations, design efficient schemas, and use " +
+            "indexes and queries to build fast, reliable applications with MongoDB.",
+        "seed-media/mongodb-fundamentals.mp4", 27,
+    ),
+    LessonVideoSeed(
+        KOTLIN_COURSE, "Coroutine Fundamentals", "Kotlin Coroutines Fundamentals",
+        "Learn the core building blocks of Kotlin coroutines, including suspend functions, " +
+            "coroutine scopes, dispatchers, and structured concurrency for writing responsive, " +
+            "reliable concurrent code.",
+        "seed-media/kotlin-coroutines-fundamentals.mp4", 27,
+    ),
+    LessonVideoSeed(
+        UX_COURSE, "فهم احتياجات المستخدم", "أساسيات تجربة المستخدم",
+        "تعلّم المبادئ الأساسية لتصميم تجربة المستخدم، بما في ذلك أبحاث المستخدمين، والنماذج الأولية، " +
+            "وقابلية الاستخدام، ومسارات المستخدم، لبناء تجارب رقمية واضحة وفعالة.",
+        "seed-media/ux-design-fundamentals-ar.mp4", 27,
+    ),
+)
+
+private val PATH_COURSES = listOf(QUIZ_COURSE, MONGODB_COURSE, KOTLIN_COURSE)
+internal val COURSES = listOf(
     CourseSeed(
         QUIZ_COURSE, "Design, validate, and evolve production-ready HTTP APIs with clear contracts.",
         "Software Development", "instructor1@mentora.dev", "intermediate", "en", 850,
         sections("API Design Foundations", "Reliability and Evolution"),
     ),
     CourseSeed(
-        "Practical MongoDB for Application Developers", "Model documents and build efficient queries for modern applications.",
+        MONGODB_COURSE, "Model documents and build efficient queries for modern applications.",
         "Data & Analytics", "instructor1@mentora.dev", "beginner", "en", 700,
         sections("Document Modeling", "Queries and Indexes"),
     ),
     CourseSeed(
-        "Kotlin Coroutines in Practice", "Write responsive concurrent Kotlin programs using structured concurrency.",
+        KOTLIN_COURSE, "Write responsive concurrent Kotlin programs using structured concurrency.",
         "Software Development", "instructor2@mentora.dev", "advanced", "en", 950,
         sections("Coroutine Fundamentals", "Production Concurrency Patterns"),
     ),
     CourseSeed(
-        "أساسيات تصميم تجربة المستخدم", "تعلّم مبادئ البحث والتخطيط لبناء تجارب رقمية واضحة وسهلة الاستخدام.",
+        UX_COURSE, "تعلّم مبادئ البحث والتخطيط لبناء تجارب رقمية واضحة وسهلة الاستخدام.",
         "Design", "instructor2@mentora.dev", "beginner", "ar", 600,
         sections("فهم احتياجات المستخدم", "من الفكرة إلى النموذج الأولي"),
         translations = mapOf(

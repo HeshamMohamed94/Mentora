@@ -449,10 +449,45 @@ all clean; `design-to-code` validation clean (unchanged, no screen spec touched)
 `DECISIONS_LOG.md` D59 for the full account, including the diagnosed video-frame-rendering
 limitation.
 
+**All Courses Playable Lesson Media — Acceptance Criteria (2026-09-11, D60) — done per a
+follow-up ticket generalizing D59 from one course to every seeded course, not a Task 12 start.**
+Audited the live dev database directly and found 4 published, enrollable courses (Building
+Reliable REST APIs, Practical MongoDB for Application Developers, Kotlin Coroutines in Practice,
+أساسيات تصميم تجربة المستخدم) plus 2 draft courses with zero sections/lessons at all — the drafts
+are correctly out of scope since they cannot be enrolled in or opened in the Course Player.
+D59's one-course mechanism was generalized into a data-driven `LESSON_VIDEO_SEEDS` list + a single
+`ensureLessonVideos` seed step covering all 4 published courses; re-running `seedDemoData`
+against the already-seeded dev database picked up the 3 new upgrades (REST API's was already
+converged from D59) with zero duplicate uploads. Three new topic-relevant real videos generated
+the same proven `ffmpeg` way as D59 (MongoDB: documents/CRUD/schema/indexes/queries/aggregation;
+Kotlin: suspend functions/scopes/dispatchers/structured concurrency/cancellation; UX Design: a
+genuinely **Arabic**-language video — this course's real content language is Arabic, only its
+course-level title/description have an English translation, so per the ticket's own "do not fake
+that an Arabic-content course is English-content" instruction, the video and lesson
+title/description are authentically Arabic, RTL-shaped correctly via `ffmpeg`'s
+libfribidi/libharfbuzz + a real Arabic-capable font). Live-verified all three as
+`student3@mentora.dev` (enrolled, 0% progress): real titles/descriptions/curriculum, working
+navigation, the pre-existing focused-shell sidebar-collapse unregressed, and for each course a
+direct `fetch()` against the resolved stream URL confirmed `200`/byte-exact `Content-Length` and a
+ranged `fetch()` confirmed correct `206`/`Content-Range` — the same evidence class D59 established
+for the backend/proxy/token layer, now proven per-course. The Arabic course was additionally
+verified in `/ar/...` (original Arabic title, full RTL mirroring, authentic Arabic content) and
+Light/Dark + hard refresh were re-confirmed. New tests added per the ticket's testing
+requirement: `SeedDataLessonVideosTest.kt` (4 fast, DB-free structural tests — every published
+course has exactly one video-seed entry and vice versa, sections resolve, bundled resources exist
+and are real-sized, titles aren't the generic placeholder) and a new
+`MediaIntegrationTest` case covering byte-range/seeking support end-to-end (a genuine
+previously-uncovered gap). Gates: backend `gradlew test` 74/74 green (up from 69, 16 suites, up
+from 15); `gradlew seedDemoData` re-run twice confirms idempotency; `typecheck`/`lint` (same
+single pre-existing `<img>` warning)/`lint:logical-properties`/`build` all clean; `design-to-code`
+validation clean (unchanged). No `design-system`/`product`/`ux`/`architecture` document changed;
+the 2 draft courses were deliberately left untouched (no fake curriculum invented for them); Task
+12 not started. See `DECISIONS_LOG.md` D60 for the full account.
+
 ## Immediate Next Action
 
-**Per explicit user instruction (most recently reaffirmed 2026-09-10, D55/D56/D57/D58/D59): do not
-start Task 12 without a new go-ahead — this note is for whenever that go-ahead comes.**
+**Per explicit user instruction (most recently reaffirmed 2026-09-10/11, D55/D56/D57/D58/D59/D60):
+do not start Task 12 without a new go-ahead — this note is for whenever that go-ahead comes.**
 
 Task 12: Admin Web — Dashboard, Manage Courses/Users/Instructors/Categories. Read the real
 backend source before assuming any endpoint shape (same discipline as every prior task):
