@@ -412,9 +412,46 @@ no frontend component-test harness yet (Playwright E2E is Phase 2 task 14, `NOT_
 live-Chrome verification is the established test method for a frontend-only fix at this phase,
 consistent with D54–D57. See `DECISIONS_LOG.md` D58 for the full account.
 
+**Course Player Real Lesson Video — Acceptance Criteria (2026-09-10, D59) — done per a follow-up
+ticket, not a Task 12 start.** The Course Player component itself needed zero changes — Task 6
+(D41) already built it fully real-data-driven. The actual gap: every seeded lesson video
+(including both lessons of `Building Reliable REST APIs`) was a fake placeholder (tiny non-video
+bytes uploaded through `MediaService`). Added one new idempotent seed step,
+`ensureRestApiLessonVideo` (`SeedData.kt`), that uploads a real, locally-`ffmpeg`-generated,
+on-topic MP4 (~27s, 1280×720, H.264, ~1.5MB — a slideshow covering resource design/HTTP
+methods/status codes/validation/error handling/idempotency) through the exact same
+`MediaService.upload()` → `MediaStorage` path every other seed asset uses, then renames that one
+lesson to "REST API Reliability Fundamentals" via the existing `CourseService.updateLesson`,
+preserving its original `lessonId`/course identity. The video source lives at
+`backend/src/main/resources/seed-media/rest-api-fundamentals.mp4` (a committed seed *fixture*,
+distinct from the gitignored `backend/storage/` runtime media root) and is loaded via classpath
+resource stream, never a hardcoded filesystem path — the React `<video>` element only ever sees
+the existing signed `/media/{id}/stream` URL. `ffmpeg` was installed via `winget` (not previously
+present) after an in-browser `MediaRecorder`/WebM approach was tried and diagnosed as blocked by
+an unrelated browser-automation environment limit, not a real defect (full account: `ffmpeg`-
+encoded MP4s load and play correctly the moment they reach a visible/foregrounded tab; every tab
+this session's Chrome tooling controls reports `document.hidden === true`, which stalls `<video>`
+resource loading specifically — proven with a known-good external reference video stalling
+identically, while plain `fetch()` against the exact same real-video URL, including a ranged
+request, returns correct `200`/`206` responses with byte-exact `Content-Length`). Backend/media
+pipeline, auth/token flow, and every other checklist item were verified live as the seeded
+`student2@mentora.dev`: real course/lesson title and description, real 50%-complete progress and
+curriculum state, Previous/Next lesson navigation, Overview/Resources-only tabs, AI Tutor link,
+the pre-existing focused-shell sidebar-collapse behavior unregressed, Light/Dark themes, English
+and Arabic/RTL (content correctly stays English — no translation exists for this course — while
+UI chrome mirrors/translates and the video timeline/volume controls stay LTR per the locked
+decision), and a hard refresh on the Arabic/dark state reproducing identical server-authoritative
+progress. Gates: backend `gradlew test` 69/69 green; `gradlew seedDemoData` re-run twice confirms
+idempotency (`1 real lesson video(s) created` then `All demo seed data already exists`);
+`typecheck`/`lint` (same single pre-existing `<img>` warning)/`lint:logical-properties`/`build`
+all clean; `design-to-code` validation clean (unchanged, no screen spec touched). No
+`design-system`/`product`/`ux`/`architecture` document changed; Task 12 not started. See
+`DECISIONS_LOG.md` D59 for the full account, including the diagnosed video-frame-rendering
+limitation.
+
 ## Immediate Next Action
 
-**Per explicit user instruction (most recently reaffirmed 2026-09-10, D55/D56/D57/D58): do not
+**Per explicit user instruction (most recently reaffirmed 2026-09-10, D55/D56/D57/D58/D59): do not
 start Task 12 without a new go-ahead — this note is for whenever that go-ahead comes.**
 
 Task 12: Admin Web — Dashboard, Manage Courses/Users/Instructors/Categories. Read the real

@@ -96,6 +96,7 @@ private data class SeedSummary(
     var courses: Int = 0,
     var quizzes: Int = 0,
     var learningPaths: Int = 0,
+    var videoUpgrades: Int = 0,
 )
 
 fun main(@Suppress("UNUSED_PARAMETER") args: Array<String>) = runBlocking {
@@ -139,8 +140,10 @@ private suspend fun seedDemoData(services: SeedServices) {
     val courseIds = seedCourses(services, principals, categoryIds, summary)
     seedQuiz(services, principals.getValue("instructor1@mentora.dev"), courseIds.getValue(QUIZ_COURSE), summary)
     seedLearningPath(services.database, courseIds, summary)
+    ensureRestApiLessonVideo(services, principals.getValue("instructor1@mentora.dev"), courseIds.getValue(QUIZ_COURSE), summary)
     println("Demo seed complete: ${summary.accounts} accounts, ${summary.categories} categories, " +
-        "${summary.courses} courses, ${summary.quizzes} quizzes, ${summary.learningPaths} learning paths created.")
+        "${summary.courses} courses, ${summary.quizzes} quizzes, ${summary.learningPaths} learning paths, " +
+        "${summary.videoUpgrades} real lesson video(s) created.")
     printCredentials()
 }
 
@@ -171,6 +174,11 @@ private suspend fun allSeedDataExists(database: MongoDatabase): Boolean {
     val quizCourse = courses.find(eq("title", QUIZ_COURSE)).firstOrNull() ?: return false
     val quizExists = database.getCollection<QuizDocument>("quizzes")
         .find(eq("courseId", requireNotNull(quizCourse.id))).firstOrNull() != null
+    // Converge the Course Player's real-lesson-video demo lesson even against a database seeded
+    // before this upgrade existed — see ensureRestApiLessonVideo.
+    val restLessonConverged = quizCourse.sections.firstOrNull { it.title == REST_LESSON_SECTION }
+        ?.lessons?.firstOrNull()?.title == REST_LESSON_TITLE
+    if (!restLessonConverged) return false
     return quizExists && paths.find(eq("title", PATH_TITLE)).firstOrNull() != null
 }
 
@@ -275,6 +283,40 @@ private suspend fun addLesson(
     )
 }
 
+/** Upgrades the first lesson of [QUIZ_COURSE]'s first section from the generic fake-bytes
+ * placeholder every other seeded lesson still uses (see [addLesson]) to a real, browser-playable
+ * demo video — the Course Player real-lesson-video acceptance criteria targets this exact
+ * course/lesson. Idempotent via the lesson title as the convergence marker, same pattern
+ * `allSeedDataExists` already uses for translations (D57). */
+private suspend fun ensureRestApiLessonVideo(
+    services: SeedServices,
+    principal: MentoraPrincipal,
+    courseId: String,
+    summary: SeedSummary,
+) {
+    val course = services.courses.get(courseId, principal)
+    val section = course.sections.first { it.title == REST_LESSON_SECTION }
+    val lesson = section.lessons.first()
+    if (lesson.title == REST_LESSON_TITLE) return
+
+    val bytes = requireNotNull(
+        Thread.currentThread().contextClassLoader.getResourceAsStream(REST_LESSON_VIDEO_RESOURCE)
+    ) { "Missing seed resource: $REST_LESSON_VIDEO_RESOURCE" }.use { it.readBytes() }
+
+    val video = services.media.upload(
+        MediaUpload(
+            "lessonVideo", lesson.lessonId, "video/mp4", courseId,
+            REST_LESSON_VIDEO_DURATION_SECONDS.toString(), ByteReadChannel(bytes),
+        ),
+        principal,
+    )
+    services.courses.updateLesson(
+        principal, courseId, section.sectionId, lesson.lessonId,
+        UpdateLessonRequest(title = REST_LESSON_TITLE, description = REST_LESSON_DESCRIPTION, videoMediaId = video.mediaId),
+    )
+    summary.videoUpgrades++
+}
+
 private suspend fun seedQuiz(
     services: SeedServices,
     principal: MentoraPrincipal,
@@ -334,6 +376,13 @@ private val ACCOUNTS = listOf(
 
 private val CATEGORIES = listOf("Software Development", "Data & Analytics", "Design", "Business Skills")
 private const val QUIZ_COURSE = "Building Reliable REST APIs"
+/** See [ensureRestApiLessonVideo]. */
+private const val REST_LESSON_SECTION = "API Design Foundations"
+private const val REST_LESSON_TITLE = "REST API Reliability Fundamentals"
+private const val REST_LESSON_DESCRIPTION = "Learn the core principles behind reliable REST APIs, " +
+    "including resource design, HTTP semantics, validation, status codes, and predictable error handling."
+private const val REST_LESSON_VIDEO_RESOURCE = "seed-media/rest-api-fundamentals.mp4"
+private const val REST_LESSON_VIDEO_DURATION_SECONDS = 27
 private val PATH_COURSES = listOf(QUIZ_COURSE, "Practical MongoDB for Application Developers", "Kotlin Coroutines in Practice")
 private val COURSES = listOf(
     CourseSeed(
