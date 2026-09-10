@@ -5,7 +5,7 @@ import { Button, CategoryChip, CourseCard, CourseThumbnail, Icon, LearningPathCa
 import { listCourses } from "@/lib/api/courses";
 import { listLearningPaths } from "@/lib/api/learning-paths";
 import { listCategories } from "@/lib/api/categories";
-import { LEVEL_LABEL_KEYS } from "@/lib/i18n/course-labels";
+import { LEVEL_LABEL_KEYS, CONTENT_LANGUAGE_LABEL_KEYS } from "@/lib/i18n/course-labels";
 
 // Revalidated on a schedule, not fully static (architecture/WEB_ARCHITECTURE.md § 1) — a
 // build-time-frozen featured-courses list would go stale the moment an Instructor
@@ -22,7 +22,7 @@ export default async function LandingPage({ params }: { params: Promise<{ locale
   const paths = await getTranslations("learningPaths");
 
   const [{ items: courses }, learningPaths, categories] = await Promise.all([
-    listCourses({ limit: 4 }),
+    listCourses({ limit: 4, language: locale }),
     listLearningPaths(),
     listCategories(),
   ]);
@@ -109,6 +109,13 @@ export default async function LandingPage({ params }: { params: Promise<{ locale
                   levelLabel={explore(LEVEL_LABEL_KEYS[course.level])}
                   locale={locale}
                   viewLabel={explore("viewCourse")}
+                  contentLanguageLabel={
+                    course.contentLanguage !== locale
+                      ? explore("contentLanguageBadge", {
+                          language: explore(CONTENT_LANGUAGE_LABEL_KEYS[course.contentLanguage as "en" | "ar"]),
+                        })
+                      : undefined
+                  }
                 />
               ))}
             </div>

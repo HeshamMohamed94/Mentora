@@ -373,10 +373,49 @@ Admin course-list localization was deliberately left untouched — no Admin Web 
 consume it (Task 12 not started), so a `language` param there would be unverifiable dead code.
 See `DECISIONS_LOG.md` D57 for the full account.
 
+**Global Course Metadata Localization — EN/AR (2026-09-10, D58) — done per a follow-up
+acceptance-criteria ticket auditing D57's coverage for completeness, not a Task 12 start.**
+Re-inspected every frontend call site of `listCourses`/`useCourses`/`getCourse`/`useCourse`
+across the whole app (Landing, Explore, Dashboard, Course Details, Course Player, Learning
+Paths, My Learning, Checkout, Instructor Dashboard, Course/Lesson Editors) against D57's backend
+`language` mechanism — found exactly one gap: `(public)/page.tsx` (Landing/Home)'s server-side
+`listCourses({ limit: 4 })` call for both the hero collage and the Popular Courses grid had never
+been updated to pass `language: locale`, so it silently still returned raw/base titles while
+every other screen resolved them (a real API-consistency gap the ticket asked to inspect for).
+Fixed with the same one-line pattern already used everywhere else, plus the same
+`contentLanguageLabel` badge already used on Explore/Dashboard, added to the Popular Courses
+`CourseCard` grid (the hero collage stays badge-free, matching the already-established compact-
+surface precedent — `CourseProgressCard` on My Learning/Continue Learning — since it's a small
+thumbnail-strip tile, not a decision point). No backend change was needed at all — D57's single
+`resolvedTitle`/`resolvedDescription` resolution function and widened list-inclusion filter
+already covered every endpoint correctly; the gap was purely a missed frontend call site, not a
+duplicated/inconsistent backend implementation. Confirmed no other surface had the same gap via
+an exhaustive grep of every course-fetching call site — Course/Lesson Editor screens correctly
+still omit `language` on purpose (an instructor editing their course must see its base text, not
+a translation). One incidental operational issue hit and fixed during verification: running
+`npm run build` while the restarted `npm run dev` was still live corrupted `.next` again (the
+exact D49-documented failure mode, `Cannot find module` on a webpack chunk) — fixed the same way
+D49 did, by stopping both processes, deleting `.next`, and restarting `npm run dev` clean; no
+further `npm run build` was run afterward while dev was live, to avoid re-corrupting it (the
+build that already ran cleanly, pre-corruption, stands as the required build-gate evidence).
+`tsc --noEmit`/`lint` both re-confirmed clean after the fix. Live-verified in a fresh Chrome
+session exactly per the ticket's checklist — `/en` Landing (hero collage + Popular Courses both
+show "User Experience Design Fundamentals" with the Arabic content-language badge and intact
+instructor/rating/price), `/en/explore`, `/en/app` Dashboard, `/en/app/courses/:id` Course
+Details, `/en/app/paths` — then `/ar` Landing and `/ar/app/courses/:id` Course Details confirmed
+the Arabic title/no-badge is unaffected (and that Arabic-locale catalog/hero surfaces correctly
+still exclude the three English-only courses that have no Arabic translation, the same inclusion
+rule already verified for Explore in D57 — not a new behavior, just newly observed on Landing
+too). No new backend tests were added — no backend behavior changed, and D57's existing test
+suite already covers the resolution/filter/search logic this fix merely reused; this project has
+no frontend component-test harness yet (Playwright E2E is Phase 2 task 14, `NOT_STARTED`), so
+live-Chrome verification is the established test method for a frontend-only fix at this phase,
+consistent with D54–D57. See `DECISIONS_LOG.md` D58 for the full account.
+
 ## Immediate Next Action
 
-**Per explicit user instruction (most recently reaffirmed 2026-09-10, D55/D56/D57): do not start
-Task 12 without a new go-ahead — this note is for whenever that go-ahead comes.**
+**Per explicit user instruction (most recently reaffirmed 2026-09-10, D55/D56/D57/D58): do not
+start Task 12 without a new go-ahead — this note is for whenever that go-ahead comes.**
 
 Task 12: Admin Web — Dashboard, Manage Courses/Users/Instructors/Categories. Read the real
 backend source before assuming any endpoint shape (same discipline as every prior task):
