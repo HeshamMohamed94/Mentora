@@ -484,9 +484,39 @@ validation clean (unchanged). No `design-system`/`product`/`ux`/`architecture` d
 the 2 draft courses were deliberately left untouched (no fake curriculum invented for them); Task
 12 not started. See `DECISIONS_LOG.md` D60 for the full account.
 
+**Course Artwork Identity — Acceptance Criteria (2026-09-11, D61) — done per a follow-up ticket, not
+a Task 12 start.** Every course's artwork looked like the same generic purple visual because the
+governed 5-motif fallback system (`design-to-code/shared/artwork.json`) assigns per **category**,
+and 2 of the 4 real published courses (Building Reliable REST APIs, Kotlin Coroutines in Practice)
+share category "Software Development" — plus every seeded `courseThumbnail` was still the original
+fake placeholder (never touched by D59/D60, which only fixed `lessonVideo`), so `CourseThumbnail`'s
+`<img>` path always silently failed and the category-collided fallback is what every user actually
+saw. Fixed without touching the fallback system, `CourseThumbnail`, or any of the 8 consuming
+screens/components: a new `ensureCourseArtwork` seed step (same idempotent pattern as D60's
+`ensureLessonVideos`, converging on the current thumbnail's stored byte size) uploads one real,
+topic-specific JPEG per targeted course through the existing `MediaService` `courseThumbnail`
+pipeline and sets `thumbnailMediaId` — which every screen already reads into `CourseThumbnail`'s
+`mediaId` prop. The 4 images (REST API: network/API hub topology; MongoDB: stacked documents;
+Kotlin: parallel flow streams; UX Design: a wireframe/mockup screen) keep the exact governed
+composition recipe (dark purple/indigo/violet gradient + light-source highlight + one centered
+white icon, no embedded text) so they read as the same Mentora family, generated via Chrome Canvas
+2D (no stock art, no network dependency) and committed under `backend/src/main/resources/seed-media/`.
+`design-to-code/shared/artwork.json` gained one additive `realCourseArtwork` section documenting the
+mechanism and root cause; the governed motif system itself is unmodified and still governs every
+other/future/draft course. Live-verified across Landing, Explore, Course Details, Dashboard,
+My Learning, Course Player, and Learning Path Details, in both EN/AR and Light/Dark, with no
+cross-course mixups and no regression to the D59/D60 lesson-video/progress architecture. New
+`SeedDataCourseArtworkTest.kt` (3 DB-free structural tests). Gates: backend `gradlew test` all green
+(17/17 suites); `gradlew seedDemoData` re-run twice confirms idempotency (`4 real course artwork(s)
+created` then `no changes made`); `typecheck`/`lint` (same single pre-existing, unrelated `<img>`
+warning)/`lint:logical-properties` all clean — **zero frontend source files were modified**, since
+the existing `mediaId`-first rendering path already did everything needed; `design-to-code`
+validation clean. No `design-system`/`product`/`ux`/`architecture` document changed; Task 12 not
+started. See `DECISIONS_LOG.md` D61 for the full account.
+
 ## Immediate Next Action
 
-**Per explicit user instruction (most recently reaffirmed 2026-09-10/11, D55/D56/D57/D58/D59/D60):
+**Per explicit user instruction (most recently reaffirmed 2026-09-10/11, D55/D56/D57/D58/D59/D60/D61):
 do not start Task 12 without a new go-ahead — this note is for whenever that go-ahead comes.**
 
 Task 12: Admin Web — Dashboard, Manage Courses/Users/Instructors/Categories. Read the real

@@ -28,6 +28,7 @@ import com.mentora.backend.enrollment.enrollmentModule
 import com.mentora.backend.learningpaths.repository.LearningPathDocument
 import com.mentora.backend.learningpaths.repository.ensureLearningPathIndexes
 import com.mentora.backend.media.mediaModule
+import com.mentora.backend.media.repository.MediaDocument
 import com.mentora.backend.media.repository.ensureMediaIndexes
 import com.mentora.backend.media.service.MediaService
 import com.mentora.backend.media.service.MediaUpload
@@ -97,6 +98,7 @@ private data class SeedSummary(
     var quizzes: Int = 0,
     var learningPaths: Int = 0,
     var videoUpgrades: Int = 0,
+    var artworkUpgrades: Int = 0,
 )
 
 fun main(@Suppress("UNUSED_PARAMETER") args: Array<String>) = runBlocking {
@@ -141,9 +143,10 @@ private suspend fun seedDemoData(services: SeedServices) {
     seedQuiz(services, principals.getValue("instructor1@mentora.dev"), courseIds.getValue(QUIZ_COURSE), summary)
     seedLearningPath(services.database, courseIds, summary)
     ensureLessonVideos(services, principals, courseIds, summary)
+    ensureCourseArtwork(services, principals, courseIds, summary)
     println("Demo seed complete: ${summary.accounts} accounts, ${summary.categories} categories, " +
         "${summary.courses} courses, ${summary.quizzes} quizzes, ${summary.learningPaths} learning paths, " +
-        "${summary.videoUpgrades} real lesson video(s) created.")
+        "${summary.videoUpgrades} real lesson video(s), ${summary.artworkUpgrades} real course artwork(s) created.")
     printCredentials()
 }
 
@@ -182,6 +185,14 @@ private suspend fun allSeedDataExists(database: MongoDatabase): Boolean {
             ?.lessons?.firstOrNull()?.title == seed.lessonTitle
     }
     if (!videoLessonsConverged) return false
+    // Converge every course's real-artwork demo thumbnail even against a database seeded before
+    // this upgrade existed — see ensureCourseArtwork.
+    val media = database.getCollection<MediaDocument>("media")
+    val artworkConverged = COURSE_ARTWORK_SEEDS.all { seed ->
+        val thumbnailId = courses.find(eq("title", seed.courseTitle)).firstOrNull()?.thumbnailMediaId ?: return@all false
+        (media.find(eq("_id", thumbnailId)).firstOrNull()?.sizeBytes ?: 0) > REAL_ARTWORK_MIN_BYTES
+    }
+    if (!artworkConverged) return false
     return quizExists && paths.find(eq("title", PATH_TITLE)).firstOrNull() != null
 }
 
@@ -326,6 +337,42 @@ private suspend fun ensureLessonVideos(
     }
 }
 
+/** Upgrades each [COURSE_ARTWORK_SEEDS] course's thumbnail from the generic fake-bytes placeholder
+ * every seeded course still uses (see [createCourse]) to a real, topic-relevant demo image, so
+ * courses that share a category no longer render the identical governed motif/gradient artwork
+ * everywhere they appear (Landing, Explore, Dashboard, My Learning, Course Details, Course Player,
+ * Checkout, Learning Path Details all read the same `thumbnailMediaId` via CourseThumbnail). Courses
+ * with no artwork seed keep rendering the governed 5-motif fallback exactly as before — this only
+ * replaces the placeholder for the specific real, published courses this ticket targets.
+ * Idempotent via the current thumbnail's stored byte size as the convergence marker, same pattern
+ * `ensureLessonVideos` uses for lesson titles. */
+private suspend fun ensureCourseArtwork(
+    services: SeedServices,
+    principals: Map<String, MentoraPrincipal>,
+    courseIds: Map<String, String>,
+    summary: SeedSummary,
+) {
+    val media = services.database.getCollection<MediaDocument>("media")
+    COURSE_ARTWORK_SEEDS.forEach { seed ->
+        val courseId = courseIds.getValue(seed.courseTitle)
+        val principal = principals.getValue(COURSES.first { it.title == seed.courseTitle }.instructorEmail)
+        val course = services.courses.get(courseId, principal)
+        val currentSize = course.thumbnailMediaId?.let { media.find(eq("_id", ObjectId(it))).firstOrNull()?.sizeBytes }
+        if ((currentSize ?: 0) > REAL_ARTWORK_MIN_BYTES) return@forEach
+
+        val bytes = requireNotNull(
+            Thread.currentThread().contextClassLoader.getResourceAsStream(seed.imageResource)
+        ) { "Missing seed resource: ${seed.imageResource}" }.use { it.readBytes() }
+
+        val thumbnail = services.media.upload(
+            MediaUpload("courseThumbnail", courseId, "image/jpeg", null, null, ByteReadChannel(bytes)),
+            principal,
+        )
+        services.courses.update(principal, courseId, UpdateCourseRequest(thumbnailMediaId = thumbnail.mediaId))
+        summary.artworkUpgrades++
+    }
+}
+
 private suspend fun seedQuiz(
     services: SeedServices,
     principal: MentoraPrincipal,
@@ -428,6 +475,24 @@ internal val LESSON_VIDEO_SEEDS = listOf(
             "وقابلية الاستخدام، ومسارات المستخدم، لبناء تجارب رقمية واضحة وفعالة.",
         "seed-media/ux-design-fundamentals-ar.mp4", 27,
     ),
+)
+
+/** Byte-size floor distinguishing a real seeded image from the few-dozen-byte
+ * `"seed-thumbnail-<title>"` placeholder every other seeded course still uses — see
+ * [ensureCourseArtwork]. */
+private const val REAL_ARTWORK_MIN_BYTES = 10_000L
+
+/** One real, topic-specific artwork image per course targeted by the course-artwork-identity
+ * ticket — see [ensureCourseArtwork]. Purely visual (gradient + icon, no embedded text), so this
+ * carries no content-language claim and needs no translation/RTL handling. Every other seeded
+ * course (including drafts) keeps rendering the governed 5-motif fallback unchanged. */
+internal data class CourseArtworkSeed(val courseTitle: String, val imageResource: String)
+
+internal val COURSE_ARTWORK_SEEDS = listOf(
+    CourseArtworkSeed(QUIZ_COURSE, "seed-media/rest-api-artwork.jpg"),
+    CourseArtworkSeed(MONGODB_COURSE, "seed-media/mongodb-artwork.jpg"),
+    CourseArtworkSeed(KOTLIN_COURSE, "seed-media/kotlin-coroutines-artwork.jpg"),
+    CourseArtworkSeed(UX_COURSE, "seed-media/ux-design-artwork.jpg"),
 )
 
 private val PATH_COURSES = listOf(QUIZ_COURSE, MONGODB_COURSE, KOTLIN_COURSE)
