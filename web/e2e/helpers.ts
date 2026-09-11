@@ -7,7 +7,8 @@ export const SEED_PASSWORD = "MentoraDemo1";
 export const SEED_ADMIN = { email: "admin@mentora.dev", password: SEED_PASSWORD };
 export const SEED_INSTRUCTOR = { email: "instructor1@mentora.dev", password: SEED_PASSWORD };
 
-/** The one seed course with a real quiz (SeedData.kt QUIZ_COURSE) — also the one with 2 real lessons. */
+/** The one seed course with a real quiz (SeedData.kt QUIZ_COURSE) — a realistic 3-section/
+ * 12-lesson curriculum, every lesson backed by a real, playable demo video (D67). */
 export const QUIZ_COURSE_TITLE = "Building Reliable REST APIs";
 
 export function uniqueEmail(prefix: string): string {

@@ -1,6 +1,6 @@
 # Mentora — Current Implementation Status
 
-**Last updated:** 2026-09-11 (Task 17 — `PHASE_HANDOFF.md` Phase 2 write-up — DONE; Phase 2 is now fully complete, pending the user's explicit approval before Phase 3 — see the final report delivered alongside this update)
+**Last updated:** 2026-09-11 (PRE-PHASE-3 — Realistic Course Seed Data Expansion — DONE, D67; Phase 2 remains fully complete, pending the user's explicit approval before Phase 3 — see the final report delivered alongside this update)
 
 ---
 
@@ -570,11 +570,76 @@ docked-panel-variant gap, the Purchase Success `shell:"none"` gap, the Phase 1 c
 case — each already individually documented at the decision that found it; see D66 for the full
 list). See `DECISIONS_LOG.md` D66 for the complete account.
 
+## PRE-PHASE-3: Realistic Course Seed Data Expansion (2026-09-11, D67) — DONE
+
+**Not a Phase 3 task and not renumbered into the Phase 2 task list** — a standalone content/data
+completion pass requested explicitly as "PRE-PHASE-3," done entirely inside the locked
+Product/UX/Design System/Architecture/Acceptance Criteria, touching only `backend/src/main/kotlin/
+com/mentora/backend/SeedData.kt`, its two structural tests, and three `web/e2e/` specs whose
+assertions hardcoded the old 2-lesson curriculum. No `product`/`ux`/`design-system`/`architecture`
+document was modified; no Course Player/Course Details/Dashboard/My Learning component code changed.
+
+Each of the 4 published seed courses (`Building Reliable REST APIs`, `Practical MongoDB for
+Application Developers`, `Kotlin Coroutines in Practice`, `أساسيات تصميم تجربة المستخدم`) was expanded
+from its old 2-section/2-lesson generic-placeholder curriculum (`"Core concepts"`/`"Applied
+workshop"` lesson titles, repeated verbatim across every course; a `"Reliability and Evolution"`
+section holding nothing but the `"Applied workshop"` placeholder) to a realistic 3-section/12-lesson
+curriculum with real, topic-specific, non-copy-pasted lesson titles and descriptions — see D67 for
+the full per-course breakdown. Every one of the resulting 48 lessons (across all 4 courses) now
+uploads a real, small, browser-playable demo video through the exact same `MediaService`/
+`MediaStorage` pipeline D59/D60 established (reusing that course's existing real seed-media MP4 —
+topic-relevant, not per-lesson unique footage, disclosed as such in `SeedData.kt`'s own doc
+comments) — **the lesson-2 placeholder-video gap D59/D60/D64 disclosed is now fully resolved**: no
+seeded lesson anywhere opens the Course Player into missing/broken media. A new `ensureCurriculum`
+seed step converges an already-seeded dev database's stale curriculum deterministically (delete old
+sections, rebuild from the current spec) and clears that course's now-stale `progress` rows,
+verified idempotent by re-running `seedDemoData` twice against this session's live dev database (`4
+course curriculum upgrade(s)` the first run, `All demo seed data already exists` the second).
+
+Live-verified in a real browser as `student2@mentora.dev`: Course Details curriculum block (3
+sections/12 lessons, no clipping/overflow), Course Player curriculum panel/lesson switching/
+Previous-Next (first-lesson Previous disabled, last-lesson Next disabled, real title/description/
+video/Resources swap correctly on every click), per-lesson progress (`Mark Complete` → exactly `8%`
+= 1/12, isolated to that one lesson), Dashboard (`2% complete` avg. across 4 courses, real "Up Next"
+lesson name), My Learning, Light/Dark, and the Arabic UX course in `/ar` RTL (mirrored layout, real
+Arabic section/lesson titles, curriculum panel correctly on the mirrored side). A direct `fetch()`
+against the resolved `<video>` `src` confirmed a real `206`/`video/mp4`/correct `Content-Range`
+response end-to-end (same evidence class as D59/D60), since this automation environment's
+previously-diagnosed `document.hidden` video-stall limitation (D59) still prevents visible on-screen
+frame rendering here.
+
+**Gates:** backend `gradlew compileKotlin/compileTestKotlin` clean; `gradlew test` — **78 tests/17
+suites/0 failures** (up from 77/17 — `SeedDataCurriculumTest` replaces the now-obsolete
+`SeedDataLessonVideosTest`, net +1 test); frontend `typecheck`/`lint` (same single pre-existing
+`<img>` warning)/`lint:logical-properties`/`node tools/design-to-code/validate.js` (29 screens/6
+patterns/11 shared files, unchanged) all clean; a stopped-dev-server production `build` (47 routes,
+both locales, 0 errors). Playwright: every test passes when run in isolation or with reduced worker
+concurrency; a full default (16-worker, matching this machine's core count) local run shows a
+different, non-reproducing subset of transient timeouts each time — the same pre-existing
+shared-account/rate-limit local-parallelism flakiness D64/D66 already documented, now more
+pronounced because every lesson (not just one per course) legitimately fetches a real ~1.5 MB video,
+multiplying concurrent local I/O across 16 workers. Not a functional regression: every failing test
+was independently re-run standalone and passed. E2E test-data debris this session's own repeated
+verification runs created (75 `@e2e.mentora.test` accounts, 11 `E2E`-titled courses, and their
+enrollments/progress/certificates/media) was cleaned up via a scratch `mongosh` script targeting
+exactly that pattern — pre-existing non-seed accounts (`heshamohamed94@gmail.com`,
+`phase2tester@example.com`, `postman.student.*`) were left untouched.
+
+**Known limitation carried forward:** reused-per-lesson demo video duration metadata
+(`durationSeconds`) intentionally reflects the real underlying clip's true ~27s length for every
+lesson rather than a fabricated per-lesson "8–22 min" figure, since nothing in the Course Player UI
+surfaces this value as text and inventing one would contradict the real media served to the
+`<video>` element — disclosed in `SeedData.kt`'s own doc comments, not a UI-visible defect.
+
+See `DECISIONS_LOG.md` D67 for the complete account, including the full per-course curriculum
+listing. `PHASE_HANDOFF.md`'s known-limitations list and its "what later phases must not redo"
+section item about the lesson-2 placeholder gap have been updated to reflect this resolution.
+
 ## Immediate Next Action
 
-**None — Phase 2 is fully complete and this session has stopped, per the standing Phase Execution
-Policy.** All 17 Phase 2 tasks are DONE and committed; `execution/PHASE_HANDOFF.md` carries the full
-Phase 2 write-up; the 28-item final report (prefixed "MENTORA PHASE 2 COMPLETE — WAITING FOR
-APPROVAL") has been delivered to the user in-conversation. Waiting for explicit user approval before
-starting Phase 3 (KMP Shared Mobile Core) — no Phase 3/KMP/Android/iOS work begins until that
+**None — Phase 2 remains fully complete; this PRE-PHASE-3 content pass is also DONE and this session
+has stopped, per the standing Phase Execution Policy.** All 17 Phase 2 tasks plus this PRE-PHASE-3
+pass are committed; `execution/PHASE_HANDOFF.md` carries the full Phase 2 write-up (now annotated
+with this pass's resolution of the lesson-2 placeholder gap). Waiting for explicit user approval
+before starting Phase 3 (KMP Shared Mobile Core) — no Phase 3/KMP/Android/iOS work begins until that
 approval is given.

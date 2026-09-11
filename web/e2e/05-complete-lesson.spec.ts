@@ -16,13 +16,13 @@ test.describe("Complete a Lesson", () => {
 
     const progressBar = page.getByRole("progressbar", { name: "Overall course progress" });
     await expect(progressBar).toHaveAttribute("aria-valuenow", "0");
-    await expect(page.getByText("Lesson 1 of 2")).toBeVisible();
+    await expect(page.getByText("Lesson 1 of 12")).toBeVisible();
 
     await page.getByRole("button", { name: "Mark Complete" }).click();
 
-    await expect(progressBar).toHaveAttribute("aria-valuenow", "50");
+    await expect(progressBar).toHaveAttribute("aria-valuenow", "8"); // 1 of 12 lessons, integer percent
     await expect(page.getByRole("button", { name: "Completed", exact: true })).toBeVisible();
-    await expect(page.getByText("Lesson 1 of 2")).toBeVisible(); // still on lesson 1 — no auto-advance here
+    await expect(page.getByText("Lesson 1 of 12")).toBeVisible(); // still on lesson 1 — no auto-advance here
 
     const curriculum = page.getByRole("complementary", { name: "Course curriculum" });
     await expect(curriculum.getByText("Completed").first()).toBeVisible();
@@ -31,7 +31,7 @@ test.describe("Complete a Lesson", () => {
   test("the video reaching its end marks the lesson complete and auto-advances to the next lesson", async ({ page }) => {
     await registerNewStudent(page);
     await enrollInCourse(page, QUIZ_COURSE_TITLE);
-    await expect(page.getByText("Lesson 1 of 2")).toBeVisible();
+    await expect(page.getByText("Lesson 1 of 12")).toBeVisible();
 
     const playButton = page.getByRole("button", { name: "Play", exact: true });
     await expect(playButton).toBeEnabled({ timeout: 15_000 });
@@ -43,8 +43,8 @@ test.describe("Complete a Lesson", () => {
     });
     await playButton.click();
 
-    await expect(page.getByText("Lesson 2 of 2")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText("Lesson 2 of 12")).toBeVisible({ timeout: 15_000 });
     const progressBar = page.getByRole("progressbar", { name: "Overall course progress" });
-    await expect(progressBar).toHaveAttribute("aria-valuenow", "50");
+    await expect(progressBar).toHaveAttribute("aria-valuenow", "8"); // 1 of 12 lessons, integer percent
   });
 });
