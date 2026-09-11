@@ -104,6 +104,11 @@ export const instructorNavItems: readonly NavItem[] = [
 ${navItemsTs(nav.instructorWeb.itemsStructured)},
 ] as const;
 
+/** Admin Sidebar items — design-to-code/shared/navigation.json#/shells/adminWeb */
+export const adminNavItems: readonly NavItem[] = [
+${navItemsTs(nav.adminWeb.itemsStructured)},
+] as const;
+
 export interface ArtworkMotif {
   id: string;
   icon: string;

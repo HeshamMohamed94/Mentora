@@ -34,7 +34,7 @@
       "routeIntent": "/{locale}/courses/{id} (public) and /{locale}/app/courses/{id} (authenticated)",
       "referenceType": "approved-pattern",
       "conflictCount": 0,
-      "knownGapCount": 1
+      "knownGapCount": 3
     },
     {
       "screenId": "learning-paths",
@@ -67,9 +67,9 @@
         "Guest"
       ],
       "routeIntent": "/{locale}/login",
-      "referenceType": "ux-only",
+      "referenceType": "approved-pattern",
       "conflictCount": 0,
-      "knownGapCount": 1
+      "knownGapCount": 2
     },
     {
       "screenId": "register",
@@ -78,9 +78,9 @@
         "Guest"
       ],
       "routeIntent": "/{locale}/register",
-      "referenceType": "ux-only",
+      "referenceType": "approved-pattern",
       "conflictCount": 0,
-      "knownGapCount": 1
+      "knownGapCount": 2
     },
     {
       "screenId": "dashboard",
@@ -90,8 +90,8 @@
       ],
       "routeIntent": "/{locale}/app",
       "referenceType": "exact-showcase",
-      "conflictCount": 1,
-      "knownGapCount": 1
+      "conflictCount": 2,
+      "knownGapCount": 2
     },
     {
       "screenId": "my-learning",
@@ -168,7 +168,7 @@
       "routeIntent": "/{locale}/app/ai-tutor",
       "referenceType": "approved-pattern",
       "conflictCount": 0,
-      "knownGapCount": 1
+      "knownGapCount": 2
     },
     {
       "screenId": "profile",
@@ -212,7 +212,7 @@
       "routeIntent": "/{locale}/app/checkout/{courseId}/success",
       "referenceType": "approved-pattern",
       "conflictCount": 0,
-      "knownGapCount": 0
+      "knownGapCount": 1
     },
     {
       "screenId": "instructor-dashboard",
@@ -223,7 +223,7 @@
       "routeIntent": "/{locale}/instructor",
       "referenceType": "exact-showcase",
       "conflictCount": 1,
-      "knownGapCount": 1
+      "knownGapCount": 2
     },
     {
       "screenId": "course-editor-overview",
@@ -234,7 +234,7 @@
       "routeIntent": "/{locale}/instructor/courses/{courseId} (Overview tab active)",
       "referenceType": "exact-showcase",
       "conflictCount": 1,
-      "knownGapCount": 1
+      "knownGapCount": 2
     },
     {
       "screenId": "course-editor-curriculum",
@@ -245,7 +245,7 @@
       "routeIntent": "/{locale}/instructor/courses/{courseId} (Curriculum tab active)",
       "referenceType": "exact-showcase",
       "conflictCount": 1,
-      "knownGapCount": 0
+      "knownGapCount": 1
     },
     {
       "screenId": "lesson-editor",
@@ -265,6 +265,61 @@
         "Instructor"
       ],
       "routeIntent": "/{locale}/instructor/courses/{courseId}/quiz",
+      "referenceType": "ux-only",
+      "conflictCount": 0,
+      "knownGapCount": 1
+    },
+    {
+      "screenId": "admin-dashboard",
+      "screenNumber": 25,
+      "role": [
+        "Admin"
+      ],
+      "routeIntent": "/{locale}/admin",
+      "referenceType": "ux-only",
+      "conflictCount": 0,
+      "knownGapCount": 1
+    },
+    {
+      "screenId": "admin-courses",
+      "screenNumber": 26,
+      "role": [
+        "Admin"
+      ],
+      "routeIntent": "/{locale}/admin/courses",
+      "referenceType": "exact-showcase",
+      "conflictCount": 2,
+      "knownGapCount": 3
+    },
+    {
+      "screenId": "admin-users",
+      "screenNumber": 27,
+      "role": [
+        "Admin"
+      ],
+      "routeIntent": "/{locale}/admin/users",
+      "referenceType": "ux-only",
+      "conflictCount": 0,
+      "knownGapCount": 1
+    },
+    {
+      "screenId": "admin-instructors",
+      "screenNumber": 28,
+      "role": [
+        "Admin"
+      ],
+      "routeIntent": "/{locale}/admin/instructors",
+      "referenceType": "ux-only",
+      "conflictCount": 0,
+      "knownGapCount": 2
+    },
+    {
+      "screenId": "admin-categories",
+      "screenNumber": 29,
+      "role": [
+        "Admin"
+      ],
+      "routeIntent": "/{locale}/admin/categories",
       "referenceType": "ux-only",
       "conflictCount": 0,
       "knownGapCount": 1

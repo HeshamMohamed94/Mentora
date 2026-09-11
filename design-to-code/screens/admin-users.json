@@ -1,0 +1,36 @@
+{
+  "screenId": "admin-users",
+  "screenNumber": 27,
+  "role": ["Admin"],
+  "platform": "Web only",
+  "shell": "shared/navigation.json#/shells/adminWeb",
+  "routeIntent": "/{locale}/admin/users",
+  "referenceType": "ux-only",
+  "sourceReferences": [
+    "product/SCREEN_INVENTORY.md § 27",
+    "design-system/COMPONENTS.md § DataTable v1.2",
+    "backend/.../admin/routes/AdminRoutes.kt — GET /admin/users (read-only, no mutation endpoints exist for users)"
+  ],
+
+  "layout": { "structure": "search bar -> read-only DataTable of students", "maxWidth": "grid.maxContentWidth minus sidebar width" },
+
+  "sections": [
+    { "order": 1, "id": "header", "content": ["h1 'Manage Users'"] },
+    { "order": 2, "id": "filterBar", "content": ["SearchField (name/email)"] },
+    { "order": 3, "id": "userList", "content": ["DataTable: Avatar+Name, Email, Join date, Enrollment count — no row actions (view-only in MVP, per product/SCREEN_INVENTORY.md § 27: 'none destructive in MVP')"] }
+  ],
+
+  "componentSequence": ["card.dataTable", "avatar", "textField (searchField variant)"],
+
+  "typographyHierarchy": { "pageTitle": "typography.heading.h1", "tableHeader": "typography.label.medium, uppercase text-transform" },
+
+  "artworkRules": "n/a — Avatar initials only, no photography on this screen.",
+  "navigation": { "exitDestinations": [] },
+
+  "states": { "loading": "skeleton table rows", "empty": "'no users match' state", "error": "ErrorState with retry" },
+
+  "ltrBehavior": "default", "rtlBehavior": "table headers/columns mirror per logical properties",
+  "themeBehavior": "standard semantic token resolution",
+  "responsiveRules": "shared/responsive.json#/perSurfaceRules/dataTable",
+  "knownGaps": ["No showcase mockup exists for this screen (confirmed by exhaustive grep of design-review-locked/Mentora Showcase.dc.html); judged against product/SCREEN_INVENTORY.md § 27 and design-system/COMPONENTS.md's DataTable spec only. No row actions were added because no admin user-mutation endpoint exists in the backend and the locked spec explicitly describes this screen as view-only."]
+}

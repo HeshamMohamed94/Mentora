@@ -1,0 +1,35 @@
+{
+  "screenId": "admin-categories",
+  "screenNumber": 29,
+  "role": ["Admin"],
+  "platform": "Web only",
+  "shell": "shared/navigation.json#/shells/adminWeb",
+  "routeIntent": "/{locale}/admin/categories",
+  "referenceType": "ux-only",
+  "sourceReferences": [
+    "product/SCREEN_INVENTORY.md § 29",
+    "design-system/COMPONENTS.md § DataTable v1.2, § Dialog",
+    "backend/.../categories/routes/CategoryRoutes.kt, service/CategoryService.kt — full CRUD, server-generated slug, CATEGORY_IN_USE 409 conflict"
+  ],
+
+  "layout": { "structure": "title + 'Add Category' action -> DataTable of categories with course counts", "maxWidth": "grid.maxContentWidth minus sidebar width" },
+
+  "sections": [
+    { "order": 1, "id": "header", "content": ["h1 'Manage Categories'", "PrimaryButton 'Add Category' opening a create Dialog"] },
+    { "order": 2, "id": "categoryList", "content": ["DataTable: Name, Slug (server-generated, read-only), Course count — row actions 'Edit' (opens the same form Dialog pre-filled) and 'Delete' (confirm Dialog; blocked with a CATEGORY_IN_USE-specific message when courses depend on the category)"] }
+  ],
+
+  "componentSequence": ["card.dataTable", "button.primary", "dialogsAndSheets", "textField"],
+
+  "typographyHierarchy": { "pageTitle": "typography.heading.h1", "tableHeader": "typography.label.medium, uppercase text-transform" },
+
+  "artworkRules": "n/a — no artwork on this screen.",
+  "navigation": { "exitDestinations": [] },
+
+  "states": { "loading": "skeleton table rows", "empty": "'no categories yet' + CTA 'Add Category'", "error": "ErrorState with retry" },
+
+  "ltrBehavior": "default", "rtlBehavior": "table headers/columns and dialog form mirror per logical properties",
+  "themeBehavior": "standard semantic token resolution",
+  "responsiveRules": "shared/responsive.json#/perSurfaceRules/dataTable",
+  "knownGaps": ["No showcase mockup exists for this screen (confirmed by exhaustive grep of design-review-locked/Mentora Showcase.dc.html); judged against product/SCREEN_INVENTORY.md § 29 and the real backend CRUD/CATEGORY_IN_USE contract only. product/SCREEN_INVENTORY.md's 'CategoryChip (preview)' component was not added as a separate live element — the form's TextField + the table's existing Name column already surface the same information without a redundant preview chip; this is a minor, disclosed simplification, not a missing feature."]
+}

@@ -46,7 +46,10 @@ export type IconName =
   | "arrowForward"
   | "arrowBack"
   | "darkMode"
-  | "lightMode";
+  | "lightMode"
+  | "people"
+  | "school"
+  | "moreVert";
 
 const PATHS: Record<IconName, React.ReactNode> = {
   dashboard: (
@@ -193,6 +196,27 @@ const PATHS: Record<IconName, React.ReactNode> = {
     <>
       <circle cx="12" cy="12" r="5" />
       <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+    </>
+  ),
+  people: (
+    <>
+      <circle cx="9" cy="8" r="3.2" />
+      <path d="M3.5 19c0-3 2.5-5.3 5.5-5.3s5.5 2.3 5.5 5.3" />
+      <path d="M15.5 5.3a3.2 3.2 0 010 6.2M20.5 19c0-2.6-1.9-4.8-4.5-5.2" />
+    </>
+  ),
+  school: (
+    <>
+      <path d="M2 8.5L12 4l10 4.5-10 4.5-10-4.5z" />
+      <path d="M6 10.8v4.8c0 1.5 2.7 2.7 6 2.7s6-1.2 6-2.7v-4.8" />
+      <path d="M21 9.5v6" />
+    </>
+  ),
+  moreVert: (
+    <>
+      <circle cx="12" cy="5.5" r="1.4" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="18.5" r="1.4" fill="currentColor" stroke="none" />
     </>
   ),
 };

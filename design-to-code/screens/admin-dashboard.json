@@ -1,0 +1,35 @@
+{
+  "screenId": "admin-dashboard",
+  "screenNumber": 25,
+  "role": ["Admin"],
+  "platform": "Web only",
+  "shell": "shared/navigation.json#/shells/adminWeb",
+  "routeIntent": "/{locale}/admin",
+  "referenceType": "ux-only",
+  "sourceReferences": [
+    "product/SCREEN_INVENTORY.md § 25",
+    "ux/INSTRUCTOR_ADMIN_UX.md",
+    "design-review-locked/Mentora Showcase.dc.html § 16 — no dedicated Admin Dashboard mockup exists (only Admin Course Management, § 26); StatCard/quick-link composition follows the same StatCard-row pattern already established for instructor-dashboard.json"
+  ],
+
+  "layout": { "structure": "StatCard row -> \"Manage\" quick-link tile grid (Courses/Users/Instructors/Categories)", "maxWidth": "grid.maxContentWidth minus sidebar width" },
+
+  "sections": [
+    { "order": 1, "id": "statRow", "content": ["5 statCards: total courses, published courses, draft courses, total students, total instructors — sourced 1:1 from backend AdminService dashboard DTO, no invented metrics"] },
+    { "order": 2, "id": "manageGrid", "content": ["4 path-card quick links: Manage Courses, Manage Users, Manage Instructors, Manage Categories — each with icon, title, one-line description, chevron/arrow affordance"] }
+  ],
+
+  "componentSequence": ["card.statCard", "card.pathCard"],
+
+  "typographyHierarchy": { "statValue": "typography.heading.h2", "pathCardTitle": "typography.heading.h4" },
+
+  "artworkRules": "n/a — icon-only quick-link tiles (Icon component), no illustration/photography on this screen.",
+  "navigation": { "exitDestinations": ["Admin — Manage Courses", "Admin — Manage Users", "Admin — Manage Instructors", "Admin — Manage Categories"] },
+
+  "states": { "loading": "skeleton stat block", "error": "ErrorState with retry" },
+
+  "ltrBehavior": "default", "rtlBehavior": "stat/path-card grids mirror per logical properties; arrow/chevron affordances flip per icon.directional.mirrorInRtl",
+  "themeBehavior": "standard semantic token resolution",
+  "responsiveRules": "stat cards stack fewer-per-row on narrow viewports (shared/responsive.json card-grid conventions); path-card grid follows shared/responsive.json#/perSurfaceRules/courseGrid",
+  "knownGaps": ["No showcase mockup exists for this screen (confirmed by exhaustive grep of design-review-locked/Mentora Showcase.dc.html for admin-related content — only § 16's Admin Course Management block is a real mockup); judged against product/SCREEN_INVENTORY.md § 25 and the established StatCard/path-card patterns from dashboard.json and instructor-dashboard.json only."]
+}

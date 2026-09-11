@@ -57,11 +57,18 @@
     },
 
     "adminWeb": {
-      "$description": "Mapping only — NOT implemented. Task 12 has not started. Included here because the locked ux/product docs already define this shell's shape; recording it does not constitute starting Task 12 implementation.",
       "component": "sidebar (admin variant)",
-      "appliesTo": "Admin role, all /admin/* routes (NOT YET BUILT)",
+      "appliesTo": "Admin role, all /admin/* routes",
       "items": ["Dashboard", "Courses", "Users", "Instructors", "Categories"],
-      "status": "specification only — no implementation"
+      "itemsStructured": [
+        { "key": "dashboard", "href": "/admin", "icon": "dashboard" },
+        { "key": "courses", "href": "/admin/courses", "icon": "myLearning" },
+        { "key": "users", "href": "/admin/users", "icon": "people" },
+        { "key": "instructors", "href": "/admin/instructors", "icon": "school" },
+        { "key": "categories", "href": "/admin/categories", "icon": "courseGrid" }
+      ],
+      "itemsStructuredSource": "web/src/components/navigation/admin-shell.tsx ADMIN_NAV_ITEMS (implementation evidence) — now the generation SOURCE, same pattern as instructorWeb.",
+      "note": "Per ux/NAVIGATION_SPEC.md § 5, Admin's own Profile/Settings are intentionally not top-level sidebar items here (exactly like instructorWeb's flow table never lists them either) — Task 12's explicit scope is Dashboard/Courses/Users/Instructors/Categories only; Logout remains reachable via AppShell's always-present sidebar-footer action regardless of navItems."
     }
   },
 

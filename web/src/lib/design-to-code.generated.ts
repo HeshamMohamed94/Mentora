@@ -31,6 +31,15 @@ export const instructorNavItems: readonly NavItem[] = [
   { key: "settings", href: "/instructor/settings", icon: "settings" },
 ] as const;
 
+/** Admin Sidebar items — design-to-code/shared/navigation.json#/shells/adminWeb */
+export const adminNavItems: readonly NavItem[] = [
+  { key: "dashboard", href: "/admin", icon: "dashboard" },
+  { key: "courses", href: "/admin/courses", icon: "myLearning" },
+  { key: "users", href: "/admin/users", icon: "people" },
+  { key: "instructors", href: "/admin/instructors", icon: "school" },
+  { key: "categories", href: "/admin/categories", icon: "courseGrid" },
+] as const;
+
 export interface ArtworkMotif {
   id: string;
   icon: string;
@@ -70,8 +79,8 @@ export const screenRoutes: Readonly<Record<string, ScreenRoute>> = {
   "course-details": { routeIntent: "/{locale}/courses/{id} (public) and /{locale}/app/courses/{id} (authenticated)", referenceType: "approved-pattern", screenNumber: 3 },
   "learning-paths": { routeIntent: "/{locale}/paths (public) and /{locale}/app/paths (authenticated)", referenceType: "ux-only", screenNumber: 4 },
   "learning-path-details": { routeIntent: "/{locale}/paths/{id} (public) and /{locale}/app/paths/{id} (authenticated)", referenceType: "ux-only", screenNumber: 5 },
-  "login": { routeIntent: "/{locale}/login", referenceType: "ux-only", screenNumber: 6 },
-  "register": { routeIntent: "/{locale}/register", referenceType: "ux-only", screenNumber: 7 },
+  "login": { routeIntent: "/{locale}/login", referenceType: "approved-pattern", screenNumber: 6 },
+  "register": { routeIntent: "/{locale}/register", referenceType: "approved-pattern", screenNumber: 7 },
   "dashboard": { routeIntent: "/{locale}/app", referenceType: "exact-showcase", screenNumber: 8 },
   "my-learning": { routeIntent: "/{locale}/app/my-learning", referenceType: "approved-pattern", screenNumber: 9 },
   "course-player": { routeIntent: "/{locale}/app/learn/{courseId}", referenceType: "exact-showcase", screenNumber: 10 },
@@ -89,4 +98,9 @@ export const screenRoutes: Readonly<Record<string, ScreenRoute>> = {
   "course-editor-curriculum": { routeIntent: "/{locale}/instructor/courses/{courseId} (Curriculum tab active)", referenceType: "exact-showcase", screenNumber: 22 },
   "lesson-editor": { routeIntent: "/{locale}/instructor/courses/{courseId}/sections/{sectionId}/lessons/{lessonId} (or /new)", referenceType: "ux-only", screenNumber: 23 },
   "quiz-editor": { routeIntent: "/{locale}/instructor/courses/{courseId}/quiz", referenceType: "ux-only", screenNumber: 24 },
+  "admin-dashboard": { routeIntent: "/{locale}/admin", referenceType: "ux-only", screenNumber: 25 },
+  "admin-courses": { routeIntent: "/{locale}/admin/courses", referenceType: "exact-showcase", screenNumber: 26 },
+  "admin-users": { routeIntent: "/{locale}/admin/users", referenceType: "ux-only", screenNumber: 27 },
+  "admin-instructors": { routeIntent: "/{locale}/admin/instructors", referenceType: "ux-only", screenNumber: 28 },
+  "admin-categories": { routeIntent: "/{locale}/admin/categories", referenceType: "ux-only", screenNumber: 29 },
 } as const;

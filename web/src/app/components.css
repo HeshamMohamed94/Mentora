@@ -2187,6 +2187,7 @@ html[dir="rtl"] .mtx-toggle input:checked + .mtx-toggle-track .mtx-toggle-thumb 
 }
 .mtx-dialog::backdrop { background-color: var(--color-overlay-scrim); }
 .mtx-dialog-body { margin-block-start: var(--space-3); color: var(--color-text-secondary); }
+.mtx-dialog-form { display: flex; flex-direction: column; gap: var(--space-4); margin-block-start: var(--space-4); }
 .mtx-dialog-actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-block-start: var(--space-6); }
 
 .mtx-instructor-page { max-width: calc(var(--space-16) * 20); margin-inline: auto; padding: var(--space-8) var(--space-4); }
@@ -2199,6 +2200,90 @@ html[dir="rtl"] .mtx-toggle input:checked + .mtx-toggle-track .mtx-toggle-thumb 
 .mtx-management-table-header { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; gap: var(--space-4); padding: var(--space-3) var(--space-4); background-color: var(--color-surface-variant); color: var(--color-text-secondary); font-family: var(--font-family-latin); font-size: var(--typography-label-medium-font-size); font-weight: var(--typography-label-medium-font-weight); letter-spacing: var(--typography-label-medium-letter-spacing); text-transform: uppercase; }
 html[lang="ar"] .mtx-management-table-header { font-family: var(--font-family-arabic); text-transform: none; }
 .mtx-management-table .mtx-management-card { border: none; border-radius: 0; border-block-start: var(--border-width-default) solid var(--color-border-default); }
+
+/* Admin — design-system/COMPONENTS.md § DataTable (v1.2). True table at desktop/largeDesktop,
+ * collapsed label:value cards below that — both rendered from the same data, switched with
+ * `hidden`/breakpoint utilities rather than JS viewport detection. */
+.mtx-admin-stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-4); margin-block-end: var(--space-8); }
+.mtx-admin-filter-bar { display: flex; align-items: center; gap: var(--space-3); margin-block-end: var(--space-4); flex-wrap: wrap; }
+.mtx-admin-filter-bar .mtx-search-field { max-width: calc(var(--space-16) * 5.5); }
+.mtx-admin-filter-bar .mtx-select { min-width: calc(var(--space-16) * 2.5); }
+.mtx-admin-identity { display: inline-flex; align-items: center; gap: var(--space-2); }
+.mtx-admin-subtitle { color: var(--color-text-secondary); margin-block-start: var(--space-1); }
+.mtx-info-banner { padding: var(--space-3) var(--space-4); border-radius: var(--radius-medium); background-color: var(--color-info-container); color: var(--color-info-on-info-container); font-size: var(--typography-body-small-font-size); line-height: var(--typography-body-small-line-height); margin-block-end: var(--space-4); }
+
+.mtx-data-table-wrap { display: flex; flex-direction: column; gap: var(--space-4); }
+
+/* No `overflow: hidden` here on purpose — the row-action popover (position: absolute, anchored
+ * to a trigger near the table's own edge) must be able to escape the table's box; corner
+ * rounding is applied to the first/last row's cells directly instead, see below. */
+.mtx-data-table { display: none; width: 100%; border-collapse: collapse; border: var(--border-width-default) solid var(--color-border-default); border-radius: var(--radius-large); }
+.mtx-data-table th, .mtx-data-table td { padding: var(--space-3) var(--space-4); text-align: start; }
+.mtx-data-table thead tr:first-child th:first-child { border-start-start-radius: var(--radius-large); }
+.mtx-data-table thead tr:first-child th:last-child { border-start-end-radius: var(--radius-large); }
+.mtx-data-table tbody tr:last-child td:first-child { border-end-start-radius: var(--radius-large); }
+.mtx-data-table tbody tr:last-child td:last-child { border-end-end-radius: var(--radius-large); }
+.mtx-data-table thead th {
+  background-color: var(--color-surface-variant);
+  color: var(--color-text-secondary);
+  font-family: var(--font-family-latin);
+  font-size: var(--typography-label-medium-font-size);
+  font-weight: var(--typography-label-medium-font-weight);
+  letter-spacing: var(--typography-label-medium-letter-spacing);
+  text-transform: uppercase;
+}
+html[lang="ar"] .mtx-data-table thead th { font-family: var(--font-family-arabic); text-transform: none; }
+.mtx-data-table tbody tr { border-block-start: var(--border-width-default) solid var(--color-border-default); }
+.mtx-data-table tbody tr:hover { background-color: color-mix(in srgb, var(--color-text-primary) calc(var(--state-hover-opacity) * 100%), transparent); }
+.mtx-data-table td { color: var(--color-text-primary); font-size: var(--typography-body-medium-font-size); line-height: var(--typography-body-medium-line-height); }
+.mtx-data-table-actions-header, .mtx-data-table-actions-cell { width: var(--space-12); text-align: end; }
+
+.mtx-data-table-cards { display: flex; flex-direction: column; gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
+.mtx-data-table-card { position: relative; display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-4); border: var(--border-width-default) solid var(--color-border-default); border-radius: var(--radius-medium); background-color: var(--color-surface-default); }
+.mtx-data-table-card-menu { position: absolute; inset-block-start: var(--space-2); inset-inline-end: var(--space-2); }
+.mtx-data-table-card-field { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-4); }
+.mtx-data-table-card-field:first-child { padding-inline-end: var(--space-10); }
+.mtx-data-table-card-label { flex-shrink: 0; color: var(--color-text-secondary); font-size: var(--typography-label-medium-font-size); font-weight: var(--typography-label-medium-font-weight); }
+.mtx-data-table-card-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text-primary); font-size: var(--typography-body-medium-font-size); text-align: end; }
+
+.mtx-data-table-row-menu { position: relative; display: inline-flex; }
+.mtx-data-table-row-menu-popover {
+  position: absolute;
+  inset-block-start: calc(100% + var(--space-1));
+  inset-inline-end: var(--space-0);
+  z-index: 3;
+  min-width: calc(var(--space-16) * 2.5);
+  overflow: hidden;
+  padding-block: var(--space-1);
+  border-radius: var(--radius-medium);
+  background-color: var(--color-surface-elevated);
+  box-shadow: var(--elevation-3);
+}
+.mtx-data-table-row-menu-item {
+  display: block;
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: none;
+  background-color: transparent;
+  color: var(--color-text-primary);
+  font-family: var(--font-family-latin);
+  font-size: var(--typography-body-medium-font-size);
+  text-align: start;
+  cursor: pointer;
+}
+html[lang="ar"] .mtx-data-table-row-menu-item { font-family: var(--font-family-arabic); }
+.mtx-data-table-row-menu-item:hover { background-color: color-mix(in srgb, var(--color-text-primary) calc(var(--state-hover-opacity) * 100%), transparent); }
+
+.mtx-data-table-skeleton { display: flex; flex-direction: column; gap: var(--space-2); }
+.mtx-data-table-skeleton-row { height: calc(var(--space-16) * 0.8); border-radius: var(--radius-medium); }
+
+.mtx-data-table-pagination { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-2); }
+
+@media (min-width: 1024px) {
+  .mtx-data-table { display: table; }
+  .mtx-data-table-cards { display: none; }
+}
+
 .mtx-editor-panel { display: flex; flex-direction: column; gap: var(--space-5); max-width: calc(var(--space-16) * 13); margin-block-start: var(--space-6); padding: var(--space-6); border: var(--border-width-default) solid var(--color-border-default); border-radius: var(--radius-large); background-color: var(--color-surface-default); }
 .mtx-editor-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
 .mtx-editor-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
@@ -2215,12 +2300,18 @@ html[lang="ar"] .mtx-management-table-header { font-family: var(--font-family-ar
 
 @media (max-width: 599px) {
   .mtx-instructor-stats, .mtx-editor-grid { grid-template-columns: 1fr; }
+  .mtx-admin-stats { grid-template-columns: 1fr; }
   .mtx-management-card { grid-template-columns: 1fr auto; }
   .mtx-management-card > :nth-child(3), .mtx-management-card > :nth-child(4) { grid-column: 1 / -1; }
   .mtx-management-table-header { display: none; }
   .mtx-resource-row { grid-template-columns: 1fr auto; }
   .mtx-resource-row > :nth-child(2) { grid-column: 1; }
   .mtx-dialog-actions { flex-direction: column-reverse; }
+  .mtx-admin-filter-bar .mtx-search-field { max-width: none; }
+}
+
+@media (min-width: 600px) and (max-width: 1023px) {
+  .mtx-admin-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (min-width: 600px) { .mtx-instructor-page { padding-inline: var(--space-6); } }

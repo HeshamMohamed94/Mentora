@@ -1,0 +1,54 @@
+{
+  "screenId": "admin-courses",
+  "screenNumber": 26,
+  "role": ["Admin"],
+  "platform": "Web only",
+  "shell": "shared/navigation.json#/shells/adminWeb",
+  "routeIntent": "/{locale}/admin/courses",
+  "referenceType": "exact-showcase",
+  "sourceReferences": [
+    "design-review-locked/Mentora Showcase.dc.html § 16 \"Admin Course Management\" mockup (~lines 2896-3099)",
+    "product/SCREEN_INVENTORY.md § 26",
+    "design-system/COMPONENTS.md § DataTable v1.2"
+  ],
+  "conflicts": [
+    {
+      "description": "The showcase mockup's sidebar shows exactly 4 items (Dashboard, Courses, Users, Categories) — omitting Instructors.",
+      "resolution": "product/SCREEN_INVENTORY.md § 28 defines a full 'Admin — Manage Instructors' screen as locked MVP scope, and shared/navigation.json#/shells/adminWeb (locked Product/UX precedence over Showcase) lists 5 items including Instructors. The implementation correctly keeps Instructors in the sidebar — the showcase's 4-item version is not reproduced.",
+      "recordedIn": "execution/DECISIONS_LOG.md D62"
+    },
+    {
+      "description": "The showcase mockup shows a bidirectional Toggle control in the Status column (implying Admin can both publish and unpublish).",
+      "resolution": "backend/.../courses/routes/CourseRoutes.kt grants Admin only the 'unpublish' course mutation (Role.instructor, Role.admin) — there is no admin-capable publish endpoint. Reproducing a bidirectional Toggle would fabricate a capability the backend does not offer. The implementation instead renders a read-only status Badge plus a one-way 'Unpublish' row action on published courses only, consistent with product/SCREEN_INVENTORY.md § 26 ('Unpublish' as the only primary action) and the info banner text sourced verbatim from the showcase itself ('no submission queue and no approval or rejection step').",
+      "recordedIn": "execution/DECISIONS_LOG.md D62"
+    }
+  ],
+
+  "layout": { "structure": "title + course-count subtitle -> info banner -> search/status filter bar -> DataTable of all courses across instructors", "maxWidth": "grid.maxContentWidth minus sidebar width" },
+
+  "sections": [
+    { "order": 1, "id": "header", "content": ["h1 'Manage Courses'", "subtitle: '{total} courses · {published} published' sourced from AdminDashboard stats"] },
+    { "order": 2, "id": "infoBanner", "content": ["Info-tone banner: 'Admin can view, manage, and unpublish a course. There is no submission queue and no approval or rejection step.' — verbatim from showcase § 16"] },
+    { "order": 3, "id": "filterBar", "content": ["SearchField (title/description)", "Status Select (All/Published/Draft) — client-side filter, no backend status query param exists"] },
+    { "order": 4, "id": "instructorFilterChip", "content": ["Conditional Badge + 'Clear filter' TextButton when arriving via '?instructor=' from Manage Instructors 'View courses' row action — client-side name-match filter, no backend instructor query param exists"] },
+    { "order": 5, "id": "courseList", "content": ["DataTable: Course(title, link to read-only course view), Instructor name, Status Badge, Enrollment count — row action 'Unpublish' (published courses only) with confirm dialog"] }
+  ],
+
+  "componentSequence": ["card.dataTable", "chip.badge", "select", "textField (searchField variant)", "dialogsAndSheets"],
+
+  "typographyHierarchy": { "pageTitle": "typography.heading.h1", "subtitle": "typography.body.small", "tableHeader": "typography.label.medium, uppercase text-transform" },
+
+  "artworkRules": "n/a — DataTable rows, no course-thumbnail artwork on this screen.",
+  "navigation": { "exitDestinations": ["Course Details (read-only, student-facing view)"] },
+
+  "states": { "loading": "skeleton table rows", "empty": "'no courses match' state", "error": "ErrorState with retry" },
+
+  "ltrBehavior": "default", "rtlBehavior": "table headers/columns, filter bar, and row-action popover mirror per logical properties",
+  "themeBehavior": "standard semantic token resolution; info banner uses color.info.container/onInfoContainer tokens",
+  "responsiveRules": "shared/responsive.json#/perSurfaceRules/dataTable — collapses to stacked cards below the DataTable component-spec breakpoint (see knownGaps)",
+  "knownGaps": [
+    "design-system/COMPONENTS.md (DataTable collapses below 'desktop') and design-system/design-tokens.json (collapses below 'tablet') genuinely disagree on the collapse breakpoint. Resolved in favor of the more detailed component-specific prose (COMPONENTS.md). Disclosed, non-blocking. See execution/DECISIONS_LOG.md D62.",
+    "The collapsed stacked-card breakpoint could not be live-verified in this session's browser automation environment (resize_window reports success but does not change the actual rendered viewport/window.innerWidth here) — verified by code review against the DataTable component implementation only, not by live screenshot at a narrow viewport.",
+    "Neither the Admin/instructor-filter nor the status filter has a backend query parameter (backend/.../admin/service/AdminService.kt's listCourses takes no instructor or status param) — both are implemented as disclosed, backend-contract-respecting client-side filters (fetched with a larger single-page limit when active), not invented backend capabilities."
+  ]
+}

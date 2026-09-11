@@ -1,0 +1,39 @@
+{
+  "screenId": "admin-instructors",
+  "screenNumber": 28,
+  "role": ["Admin"],
+  "platform": "Web only",
+  "shell": "shared/navigation.json#/shells/adminWeb",
+  "routeIntent": "/{locale}/admin/instructors",
+  "referenceType": "ux-only",
+  "sourceReferences": [
+    "product/SCREEN_INVENTORY.md § 28",
+    "design-system/COMPONENTS.md § DataTable v1.2",
+    "backend/.../admin/routes/AdminRoutes.kt — GET /admin/instructors (read-only, no mutation endpoints)"
+  ],
+
+  "layout": { "structure": "search bar -> DataTable of instructors", "maxWidth": "grid.maxContentWidth minus sidebar width" },
+
+  "sections": [
+    { "order": 1, "id": "header", "content": ["h1 'Manage Instructors'"] },
+    { "order": 2, "id": "filterBar", "content": ["SearchField (name/email)"] },
+    { "order": 3, "id": "instructorList", "content": ["DataTable: Avatar+Name, Email, Course count, Published count — row action 'View courses' navigates to Admin — Manage Courses with a client-side instructor-name filter applied"] }
+  ],
+
+  "componentSequence": ["card.dataTable", "avatar", "textField (searchField variant)"],
+
+  "typographyHierarchy": { "pageTitle": "typography.heading.h1", "tableHeader": "typography.label.medium, uppercase text-transform" },
+
+  "artworkRules": "n/a — Avatar initials only, no photography on this screen.",
+  "navigation": { "exitDestinations": ["Admin — Manage Courses (filtered by instructor)"] },
+
+  "states": { "loading": "skeleton table rows", "empty": "'no instructors match' state", "error": "ErrorState with retry" },
+
+  "ltrBehavior": "default", "rtlBehavior": "table headers/columns and row-action popover mirror per logical properties",
+  "themeBehavior": "standard semantic token resolution",
+  "responsiveRules": "shared/responsive.json#/perSurfaceRules/dataTable",
+  "knownGaps": [
+    "No showcase mockup exists for this screen (confirmed by exhaustive grep of design-review-locked/Mentora Showcase.dc.html); judged against product/SCREEN_INVENTORY.md § 28 only.",
+    "'View courses' filters Admin — Manage Courses by instructor name client-side (no instructor-id query param exists on backend/.../admin/service/AdminService.kt's listCourses) — a disclosed, backend-contract-respecting implementation choice, not an invented backend capability."
+  ]
+}
