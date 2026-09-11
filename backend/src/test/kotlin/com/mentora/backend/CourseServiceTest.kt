@@ -10,6 +10,7 @@ import com.mentora.backend.courses.repository.Lesson
 import com.mentora.backend.courses.repository.PriceDisplay
 import com.mentora.backend.courses.repository.Section
 import com.mentora.backend.courses.service.CourseService
+import com.mentora.backend.enrollment.repository.EnrollmentRepository
 import com.mentora.backend.users.service.UserService
 import io.mockk.coEvery
 import io.mockk.every
@@ -28,7 +29,8 @@ class CourseServiceTest {
     private val users = mockk<UserService> {
         coEvery { getNamesByIds(any()) } returns mapOf(instructorId to "Test Instructor")
     }
-    private val service = CourseService(repository, categories, users)
+    private val enrollments = mockk<EnrollmentRepository>(relaxed = true)
+    private val service = CourseService(repository, categories, users, enrollments)
     private val principal = MentoraPrincipal(instructorId, Role.instructor)
 
     @Test fun `blank title is reported by publish validation`() = assertInvalid(

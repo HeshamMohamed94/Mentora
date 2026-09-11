@@ -17,6 +17,7 @@ import com.mentora.backend.courses.repository.PublishedCourseFilter
 import com.mentora.backend.courses.repository.Section
 import com.mentora.backend.courses.repository.resolvedDescription
 import com.mentora.backend.courses.repository.resolvedTitle
+import com.mentora.backend.enrollment.repository.EnrollmentRepository
 import com.mentora.backend.users.service.UserService
 import kotlinx.datetime.Clock
 import kotlinx.serialization.Serializable
@@ -76,6 +77,7 @@ class CourseService(
     private val repository: CourseRepository,
     private val categories: CategoryService,
     private val users: UserService,
+    private val enrollments: EnrollmentRepository,
 ) {
     suspend fun list(query: CourseListQuery): Page<CourseSummary> {
         val price = query.maxPrice?.toIntOrNull()?.takeIf { it >= 0 }
@@ -95,11 +97,19 @@ class CourseService(
 
     suspend fun get(id: String, principal: MentoraPrincipal?, language: String? = null): CourseResponse {
         val course = findCourse(id)
-        if (course.status == DRAFT && principal?.role != Role.admin && principal?.userId != course.instructorId) {
+        val isOwnerOrAdmin = principal?.role == Role.admin || principal?.userId == course.instructorId
+        if (course.status == DRAFT && !isOwnerOrAdmin && !isEnrolled(principal, requireNotNull(course.id))) {
+            // ux/INSTRUCTOR_ADMIN_UX.md: "Unpublishing a live course keeps existing enrolled
+            // students' access intact (only removes it from Explore/search)" — an already-enrolled
+            // student must still be able to fetch (and therefore play) a course an Admin/Instructor
+            // has since unpublished; everyone else still gets a 404, same as before.
             throw courseNotFound()
         }
         return course.toResponseResolved(language?.let { validateLanguage(it) })
     }
+
+    private suspend fun isEnrolled(principal: MentoraPrincipal?, courseId: ObjectId): Boolean =
+        principal != null && enrollments.find(principal.userId, courseId) != null
 
     suspend fun create(principal: MentoraPrincipal, request: CreateCourseRequest): CourseResponse {
         val categoryId = objectId(request.categoryId, "categoryId")

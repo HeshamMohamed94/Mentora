@@ -6,5 +6,5 @@ import org.koin.dsl.module
 
 val coursesModule = module {
     single { CourseRepository(get()) }
-    single { CourseService(get(), get(), get()) }
+    single { CourseService(get(), get(), get(), get()) }
 }

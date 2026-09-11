@@ -341,6 +341,17 @@ class CoursesCategoriesIntegrationTest {
             HttpStatusCode.OK,
             client.get("/api/v1/courses/$protectedCourseId/quiz") { bearerAuth(student) }.status,
         )
+        // ux/INSTRUCTOR_ADMIN_UX.md: unpublishing only removes a course from Explore/search — an
+        // already-enrolled student must still be able to fetch the course itself (Course Player
+        // relies on this same GET), while a never-enrolled student still gets a 404.
+        assertEquals(
+            HttpStatusCode.OK,
+            client.get("/api/v1/courses/$protectedCourseId") { bearerAuth(student) }.status,
+        )
+        val neverEnrolledStudent = register("unpublish-outsider@example.com").dataString("accessToken")
+        val outsiderGet = client.get("/api/v1/courses/$protectedCourseId") { bearerAuth(neverEnrolledStudent) }
+        assertEquals(HttpStatusCode.NotFound, outsiderGet.status)
+        assertEquals("COURSE_NOT_FOUND", outsiderGet.errorCode())
     }
 
     @Test
