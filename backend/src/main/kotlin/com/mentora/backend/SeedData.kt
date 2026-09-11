@@ -66,6 +66,14 @@ private data class AccountSeed(val email: String, val name: String, val role: Ro
 internal data class LessonSeed(
     val title: String,
     val description: String,
+    /** Classpath resource for this lesson's own small, real, unique DEMO video — see [addLesson].
+     * Every lesson gets its own distinct clip (never shared with another lesson), generated via
+     * `tools/seed-media/generate-lesson-videos.js` and committed under
+     * `backend/src/main/resources/seed-media/lessons/`. */
+    val videoResource: String,
+    /** The clip's own real, true duration in seconds (from the generator's ffprobe manifest) —
+     * never a fabricated per-lesson estimate. See [addLesson]'s doc comment. */
+    val videoDurationSeconds: Int,
     val resources: List<ResourceDto> = emptyList(),
 )
 internal data class SectionSeed(val title: String, val lessons: List<LessonSeed>)
@@ -83,13 +91,6 @@ internal data class CourseSeed(
      * (D57). Keyed by locale ("en"/"ar"), never the course's own `language` (that's already
      * `title`/`description` above). Empty for every course except the seeded showcase example. */
     val translations: Map<String, CourseTranslationDto> = emptyMap(),
-    /** Classpath resource for this course's one small, real, topic-relevant DEMO lesson video —
-     * see [addLesson]. Reused across every lesson in the course (not unique per-lesson footage);
-     * required whenever [sections] is non-empty, unused for draft courses. */
-    val demoVideoResource: String = "",
-    /** The demo video's real duration in seconds, passed through verbatim to every lesson that
-     * reuses it — see [addLesson]'s doc comment for why this is never fabricated per lesson. */
-    val demoVideoDurationSeconds: Int = 0,
 ) {
     val published: Boolean get() = sections.isNotEmpty()
 }
@@ -112,6 +113,7 @@ private data class SeedSummary(
     var learningPaths: Int = 0,
     var curriculumUpgrades: Int = 0,
     var artworkUpgrades: Int = 0,
+    var uniqueVideoUpgrades: Int = 0,
 )
 
 fun main(@Suppress("UNUSED_PARAMETER") args: Array<String>) = runBlocking {
@@ -156,10 +158,12 @@ private suspend fun seedDemoData(services: SeedServices) {
     seedQuiz(services, principals.getValue("instructor1@mentora.dev"), courseIds.getValue(QUIZ_COURSE), summary)
     seedLearningPath(services.database, courseIds, summary)
     ensureCurriculum(services, principals, courseIds, summary)
+    ensureUniqueLessonVideos(services, principals, courseIds, summary)
     ensureCourseArtwork(services, principals, courseIds, summary)
     println("Demo seed complete: ${summary.accounts} accounts, ${summary.categories} categories, " +
         "${summary.courses} courses, ${summary.quizzes} quizzes, ${summary.learningPaths} learning paths, " +
-        "${summary.curriculumUpgrades} course curriculum upgrade(s), ${summary.artworkUpgrades} real course artwork(s) created.")
+        "${summary.curriculumUpgrades} course curriculum upgrade(s), ${summary.uniqueVideoUpgrades} unique " +
+        "lesson video upgrade(s), ${summary.artworkUpgrades} real course artwork(s) created.")
     printCredentials()
 }
 
@@ -202,9 +206,27 @@ private suspend fun allSeedDataExists(database: MongoDatabase): Boolean {
         currentTitles == desiredCurriculumTitles(seed)
     }
     if (!curriculumConverged) return false
+    // Converge every lesson's own unique DEMO video even against a database seeded before this
+    // upgrade existed (including one this session's own earlier ensureCurriculum run already
+    // converged onto a *shared* per-course video) — see ensureUniqueLessonVideos. A lesson whose
+    // video byte size doesn't match its own expected resource is either still sharing another
+    // lesson's clip or missing one entirely.
+    val media = database.getCollection<MediaDocument>("media")
+    val uniqueVideosConverged = COURSES.filter { it.published }.all { seed ->
+        val course = courses.find(eq("title", seed.title)).firstOrNull() ?: return@all false
+        seed.sections.all { sectionSeed ->
+            val section = course.sections.firstOrNull { it.title == sectionSeed.title } ?: return@all false
+            sectionSeed.lessons.all { lessonSeed ->
+                val lesson = section.lessons.firstOrNull { it.title == lessonSeed.title } ?: return@all false
+                val expectedSize = classpathResourceSize(lessonSeed.videoResource)
+                val actualSize = lesson.videoMediaId?.let { media.find(eq("_id", it)).firstOrNull()?.sizeBytes }
+                actualSize == expectedSize
+            }
+        }
+    }
+    if (!uniqueVideosConverged) return false
     // Converge every course's real-artwork demo thumbnail even against a database seeded before
     // this upgrade existed — see ensureCourseArtwork.
-    val media = database.getCollection<MediaDocument>("media")
     val artworkConverged = COURSE_ARTWORK_SEEDS.all { seed ->
         val thumbnailId = courses.find(eq("title", seed.courseTitle)).firstOrNull()?.thumbnailMediaId ?: return@all false
         (media.find(eq("_id", thumbnailId)).firstOrNull()?.sizeBytes ?: 0) > REAL_ARTWORK_MIN_BYTES
@@ -215,6 +237,13 @@ private suspend fun allSeedDataExists(database: MongoDatabase): Boolean {
 
 private fun desiredCurriculumTitles(seed: CourseSeed): List<String> =
     seed.sections.flatMap { section -> listOf(section.title) + section.lessons.map { it.title } }
+
+/** Real byte size of a bundled classpath seed-media resource — the convergence marker
+ * [ensureUniqueLessonVideos] and `allSeedDataExists` use to detect a lesson still carrying a
+ * stale, missing, or shared (non-unique) video. */
+private fun classpathResourceSize(resource: String): Long = requireNotNull(
+    Thread.currentThread().contextClassLoader.getResourceAsStream(resource)
+) { "Missing seed resource: $resource" }.use { it.readBytes() }.size.toLong()
 
 private suspend fun seedAccounts(services: SeedServices, summary: SeedSummary): Map<String, MentoraPrincipal> =
     ACCOUNTS.associate { account ->
@@ -280,7 +309,7 @@ private suspend fun createCourse(
         ByteReadChannel("seed-thumbnail-${seed.title}".encodeToByteArray()),
     ), principal)
     services.courses.update(principal, course.id, UpdateCourseRequest(thumbnailMediaId = thumbnail.mediaId))
-    seed.sections.forEach { addSection(services, principal, course.id, it, seed) }
+    seed.sections.forEach { addSection(services, principal, course.id, it) }
     if (seed.published) services.courses.publish(principal, course.id)
     return course.id
 }
@@ -290,32 +319,27 @@ private suspend fun addSection(
     principal: MentoraPrincipal,
     courseId: String,
     seed: SectionSeed,
-    courseSeed: CourseSeed,
 ) {
     val course = services.courses.addSection(principal, courseId, SectionTitleRequest(seed.title))
     val sectionId = course.sections.last().sectionId
     val courseSection = CourseSection(courseId, sectionId)
-    seed.lessons.forEach { addLesson(services, principal, courseSection, it, courseSeed) }
+    seed.lessons.forEach { addLesson(services, principal, courseSection, it) }
 }
 
-/** Every seeded lesson gets a real, small, browser-playable video — not the historic fake-bytes
- * placeholder ("seed-video-<title>") a prior iteration of this seed used for every lesson but the
- * one upgraded target per course. Reusing one real, topic-relevant demo clip per course (rather
- * than fabricating dozens of distinct per-lesson recordings) keeps seed assets small while
- * guaranteeing every curriculum row the Course Player shows is genuinely selectable and playable —
- * see architecture/MEDIA_ARCHITECTURE.md (local-filesystem `MediaStorage`, no binaries in Mongo)
- * and execution/DECISIONS_LOG.md D59/D60 for how these clips were originally produced. The
- * `durationSeconds` passed through is the clip's own real, true duration (never fabricated per
- * lesson) — nothing in the Course Player UI surfaces this value as text, but the video element
- * itself reports the file's real duration, so inventing a longer "8–22 min" figure here would
- * silently contradict real media metadata (see the ticket's own "do not contradict real media
- * metadata" constraint). */
+/** Every seeded lesson gets its own real, small, browser-playable, unique DEMO video — not the
+ * historic fake-bytes placeholder every lesson but one used originally, and not the later
+ * one-clip-shared-across-a-whole-course design either (see execution/DECISIONS_LOG.md D67/D68).
+ * Each [LessonSeed.videoResource] is a distinct, topic-referencing, small generated clip
+ * (`tools/seed-media/generate-lesson-videos.js`) — guaranteeing every curriculum row the Course
+ * Player shows is genuinely selectable, playable, *and* visibly distinct from every other lesson's
+ * video, not just a title change over identical footage. `videoDurationSeconds` is the clip's own
+ * real, true duration (never fabricated) — see architecture/MEDIA_ARCHITECTURE.md for the
+ * local-filesystem `MediaStorage`/no-binaries-in-Mongo constraint this still honors. */
 private suspend fun addLesson(
     services: SeedServices,
     principal: MentoraPrincipal,
     courseSection: CourseSection,
     seed: LessonSeed,
-    courseSeed: CourseSeed,
 ) {
     val course = services.courses.addLesson(
         principal, courseSection.courseId, courseSection.sectionId,
@@ -323,11 +347,11 @@ private suspend fun addLesson(
     )
     val lessonId = course.sections.first { it.sectionId == courseSection.sectionId }.lessons.last().lessonId
     val bytes = requireNotNull(
-        Thread.currentThread().contextClassLoader.getResourceAsStream(courseSeed.demoVideoResource)
-    ) { "Missing seed resource: ${courseSeed.demoVideoResource}" }.use { it.readBytes() }
+        Thread.currentThread().contextClassLoader.getResourceAsStream(seed.videoResource)
+    ) { "Missing seed resource: ${seed.videoResource}" }.use { it.readBytes() }
     val video = services.media.upload(MediaUpload(
         "lessonVideo", lessonId, "video/mp4", courseSection.courseId,
-        courseSeed.demoVideoDurationSeconds.toString(), ByteReadChannel(bytes),
+        seed.videoDurationSeconds.toString(), ByteReadChannel(bytes),
     ), principal)
     services.courses.updateLesson(
         principal, courseSection.courseId, courseSection.sectionId, lessonId,
@@ -361,7 +385,7 @@ private suspend fun ensureCurriculum(
         if (currentCurriculumTitles(course) == desiredCurriculumTitles(seed)) return@forEach
 
         course.sections.forEach { services.courses.deleteSection(principal, courseId, it.sectionId) }
-        seed.sections.forEach { addSection(services, principal, courseId, it, seed) }
+        seed.sections.forEach { addSection(services, principal, courseId, it) }
         services.database.getCollection<Document>("progress").deleteMany(eq("courseId", ObjectId(courseId)))
         summary.curriculumUpgrades++
     }
@@ -371,6 +395,56 @@ private fun currentCurriculumTitles(course: CourseResponse): List<String> =
     course.sections.sortedBy { it.order }.flatMap { section ->
         listOf(section.title) + section.lessons.sortedBy { it.order }.map { it.title }
     }
+
+/** Converges every lesson's video onto its own unique [LessonSeed.videoResource], non-destructively
+ * — unlike [ensureCurriculum], this never deletes/recreates sections or lessons (their titles
+ * already match; only the *video* needs to change), so lesson ids and any real per-lesson progress
+ * survive this upgrade untouched. Handles two real cases against an already-seeded dev database:
+ * (a) a lesson still on the historic shared-per-course video (pre-D68), and (b) a lesson somehow
+ * missing a video entirely. Idempotent via a byte-size comparison against the lesson's own expected
+ * resource (same convergence pattern `ensureCourseArtwork` uses for thumbnails) — a lesson whose
+ * current video already matches its expected resource size is left untouched (0 duplicate uploads
+ * on repeat runs). */
+private suspend fun ensureUniqueLessonVideos(
+    services: SeedServices,
+    principals: Map<String, MentoraPrincipal>,
+    courseIds: Map<String, String>,
+    summary: SeedSummary,
+) {
+    val media = services.database.getCollection<MediaDocument>("media")
+    COURSES.filter { it.published }.forEach { seed ->
+        val courseId = courseIds.getValue(seed.title)
+        val principal = principals.getValue(seed.instructorEmail)
+        val course = services.courses.get(courseId, principal)
+        seed.sections.forEach { sectionSeed ->
+            val section = course.sections.first { it.title == sectionSeed.title }
+            sectionSeed.lessons.forEach lesson@{ lessonSeed ->
+                val lesson = section.lessons.first { it.title == lessonSeed.title }
+                val expectedSize = classpathResourceSize(lessonSeed.videoResource)
+                val actualSize = lesson.videoMediaId?.let {
+                    media.find(eq("_id", ObjectId(it))).firstOrNull()?.sizeBytes
+                }
+                if (actualSize == expectedSize) return@lesson
+
+                val bytes = requireNotNull(
+                    Thread.currentThread().contextClassLoader.getResourceAsStream(lessonSeed.videoResource)
+                ) { "Missing seed resource: ${lessonSeed.videoResource}" }.use { it.readBytes() }
+                val video = services.media.upload(
+                    MediaUpload(
+                        "lessonVideo", lesson.lessonId, "video/mp4", courseId,
+                        lessonSeed.videoDurationSeconds.toString(), ByteReadChannel(bytes),
+                    ),
+                    principal,
+                )
+                services.courses.updateLesson(
+                    principal, courseId, section.sectionId, lesson.lessonId,
+                    UpdateLessonRequest(videoMediaId = video.mediaId),
+                )
+                summary.uniqueVideoUpgrades++
+            }
+        }
+    }
+}
 
 /** Upgrades each [COURSE_ARTWORK_SEEDS] course's thumbnail from the generic fake-bytes placeholder
  * every seeded course still uses (see [createCourse]) to a real, topic-relevant demo image, so
@@ -486,11 +560,6 @@ internal val COURSE_ARTWORK_SEEDS = listOf(
 
 private val PATH_COURSES = listOf(QUIZ_COURSE, MONGODB_COURSE, KOTLIN_COURSE)
 
-/** Real duration (seconds) of every course's bundled seed-media MP4 demo clip — see
- * [addLesson]'s doc comment for why this is the one truthful value used for every lesson that
- * reuses the clip, rather than a fabricated per-lesson figure. */
-private const val DEMO_VIDEO_DURATION_SECONDS = 27
-
 internal val COURSES = listOf(
     CourseSeed(
         QUIZ_COURSE, "Design, validate, and evolve production-ready HTTP APIs with clear contracts.",
@@ -501,21 +570,25 @@ internal val COURSES = listOf(
                     "REST API Reliability Fundamentals",
                     "Learn the core principles behind reliable REST APIs, including resource design, HTTP " +
                         "semantics, validation, status codes, and predictable error handling.",
+                    videoResource = "seed-media/lessons/rest-api/01-rest-api-reliability-fundamentals.mp4", videoDurationSeconds = 19,
                 ),
                 LessonSeed(
                     "Resources and HTTP Methods",
                     "Model your API around resources and choose the HTTP method — GET, POST, PUT, PATCH, " +
                         "DELETE — that matches the operation you're actually performing.",
+                    videoResource = "seed-media/lessons/rest-api/02-resources-and-http-methods.mp4", videoDurationSeconds = 23,
                 ),
                 LessonSeed(
                     "Request and Response Design",
                     "Shape predictable JSON payloads and headers so every endpoint in your API feels " +
                         "consistent to the client that calls it.",
+                    videoResource = "seed-media/lessons/rest-api/03-request-and-response-design.mp4", videoDurationSeconds = 27,
                 ),
                 LessonSeed(
                     "HTTP Status Codes",
                     "Use status codes precisely — 2xx success, 4xx client error, 5xx server error — so " +
                         "callers can react correctly without parsing error text.",
+                    videoResource = "seed-media/lessons/rest-api/04-http-status-codes.mp4", videoDurationSeconds = 19,
                     resources = listOf(ResourceDto("MDN: HTTP Response Status Codes", "https://developer.mozilla.org/en-US/docs/Web/HTTP/Status")),
                 ),
             )),
@@ -524,21 +597,25 @@ internal val COURSES = listOf(
                     "Request Validation",
                     "Validate incoming requests at the boundary and reject bad input early, before it " +
                         "reaches your business logic.",
+                    videoResource = "seed-media/lessons/rest-api/05-request-validation.mp4", videoDurationSeconds = 23,
                 ),
                 LessonSeed(
                     "Consistent Error Responses",
                     "Design one error response shape used everywhere in the API, so clients can handle " +
                         "failures with a single code path.",
+                    videoResource = "seed-media/lessons/rest-api/06-consistent-error-responses.mp4", videoDurationSeconds = 27,
                 ),
                 LessonSeed(
                     "API Contracts and DTOs",
                     "Separate your public API contract from internal domain models using DTOs, so internal " +
                         "refactors don't break every client.",
+                    videoResource = "seed-media/lessons/rest-api/07-api-contracts-and-dtos.mp4", videoDurationSeconds = 19,
                 ),
                 LessonSeed(
                     "Idempotency",
                     "Make retried requests safe by designing idempotent operations, so a flaky network never " +
                         "causes a duplicate side effect.",
+                    videoResource = "seed-media/lessons/rest-api/08-idempotency.mp4", videoDurationSeconds = 23,
                     resources = listOf(ResourceDto("MDN: HTTP Request Methods", "https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods")),
                 ),
             )),
@@ -547,26 +624,28 @@ internal val COURSES = listOf(
                     "Pagination and Filtering",
                     "Return large collections in manageable pages and let clients filter results, keeping " +
                         "responses fast and predictable.",
+                    videoResource = "seed-media/lessons/rest-api/09-pagination-and-filtering.mp4", videoDurationSeconds = 27,
                 ),
                 LessonSeed(
                     "Authentication and Authorization Concepts",
                     "Understand the difference between authenticating who a caller is and authorizing what " +
                         "they're allowed to do.",
+                    videoResource = "seed-media/lessons/rest-api/10-authentication-and-authorization-concepts.mp4", videoDurationSeconds = 19,
                 ),
                 LessonSeed(
                     "Versioning and API Evolution",
                     "Evolve your API without breaking existing clients, using deliberate versioning strategies.",
+                    videoResource = "seed-media/lessons/rest-api/11-versioning-and-api-evolution.mp4", videoDurationSeconds = 23,
                 ),
                 LessonSeed(
                     "Reliability Best Practices",
                     "Bring validation, error handling, and idempotency together into a checklist for shipping " +
                         "APIs that hold up in production.",
+                    videoResource = "seed-media/lessons/rest-api/12-reliability-best-practices.mp4", videoDurationSeconds = 27,
                     resources = listOf(ResourceDto("Microsoft REST API Guidelines", "https://github.com/microsoft/api-guidelines")),
                 ),
             )),
         ),
-        demoVideoResource = "seed-media/rest-api-fundamentals.mp4",
-        demoVideoDurationSeconds = DEMO_VIDEO_DURATION_SECONDS,
     ),
     CourseSeed(
         MONGODB_COURSE, "Model documents and build efficient queries for modern applications.",
@@ -577,21 +656,25 @@ internal val COURSES = listOf(
                     "MongoDB Fundamentals for Application Developers",
                     "Learn how to model documents, perform CRUD operations, design efficient schemas, and use " +
                         "indexes and queries to build fast, reliable applications with MongoDB.",
+                    videoResource = "seed-media/lessons/mongodb/01-mongodb-fundamentals-for-application-developers.mp4", videoDurationSeconds = 19,
                 ),
                 LessonSeed(
                     "Documents and Collections",
                     "Understand how MongoDB stores data as flexible JSON-like documents grouped into " +
                         "collections, and how that differs from relational tables.",
+                    videoResource = "seed-media/lessons/mongodb/02-documents-and-collections.mp4", videoDurationSeconds = 23,
                 ),
                 LessonSeed(
                     "MongoDB Data Types",
                     "Work confidently with MongoDB's core BSON data types, including ObjectId, dates, arrays, " +
                         "and embedded documents.",
+                    videoResource = "seed-media/lessons/mongodb/03-mongodb-data-types.mp4", videoDurationSeconds = 27,
                 ),
                 LessonSeed(
                     "CRUD Fundamentals",
                     "Perform create, read, update, and delete operations using the MongoDB driver's core " +
                         "methods.",
+                    videoResource = "seed-media/lessons/mongodb/04-crud-fundamentals.mp4", videoDurationSeconds = 19,
                     resources = listOf(ResourceDto("MongoDB Manual: CRUD Operations", "https://www.mongodb.com/docs/manual/crud/")),
                 ),
             )),
@@ -599,21 +682,25 @@ internal val COURSES = listOf(
                 LessonSeed(
                     "Query Operators",
                     "Use comparison, logical, and array query operators to find exactly the documents you need.",
+                    videoResource = "seed-media/lessons/mongodb/05-query-operators.mp4", videoDurationSeconds = 23,
                 ),
                 LessonSeed(
                     "Schema Design",
                     "Design a document schema around how your application actually reads and writes data, not " +
                         "around normalization habits carried over from SQL.",
+                    videoResource = "seed-media/lessons/mongodb/06-schema-design.mp4", videoDurationSeconds = 27,
                 ),
                 LessonSeed(
                     "Embedded vs Referenced Documents",
                     "Decide when to embed related data inside a single document versus referencing it in " +
                         "another collection.",
+                    videoResource = "seed-media/lessons/mongodb/07-embedded-vs-referenced-documents.mp4", videoDurationSeconds = 19,
                 ),
                 LessonSeed(
                     "Index Fundamentals",
                     "Speed up queries with indexes, and understand the trade-off between faster reads and " +
                         "slower writes.",
+                    videoResource = "seed-media/lessons/mongodb/08-index-fundamentals.mp4", videoDurationSeconds = 23,
                     resources = listOf(ResourceDto("MongoDB Manual: Indexes", "https://www.mongodb.com/docs/manual/indexes/")),
                 ),
             )),
@@ -622,27 +709,29 @@ internal val COURSES = listOf(
                     "Aggregation Basics",
                     "Build aggregation pipelines to transform, filter, and summarize data directly inside " +
                         "MongoDB.",
+                    videoResource = "seed-media/lessons/mongodb/09-aggregation-basics.mp4", videoDurationSeconds = 27,
                 ),
                 LessonSeed(
                     "Pagination and Filtering",
                     "Implement cursor-based pagination and filtering for large MongoDB collections in a real " +
                         "application.",
+                    videoResource = "seed-media/lessons/mongodb/10-pagination-and-filtering.mp4", videoDurationSeconds = 19,
                 ),
                 LessonSeed(
                     "Performance Considerations",
                     "Recognize common MongoDB performance pitfalls and how indexes, schema design, and query " +
                         "shape affect them.",
+                    videoResource = "seed-media/lessons/mongodb/11-performance-considerations.mp4", videoDurationSeconds = 23,
                 ),
                 LessonSeed(
                     "Practical Application Patterns",
                     "Apply everything covered in this course to real patterns for building a MongoDB-backed " +
                         "application.",
+                    videoResource = "seed-media/lessons/mongodb/12-practical-application-patterns.mp4", videoDurationSeconds = 27,
                     resources = listOf(ResourceDto("MongoDB Manual: Aggregation Pipeline", "https://www.mongodb.com/docs/manual/core/aggregation-pipeline/")),
                 ),
             )),
         ),
-        demoVideoResource = "seed-media/mongodb-fundamentals.mp4",
-        demoVideoDurationSeconds = DEMO_VIDEO_DURATION_SECONDS,
     ),
     CourseSeed(
         KOTLIN_COURSE, "Write responsive concurrent Kotlin programs using structured concurrency.",
@@ -654,21 +743,25 @@ internal val COURSES = listOf(
                     "Learn the core building blocks of Kotlin coroutines, including suspend functions, " +
                         "coroutine scopes, dispatchers, and structured concurrency for writing responsive, " +
                         "reliable concurrent code.",
+                    videoResource = "seed-media/lessons/kotlin-coroutines/01-kotlin-coroutines-fundamentals.mp4", videoDurationSeconds = 19,
                 ),
                 LessonSeed(
                     "Suspend Functions",
                     "Write suspend functions that pause without blocking a thread, and understand how the " +
                         "compiler transforms them.",
+                    videoResource = "seed-media/lessons/kotlin-coroutines/02-suspend-functions.mp4", videoDurationSeconds = 23,
                 ),
                 LessonSeed(
                     "Coroutine Builders",
                     "Launch coroutines with launch, async, and runBlocking, and know when to reach for each " +
                         "one.",
+                    videoResource = "seed-media/lessons/kotlin-coroutines/03-coroutine-builders.mp4", videoDurationSeconds = 27,
                 ),
                 LessonSeed(
                     "CoroutineScope",
                     "Tie a coroutine's lifetime to a well-defined scope so it's cancelled automatically when " +
                         "that scope ends.",
+                    videoResource = "seed-media/lessons/kotlin-coroutines/04-coroutinescope.mp4", videoDurationSeconds = 19,
                     resources = listOf(ResourceDto("Kotlin Docs: Coroutines Basics", "https://kotlinlang.org/docs/coroutines-basics.html")),
                 ),
             )),
@@ -677,21 +770,25 @@ internal val COURSES = listOf(
                     "Jobs and Cancellation",
                     "Use Job to track a coroutine's lifecycle and cancel it cooperatively without leaking " +
                         "resources.",
+                    videoResource = "seed-media/lessons/kotlin-coroutines/05-jobs-and-cancellation.mp4", videoDurationSeconds = 23,
                 ),
                 LessonSeed(
                     "Dispatchers and Context",
                     "Choose the right dispatcher — Main, IO, Default — to run coroutines on the thread pool " +
                         "suited to the work.",
+                    videoResource = "seed-media/lessons/kotlin-coroutines/06-dispatchers-and-context.mp4", videoDurationSeconds = 27,
                 ),
                 LessonSeed(
                     "Exception Handling",
                     "Handle exceptions thrown inside coroutines correctly, including the real differences " +
                         "between launch and async.",
+                    videoResource = "seed-media/lessons/kotlin-coroutines/07-exception-handling.mp4", videoDurationSeconds = 19,
                 ),
                 LessonSeed(
                     "Structured Concurrency",
                     "Keep concurrent work organized and safe by nesting coroutines inside scopes that " +
                         "guarantee they complete or are cancelled together.",
+                    videoResource = "seed-media/lessons/kotlin-coroutines/08-structured-concurrency.mp4", videoDurationSeconds = 23,
                     resources = listOf(ResourceDto("Kotlin Docs: Cancellation and Timeouts", "https://kotlinlang.org/docs/cancellation-and-timeouts.html")),
                 ),
             )),
@@ -700,25 +797,27 @@ internal val COURSES = listOf(
                     "async and await",
                     "Run multiple suspend functions concurrently with async and combine their results with " +
                         "await.",
+                    videoResource = "seed-media/lessons/kotlin-coroutines/09-async-and-await.mp4", videoDurationSeconds = 27,
                 ),
                 LessonSeed(
                     "Flow Fundamentals",
                     "Model a stream of asynchronously computed values with Kotlin Flow.",
+                    videoResource = "seed-media/lessons/kotlin-coroutines/10-flow-fundamentals.mp4", videoDurationSeconds = 19,
                 ),
                 LessonSeed(
                     "Combining Asynchronous Work",
                     "Combine multiple coroutines and flows together to build real asynchronous pipelines.",
+                    videoResource = "seed-media/lessons/kotlin-coroutines/11-combining-asynchronous-work.mp4", videoDurationSeconds = 23,
                 ),
                 LessonSeed(
                     "Real Application Patterns",
                     "Apply coroutines to real application patterns like network calls, repositories, and UI " +
                         "state updates.",
+                    videoResource = "seed-media/lessons/kotlin-coroutines/12-real-application-patterns.mp4", videoDurationSeconds = 27,
                     resources = listOf(ResourceDto("Kotlin Docs: Flow", "https://kotlinlang.org/docs/flow.html")),
                 ),
             )),
         ),
-        demoVideoResource = "seed-media/kotlin-coroutines-fundamentals.mp4",
-        demoVideoDurationSeconds = DEMO_VIDEO_DURATION_SECONDS,
     ),
     CourseSeed(
         UX_COURSE, "تعلّم مبادئ البحث والتخطيط لبناء تجارب رقمية واضحة وسهلة الاستخدام.",
@@ -729,18 +828,22 @@ internal val COURSES = listOf(
                     "أساسيات تجربة المستخدم",
                     "تعلّم المبادئ الأساسية لتصميم تجربة المستخدم، بما في ذلك أبحاث المستخدمين، والنماذج الأولية، " +
                         "وقابلية الاستخدام، ومسارات المستخدم، لبناء تجارب رقمية واضحة وفعالة.",
+                    videoResource = "seed-media/lessons/ux-design/01-ux-design-fundamentals.mp4", videoDurationSeconds = 19,
                 ),
                 LessonSeed(
                     "مقدمة في تجربة المستخدم",
                     "تعرّف على مفهوم تجربة المستخدم ولماذا تُعد جزءًا أساسيًا من نجاح أي منتج رقمي.",
+                    videoResource = "seed-media/lessons/ux-design/02-introduction-to-ux.mp4", videoDurationSeconds = 23,
                 ),
                 LessonSeed(
                     "أبحاث المستخدمين الأساسية",
                     "تعلّم كيفية جمع رؤى حقيقية عن المستخدمين من خلال المقابلات والملاحظة قبل البدء بالتصميم.",
+                    videoResource = "seed-media/lessons/ux-design/03-user-research-basics.mp4", videoDurationSeconds = 27,
                 ),
                 LessonSeed(
                     "تحليل احتياجات المستخدم",
                     "حوّل ملاحظات البحث إلى احتياجات واضحة يمكن تصميم حلول فعلية بناءً عليها.",
+                    videoResource = "seed-media/lessons/ux-design/04-analyzing-user-needs.mp4", videoDurationSeconds = 19,
                     resources = listOf(ResourceDto("مبادئ Nielsen Norman العشرة لقابلية الاستخدام", "https://www.nngroup.com/articles/ten-usability-heuristics/")),
                 ),
             )),
@@ -748,18 +851,22 @@ internal val COURSES = listOf(
                 LessonSeed(
                     "مسارات المستخدم",
                     "ارسم الخطوات التي يتبعها المستخدم لإنجاز مهمة داخل المنتج، من البداية حتى الهدف النهائي.",
+                    videoResource = "seed-media/lessons/ux-design/05-user-flows.mp4", videoDurationSeconds = 23,
                 ),
                 LessonSeed(
                     "هندسة المعلومات",
                     "نظّم المحتوى والتنقل بطريقة منطقية تسهّل على المستخدم إيجاد ما يبحث عنه.",
+                    videoResource = "seed-media/lessons/ux-design/06-information-architecture.mp4", videoDurationSeconds = 27,
                 ),
                 LessonSeed(
                     "التصميم السلكي",
                     "ابنِ مخططات سلكية بسيطة لتحديد بنية الشاشة قبل الانتقال إلى التصميم المرئي.",
+                    videoResource = "seed-media/lessons/ux-design/07-wireframing.mp4", videoDurationSeconds = 19,
                 ),
                 LessonSeed(
                     "تصميم التفاعل",
                     "صمّم كيف يتفاعل المستخدم مع عناصر الواجهة، من الأزرار إلى الانتقالات.",
+                    videoResource = "seed-media/lessons/ux-design/08-interaction-design.mp4", videoDurationSeconds = 23,
                     resources = listOf(ResourceDto("دليل Material Design للتفاعل", "https://m3.material.io/")),
                 ),
             )),
@@ -767,18 +874,22 @@ internal val COURSES = listOf(
                 LessonSeed(
                     "النماذج الأولية",
                     "حوّل التصميمات الثابتة إلى نماذج أولية تفاعلية يمكن اختبارها مع مستخدمين حقيقيين.",
+                    videoResource = "seed-media/lessons/ux-design/09-prototyping.mp4", videoDurationSeconds = 27,
                 ),
                 LessonSeed(
                     "اختبار قابلية الاستخدام",
                     "راقب مستخدمين حقيقيين وهم يستخدمون تصميمك لاكتشاف نقاط الالتباس قبل الإطلاق.",
+                    videoResource = "seed-media/lessons/ux-design/10-usability-testing.mp4", videoDurationSeconds = 19,
                 ),
                 LessonSeed(
                     "التكرار بناءً على الملاحظات",
                     "استخدم ملاحظات الاختبار لتحسين التصميم عبر دورات تكرار سريعة.",
+                    videoResource = "seed-media/lessons/ux-design/11-iterating-on-feedback.mp4", videoDurationSeconds = 23,
                 ),
                 LessonSeed(
                     "تسليم تصميم تجربة المستخدم",
                     "جهّز الملفات والمواصفات التي يحتاجها المطورون لتنفيذ التصميم بدقة.",
+                    videoResource = "seed-media/lessons/ux-design/12-ux-design-handoff.mp4", videoDurationSeconds = 27,
                     resources = listOf(ResourceDto("دليل التسليم بين المصممين والمطورين", "https://www.figma.com/best-practices/guide-to-developer-handoff/")),
                 ),
             )),
@@ -789,8 +900,6 @@ internal val COURSES = listOf(
                 "Learn the principles of research and planning to build clear, usable digital experiences.",
             ),
         ),
-        demoVideoResource = "seed-media/ux-design-fundamentals-ar.mp4",
-        demoVideoDurationSeconds = DEMO_VIDEO_DURATION_SECONDS,
     ),
     CourseSeed(
         "تحليل البيانات لاتخاذ القرارات", "حوّل بيانات العمل إلى مؤشرات واضحة تدعم القرارات اليومية.",

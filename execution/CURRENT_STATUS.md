@@ -1,6 +1,6 @@
 # Mentora — Current Implementation Status
 
-**Last updated:** 2026-09-11 (PRE-PHASE-3 — Realistic Course Seed Data Expansion — DONE, D67; Phase 2 remains fully complete, pending the user's explicit approval before Phase 3 — see the final report delivered alongside this update)
+**Last updated:** 2026-09-11 (PRE-PHASE-3 — Unique Lesson Demo Videos + Realistic Seed Content — DONE, D68, following D67's realistic-curriculum pass earlier the same day; Phase 2 remains fully complete, pending the user's explicit approval before Phase 3 — see the final report delivered alongside this update)
 
 ---
 
@@ -625,21 +625,96 @@ enrollments/progress/certificates/media) was cleaned up via a scratch `mongosh` 
 exactly that pattern — pre-existing non-seed accounts (`heshamohamed94@gmail.com`,
 `phase2tester@example.com`, `postman.student.*`) were left untouched.
 
-**Known limitation carried forward:** reused-per-lesson demo video duration metadata
-(`durationSeconds`) intentionally reflects the real underlying clip's true ~27s length for every
-lesson rather than a fabricated per-lesson "8–22 min" figure, since nothing in the Course Player UI
-surfaces this value as text and inventing one would contradict the real media served to the
-`<video>` element — disclosed in `SeedData.kt`'s own doc comments, not a UI-visible defect.
+**Known limitation from this pass, since superseded by D68 below:** ~~reused-per-lesson demo video~~
+— every course's 12 lessons shared one clip. D68 (same day) replaced this with a genuinely unique
+video per lesson; see D68 for the current state.
 
 See `DECISIONS_LOG.md` D67 for the complete account, including the full per-course curriculum
 listing. `PHASE_HANDOFF.md`'s known-limitations list and its "what later phases must not redo"
 section item about the lesson-2 placeholder gap have been updated to reflect this resolution.
 
+## PRE-PHASE-3: Unique Lesson Demo Videos + Realistic Seed Content (2026-09-11, D68) — DONE
+
+**A same-day follow-up to D67 above**, requested explicitly as a further PRE-PHASE-3 content/media
+polish pass: D67 gave every lesson real, topic-specific titles/descriptions but every lesson within
+a course still shared that one course's single real demo clip (disclosed as a known limitation at
+the time). This pass generates one small, unique, topic-referencing DEMO video per lesson — 48
+total, all distinct — and wires each into its own lesson non-destructively. Touches only
+`backend/src/main/kotlin/com/mentora/backend/SeedData.kt`, `SeedDataCurriculumTest.kt`, and adds
+`tools/seed-media/generate-lesson-videos.js` (a new one-time/rerunnable asset generator, same role
+as `tools/token-pipeline`/`tools/design-to-code`) plus 48 committed `.mp4` files under
+`backend/src/main/resources/seed-media/lessons/<course>/`. No `product`/`ux`/`design-system`/
+`architecture` document changed; no Course Player/Course Details component code changed — this is
+data/media-only.
+
+**1. 48 unique, small (~25–46 KB each, 1.7 MB total), real, browser-playable clips generated via
+`ffmpeg`** (same offline `drawtext`/`drawbox`/`fade` technique D59/D60/D67 established — no stock
+footage, no network dependency at runtime): a 640×360, ~19–27s slideshow per lesson showing that
+course's identity color (REST API blue, MongoDB green, Kotlin violet, UX rose), the course name, the
+lesson's own real title, that lesson's own 4 topic-specific keywords cycling in (e.g. HTTP Methods →
+`GET`/`POST`/`PUT`/`DELETE`; MongoDB Indexes → `FASTER READS`/`SLOWER WRITES`/`B-TREE`/`QUERY PLAN`),
+and a small persistent on-screen `"DEMO PREVIEW — not real footage"` watermark (Arabic
+`"معاينة تجريبية"` for the UX course) burned directly into the video itself — truthful even if the raw
+file were ever viewed outside the app. The Arabic UX course's 12 clips use real RTL-shaped Arabic
+text (`fribidi`/`harfbuzz`, Tahoma, right-aligned), same proven method as D60.
+
+**2. `LessonSeed` gained `videoResource`/`videoDurationSeconds` (moved down from the course level);
+`addLesson` now uploads each lesson's own unique resource.** `durationSeconds` is each clip's own
+real ffprobe-measured duration (19, 23, or 27s, cycling per lesson index — deterministic variety,
+never fabricated), resolving D67's disclosed duration-truthfulness tension without contradiction:
+every lesson's video really is that lesson's own distinct file, so its real duration is legitimately
+lesson-specific now, not a shared course-level value.
+
+**3. New non-destructive convergence step, `ensureUniqueLessonVideos`.** Unlike D67's
+`ensureCurriculum` (which deletes and rebuilds sections/lessons wholesale), this only ever swaps a
+lesson's `videoMediaId` when its current media's byte size doesn't match its own expected resource's
+real size — section/lesson ids and any real per-lesson `progress` survive untouched. Re-running
+`seedDemoData` against this session's already-D67-seeded dev database (still on the old
+one-video-per-course design) reported `48 unique lesson video upgrade(s)`, `0 course curriculum
+upgrade(s)` — confirmed via direct `mongosh` inspection that `student2@mentora.dev`'s prior 8%
+REST API progress (from D67's own live verification) survived byte-for-byte across the upgrade. An
+immediate second `seedDemoData` run reported `All demo seed data already exists; no changes made` —
+idempotent.
+
+**4. Uniqueness proven three ways, not just asserted.** (a) A new DB-free test,
+`every lesson has its own unique video resource — no two lessons share the same clip`, asserts all
+48 `LessonSeed.videoResource` paths are distinct strings. (b) Direct `mongosh` aggregation over the
+live dev database: 48 lesson-media relationships, 48 unique `ObjectId`s, **48 unique `sizeBytes`
+values** (i.e., genuinely different binary content, not just different records pointing at
+identical bytes). (c) Live browser spot-check, 3 lessons × 4 courses = 12 total: for each, fetched
+the resolved signed `<video>` `src` and confirmed its `Content-Length` byte-exact-matches that
+lesson's own file in the generator's manifest (e.g. REST API "Authentication and Authorization
+Concepts" → `31943` bytes; MongoDB "Practical Application Patterns" → `46257`; Kotlin "Flow
+Fundamentals" → `27208`; UX "تسليم تصميم تجربة المستخدم" (Handoff) → `38561`) — proving the full
+seed → Mongo → API → signed-URL → real-HTTP-stream path end to end for a real sample, not just the
+aggregate count.
+
+**5. Gates:** backend `compileKotlin`/`compileTestKotlin` clean; `gradlew test` — **79 tests/17
+suites/0 failures** (78→79, net +1 new uniqueness test). Frontend: `typecheck`/`lint` (same single
+pre-existing `<img>` warning)/`lint:logical-properties`/`node tools/design-to-code/validate.js` (29
+screens/6 patterns/11 shared files, unchanged) all clean; a stopped-dev-server production `build`
+clean (47 routes, both locales, 0 errors). Playwright/Chromium: `04-start-resume-course`/
+`05-complete-lesson` (the two specs most directly touching per-lesson video/progress) both green;
+`06`/`07` show the same pre-existing shared-account contention flake under parallel workers D64/D66/
+D67 already documented, confirmed passing standalone; `08-language-switch` showed an unrelated,
+pre-existing locator ambiguity (`getByText("الإعدادات")` matches both the Settings page's `<h1>` and
+its own sidebar nav item — visible in the failure screenshot, which shows the Arabic RTL page
+rendering completely correctly) — not caused by this pass (no Settings/translation/navigation code
+touched) and out of this pass's scope to fix. E2E test-data debris from this session's own repeated
+verification runs was cleaned up via the same scratch `mongosh` script D67 used.
+
+**Impact:** All 48 seeded lessons across the 4 published courses now each have their own genuinely
+distinct, small, playable DEMO video — not just distinct titles over identical footage. Every
+lesson switch in the Course Player now loads real, different media, verified byte-exact against the
+generator's own manifest. The generator (`tools/seed-media/generate-lesson-videos.js`) is
+committed and rerunnable for any future course/lesson addition. No `product`/`ux`/`design-system`/
+`architecture` document changed; Phase 3 was not started.
+
 ## Immediate Next Action
 
-**None — Phase 2 remains fully complete; this PRE-PHASE-3 content pass is also DONE and this session
-has stopped, per the standing Phase Execution Policy.** All 17 Phase 2 tasks plus this PRE-PHASE-3
-pass are committed; `execution/PHASE_HANDOFF.md` carries the full Phase 2 write-up (now annotated
-with this pass's resolution of the lesson-2 placeholder gap). Waiting for explicit user approval
-before starting Phase 3 (KMP Shared Mobile Core) — no Phase 3/KMP/Android/iOS work begins until that
-approval is given.
+**None — Phase 2 remains fully complete; both PRE-PHASE-3 content passes (D67, D68) are also DONE
+and this session has stopped, per the standing Phase Execution Policy.** All 17 Phase 2 tasks plus
+both PRE-PHASE-3 passes are committed; `execution/PHASE_HANDOFF.md` carries the full Phase 2
+write-up (annotated with D67's resolution of the lesson-2 placeholder gap). Waiting for explicit
+user approval before starting Phase 3 (KMP Shared Mobile Core) — no Phase 3/KMP/Android/iOS work
+begins until that approval is given.

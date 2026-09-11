@@ -1,0 +1,338 @@
+[
+  {
+    "course": "rest-api",
+    "slug": "01-rest-api-reliability-fundamentals",
+    "resource": "seed-media/lessons/rest-api/01-rest-api-reliability-fundamentals.mp4",
+    "durationSeconds": 19,
+    "sizeBytes": 31941
+  },
+  {
+    "course": "rest-api",
+    "slug": "02-resources-and-http-methods",
+    "resource": "seed-media/lessons/rest-api/02-resources-and-http-methods.mp4",
+    "durationSeconds": 23,
+    "sizeBytes": 29429
+  },
+  {
+    "course": "rest-api",
+    "slug": "03-request-and-response-design",
+    "resource": "seed-media/lessons/rest-api/03-request-and-response-design.mp4",
+    "durationSeconds": 27,
+    "sizeBytes": 43071
+  },
+  {
+    "course": "rest-api",
+    "slug": "04-http-status-codes",
+    "resource": "seed-media/lessons/rest-api/04-http-status-codes.mp4",
+    "durationSeconds": 19,
+    "sizeBytes": 28992
+  },
+  {
+    "course": "rest-api",
+    "slug": "05-request-validation",
+    "resource": "seed-media/lessons/rest-api/05-request-validation.mp4",
+    "durationSeconds": 23,
+    "sizeBytes": 30283
+  },
+  {
+    "course": "rest-api",
+    "slug": "06-consistent-error-responses",
+    "resource": "seed-media/lessons/rest-api/06-consistent-error-responses.mp4",
+    "durationSeconds": 27,
+    "sizeBytes": 41017
+  },
+  {
+    "course": "rest-api",
+    "slug": "07-api-contracts-and-dtos",
+    "resource": "seed-media/lessons/rest-api/07-api-contracts-and-dtos.mp4",
+    "durationSeconds": 19,
+    "sizeBytes": 28332
+  },
+  {
+    "course": "rest-api",
+    "slug": "08-idempotency",
+    "resource": "seed-media/lessons/rest-api/08-idempotency.mp4",
+    "durationSeconds": 23,
+    "sizeBytes": 29296
+  },
+  {
+    "course": "rest-api",
+    "slug": "09-pagination-and-filtering",
+    "resource": "seed-media/lessons/rest-api/09-pagination-and-filtering.mp4",
+    "durationSeconds": 27,
+    "sizeBytes": 38787
+  },
+  {
+    "course": "rest-api",
+    "slug": "10-authentication-and-authorization-concepts",
+    "resource": "seed-media/lessons/rest-api/10-authentication-and-authorization-concepts.mp4",
+    "durationSeconds": 19,
+    "sizeBytes": 31943
+  },
+  {
+    "course": "rest-api",
+    "slug": "11-versioning-and-api-evolution",
+    "resource": "seed-media/lessons/rest-api/11-versioning-and-api-evolution.mp4",
+    "durationSeconds": 23,
+    "sizeBytes": 31470
+  },
+  {
+    "course": "rest-api",
+    "slug": "12-reliability-best-practices",
+    "resource": "seed-media/lessons/rest-api/12-reliability-best-practices.mp4",
+    "durationSeconds": 27,
+    "sizeBytes": 42954
+  },
+  {
+    "course": "mongodb",
+    "slug": "01-mongodb-fundamentals-for-application-developers",
+    "resource": "seed-media/lessons/mongodb/01-mongodb-fundamentals-for-application-developers.mp4",
+    "durationSeconds": 19,
+    "sizeBytes": 33932
+  },
+  {
+    "course": "mongodb",
+    "slug": "02-documents-and-collections",
+    "resource": "seed-media/lessons/mongodb/02-documents-and-collections.mp4",
+    "durationSeconds": 23,
+    "sizeBytes": 32162
+  },
+  {
+    "course": "mongodb",
+    "slug": "03-mongodb-data-types",
+    "resource": "seed-media/lessons/mongodb/03-mongodb-data-types.mp4",
+    "durationSeconds": 27,
+    "sizeBytes": 40119
+  },
+  {
+    "course": "mongodb",
+    "slug": "04-crud-fundamentals",
+    "resource": "seed-media/lessons/mongodb/04-crud-fundamentals.mp4",
+    "durationSeconds": 19,
+    "sizeBytes": 27052
+  },
+  {
+    "course": "mongodb",
+    "slug": "05-query-operators",
+    "resource": "seed-media/lessons/mongodb/05-query-operators.mp4",
+    "durationSeconds": 23,
+    "sizeBytes": 28429
+  },
+  {
+    "course": "mongodb",
+    "slug": "06-schema-design",
+    "resource": "seed-media/lessons/mongodb/06-schema-design.mp4",
+    "durationSeconds": 27,
+    "sizeBytes": 41466
+  },
+  {
+    "course": "mongodb",
+    "slug": "07-embedded-vs-referenced-documents",
+    "resource": "seed-media/lessons/mongodb/07-embedded-vs-referenced-documents.mp4",
+    "durationSeconds": 19,
+    "sizeBytes": 32519
+  },
+  {
+    "course": "mongodb",
+    "slug": "08-index-fundamentals",
+    "resource": "seed-media/lessons/mongodb/08-index-fundamentals.mp4",
+    "durationSeconds": 23,
+    "sizeBytes": 30516
+  },
+  {
+    "course": "mongodb",
+    "slug": "09-aggregation-basics",
+    "resource": "seed-media/lessons/mongodb/09-aggregation-basics.mp4",
+    "durationSeconds": 27,
+    "sizeBytes": 40173
+  },
+  {
+    "course": "mongodb",
+    "slug": "10-pagination-and-filtering",
+    "resource": "seed-media/lessons/mongodb/10-pagination-and-filtering.mp4",
+    "durationSeconds": 19,
+    "sizeBytes": 28852
+  },
+  {
+    "course": "mongodb",
+    "slug": "11-performance-considerations",
+    "resource": "seed-media/lessons/mongodb/11-performance-considerations.mp4",
+    "durationSeconds": 23,
+    "sizeBytes": 34180
+  },
+  {
+    "course": "mongodb",
+    "slug": "12-practical-application-patterns",
+    "resource": "seed-media/lessons/mongodb/12-practical-application-patterns.mp4",
+    "durationSeconds": 27,
+    "sizeBytes": 46257
+  },
+  {
+    "course": "kotlin-coroutines",
+    "slug": "01-kotlin-coroutines-fundamentals",
+    "resource": "seed-media/lessons/kotlin-coroutines/01-kotlin-coroutines-fundamentals.mp4",
+    "durationSeconds": 19,
+    "sizeBytes": 31011
+  },
+  {
+    "course": "kotlin-coroutines",
+    "slug": "02-suspend-functions",
+    "resource": "seed-media/lessons/kotlin-coroutines/02-suspend-functions.mp4",
+    "durationSeconds": 23,
+    "sizeBytes": 31067
+  },
+  {
+    "course": "kotlin-coroutines",
+    "slug": "03-coroutine-builders",
+    "resource": "seed-media/lessons/kotlin-coroutines/03-coroutine-builders.mp4",
+    "durationSeconds": 27,
+    "sizeBytes": 37100
+  },
+  {
+    "course": "kotlin-coroutines",
+    "slug": "04-coroutinescope",
+    "resource": "seed-media/lessons/kotlin-coroutines/04-coroutinescope.mp4",
+    "durationSeconds": 19,
+    "sizeBytes": 28760
+  },
+  {
+    "course": "kotlin-coroutines",
+    "slug": "05-jobs-and-cancellation",
+    "resource": "seed-media/lessons/kotlin-coroutines/05-jobs-and-cancellation.mp4",
+    "durationSeconds": 23,
+    "sizeBytes": 30589
+  },
+  {
+    "course": "kotlin-coroutines",
+    "slug": "06-dispatchers-and-context",
+    "resource": "seed-media/lessons/kotlin-coroutines/06-dispatchers-and-context.mp4",
+    "durationSeconds": 27,
+    "sizeBytes": 37165
+  },
+  {
+    "course": "kotlin-coroutines",
+    "slug": "07-exception-handling",
+    "resource": "seed-media/lessons/kotlin-coroutines/07-exception-handling.mp4",
+    "durationSeconds": 19,
+    "sizeBytes": 28606
+  },
+  {
+    "course": "kotlin-coroutines",
+    "slug": "08-structured-concurrency",
+    "resource": "seed-media/lessons/kotlin-coroutines/08-structured-concurrency.mp4",
+    "durationSeconds": 23,
+    "sizeBytes": 32916
+  },
+  {
+    "course": "kotlin-coroutines",
+    "slug": "09-async-and-await",
+    "resource": "seed-media/lessons/kotlin-coroutines/09-async-and-await.mp4",
+    "durationSeconds": 27,
+    "sizeBytes": 38030
+  },
+  {
+    "course": "kotlin-coroutines",
+    "slug": "10-flow-fundamentals",
+    "resource": "seed-media/lessons/kotlin-coroutines/10-flow-fundamentals.mp4",
+    "durationSeconds": 19,
+    "sizeBytes": 27208
+  },
+  {
+    "course": "kotlin-coroutines",
+    "slug": "11-combining-asynchronous-work",
+    "resource": "seed-media/lessons/kotlin-coroutines/11-combining-asynchronous-work.mp4",
+    "durationSeconds": 23,
+    "sizeBytes": 32035
+  },
+  {
+    "course": "kotlin-coroutines",
+    "slug": "12-real-application-patterns",
+    "resource": "seed-media/lessons/kotlin-coroutines/12-real-application-patterns.mp4",
+    "durationSeconds": 27,
+    "sizeBytes": 42074
+  },
+  {
+    "course": "ux-design",
+    "slug": "01-ux-design-fundamentals",
+    "resource": "seed-media/lessons/ux-design/01-ux-design-fundamentals.mp4",
+    "durationSeconds": 19,
+    "sizeBytes": 27454
+  },
+  {
+    "course": "ux-design",
+    "slug": "02-introduction-to-ux",
+    "resource": "seed-media/lessons/ux-design/02-introduction-to-ux.mp4",
+    "durationSeconds": 23,
+    "sizeBytes": 29417
+  },
+  {
+    "course": "ux-design",
+    "slug": "03-user-research-basics",
+    "resource": "seed-media/lessons/ux-design/03-user-research-basics.mp4",
+    "durationSeconds": 27,
+    "sizeBytes": 36519
+  },
+  {
+    "course": "ux-design",
+    "slug": "04-analyzing-user-needs",
+    "resource": "seed-media/lessons/ux-design/04-analyzing-user-needs.mp4",
+    "durationSeconds": 19,
+    "sizeBytes": 26541
+  },
+  {
+    "course": "ux-design",
+    "slug": "05-user-flows",
+    "resource": "seed-media/lessons/ux-design/05-user-flows.mp4",
+    "durationSeconds": 23,
+    "sizeBytes": 27428
+  },
+  {
+    "course": "ux-design",
+    "slug": "06-information-architecture",
+    "resource": "seed-media/lessons/ux-design/06-information-architecture.mp4",
+    "durationSeconds": 27,
+    "sizeBytes": 34506
+  },
+  {
+    "course": "ux-design",
+    "slug": "07-wireframing",
+    "resource": "seed-media/lessons/ux-design/07-wireframing.mp4",
+    "durationSeconds": 19,
+    "sizeBytes": 25198
+  },
+  {
+    "course": "ux-design",
+    "slug": "08-interaction-design",
+    "resource": "seed-media/lessons/ux-design/08-interaction-design.mp4",
+    "durationSeconds": 23,
+    "sizeBytes": 26818
+  },
+  {
+    "course": "ux-design",
+    "slug": "09-prototyping",
+    "resource": "seed-media/lessons/ux-design/09-prototyping.mp4",
+    "durationSeconds": 27,
+    "sizeBytes": 35265
+  },
+  {
+    "course": "ux-design",
+    "slug": "10-usability-testing",
+    "resource": "seed-media/lessons/ux-design/10-usability-testing.mp4",
+    "durationSeconds": 19,
+    "sizeBytes": 27027
+  },
+  {
+    "course": "ux-design",
+    "slug": "11-iterating-on-feedback",
+    "resource": "seed-media/lessons/ux-design/11-iterating-on-feedback.mp4",
+    "durationSeconds": 23,
+    "sizeBytes": 29469
+  },
+  {
+    "course": "ux-design",
+    "slug": "12-ux-design-handoff",
+    "resource": "seed-media/lessons/ux-design/12-ux-design-handoff.mp4",
+    "durationSeconds": 27,
+    "sizeBytes": 38561
+  }
+]

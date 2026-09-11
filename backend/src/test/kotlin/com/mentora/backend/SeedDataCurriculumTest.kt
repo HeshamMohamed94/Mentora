@@ -6,11 +6,12 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
- * Fast, DB-free structural checks on [COURSES]' realistic multi-section curricula (the
- * pre-Phase-3 seed data expansion — see `ensureCurriculum`). These would fail immediately in CI
- * if a future edit ever left a published seed course with a too-thin or generic-placeholder
- * curriculum, a missing/broken-looking demo video resource, or a lesson nobody wrote real content
- * for.
+ * Fast, DB-free structural checks on [COURSES]' realistic multi-section curricula and their
+ * per-lesson unique demo videos (the pre-Phase-3 seed data expansion — see `ensureCurriculum` and
+ * `ensureUniqueLessonVideos`). These would fail immediately in CI if a future edit ever left a
+ * published seed course with a too-thin or generic-placeholder curriculum, a missing/broken-looking
+ * demo video resource, a lesson nobody wrote real content for, or two lessons silently sharing the
+ * same video clip.
  */
 class SeedDataCurriculumTest {
     private val publishedCourses = COURSES.filter { it.published }
@@ -75,25 +76,44 @@ class SeedDataCurriculumTest {
     }
 
     @Test
-    fun `every published course's demo video resource exists and is a real video, not a placeholder`() {
+    fun `every lesson's own demo video resource exists and is a real video, not a placeholder`() {
         publishedCourses.forEach { course ->
-            val stream = assertNotNull(
-                Thread.currentThread().contextClassLoader.getResourceAsStream(course.demoVideoResource),
-                "Missing seed video resource on the classpath for '${course.title}': ${course.demoVideoResource}",
-            )
-            val bytes = stream.use { it.readBytes() }
-            // A real encoded MP4 is orders of magnitude larger than any placeholder byte array;
-            // this threshold catches a resource ever being swapped back for a placeholder.
-            assertTrue(
-                bytes.size > 10_000,
-                "Seed video resource '${course.demoVideoResource}' is only ${bytes.size} bytes — too " +
-                    "small to be a real video (looks like a placeholder).",
-            )
-            assertTrue(
-                course.demoVideoDurationSeconds > 0,
-                "Course '${course.title}' has a non-positive demoVideoDurationSeconds",
-            )
+            course.sections.forEach { section ->
+                section.lessons.forEach { lesson ->
+                    val stream = assertNotNull(
+                        Thread.currentThread().contextClassLoader.getResourceAsStream(lesson.videoResource),
+                        "Missing seed video resource on the classpath for '${course.title}' / '${lesson.title}': " +
+                            lesson.videoResource,
+                    )
+                    val bytes = stream.use { it.readBytes() }
+                    // A real encoded MP4 is orders of magnitude larger than any placeholder byte array;
+                    // this threshold catches a resource ever being swapped back for a placeholder.
+                    assertTrue(
+                        bytes.size > 10_000,
+                        "Seed video resource '${lesson.videoResource}' is only ${bytes.size} bytes — too " +
+                            "small to be a real video (looks like a placeholder).",
+                    )
+                    assertTrue(
+                        lesson.videoDurationSeconds > 0,
+                        "Lesson '${lesson.title}' in '${course.title}' has a non-positive videoDurationSeconds",
+                    )
+                }
+            }
         }
+    }
+
+    @Test
+    fun `every lesson has its own unique video resource — no two lessons share the same clip`() {
+        val allResources = publishedCourses.flatMap { it.sections }.flatMap { it.lessons }.map { it.videoResource }
+        assertEquals(
+            48, allResources.size,
+            "Expected exactly 48 published lessons (4 courses x 12), found ${allResources.size}",
+        )
+        assertEquals(
+            allResources.size, allResources.toSet().size,
+            "Two or more lessons reference the exact same videoResource — every lesson must have its own " +
+                "unique demo video, not a shared/reused clip.",
+        )
     }
 
     @Test
