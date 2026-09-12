@@ -751,7 +751,7 @@ set in the shell environment, so `mobile/local.properties` (gitignored) pins `sd
 | 8 | Enrollment & demo checkout | DONE — commit `4163643`, decisions in D74. `CheckoutPreview`/`Enrollment`/`EnrollmentCompletion` verified field-exact against `EnrollmentService.kt`; both 201-first-time and 200-repeat checkout/complete map to `Success` with correct `alreadyEnrolled`. `GetMyLearningUseCase` reuses Task 7's `CatalogRepository`+`localeQueryParam()` per D73; fails fast on the first per-course composition error rather than silently dropping a row (D74 — Phase 4/5 UI must handle this). Zero payment vocabulary, grep-verified independently. 131/131 tests green, no defects found this pass. |
 | 9 | Progress (lesson/course, resume, mark-complete) | DONE — commit `d8d10aa`. `CourseProgress` verified field-exact against `ProgressService.kt`. `CurriculumLessonResolver` (internal) is the single shared helper both `ResumeCourseUseCase` and `CompleteLessonUseCase` use for curriculum-order resolution — handles zero-progress/valid-resume/stale-currentLessonId/all-complete correctly, crosses section boundaries transparently. `ReportPlaybackPositionUseCase` throttles via an injected `TimeSource` (1 heartbeat/5s, never retried/queued). No defects found this pass. 155/155 tests green, independently re-verified. |
 | 10 | Quiz (load/submit/result) | DONE — commit `4cb3a44`. `QuizOption` verified structurally absent of `isCorrect`, confirmed as a genuinely distinct backend type (`StudentQuizOption` vs. instructor-only `EditorQuizOption`). `score`/`passed` server-computed only (`PASS_PERCENT=70`), forwarded verbatim. "No quiz"/"no attempt yet" modeled as legitimate sealed lookup-result states, not generic failures. `SubmitQuizUseCase` validates completeness locally with zero network calls on an incomplete submission. No defects found this pass. 172/172 tests green, independently re-verified against real backend source. |
-| 11 | Certificates | NOT_STARTED |
+| 11 | Certificates | DONE — commit `6a7c82b`. `CertificateSummary`/`CertificateDetail` verified field-exact against `CertificateService.kt`. `{id}` is the public `MTR-...` code, treated as a fully opaque string (verbatim URL interpolation, no reformatting). Confirmed via grep: zero mutating certificate routes exist — issuance is exclusively a server-triggered side effect from progress/quiz completion, no issuance use case built. Snapshot fields confirmed frozen-at-issuance, never re-resolved. No defects found this pass. 179/179 tests green, independently re-verified against real backend source. |
 | 12 | Learning Paths | NOT_STARTED |
 | 13 | Media / lesson-video playback contract + platform playback interface | NOT_STARTED |
 | 14 | AI Tutor (paged conversation + streaming send + quick actions) | NOT_STARTED |
@@ -759,6 +759,8 @@ set in the shell environment, so `mobile/local.properties` (gitignored) pins `sd
 | 16 | Live integration verification against the running local backend | NOT_STARTED |
 | 17 | Documentation & Phase 3 → Phase 4 handoff | NOT_STARTED |
 
-**Exact next task to resume on: Task 11** (Certificates). Full acceptance criteria for every task
+**Exact next task to resume on: Task 12** (Learning Paths). Full acceptance criteria for every task
 are in `execution/PHASE_3_KMP_PLAN.md` (see D69) — read that before resuming a task, do not
-re-derive from memory.
+re-derive from memory. Note for Task 12: reuse Task 7's `localeQueryParam()`
+(`data/network/LocaleQueryParam.kt`) for the learning-path-detail's `?language=` threading, per D73
+— this is the last of the two tasks that helper was built for.
