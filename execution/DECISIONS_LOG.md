@@ -1037,4 +1037,16 @@ Two smaller, same-category gaps found via the same audit: `SearchField` used a r
 
 **Impact:** No product/architecture document changed; no backend change. 88/88 `commonTest` tests pass (24 net new — Task 6's own plus this review's fix); `:shared:assembleDebug` clean. `avatarMediaId` remains a dead field with no upload path built (matches Phase 2's D44 precedent); no password-change use case exists (no backend endpoint).
 
+### D73 — 2026-09-12 — PHASE 3 Task 7: `localeQueryParam()` lives centrally in `data/network/`, not inside `catalog/`, for Tasks 8/12 to reuse; `CourseLevel`/`ContentLanguage` enums require explicit per-entry `@SerialName`
+
+**Decision:** Task 7 (catalog domain) implemented cleanly on the first pass — review found no defects requiring a fix, only two structural choices worth recording for continuity since later tasks depend on them.
+
+**1. `localeQueryParam(locale: AppLocale): Pair<String, String>` lives in `data/network/LocaleQueryParam.kt`, not `data/repository/catalog/`.** Task 7's plan (AC #5) explicitly asks for "a small shared helper... so Tasks 8/12 can reuse it" for the checkout-preview and learning-path-detail reads' own `?language=` threading — a catalog-scoped location would force those unrelated repository packages to import from `catalog/`, which is backwards. **Tasks 8 and 12 must call this same function, not re-derive the `"language"` key or the `AppLocale`→wire-value mapping at their own call sites.**
+
+**2. `CourseLevel`/`ContentLanguage` are `@Serializable` enums with an explicit `@SerialName` on every entry** (`@SerialName("beginner") Beginner("beginner")`, etc.) — without it, kotlinx.serialization would default to the Kotlin declaration name (`"Beginner"`), silently mismatching the backend's lowercase wire values (`"beginner"`) on both directions (a live 400 on any outgoing `?level=` filter, and a live deserialization failure on any incoming `level` field). Verified correct by review; worth flagging as a recurring trap for any future enum modeling the same "fixed backend string set" pattern (e.g. `Role` in Task 5 sidesteps this the same way).
+
+**3. Real backend facts confirmed character-for-character during review** (not just trusted from the implementer's report): `GET /api/v1/courses`' five query params (`category`, `level`, `language`, `maxPrice`, `q`) plus `PageRequest.fromCall`'s `cursor`/`limit`, no `status` param; the exact `?language=` dual-role filter clause in `CourseRepository.kt` (`or(eq("contentLanguage", it), exists("translations.$it"))`).
+
+**Impact:** No product/architecture document changed; no backend change. 113/113 `commonTest` tests pass (25 new); `:shared:assembleDebug` clean. Draft/404 behavior (D64) required zero special-case client code — both branches are the endpoint's ordinary response, decoded generically.
+
 
