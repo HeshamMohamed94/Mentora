@@ -44,3 +44,17 @@ data class ApiEnvironment(
             ApiEnvironment(baseUrl = baseUrl, timeouts = timeouts)
     }
 }
+
+/**
+ * The ONE place `shared` turns a backend-issued RELATIVE url (e.g. a `PlaybackSource.url`,
+ * `/api/v1/media/{id}/stream?token=...`) into an ABSOLUTE one a platform player/image loader can be
+ * handed directly, per `execution/PHASE_3_KMP_PLAN.md` Task 13 AC #2. Every caller that needs this —
+ * `GetLessonPlaybackSourceUseCase`, `ResolveThumbnailUrlUseCase` — goes through this single function
+ * rather than re-implementing string concatenation at its own call site.
+ *
+ * Defensive against the two sources of double/missing slashes: a trailing slash on [ApiEnvironment.baseUrl]
+ * and/or a missing/present leading slash on [relativePath] never produce `//` or a missing `/` in the
+ * result.
+ */
+fun ApiEnvironment.resolveUrl(relativePath: String): String =
+    "${baseUrl.trimEnd('/')}/${relativePath.trimStart('/')}"

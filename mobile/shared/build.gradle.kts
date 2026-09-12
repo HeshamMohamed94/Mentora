@@ -39,6 +39,12 @@ kotlin {
                 implementation(libs.ktor.client.content.negotiation)
                 implementation(libs.ktor.serialization.kotlinx.json)
                 implementation(libs.ktor.client.logging)
+                // Task 13: the first task that needs genuine Instant arithmetic (playback-url
+                // near/past-expiry comparison), not just round-tripping an opaque ISO-8601 string
+                // for display (Tasks 6/9/11's `createdAt`/`courseCompletedAt`/`issuedAt` convention).
+                // `kotlinx.datetime.Instant` is `@Serializable` out of the box, so `MediaDto`'s
+                // `expiresAt: Instant` field decodes directly with no custom serializer.
+                implementation(libs.kotlinx.datetime)
             }
         }
         val commonTest by getting {
