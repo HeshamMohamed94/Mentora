@@ -746,7 +746,7 @@ set in the shell environment, so `mobile/local.properties` (gitignored) pins `sd
 | 3 | Environment config + Ktor `HttpClient` factory + `ApiClient` | DONE — commit `ef07bb2`. `ApiEnvironment` (androidEmulator/iosSimulator/lan/custom presets); `HttpClientFactory` installs `ContentNegotiation`(Task 2's `MentoraJson`)/bounded GET-only retry/redacting header-only debug logging/mandatory CSRF header/deliberately no `HttpCookies` (documented why); `ApiClient` exposes `get/post/patch/delete/getPage` → `ApiResult<T>` only, never a raw `HttpResponse`. OkHttp wired for Android; Darwin `actual` written but unwired in the build script (same iOS limitation as T1/T2). 26/26 tests green, independently re-verified. |
 | 4 | `TokenStorage` / `PreferenceStore` `expect`/`actual` boundary | DONE — commit `c6f63f1`, decisions in D70. `TokenStorage` (secrets) and `PreferenceStore` (non-secret locale/theme) as plain common interfaces (not literal `expect`/`actual`, since Android needs a `Context` and iOS doesn't — D70). Android: AES-256-GCM under an Android-Keystore-resident key + Jetpack DataStore (not `EncryptedSharedPreferences`, years-stalled alpha — D70). `resolveInitialLocale` pure function. 41/41 tests green, independently re-verified line-by-line (crypto correctness checked). |
 | 5 | `SessionManager`, auth plugin (401→refresh→retry), auth repository + use cases + validation | DONE — commit `de83eff`, decisions in D71. Mutex-based single-flight refresh (verified with 9 concurrent-coroutine test runs, zero flakes); `/auth/refresh`/`/auth/logout` exempt from recursion; `EmailValidator`/`PasswordValidator` verified byte-exact against `AuthService.kt`. Review caught and fixed a real issue: cold-start restore was fabricating a placeholder `SessionUser` (empty id/email/name) inside `AuthState.Authenticated` — now `user` is nullable and honestly `null` until Task 6's profile fetch. 64/64 tests green, independently re-verified line-by-line (highest-consequence task in the phase). |
-| 6 | User profile, preferences & locale sync | NOT_STARTED |
+| 6 | User profile, preferences & locale sync | DONE — commit `5338f7f`, decisions in D72. Full `User` model (`GET /users/me`) distinct from `SessionUser`; `PATCH /users/me` partial-update, verified against `UserService.kt`'s exact 120-char/en-ar rules. `SessionManager.updateUser` closes D71's null-user restore gap. Review caught and fixed a real gap: the login-overwrites-local/register-seeds-account locale precedence was built+tested but never wired into any real login/register call — now wired into `LoginUseCase`/`RegisterUseCase` directly, with a best-effort failure policy on the register side. 88/88 tests green, independently re-verified. |
 | 7 | Catalog domain: categories, courses, curriculum, search/filter/pagination | NOT_STARTED |
 | 8 | Enrollment & demo checkout | NOT_STARTED |
 | 9 | Progress (lesson/course, resume, mark-complete) | NOT_STARTED |
@@ -759,7 +759,7 @@ set in the shell environment, so `mobile/local.properties` (gitignored) pins `sd
 | 16 | Live integration verification against the running local backend | NOT_STARTED |
 | 17 | Documentation & Phase 3 → Phase 4 handoff | NOT_STARTED |
 
-**Exact next task to resume on: Task 6** (user profile, preferences & locale sync). Full acceptance
-criteria for every task are in `execution/PHASE_3_KMP_PLAN.md` (see D69) — read that before resuming
-a task, do not re-derive from memory. Note for Task 6: `AuthState.Authenticated.user` can be `null`
-after a cold-start restore (D71) — Task 6's profile fetch is expected to resolve that.
+**Exact next task to resume on: Task 7** (catalog domain: categories, courses, curriculum,
+search/filter/pagination). Full acceptance criteria for every task are in
+`execution/PHASE_3_KMP_PLAN.md` (see D69) — read that before resuming a task, do not re-derive from
+memory.
