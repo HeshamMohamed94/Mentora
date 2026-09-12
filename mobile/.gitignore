@@ -1,0 +1,22 @@
+# Local SDK path — machine-specific, never committed
+local.properties
+
+# Gradle
+.gradle/
+build/
+**/build/
+.kotlin/
+
+# IntelliJ / Android Studio
+.idea/
+*.iml
+
+# iOS / Kotlin Native framework outputs (built by Phase 5, on macOS only)
+*.xcframework
+DerivedData/
+xcuserdata/
+*.xcuserstate
+
+# OS
+.DS_Store
+Thumbs.db
