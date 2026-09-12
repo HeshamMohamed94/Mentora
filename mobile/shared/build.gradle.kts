@@ -1,12 +1,15 @@
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
-// Task 1 scaffold only: no Ktor/serialization/Koin/multiplatform-settings dependencies are wired
-// up yet — those land with the code that actually uses them in Tasks 2+ (see
-// execution/PHASE_3_KMP_PLAN.md). This module has NO UI dependency, ever (ADR-002).
+// Task 1 scaffolded the module with no Ktor/Koin/multiplatform-settings dependencies wired up —
+// those land with the code that actually uses them in later tasks (see
+// execution/PHASE_3_KMP_PLAN.md). Task 2 wires in kotlinx-serialization only, for the wire-contract
+// envelope/error types — no networking (Ktor client) dependency yet. This module has NO UI
+// dependency, ever (ADR-002).
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidLibrary)
+    alias(libs.plugins.kotlinSerialization)
 }
 
 kotlin {
@@ -26,7 +29,11 @@ kotlin {
     jvmToolchain(21)
 
     sourceSets {
-        val commonMain by getting
+        val commonMain by getting {
+            dependencies {
+                implementation(libs.kotlinx.serialization.json)
+            }
+        }
         val commonTest by getting {
             dependencies {
                 implementation(kotlin("test"))
