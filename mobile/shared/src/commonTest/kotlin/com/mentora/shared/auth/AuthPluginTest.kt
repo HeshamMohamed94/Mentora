@@ -97,6 +97,59 @@ class AuthPluginTest {
         assertEquals(AuthTokens("new-access", "new-refresh"), tokenStorage.readTokens(), "the ROTATED pair must be persisted")
     }
 
+    /**
+     * Regression test for a real contract-drift bug found live against the running backend in
+     * `execution/PHASE_3_KMP_PLAN.md` Task 16 (see [REFRESH_TRIGGERING_CODES]'s kdoc for the full
+     * account): the backend's JWT `Authentication` plugin never actually emits `AUTH_TOKEN_EXPIRED`
+     * for an expired/invalid ACCESS token on a protected route — it always emits
+     * `AUTH_TOKEN_INVALID` instead. Without this code also triggering a refresh attempt, the whole
+     * 401→refresh→retry flow this task exists to build would never fire against the real backend.
+     */
+    @Test
+    fun `401 AUTH_TOKEN_INVALID (the code the real backend actually emits for an expired access token) also triggers exactly one refresh then a successful retry`() = runTest {
+        var refreshCallCount = 0
+        var protectedCallCount = 0
+        val engine = MockEngine { request ->
+            when {
+                request.url.encodedPath.endsWith("/auth/refresh") -> {
+                    refreshCallCount++
+                    respond(
+                        content = """{"data":{"accessToken":"new-access","refreshToken":"new-refresh"},"meta":{"requestId":"r"}}""",
+                        status = HttpStatusCode.OK,
+                        headers = jsonHeaders(),
+                    )
+                }
+                else -> {
+                    protectedCallCount++
+                    val authHeader = request.headers[HttpHeaders.Authorization]
+                    if (authHeader == "Bearer old-access") {
+                        respond(
+                            content = """{"error":{"code":"AUTH_TOKEN_INVALID","message":"invalid"},"meta":{"requestId":"r"}}""",
+                            status = HttpStatusCode.Unauthorized,
+                            headers = jsonHeaders(),
+                        )
+                    } else {
+                        respond(
+                            content = """{"data":{"id":"c1","title":"Kotlin"},"meta":{"requestId":"r"}}""",
+                            status = HttpStatusCode.OK,
+                            headers = jsonHeaders(),
+                        )
+                    }
+                }
+            }
+        }
+        val tokenStorage = FakeTokenStorage(AuthTokens("old-access", "old-refresh"))
+        val (apiClient, _) = wire(engine, tokenStorage)
+
+        val result = apiClient.get<TestCourse>("/api/v1/courses/c1")
+
+        require(result is ApiResult.Success)
+        assertEquals(TestCourse("c1", "Kotlin"), result.data)
+        assertEquals(1, refreshCallCount)
+        assertEquals(2, protectedCallCount, "expected the original 401 attempt plus one retry")
+        assertEquals(AuthTokens("new-access", "new-refresh"), tokenStorage.readTokens(), "the ROTATED pair must be persisted")
+    }
+
     @Test
     fun `a 401 from refresh or logout itself is never re-intercepted`() = runTest {
         var refreshHitCount = 0
