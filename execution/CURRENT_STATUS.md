@@ -741,7 +741,7 @@ set in the shell environment, so `mobile/local.properties` (gitignored) pins `sd
 
 | # | Task | Status |
 |---|---|---|
-| 1 | `mobile/` Gradle root + `:shared` KMP module scaffold | NOT_STARTED |
+| 1 | `mobile/` Gradle root + `:shared` KMP module scaffold | DONE — commit `5c2e739`. New independent Gradle KMP project (`androidTarget`/`iosArm64`/`iosSimulatorArm64`, full package layout, version catalog aligned to `backend/`'s Ktor/serialization/datetime/coroutines/Koin versions). AGP 8.9.2 + Kotlin 2.0.21 (Gradle wrapper bumped to 8.11.1, AGP's minimum). `iosMain` source set exists on disk but isn't wired into `shared/build.gradle.kts` — Kotlin never creates that source-set object when iOS targets are disabled via `kotlin.native.ignoreDisabledTargets=true` on this Windows host (limitation B1). `:shared:assembleDebug`/`:shared:testDebugUnitTest` verified green independently. |
 | 2 | Wire contract primitives: envelope, error taxonomy, `ApiResult`, `CursorPage` | NOT_STARTED |
 | 3 | Environment config + Ktor `HttpClient` factory + `ApiClient` | NOT_STARTED |
 | 4 | `TokenStorage` / `PreferenceStore` `expect`/`actual` boundary | NOT_STARTED |
@@ -759,5 +759,7 @@ set in the shell environment, so `mobile/local.properties` (gitignored) pins `sd
 | 16 | Live integration verification against the running local backend | NOT_STARTED |
 | 17 | Documentation & Phase 3 → Phase 4 handoff | NOT_STARTED |
 
-**Exact next task to resume on: Task 1.** Full acceptance criteria for every task are in the
-architect's plan (see D69) — read that before resuming a task, do not re-derive from memory.
+**Exact next task to resume on: Task 2** (wire contract primitives: envelope, error taxonomy,
+`ApiResult`, `CursorPage`). Full acceptance criteria for every task are in
+`execution/PHASE_3_KMP_PLAN.md` (see D69) — read that before resuming a task, do not re-derive from
+memory.
