@@ -45,6 +45,8 @@ kotlin {
             dependencies {
                 implementation(kotlin("test"))
                 implementation(libs.ktor.client.mock)
+                // Task 5: SessionManager's single-flight-refresh concurrency test.
+                implementation(libs.kotlinx.coroutines.test)
             }
         }
         val androidMain by getting {
