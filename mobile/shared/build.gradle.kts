@@ -50,6 +50,15 @@ kotlin {
         val androidMain by getting {
             dependencies {
                 implementation(libs.ktor.client.okhttp)
+                // Task 4: PreferenceStore (non-secret AppLocale/ThemePreference) is backed by
+                // multiplatform-settings' SharedPreferencesSettings — plain SharedPreferences is
+                // explicitly fine here (nothing secret). TokenStorage (secrets) never uses this.
+                implementation(libs.multiplatform.settings)
+                // Task 4: AndroidTokenStorage encrypts tokens with an Android-Keystore-resident
+                // AES-GCM key before persisting the ciphertext via Preferences DataStore — see
+                // AndroidTokenStorage's kdoc for why this was chosen over
+                // androidx.security:security-crypto's EncryptedSharedPreferences.
+                implementation(libs.androidx.datastore.preferences)
             }
         }
         val androidUnitTest by getting {
@@ -68,7 +77,11 @@ kotlin {
         // `ktor-client-darwin` dependency is not wired into this build script. A macOS host picking
         // this up will need to add the `iosMain`/`iosTest` source sets back (which requires the iOS
         // targets to be enabled there) and add `implementation(libs.ktor.client.darwin)` to
-        // `iosMain`'s dependencies.
+        // `iosMain`'s dependencies. Task 4 adds the same caveat for `IosTokenStorage`/
+        // `IosPreferenceStore`: they need `implementation(libs.multiplatform.settings)` added to
+        // `iosMain`'s dependencies on that future macOS host (`IosTokenStorage`'s Keychain code
+        // uses only `platform.Security`/`platform.Foundation`, already available to Kotlin/Native
+        // with no extra dependency).
     }
 }
 
