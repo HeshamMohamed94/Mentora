@@ -1,6 +1,6 @@
 # Mentora — Current Implementation Status
 
-**Last updated:** 2026-09-11 (PRE-PHASE-3 — Unique Lesson Demo Videos + Realistic Seed Content — DONE, D68, following D67's realistic-curriculum pass earlier the same day; Phase 2 remains fully complete, pending the user's explicit approval before Phase 3 — see the final report delivered alongside this update)
+**Last updated:** 2026-09-12 (PHASE 3 — KMP Shared Mobile Core — STARTED, approved by the user; architecture plan derived and logged as D69; see "PHASE 3 — Task Breakdown" near the end of this file for the live task list and exact resume point)
 
 ---
 
@@ -8,7 +8,7 @@
 
 **Read this section first when resuming.**
 
-- **Phase:** PHASE 2 — Website — `IN_PROGRESS`. Phase 1 is `COMPLETE` and was explicitly approved by the user on 2026-09-06.
+- **Phase:** PHASE 3 — KMP Shared Mobile Core — `IN_PROGRESS`. Phase 1 and Phase 2 are both `COMPLETE` (approved 2026-09-06 and 2026-09-11 respectively); the same-day PRE-PHASE-3 content passes (D67/D68) are also `COMPLETE`. See "PHASE 3 — Task Breakdown" near the end of this file for the live per-task status and the exact next task to resume on.
 - **Phase Execution Policy (standing, applies to this and every future phase):** within an active phase, continue task-by-task automatically without stopping for per-task approval — verify (functional + visual) and commit each task as its own checkpoint, run the full phase-completion gate at the end, update the continuity docs (this file, `PHASE_HANDOFF.md`, `DECISIONS_LOG.md`, `INTEGRATION_CONTRACT.md`) with an implementation-ready handoff, then STOP and wait for explicit user approval before the next phase. Only a genuine blocker or an irreversible product decision pauses mid-phase. This policy itself must be carried forward into every future phase's continuity docs, not just Phase 2's.
 - **Current task:** All Phase 2 tasks (1-17) are DONE. Tasks 12-17 (Admin Web; Localization completion pass + RTL QA sweep; Playwright E2E suite; `web/README.md`; Phase 2 quality gate verification; `PHASE_HANDOFF.md` Phase 2 write-up) completed 2026-09-11 (D62/D63/D64/D65/D66) — see the PHASE 2 task table for the full account. **Phase 2 is COMPLETE, pending explicit user approval before Phase 3 begins**, per the standing Phase Execution Policy below. Tasks 1-11 are DONE and verified end-to-end (real browser + real backend, en+ar) — foundation, auth, public discovery, demo checkout/purchase success, dashboard/my learning + the authenticated Sidebar shell, Course Player/Quiz/Quiz Results, Certificates List/Detail, Learning Paths follow/unfollow (already complete since task 3), AI Tutor chat UI (streaming), Profile + Settings (incl. functional language selector), and Instructor Web (Dashboard, Course Editor Overview/Curriculum, Lesson Editor, Quiz Editor). Tasks 6-7-9-10-11 were delegated to Codex via the `codex-delegate` skill (D41/D42/D43/D44/D47) and independently reviewed/verified/landed by Claude. **Two dedicated UI-fidelity correction passes across Tasks 1-10** were done before Task 11, per explicit user request: D45 (2026-09-07) fixed `TextField`'s missing floating-label behavior, added the required `PasswordField` visibility toggle, and rebuilt Login/Register from unstyled scaffolding into a proper card surface with a minimal logo-only header; D46 (2026-09-07, a stricter follow-up pass) fixed every course thumbnail in the local demo rendering as a broken-image icon, restored `CourseCard`/`LearningPathCard`'s spec'd-but-missing primary-action element, and fixed a widespread "error retry button shows the error sentence" bug. **A third, strictest fidelity pass (2026-09-07, D48) is also DONE**, this time comparing directly against the locked `design-review-locked/Mentora Showcase.dc.html` (not only `design-system/*.md` prose) per explicit user instruction: implemented the governed 5-motif course-artwork gradient system for the first time (`CourseThumbnail`'s new `seed`/`categoryId`/`badge` props, used everywhere a course thumbnail renders), moved the category chip onto the artwork as a scrim overlay, gave `LearningPathCard` its missing icon/eyebrow/arrow, rebuilt `CourseProgressCard` as the showcase's horizontal row (Dashboard/My Learning), rebuilt the Landing hero as a two-column layout with a real stats row and course-artwork collage, added a 4th Dashboard stat + an AI Tutor nudge card, and gave the Instructor Dashboard course list a real table header row. **Awaiting explicit user approval of this pass before Task 12 starts** — this is a standing instruction, not a default that erodes over time. Icon set is a hand-drawn inline-SVG placeholder for the real self-hosted Material Symbols Rounded font (D40) — swap later behind the same `Icon` component API, no call-site changes needed. Landing page's own `CourseCard`/`LearningPathCard` usage still hardcodes the Guest `basePath` (unchanged from D39) — low priority since Landing is conceptually Guest-only. Two spec-vs-backend gaps disclosed and scoped out in task 10 (D44): no password-change endpoint exists, and `avatarMediaId` is a dead field nothing ever writes — Profile shows initials-only, no upload control. `DataTable` (needed for Task 12's Manage Courses/Users/Instructors/Categories tables) is still unbuilt — deliberately out of scope per D47. D48 deliberately left the Instructor Course Editor's showcase-vs-locked-spec IA conflict (persistent rail vs. two tabs) unresolved — see D48 for the full reasoning — and did not add a public language-toggle or guest AI-Tutor nav link (neither is real functionality yet). **A fourth, targeted pass (2026-09-07, D49) is also DONE**: a full visual audit (`D:\Work\MentoraVisualAudit\`) had scored 24 screens against the locked showcase and found only 7 with a genuine EXACT assembled reference (Landing, Explore, Dashboard, Course Player, Instructor Dashboard, Course Editor Overview/Curriculum); D49 corrected those 7 specifically rather than chasing the showcase everywhere. The highest-priority fix was Course Player, rebuilt from a single-column/sidebar-visible/tab-less layout (55% fidelity) into the locked two-column "focused learning shell" (top bar, video-left/curriculum-right split, Overview/Resources tabs, Previous/Mark Complete/Next row) — now ≈88%. Dashboard gained a real-data-driven "Up Next" right-rail module (72%→91%). Landing's hero heading copy and collage grid were corrected (78%→90%). Instructor Dashboard's table header was made uppercase (74%→78%) and Course Editor's panel was given a bounded max-width (60%→66% Overview, 68%→72% Curriculum) — both capped below 90% by the same disclosed showcase-vs-locked-spec conflicts D48 already identified (Instructor Dashboard's 4th stat card/table columns, Course Editor's Media tab/persistent rail), which D49 re-confirms as intentionally unresolved, not missed. Explore was re-verified but received no structural change (88%→89%). Full re-scoring, side-by-side images, and the disclosed-conflict list are in `D:\Work\MentoraVisualAuditExactPass\EXACT_PASS_REPORT.md`. One operational incident during this pass: running `npm run build` while `npm run dev` was still active corrupted the dev server's `.next` cache (`Cannot find module './vendor-chunks/@formatjs.js'`); fixed by killing the dev process, deleting `.next`, and restarting `npm run dev` clean — no application code was at fault. **A dedicated Design-to-Code source-of-truth phase (2026-09-07, D50) is also DONE**, sitting between Task 11 and Task 12 (NOT a numbered Phase 2 product task — Task 12 has still not started). Built `design-to-code/` (README, `SOURCE_MANIFEST.json` with a locked precedence rule — Product/UX > Design System > Showcase > current web implementation-as-evidence-only; `shared/` — tokens/typography/spacing/shape/elevation/components/navigation/artwork/responsive/localization/platform-contract, all normalized FROM the existing locked sources, never re-invented; `screens/` — one JSON spec per all 24 implemented MVP screens, each tagged `exact-showcase`/`approved-pattern`/`ux-only` honestly, 7/5/12 respectively; `patterns/` — 6 reusable layout patterns for screens with no exact mockup; `validation/` — EXTRACTION_REPORT.md, COVERAGE_REPORT.md, MAPPING_REPORT.md). Deliberately did NOT generate Admin (screens 25-29) specs even though the locked docs already define them, to avoid any appearance of starting Task 12. Added `tools/design-to-code/{validate.js,generate.js}` (plain Node, no new dependency, same D35 precedent as `tools/token-pipeline/`) — validation passes clean (24 screens/6 patterns/11 shared files, 0 errors/warnings) and generation writes `web/src/lib/design-to-code.generated.ts` plus two audit-trail JSON files under `design-to-code/generated/web/`. Migrated exactly two genuine hardcoded-duplication cases onto the new generated source with verified byte-identical output: the Student/Instructor Sidebar nav-item arrays (`app-shell.tsx`/`instructor-shell.tsx`) and the 5-motif course-artwork gradient array (`course-thumbnail.tsx`) — confirmed via live re-verification (Dashboard/Explore/Instructor Dashboard, EN+AR/dark) that rendering is unchanged. All four gates re-run clean (`typecheck`/`lint`/`lint:logical-properties`/`build`, same single pre-existing `<img>` warning). See `execution/DECISIONS_LOG.md` D50 and `design-to-code/validation/*.md` for the full account.
 - **What exists in `web/` right now (tasks 1–2):**
@@ -100,7 +100,7 @@ Allowed phase states: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `COMPLETE`.
 |---|---|---|
 | PHASE 1 — Backend Foundation & API | **COMPLETE** | Started 2026-09-05, completed 2026-09-06, approved by the user 2026-09-06. See `PHASE_HANDOFF.md` for the full write-up. |
 | PHASE 2 — Website | **IN_PROGRESS** | Started 2026-09-06. See task breakdown below. |
-| PHASE 3 — KMP Shared Mobile Core | NOT_STARTED | Blocked on Phase 1. |
+| PHASE 3 — KMP Shared Mobile Core | **IN_PROGRESS** | Started 2026-09-12, approved by the user. See task breakdown near end of file. |
 | PHASE 4 — Android | NOT_STARTED | Blocked on Phase 3. |
 | PHASE 5 — iOS | NOT_STARTED | Blocked on Phase 3. |
 | PHASE 6 — AI Tutor Integration | NOT_STARTED | Blocked on Phases 2, 4, 5 (client shells) + Phase 1 (aitutor scaffold). |
@@ -710,11 +710,54 @@ generator's own manifest. The generator (`tools/seed-media/generate-lesson-video
 committed and rerunnable for any future course/lesson addition. No `product`/`ux`/`design-system`/
 `architecture` document changed; Phase 3 was not started.
 
-## Immediate Next Action
+## PHASE 3 — KMP Shared Mobile Core (started 2026-09-12, approved by the user)
 
-**None — Phase 2 remains fully complete; both PRE-PHASE-3 content passes (D67, D68) are also DONE
-and this session has stopped, per the standing Phase Execution Policy.** All 17 Phase 2 tasks plus
-both PRE-PHASE-3 passes are committed; `execution/PHASE_HANDOFF.md` carries the full Phase 2
-write-up (annotated with D67's resolution of the lesson-2 placeholder gap). Waiting for explicit
-user approval before starting Phase 3 (KMP Shared Mobile Core) — no Phase 3/KMP/Android/iOS work
-begins until that approval is given.
+**Standing Phase Execution Policy applies unchanged**: continue task-by-task automatically, verify
++ commit each task as its own checkpoint, update this section after every task, run the full
+completion gate at the end, update all four continuity docs with an implementation-ready handoff,
+then STOP for explicit user approval before Phase 4 (Android). Scope, module structure, and the
+full 17-task sequence with acceptance criteria were derived by the `architect` subagent from
+`architecture/KMP_ARCHITECTURE.md`, `architecture/adr/ADR-002-kmp-sharing-boundary.md`, the other
+locked architecture/product/ux docs, `execution/INTEGRATION_CONTRACT.md`, and the actual backend
+route source (not docs alone) — see `DECISIONS_LOG.md` D69 for the full plan summary, the toolchain
+findings, and how each flagged conflict (CSRF header value, `429` envelope gap, `?language=`
+semantics, absent lesson-duration field, unpaginated `categories`/`learning-paths`) was resolved
+without any backend change, per the standing "Phase 3 makes zero backend changes" rule. **No
+Android/iOS UI, wishlist/favorites, notifications, real payments, or real AI provider integration
+is in scope** — confirmed against `product/MVP_SCOPE.md`.
+
+**Known constraint, disclosed now rather than at Phase 5 kickoff:** this machine is Windows —
+Kotlin/Native iOS targets and the SKIE Gradle plugin both require macOS. `iosMain` `actual` source
+will be written per the architecture's `expect`/`actual` boundary but **cannot be compiled or
+verified on this machine**; SKIE is applied host-guarded (macOS only). Phase 5 (iOS) will need a
+Mac regardless of anything done in Phase 3 — this is an environmental fact, not a Phase 3 defect.
+
+**Local toolchain confirmed before Task 1:** JDK 21 (Temurin), Gradle 8.11 (same wrapper version as
+`backend/`), Android SDK present at `%LOCALAPPDATA%\Android\Sdk` with platform `android-36` and
+`build-tools 36.0.0` installed (no `android-35`) — `compileSdk = 36` is used; `ANDROID_HOME` is not
+set in the shell environment, so `mobile/local.properties` (gitignored) pins `sdk.dir` explicitly.
+
+### PHASE 3 — Task Breakdown
+
+| # | Task | Status |
+|---|---|---|
+| 1 | `mobile/` Gradle root + `:shared` KMP module scaffold | NOT_STARTED |
+| 2 | Wire contract primitives: envelope, error taxonomy, `ApiResult`, `CursorPage` | NOT_STARTED |
+| 3 | Environment config + Ktor `HttpClient` factory + `ApiClient` | NOT_STARTED |
+| 4 | `TokenStorage` / `PreferenceStore` `expect`/`actual` boundary | NOT_STARTED |
+| 5 | `SessionManager`, auth plugin (401→refresh→retry), auth repository + use cases + validation | NOT_STARTED |
+| 6 | User profile, preferences & locale sync | NOT_STARTED |
+| 7 | Catalog domain: categories, courses, curriculum, search/filter/pagination | NOT_STARTED |
+| 8 | Enrollment & demo checkout | NOT_STARTED |
+| 9 | Progress (lesson/course, resume, mark-complete) | NOT_STARTED |
+| 10 | Quiz (load/submit/result) | NOT_STARTED |
+| 11 | Certificates | NOT_STARTED |
+| 12 | Learning Paths | NOT_STARTED |
+| 13 | Media / lesson-video playback contract + platform playback interface | NOT_STARTED |
+| 14 | AI Tutor (paged conversation + streaming send + quick actions) | NOT_STARTED |
+| 15 | Public façade, Koin wiring, iOS framework export + SKIE (host-guarded) | NOT_STARTED |
+| 16 | Live integration verification against the running local backend | NOT_STARTED |
+| 17 | Documentation & Phase 3 → Phase 4 handoff | NOT_STARTED |
+
+**Exact next task to resume on: Task 1.** Full acceptance criteria for every task are in the
+architect's plan (see D69) — read that before resuming a task, do not re-derive from memory.
