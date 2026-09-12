@@ -7,7 +7,7 @@ import com.mentora.shared.domain.model.PlaybackSource
 
 /** The real [MediaRepository]. No `?language=` on this endpoint — playback-url is not one of the 4
  * reads that carries it (`execution/PHASE_3_KMP_PLAN.md`'s D57/C3 list). */
-class MediaRepositoryImpl(private val apiClient: ApiClient) : MediaRepository {
+internal class MediaRepositoryImpl(private val apiClient: ApiClient) : MediaRepository {
 
     override suspend fun getPlaybackUrl(mediaId: String): ApiResult<PlaybackSource> =
         when (val result = apiClient.get<PlaybackUrlDto>("/api/v1/media/$mediaId/playback-url")) {

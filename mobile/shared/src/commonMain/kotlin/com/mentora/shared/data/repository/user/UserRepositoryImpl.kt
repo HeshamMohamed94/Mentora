@@ -16,7 +16,7 @@ import com.mentora.shared.domain.model.User
  * is both how a `null` session user left by a cold-start restore gets filled in (Task 5's gap,
  * closed here) and how an edited name/locale keeps the cached [SessionUser] from going stale.
  */
-class UserRepositoryImpl(
+internal class UserRepositoryImpl(
     private val apiClient: ApiClient,
     private val sessionManager: SessionManager,
 ) : UserRepository {

@@ -9,7 +9,7 @@ import com.mentora.shared.domain.model.CourseProgress
 
 /** The real [ProgressRepository]. No `?language=` on any of these three endpoints — progress is
  * never one of the 4 reads that carries it (`execution/PHASE_3_KMP_PLAN.md`'s D57/C3 list). */
-class ProgressRepositoryImpl(private val apiClient: ApiClient) : ProgressRepository {
+internal class ProgressRepositoryImpl(private val apiClient: ApiClient) : ProgressRepository {
 
     override suspend fun getProgress(courseId: String): ApiResult<CourseProgress> =
         when (val result = apiClient.get<CourseProgressDto>("/api/v1/courses/$courseId/progress")) {

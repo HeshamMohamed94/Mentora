@@ -1,3 +1,4 @@
+import org.gradle.internal.os.OperatingSystem
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -6,13 +7,23 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 // execution/PHASE_3_KMP_PLAN.md). Task 2 wired in kotlinx-serialization only, for the wire-contract
 // envelope/error types. Task 3 adds the Ktor client itself (core/content-negotiation/logging in
 // commonMain, OkHttp in androidMain, Darwin in iosMain — the latter unwired below, see the
-// `sourceSets {}` comment) plus `ktor-client-mock`/kotlinx-coroutines-core for commonTest. This
+// `sourceSets {}` comment) plus `ktor-client-mock`/kotlinx-coroutines-core for commonTest. Task 15
+// adds Koin (DI) to commonMain and the iOS framework export + host-guarded SKIE config below. This
 // module has NO UI dependency, ever (ADR-002).
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidLibrary)
     alias(libs.plugins.kotlinSerialization)
+    // Declared with `apply false` so the plugin marker resolves cleanly on every host (harmless,
+    // no Kotlin/Native compilation is triggered by resolution alone) but is never actually applied
+    // except on macOS — see the host-guarded `apply(plugin = ...)` call at the bottom of this file
+    // and its comment for the full "why" (disclosed limitation B1: SKIE requires Kotlin/Native
+    // codegen, which requires a macOS host; this machine is Windows).
+    alias(libs.plugins.skie) apply false
 }
+
+/** See the host-guarded SKIE `apply(plugin = ...)` call at the bottom of this file. */
+val isMacOs = OperatingSystem.current().isMacOsX
 
 kotlin {
     androidTarget {
@@ -25,8 +36,27 @@ kotlin {
     // iOS targets require a macOS host to actually compile/link — they configure but are never
     // built on this Windows machine. `kotlin.native.ignoreDisabledTargets=true` in
     // gradle.properties is what allows Gradle to configure the build at all here.
-    iosArm64()
-    iosSimulatorArm64()
+    //
+    // Task 15: `binaries.framework {}` configures the exported `shared.xcframework` shape
+    // (baseName/isStatic/exported dependencies) per `execution/PHASE_3_KMP_PLAN.md` Task 15 AC —
+    // this configuration itself is plain Gradle DSL evaluation (no Kotlin/Native compiler
+    // invocation), so it stays reachable/buildable on Windows even though the framework it
+    // describes is never actually linked here (disclosed limitation B1).
+    listOf(iosArm64(), iosSimulatorArm64()).forEach { target ->
+        target.binaries.framework {
+            baseName = "shared"
+            isStatic = true
+            // kotlinx.datetime.Instant/Duration types appear in the public façade's use-case
+            // signatures (e.g. PlaybackSource.expiresAt) — exporting kotlinx-datetime lets Xcode's
+            // generated Swift interface reference `Instant`/`Duration` directly instead of Swift
+            // seeing an opaque, unusable Kotlin type. kotlinx-coroutines and kotlinx-serialization
+            // are deliberately NOT exported: Flow/StateFlow are consumed through SKIE's generated
+            // AsyncSequence/closure bridging rather than the raw Kotlin type, and no serialization
+            // type (DTOs, `kotlinx.serialization.json.Json`) is part of the façade's public
+            // surface at all (only domain/use-case types are — see MentoraSdk.kt).
+            export(libs.kotlinx.datetime)
+        }
+    }
 
     jvmToolchain(21)
 
@@ -44,7 +74,17 @@ kotlin {
                 // for display (Tasks 6/9/11's `createdAt`/`courseCompletedAt`/`issuedAt` convention).
                 // `kotlinx.datetime.Instant` is `@Serializable` out of the box, so `MediaDto`'s
                 // `expiresAt: Instant` field decodes directly with no custom serializer.
-                implementation(libs.kotlinx.datetime)
+                // Task 15: promoted to `api` (not `implementation`) because `Instant`/`Duration`
+                // appear in public façade signatures (`PlaybackSource.expiresAt`,
+                // `RefreshPlaybackUrlUseCase`'s buffer) and the iOS framework `export(...)`s it
+                // above — Kotlin/Native requires an exported dependency to be an `api` dependency
+                // of the exporting source set.
+                api(libs.kotlinx.datetime)
+                // Task 15: Koin DI graph (`di/` package) + the `MentoraSdk` façade that resolves
+                // use cases from it. Never part of the public façade's own signatures (`Module`/
+                // `Koin`/`KoinApplication` stay internal-wiring-only — see MentoraSdk.kt), so this
+                // stays `implementation`, not `api`, and is not exported to the iOS framework.
+                implementation(libs.koin.core)
             }
         }
         val commonTest by getting {
@@ -105,4 +145,21 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+}
+
+// Task 15, disclosed limitation B1: SKIE (Swift Kotlin Interface Enhancer) rewrites the Kotlin/
+// Native-generated Objective-C header into idiomatic Swift (sealed classes -> Swift enums,
+// `suspend fun` -> `async`/`await`, `Flow`/`StateFlow` -> `AsyncSequence`) for the `shared.xcframework`
+// this module's `binaries.framework {}` block (above) configures. It only ever does anything to a
+// Kotlin/Native compilation, which requires a macOS host (Xcode toolchain) — this machine is
+// Windows, so applying it here would either silently no-op in the best case or (per real-world
+// reports for this exact plugin) emit warnings/fail eagerly during Gradle's plugin-application
+// lifecycle in the worst case. Guarding the `apply(plugin = ...)` call itself (not just something
+// downstream of it) on `isMacOs` is therefore load-bearing, not defensive style — it's the one
+// thing standing between this task and an unconditional SKIE application the plan explicitly
+// forbids. The plugin is still declared (`apply false`) in the `plugins {}` block above so its
+// marker artifact resolves cleanly and the version is pinned in one place (`libs.versions.toml`)
+// regardless of host; only the actual `Plugin.apply()` call is skipped on non-macOS.
+if (isMacOs) {
+    apply(plugin = "co.touchlab.skie")
 }

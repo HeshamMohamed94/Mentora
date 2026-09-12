@@ -23,7 +23,7 @@ import kotlinx.coroutines.flow.StateFlow
  * endpoints and maps their wire shape to/from the domain types (see
  * `execution/PHASE_3_KMP_PLAN.md` Task 5's "Where to put things").
  */
-class AuthRepositoryImpl(
+internal class AuthRepositoryImpl(
     private val apiClient: ApiClient,
     private val sessionManager: SessionManager,
     private val tokenStorage: TokenStorage,

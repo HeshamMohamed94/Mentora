@@ -23,7 +23,7 @@ import com.mentora.shared.settings.PreferenceStore
  * `execution/DECISIONS_LOG.md` D73 asks this task to reuse rather than re-deriving the `"language"`
  * wire key or the locale-to-wire-value mapping itself.
  */
-class EnrollmentRepositoryImpl(
+internal class EnrollmentRepositoryImpl(
     private val apiClient: ApiClient,
     private val preferenceStore: PreferenceStore,
 ) : EnrollmentRepository {

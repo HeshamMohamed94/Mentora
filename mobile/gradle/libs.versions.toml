@@ -21,6 +21,12 @@ multiplatformSettings = "1.3.0"
 # (AndroidTokenStorage) uses this instead — see that class's kdoc.
 androidxDatastore = "1.1.1"
 
+# Task 15: SKIE (Swift Kotlin Interface Enhancer) generates idiomatic Swift bindings (sealed
+# classes -> Swift enums, suspend fun -> async/await, Flow -> AsyncSequence) for the public
+# façade. Requires a macOS host to actually run (Kotlin/Native compilation) — the plugin
+# application itself is host-guarded in shared/build.gradle.kts (disclosed limitation B1).
+skie = "0.9.5"
+
 [libraries]
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinxDatetime" }
@@ -51,3 +57,5 @@ kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotl
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 androidLibrary = { id = "com.android.library", version.ref = "agp" }
+# Task 15: applied host-guarded (macOS only) in shared/build.gradle.kts — see skie's version comment above.
+skie = { id = "co.touchlab.skie", version.ref = "skie" }

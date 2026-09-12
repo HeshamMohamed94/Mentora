@@ -34,7 +34,7 @@ import kotlinx.coroutines.flow.channelFlow
  * injected [httpClient] directly, per Decision D-E — [apiClient]'s `post` assumes a JSON success
  * envelope this endpoint's success response never sends.
  */
-class AiTutorRepositoryImpl(
+internal class AiTutorRepositoryImpl(
     private val apiClient: ApiClient,
     private val httpClient: HttpClient,
 ) : AiTutorRepository {

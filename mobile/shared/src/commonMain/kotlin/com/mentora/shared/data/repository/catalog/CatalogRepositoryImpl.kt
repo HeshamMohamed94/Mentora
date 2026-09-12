@@ -29,7 +29,7 @@ import com.mentora.shared.settings.PreferenceStore
  * Task 7 AC #5 asks Task 8 (checkout preview)/Task 12 (learning-path detail) to reuse rather than
  * re-implementing.
  */
-class CatalogRepositoryImpl(
+internal class CatalogRepositoryImpl(
     private val apiClient: ApiClient,
     private val preferenceStore: PreferenceStore,
 ) : CatalogRepository {

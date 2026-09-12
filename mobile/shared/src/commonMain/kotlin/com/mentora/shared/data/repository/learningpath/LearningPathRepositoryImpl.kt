@@ -19,7 +19,7 @@ import com.mentora.shared.settings.PreferenceStore
  * [follow]/[unfollow] are not among the 4 reads that carry it
  * (`execution/PHASE_3_KMP_PLAN.md`'s D57/C3 list; `follow`/`unfollow` are writes, not reads, anyway).
  */
-class LearningPathRepositoryImpl(
+internal class LearningPathRepositoryImpl(
     private val apiClient: ApiClient,
     private val preferenceStore: PreferenceStore,
 ) : LearningPathRepository {

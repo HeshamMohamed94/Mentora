@@ -14,7 +14,7 @@ import com.mentora.shared.domain.model.CertificateSummary
  * [com.mentora.shared.data.network.ApiClient]'s underlying Ktor `get(path)` call already does for
  * any path string — this class never inspects, reformats, or reconstructs the `MTR-...` shape.
  */
-class CertificateRepositoryImpl(private val apiClient: ApiClient) : CertificateRepository {
+internal class CertificateRepositoryImpl(private val apiClient: ApiClient) : CertificateRepository {
 
     override suspend fun listCertificates(cursor: String?, limit: Int?): ApiResult<CursorPage<CertificateSummary>> {
         val queryParams = buildMap {

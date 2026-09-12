@@ -19,7 +19,7 @@ import com.mentora.shared.domain.model.QuizQuestion
 /** The real [QuizRepository]. No `?language=` on any of these three endpoints — quiz prompt/option
  * text is not translated (not one of the 4 reads that carries `?language=`, per
  * `execution/PHASE_3_KMP_PLAN.md`'s D57/C3 list). */
-class QuizRepositoryImpl(private val apiClient: ApiClient) : QuizRepository {
+internal class QuizRepositoryImpl(private val apiClient: ApiClient) : QuizRepository {
 
     override suspend fun getQuiz(courseId: String): ApiResult<Quiz> =
         when (val result = apiClient.get<QuizDto>("/api/v1/courses/$courseId/quiz")) {
