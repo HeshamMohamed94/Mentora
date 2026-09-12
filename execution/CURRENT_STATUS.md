@@ -782,3 +782,14 @@ a real emulator, Phase 4's job); no offline cache/local persistence anywhere in 
 `AUTH_TOKEN_INVALID`/`AUTH_TOKEN_EXPIRED` mobile-side refresh-trigger workaround (D77); and
 `LiveBackendIntegrationTest`'s isolated Gradle task (`:shared:liveBackendIntegrationTest`, not part
 of the fast default suite).
+
+**Post-Phase-3 verification follow-up (2026-09-12) — small standalone fix, not a Phase 4 task.**
+Running the root `.\gradlew.bat test` aggregate (which drives both `testDebugUnitTest` and
+`testReleaseUnitTest`) surfaced the exact D77-documented `UNPARSEABLE_RESPONSE`/200 flake still
+reachable via `testReleaseUnitTest` — Task 16/D77's exclusion (`shared/build.gradle.kts`) had only
+been applied to `testDebugUnitTest`, leaving the release variant still running
+`LiveBackendIntegrationTest` inside the shared ~250-test JVM. Fixed by mirroring the same
+`exclude("**/LiveBackendIntegrationTest.class")` onto `testReleaseUnitTest` (plus updated comments/
+task description); `liveBackendIntegrationTest` remains the sole, isolated way to run it. Re-ran
+`.\gradlew.bat test` clean after the fix. Single-file change (`mobile/shared/build.gradle.kts`), no
+other files touched, Phase 4 not started.

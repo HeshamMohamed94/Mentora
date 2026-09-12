@@ -180,15 +180,20 @@ if (isMacOs) {
 // clean fix for the observed flake AND the architecturally correct split regardless (a live-network
 // test does not belong in the fast, deterministic, offline suite every other task's quality gate —
 // and every prior Phase 3 commit — has relied on staying green with no backend running).
-// `:shared:testDebugUnitTest` therefore no longer includes this one test; run
-// `:shared:liveBackendIntegrationTest` deliberately when the local backend is up (it still skips
-// cleanly, via `org.junit.Assume`, if it isn't).
+// `:shared:testDebugUnitTest` and `:shared:testReleaseUnitTest` therefore no longer include this
+// one test (the plain `:shared:test` / root `gradlew test` aggregate runs both variants, so both
+// needed the exclusion — testReleaseUnitTest was originally missed and remained exposed to the
+// same flake); run `:shared:liveBackendIntegrationTest` deliberately when the local backend is up
+// (it still skips cleanly, via `org.junit.Assume`, if it isn't).
 // Deferred to `afterEvaluate`: AGP/KGP finish registering and fully configuring their own
-// `testDebugUnitTest` task (test class dirs, classpath) only once this whole build script's
-// evaluation completes — referencing it any earlier races that setup.
+// `testDebugUnitTest`/`testReleaseUnitTest` tasks (test class dirs, classpath) only once this whole
+// build script's evaluation completes — referencing them any earlier races that setup.
 project.afterEvaluate {
     val debugUnitTest = tasks.named<Test>("testDebugUnitTest")
     debugUnitTest.configure {
+        exclude("**/LiveBackendIntegrationTest.class")
+    }
+    tasks.named<Test>("testReleaseUnitTest").configure {
         exclude("**/LiveBackendIntegrationTest.class")
     }
 
@@ -196,7 +201,7 @@ project.afterEvaluate {
         group = "verification"
         description = "Runs LiveBackendIntegrationTest alone, in its own JVM, against the local " +
             "backend (skips cleanly via org.junit.Assume if it isn't reachable). Excluded from " +
-            "testDebugUnitTest — see the comment above this task for why."
+            "testDebugUnitTest and testReleaseUnitTest — see the comment above this task for why."
         testClassesDirs = debugUnitTest.get().testClassesDirs
         classpath = debugUnitTest.get().classpath
         include("**/LiveBackendIntegrationTest.class")
