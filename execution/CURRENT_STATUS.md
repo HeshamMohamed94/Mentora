@@ -745,7 +745,7 @@ set in the shell environment, so `mobile/local.properties` (gitignored) pins `sd
 | 2 | Wire contract primitives: envelope, error taxonomy, `ApiResult`, `CursorPage` | DONE — commit `3078565`. `ApiSuccess`/`ApiError` mirror `backend/common/ApiResponse.kt` byte-exactly; 22-code `ApiErrorCode` grep-verified against every real `ApiException` call site + `Unknown(raw)` fallback; sealed `ApiResult<T>`; `CursorPage<T>`; shared `Json` matching backend's `explicitNulls=false`. Review caught and fixed a real bug in the 429-synthesis path matcher (`startsWith("/auth/")` never matches the real `/api/v1/auth/...` route shape — changed to `contains(...)`, regression test added). 14/14 tests green. |
 | 3 | Environment config + Ktor `HttpClient` factory + `ApiClient` | DONE — commit `ef07bb2`. `ApiEnvironment` (androidEmulator/iosSimulator/lan/custom presets); `HttpClientFactory` installs `ContentNegotiation`(Task 2's `MentoraJson`)/bounded GET-only retry/redacting header-only debug logging/mandatory CSRF header/deliberately no `HttpCookies` (documented why); `ApiClient` exposes `get/post/patch/delete/getPage` → `ApiResult<T>` only, never a raw `HttpResponse`. OkHttp wired for Android; Darwin `actual` written but unwired in the build script (same iOS limitation as T1/T2). 26/26 tests green, independently re-verified. |
 | 4 | `TokenStorage` / `PreferenceStore` `expect`/`actual` boundary | DONE — commit `c6f63f1`, decisions in D70. `TokenStorage` (secrets) and `PreferenceStore` (non-secret locale/theme) as plain common interfaces (not literal `expect`/`actual`, since Android needs a `Context` and iOS doesn't — D70). Android: AES-256-GCM under an Android-Keystore-resident key + Jetpack DataStore (not `EncryptedSharedPreferences`, years-stalled alpha — D70). `resolveInitialLocale` pure function. 41/41 tests green, independently re-verified line-by-line (crypto correctness checked). |
-| 5 | `SessionManager`, auth plugin (401→refresh→retry), auth repository + use cases + validation | NOT_STARTED |
+| 5 | `SessionManager`, auth plugin (401→refresh→retry), auth repository + use cases + validation | DONE — commit `de83eff`, decisions in D71. Mutex-based single-flight refresh (verified with 9 concurrent-coroutine test runs, zero flakes); `/auth/refresh`/`/auth/logout` exempt from recursion; `EmailValidator`/`PasswordValidator` verified byte-exact against `AuthService.kt`. Review caught and fixed a real issue: cold-start restore was fabricating a placeholder `SessionUser` (empty id/email/name) inside `AuthState.Authenticated` — now `user` is nullable and honestly `null` until Task 6's profile fetch. 64/64 tests green, independently re-verified line-by-line (highest-consequence task in the phase). |
 | 6 | User profile, preferences & locale sync | NOT_STARTED |
 | 7 | Catalog domain: categories, courses, curriculum, search/filter/pagination | NOT_STARTED |
 | 8 | Enrollment & demo checkout | NOT_STARTED |
@@ -759,7 +759,7 @@ set in the shell environment, so `mobile/local.properties` (gitignored) pins `sd
 | 16 | Live integration verification against the running local backend | NOT_STARTED |
 | 17 | Documentation & Phase 3 → Phase 4 handoff | NOT_STARTED |
 
-**Exact next task to resume on: Task 5** (`SessionManager`, auth plugin 401→refresh→retry, auth
-repository + use cases + validation — the highest-consequence task in the phase). Full acceptance
+**Exact next task to resume on: Task 6** (user profile, preferences & locale sync). Full acceptance
 criteria for every task are in `execution/PHASE_3_KMP_PLAN.md` (see D69) — read that before resuming
-a task, do not re-derive from memory.
+a task, do not re-derive from memory. Note for Task 6: `AuthState.Authenticated.user` can be `null`
+after a cold-start restore (D71) — Task 6's profile fetch is expected to resolve that.
