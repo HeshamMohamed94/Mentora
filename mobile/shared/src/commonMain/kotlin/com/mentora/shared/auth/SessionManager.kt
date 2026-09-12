@@ -77,6 +77,25 @@ class SessionManager(
     }
 
     /**
+     * Updates the CURRENTLY authenticated session's [AuthState.Authenticated.user] in place — no
+     * token/storage side effect at all (contrast [onAuthenticated]). This is how
+     * [com.mentora.shared.data.repository.user.UserRepositoryImpl] closes the `user = null` gap
+     * [com.mentora.shared.data.repository.auth.AuthRepositoryImpl.restoreSession] deliberately
+     * leaves after a cold-start restore (see [AuthState.Authenticated]'s kdoc): once a
+     * `GET /users/me`/`PATCH /users/me` call succeeds, the session's identity becomes (or stays)
+     * known without re-authenticating (`execution/PHASE_3_KMP_PLAN.md` Task 6).
+     *
+     * A no-op if [authState] is not currently [AuthState.Authenticated] (e.g. a stale in-flight
+     * profile fetch completing after a logout) — this never resurrects or creates an authenticated
+     * session on its own.
+     */
+    fun updateUser(user: SessionUser) {
+        if (_authState.value is AuthState.Authenticated) {
+            _authState.value = AuthState.Authenticated(user)
+        }
+    }
+
+    /**
      * Single-flight refresh coordinator. [staleAccessToken] is the access token the caller
      * observed a `401 AUTH_TOKEN_EXPIRED` for (or `null`/absent if there wasn't one cached at all).
      * Concurrent callers racing on the SAME expired token all pass in that same [staleAccessToken]
