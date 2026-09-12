@@ -1049,4 +1049,12 @@ Two smaller, same-category gaps found via the same audit: `SearchField` used a r
 
 **Impact:** No product/architecture document changed; no backend change. 113/113 `commonTest` tests pass (25 new); `:shared:assembleDebug` clean. Draft/404 behavior (D64) required zero special-case client code — both branches are the endpoint's ordinary response, decoded generically.
 
+### D74 — 2026-09-12 — PHASE 3 Task 8: `GetMyLearningUseCase` fails fast on the first per-course composition error, rather than silently dropping a row
+
+**Decision:** `GetMyLearningUseCase` composes `GET /enrollments` with one `GET /courses/{id}` fetch per enrollment (Task 7's `CatalogRepository`, reused as intended). When one of those per-course fetches fails, the use case returns that failure for the WHOLE call rather than returning a partial list with the failed row silently omitted. Worth recording because it shapes what Phase 4/5's "My Learning" screen must handle: a single transient network blip on one course can blank the entire list, not just one row.
+
+**Why accepted:** a genuinely *missing* course is not a realistic failure mode here — Task 7/D64 already established that an already-enrolled student gets a normal 200 (with `status: draft` if applicable) for any course they're enrolled in, never a 404. So any per-course failure this composition actually hits in practice is transient (network/server), and surfacing it as a clear, retriable error is more honest than a list that quietly drops a row a real user might notice is missing without knowing why. This is fully consistent with this project's established review standard (Tasks 5/6 both had fabricated/hidden data reverted during review) — silently dropping a row would itself have been a review-worthy issue had it shipped the other way.
+
+**Impact:** No product/architecture document changed; no backend change. 131/131 `commonTest` tests pass (18 new); `:shared:assembleDebug` clean; zero payment vocabulary in the new enrollment code (grep-verified independently, empty match set). No defects found this review pass — first Phase 3 task since the plan/scaffold that needed no fix.
+
 

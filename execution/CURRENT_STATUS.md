@@ -748,7 +748,7 @@ set in the shell environment, so `mobile/local.properties` (gitignored) pins `sd
 | 5 | `SessionManager`, auth plugin (401→refresh→retry), auth repository + use cases + validation | DONE — commit `de83eff`, decisions in D71. Mutex-based single-flight refresh (verified with 9 concurrent-coroutine test runs, zero flakes); `/auth/refresh`/`/auth/logout` exempt from recursion; `EmailValidator`/`PasswordValidator` verified byte-exact against `AuthService.kt`. Review caught and fixed a real issue: cold-start restore was fabricating a placeholder `SessionUser` (empty id/email/name) inside `AuthState.Authenticated` — now `user` is nullable and honestly `null` until Task 6's profile fetch. 64/64 tests green, independently re-verified line-by-line (highest-consequence task in the phase). |
 | 6 | User profile, preferences & locale sync | DONE — commit `5338f7f`, decisions in D72. Full `User` model (`GET /users/me`) distinct from `SessionUser`; `PATCH /users/me` partial-update, verified against `UserService.kt`'s exact 120-char/en-ar rules. `SessionManager.updateUser` closes D71's null-user restore gap. Review caught and fixed a real gap: the login-overwrites-local/register-seeds-account locale precedence was built+tested but never wired into any real login/register call — now wired into `LoginUseCase`/`RegisterUseCase` directly, with a best-effort failure policy on the register side. 88/88 tests green, independently re-verified. |
 | 7 | Catalog domain: categories, courses, curriculum, search/filter/pagination | DONE — commit `439e99f`, decisions in D73. `Category`/`Course`/`CourseSummary`/`Section`/`Lesson` verified field-exact against `CourseService.kt` (no duration/isEnrolled/slug). `CourseLevel`/`ContentLanguage` `@Serializable` enums with explicit `@SerialName` per entry (wire values are lowercase, Kotlin names aren't). New shared `localeQueryParam()` helper in `data/network/` for Tasks 8/12 to reuse — **do not re-derive `?language=` threading in those tasks, call this function**. `?language=`'s dual metadata-resolver/result-filter role on the course list verified character-for-character against `CourseRepository.kt`. No defects found this pass. 113/113 tests green, independently re-verified. |
-| 8 | Enrollment & demo checkout | NOT_STARTED |
+| 8 | Enrollment & demo checkout | DONE — commit `4163643`, decisions in D74. `CheckoutPreview`/`Enrollment`/`EnrollmentCompletion` verified field-exact against `EnrollmentService.kt`; both 201-first-time and 200-repeat checkout/complete map to `Success` with correct `alreadyEnrolled`. `GetMyLearningUseCase` reuses Task 7's `CatalogRepository`+`localeQueryParam()` per D73; fails fast on the first per-course composition error rather than silently dropping a row (D74 — Phase 4/5 UI must handle this). Zero payment vocabulary, grep-verified independently. 131/131 tests green, no defects found this pass. |
 | 9 | Progress (lesson/course, resume, mark-complete) | NOT_STARTED |
 | 10 | Quiz (load/submit/result) | NOT_STARTED |
 | 11 | Certificates | NOT_STARTED |
@@ -759,8 +759,6 @@ set in the shell environment, so `mobile/local.properties` (gitignored) pins `sd
 | 16 | Live integration verification against the running local backend | NOT_STARTED |
 | 17 | Documentation & Phase 3 → Phase 4 handoff | NOT_STARTED |
 
-**Exact next task to resume on: Task 8** (enrollment & demo checkout). Full acceptance criteria for
-every task are in `execution/PHASE_3_KMP_PLAN.md` (see D69) — read that before resuming a task, do
-not re-derive from memory. Note for Task 8: reuse Task 7's `localeQueryParam()`
-(`data/network/LocaleQueryParam.kt`) for the checkout-preview's `?language=` threading — do not
-re-derive it (D73).
+**Exact next task to resume on: Task 9** (Progress — lesson/course, resume, mark-complete). Full
+acceptance criteria for every task are in `execution/PHASE_3_KMP_PLAN.md` (see D69) — read that
+before resuming a task, do not re-derive from memory.
