@@ -12,13 +12,16 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import com.mentora.android.theme.MentoraTheme
 
-// Task 1: bare scaffold only — no custom Mentora theme (Task 2), no navigation, no real screens.
+// Task 1 scaffolded a bare MaterialTheme placeholder with no navigation/real screens yet. Task 2
+// wires in the real MentoraTheme (design-token-driven ColorScheme/Typography/Shapes) — navigation
+// and real screens remain later tasks' concern.
 // Android 15+ (targetSdk 36) enforces edge-to-edge for every app regardless of whether
 // enableEdgeToEdge() is called, so a bare Surface(fillMaxSize()) draws under the status/nav bars.
 // windowInsetsPadding(WindowInsets.safeDrawing) is the one-line fix to keep this placeholder's text
 // clear of system bars — real inset-aware layout (Scaffold, top bars, etc.) is a later task's concern
-// once a real theme/navigation shell exists.
+// once a real navigation shell exists.
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -30,10 +33,11 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun MentoraPlaceholderScreen() {
-    MaterialTheme {
+    MentoraTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
             Text(
                 text = "Mentora",
+                style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier.windowInsetsPadding(WindowInsets.safeDrawing),
             )
         }

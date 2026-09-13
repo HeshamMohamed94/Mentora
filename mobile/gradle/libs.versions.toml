@@ -32,6 +32,10 @@ androidxActivityCompose = "1.9.3"
 # (AndroidTokenStorage) uses this instead — see that class's kdoc.
 androidxDatastore = "1.1.1"
 
+# Task 2 (:androidApp theme token drift test): AGP's testDebugUnitTest task runs against JUnit4
+# by default — same convention as every other Android app module, not a new testing framework.
+junit = "4.13.2"
+
 # Task 15: SKIE (Swift Kotlin Interface Enhancer) generates idiomatic Swift bindings (sealed
 # classes -> Swift enums, suspend fun -> async/await, Flow -> AsyncSequence) for the public
 # façade. Requires a macOS host to actually run (Kotlin/Native compilation) — the plugin
@@ -67,6 +71,9 @@ multiplatform-settings-coroutines = { module = "com.russhwolf:multiplatform-sett
 androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "androidxDatastore" }
 
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
+
+# Task 2 (:androidApp theme token drift test): plain JUnit4, the AGP unit-test-task default.
+junit = { module = "junit:junit", version.ref = "junit" }
 
 # Task 1 (:androidApp): Compose BOM — see composeBom's version comment above for why a same-era
 # BOM was chosen instead of chasing strict Kotlin-compiler-version compatibility (no longer a thing

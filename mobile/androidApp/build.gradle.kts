@@ -57,4 +57,11 @@ dependencies {
     // DI wiring itself is Task 4, not this task.
     implementation(libs.koin.android)
     implementation(libs.koin.androidx.compose)
+
+    // Task 2: MentoraTokens.kt drift test — parses design-tokens.json/theme-*.json directly at
+    // test time and compares against the generated Kotlin constants (JUnit4, the AGP
+    // testDebugUnitTest default; kotlinx-serialization-json is already in this catalog for
+    // :shared's own use, not a new dependency).
+    testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.serialization.json)
 }

@@ -20,6 +20,13 @@
  * need to be learned just to implement the same base+tint@opacity resolution this file already
  * does directly. If mobile (Android/iOS) token output is ever needed, this script gains a second
  * output target the same way — see the `--- OUTPUT TARGETS ---` section below.
+ *
+ * Phase 4 Task 2 (execution/PHASE_4_ANDROID_PLAN.md § 3) added the Android output target:
+ *   - mobile/androidApp/src/main/kotlin/com/mentora/android/theme/MentoraTokens.kt — colors
+ *     (light/dark), typography scale, radius, elevation, spacing, and icon sizes as Kotlin
+ *     constants, per design-to-code/shared/platform-contract.json's "android" mapping table.
+ * This is purely additive — see the `--- ANDROID (KOTLIN) OUTPUT TARGET ---` section near the end
+ * of this file. It does not read/write anything the three Web-output functions above it touch.
  */
 
 const fs = require('fs');
@@ -411,4 +418,192 @@ ${tailwindRadiusLines().join('\n')}
 
 fs.writeFileSync(path.join(WEB, 'styles', 'tailwind-theme.css'), tailwindTheme, 'utf8');
 
-console.log('Generated web/styles/tokens.css, web/styles/tailwind-theme.css, and web/src/lib/design-tokens.generated.ts');
+// ---------- ANDROID (KOTLIN) OUTPUT TARGET ----------
+// mobile/androidApp/src/main/kotlin/com/mentora/android/theme/MentoraTokens.kt — GENERATED,
+// never hand-edited (mobile/androidApp/.../theme/MentoraTheme.kt, hand-authored, consumes this).
+// Reuses flattenTree()/elevationLevels() above; introduces the camelPath() inverse of
+// kebabPath()/camelToKebabSegment() for Android/iOS naming (dot-path -> camelCase), plus a
+// hex/rgba() -> Kotlin ARGB literal converter (Compose Color(Long) takes 0xAARRGGBB).
+// Mapping table: design-to-code/shared/platform-contract.json#/android.
+
+const MOBILE_ANDROID_THEME_DIR = path.join(
+  ROOT,
+  'mobile',
+  'androidApp',
+  'src',
+  'main',
+  'kotlin',
+  'com',
+  'mentora',
+  'android',
+  'theme'
+);
+
+function capitalizeSegment(seg) {
+  return seg.length ? seg.charAt(0).toUpperCase() + seg.slice(1) : seg;
+}
+
+/** Inverse of kebabPath(): "brand.primaryHover" -> "brandPrimaryHover" (first segment
+ *  lowercased, subsequent segments capitalized, concatenated with no separator) — the
+ *  Android/iOS naming convention from platform-contract.json#/android/namingConvention. */
+function camelPath(dotPath) {
+  return dotPath
+    .split('.')
+    .map((seg, i) => (i === 0 ? seg.charAt(0).toLowerCase() + seg.slice(1) : capitalizeSegment(seg)))
+    .join('');
+}
+
+/** Kotlin numeric literal, parenthesized if negative (so `.sp`/`.dp` chains, e.g. `(-0.25).sp`,
+ *  parse correctly — a bare `-0.25.sp` is a unary-minus-of-`0.25.sp`, not what we want). */
+function kotlinNumberLiteral(n) {
+  return n < 0 ? `(${n})` : `${n}`;
+}
+
+/** "#F8F9FC" -> "0xFFF8F9FC"; "rgba(17,18,23,0.48)" -> "0x7A111217". Compose's Color(Long)
+ *  constructor expects 0xAARRGGBB. */
+function colorLiteralToKotlinArgb(raw) {
+  const v = String(raw).trim();
+  if (v.startsWith('#')) {
+    const hex = v.slice(1);
+    if (hex.length === 6) return `0xFF${hex.toUpperCase()}`;
+    if (hex.length === 8) return `0x${hex.toUpperCase()}`;
+    throw new Error(`generate.js (android): unexpected hex color length in "${v}"`);
+  }
+  const m = v.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)$/);
+  if (m) {
+    const [, r, g, b, a] = m;
+    const alphaByte = a !== undefined ? Math.round(parseFloat(a) * 255) : 255;
+    const toHex = (n) => Number(n).toString(16).padStart(2, '0').toUpperCase();
+    return `0x${toHex(alphaByte)}${toHex(r)}${toHex(g)}${toHex(b)}`;
+  }
+  throw new Error(`generate.js (android): cannot convert color "${v}" to a Kotlin ARGB literal`);
+}
+
+function androidColorObjectLines(themeColorTree) {
+  const flat = flattenTree(themeColorTree, '', {});
+  return Object.entries(flat).map(
+    ([dotPath, value]) => `    val ${camelPath(dotPath)}: Color = Color(${colorLiteralToKotlinArgb(value)})`
+  );
+}
+
+/** theme-{light,dark}.json's own `stateOpacity` object has short keys ("hover", "pressed", ...);
+ *  design-tokens.json's color.semantic.*.state.* keys already carry the "Opacity" suffix
+ *  ("hoverOpacity", ...) — property names here match the LATTER convention for readability. */
+function androidStateOpacityObjectLines(stateOpacity) {
+  return Object.entries(stateOpacity).map(([k, v]) => `    val ${camelPath(k)}Opacity: Float = ${v}f`);
+}
+
+function androidTypographyObjectLines() {
+  return Object.entries(tokens.typography.scale).map(([name, style]) => {
+    const prop = camelPath(name);
+    const fontSize = kotlinNumberLiteral(style.fontSize);
+    const lineHeight = kotlinNumberLiteral(style.lineHeight);
+    const letterSpacing = kotlinNumberLiteral(style.letterSpacing);
+    return (
+      `    val ${prop}: MentoraTypographyStyle = MentoraTypographyStyle(\n` +
+      `        fontSize = ${fontSize}.sp,\n` +
+      `        lineHeight = ${lineHeight}.sp,\n` +
+      `        fontWeight = FontWeight(${style.fontWeight}),\n` +
+      `        letterSpacing = ${letterSpacing}.sp,\n` +
+      `    )`
+    );
+  });
+}
+
+function androidRadiusObjectLines() {
+  return Object.entries(tokens.shape.radius).map(([k, v]) => `    val ${camelPath(k)}: Dp = ${v}.dp`);
+}
+
+function androidElevationObjectLines() {
+  return elevationLevels().map(([k, v]) => `    val level${k}: Dp = ${v.compose_dp}.dp`);
+}
+
+function androidSpacingObjectLines() {
+  return Object.entries(tokens.spacing.scale).map(([k, v]) => `    val ${camelPath(k)}: Dp = ${v}.dp`);
+}
+
+function androidIconSizeObjectLines() {
+  return Object.entries(tokens.icon.sizes).map(([k, v]) => `    val ${camelPath(k)}: Dp = ${v}.dp`);
+}
+
+const androidGeneratedHeader = `// GENERATED — DO NOT EDIT.
+// Source: design-system/design-tokens.json, design-system/themes/theme-{light,dark}.json
+// Regenerate with: npm run generate (from tools/token-pipeline/), or node tools/token-pipeline/generate.js
+`;
+
+const androidKotlin = `${androidGeneratedHeader}
+package com.mentora.android.theme
+
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+
+/** One typography.scale entry (design-tokens.json § typography.scale), in Compose-native units. */
+data class MentoraTypographyStyle(
+    val fontSize: TextUnit,
+    val lineHeight: TextUnit,
+    val fontWeight: FontWeight,
+    val letterSpacing: TextUnit,
+)
+
+/** color.semantic.light (design-tokens.json / theme-light.json) — one property per flattened
+ *  dot-path in the color tree. */
+object MentoraColorsLight {
+${androidColorObjectLines(themeLight.color).join('\n')}
+}
+
+/** color.semantic.dark (design-tokens.json / theme-dark.json) — the SAME property set as
+ *  MentoraColorsLight, dark-theme values. */
+object MentoraColorsDark {
+${androidColorObjectLines(themeDark.color).join('\n')}
+}
+
+/** theme-light.json's stateOpacity — hover/pressed/focus/disabled interaction-state opacities. */
+object MentoraStateOpacityLight {
+${androidStateOpacityObjectLines(themeLight.stateOpacity).join('\n')}
+}
+
+/** theme-dark.json's stateOpacity — same properties as MentoraStateOpacityLight, dark values. */
+object MentoraStateOpacityDark {
+${androidStateOpacityObjectLines(themeDark.stateOpacity).join('\n')}
+}
+
+/** typography.scale (design-tokens.json) — one MentoraTypographyStyle per scale entry. */
+object MentoraTypographyTokens {
+${androidTypographyObjectLines().join('\n\n')}
+}
+
+/** shape.radius (design-tokens.json), as Dp. */
+object MentoraRadiusTokens {
+${androidRadiusObjectLines().join('\n')}
+}
+
+/** elevation.0..4 (design-tokens.json), using each level's Compose-recommended compose_dp value. */
+object MentoraElevationTokens {
+${androidElevationObjectLines().join('\n')}
+}
+
+/** spacing.scale (design-tokens.json), as Dp. */
+object MentoraSpacingTokens {
+${androidSpacingObjectLines().join('\n')}
+}
+
+/** icon.sizes (design-tokens.json), as Dp. */
+object MentoraIconSizeTokens {
+${androidIconSizeObjectLines().join('\n')}
+}
+
+/** touchTarget.android_dp (design-tokens.json) — minimum touch target size. */
+val MentoraTouchTargetMinDp: Dp = ${tokens.touchTarget.android_dp}.dp
+`;
+
+fs.mkdirSync(MOBILE_ANDROID_THEME_DIR, { recursive: true });
+fs.writeFileSync(path.join(MOBILE_ANDROID_THEME_DIR, 'MentoraTokens.kt'), androidKotlin, 'utf8');
+
+console.log(
+  'Generated web/styles/tokens.css, web/styles/tailwind-theme.css, web/src/lib/design-tokens.generated.ts, ' +
+    'and mobile/androidApp/src/main/kotlin/com/mentora/android/theme/MentoraTokens.kt'
+);
