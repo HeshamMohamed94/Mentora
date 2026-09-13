@@ -21,14 +21,18 @@ import com.mentora.android.ui.components.PrimaryButton
  *   `CourseDetails`/gate `DemoCheckout` through [com.mentora.android.navigation.decideAuthGate], so
  *   the guest-enroll-gate mechanism is reachable and instrumented-testable.
  * - [DemoCheckoutScreen]: a minimal trigger for the Purchase-Success back-stack mechanism.
- * - [LoginScreen] / [RegisterScreen]: react to (not fake) the pending-intent-return mechanism — see
- *   [LoginScreen]'s own kdoc for why there is deliberately no "pretend login succeeded" button here.
  * - [ProfileScreen]: one trigger into `Settings`, since Settings is a real registered destination
  *   this task's manual smoke test needs to be able to reach.
  *
- * Real screen content for every one of these (Login/Register credential forms, Explore's course
- * grid, Course Details' CourseCard, ...) is Tasks 7-18's job — this file's composables are the exact
- * call sites those tasks replace, without touching `MentoraNavHost.kt`.
+ * Real screen content for every one of these (Explore's course grid, Course Details' CourseCard,
+ * ...) is Tasks 8-18's job — this file's composables are the exact call sites those tasks replace,
+ * without touching `MentoraNavHost.kt`.
+ *
+ * T7 note: `LoginScreen`/`RegisterScreen` are no longer placeholders here — Task 7 replaced them with
+ * real credential-form screens in `com.mentora.android.ui.auth` (`LoginScreen.kt`/`RegisterScreen.kt`).
+ * See that package's kdoc for why neither screen navigates on its own success (the pending-intent-
+ * return mechanism this file's kdoc used to describe is unchanged — `MentoraNavHost`'s own
+ * `LaunchedEffect(authState)` still owns it).
  */
 @Composable
 fun HomeScreen(modifier: Modifier = Modifier) = PlaceholderScreen("Home (placeholder)", modifier)
@@ -143,40 +147,6 @@ fun CertificatesScreen(modifier: Modifier = Modifier) = PlaceholderScreen("Certi
 @Composable
 fun CertificateDetailScreen(certificateId: String, modifier: Modifier = Modifier) =
     PlaceholderScreen("Certificate Detail (placeholder): $certificateId", modifier)
-
-/**
- * T6 — the real, testable half of the auth-gate/pending-intent mechanism on the Login side. Neither
- * this screen nor [RegisterScreen] has a credential form yet (Task 7) — deferring the actual
- * credential UI is explicitly allowed by this task's plan. What is NOT allowed, and is NOT done
- * here, is a button that fakes success by calling a "pretend login succeeded" callback directly:
- * this screen has no such callback at all. The only way [MentoraNavHost]'s pending-intent routing
- * fires is a REAL `authState` transition to `Authenticated` (observed by `MentoraNavHost`'s own
- * `LaunchedEffect`, not by this screen) — [hasPendingIntent] is surfaced here purely as on-screen
- * text so an instrumented test (and a human running the smoke test) can see the mechanism recorded
- * the intent while sitting on this screen.
- */
-@Composable
-fun LoginScreen(hasPendingIntent: Boolean, modifier: Modifier = Modifier) {
-    Column(modifier = modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text("Login (placeholder)", style = MaterialTheme.typography.bodyLarge)
-        Text(
-            text = if (hasPendingIntent) "Pending intent recorded" else "No pending intent",
-            style = MaterialTheme.typography.bodyMedium,
-        )
-    }
-}
-
-@Composable
-fun RegisterScreen(hasPendingIntent: Boolean, onOpenLogin: () -> Unit, modifier: Modifier = Modifier) {
-    Column(modifier = modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text("Register (placeholder)", style = MaterialTheme.typography.bodyLarge)
-        Text(
-            text = if (hasPendingIntent) "Pending intent recorded" else "No pending intent",
-            style = MaterialTheme.typography.bodyMedium,
-        )
-        PrimaryButton(text = "Login", onClick = onOpenLogin)
-    }
-}
 
 @Composable
 private fun PlaceholderScreen(text: String, modifier: Modifier = Modifier) {

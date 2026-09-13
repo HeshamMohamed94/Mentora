@@ -10,4 +10,49 @@
     <string name="nav_my_learning">My Learning</string>
     <string name="nav_ai_tutor">AI Tutor</string>
     <string name="nav_profile">Profile</string>
+
+    <!-- T7 — Login/Register screens (ux/SCREEN_UX_SPECS.md §§ 6-7, design-to-code/screens/login.json,
+         design-to-code/screens/register.json). -->
+    <string name="auth_login_title">Log in to Mentora</string>
+    <string name="auth_register_title">Create your Mentora account</string>
+    <string name="auth_email_label">Email</string>
+    <string name="auth_password_label">Password</string>
+    <string name="auth_name_label">Name</string>
+    <string name="auth_login_button">Login</string>
+    <string name="auth_register_button">Create Account</string>
+    <string name="auth_login_secondary_link">New to Mentora? Register</string>
+    <string name="auth_register_secondary_link">Already have an account? Login</string>
+    <string name="auth_show_password">Show password</string>
+    <string name="auth_hide_password">Hide password</string>
+    <string name="auth_email_invalid">Enter a valid email address.</string>
+    <string name="auth_password_weak">Password must be at least 8 characters, with a letter and a number.</string>
+    <string name="auth_password_hint">At least 8 characters, with a letter and a number</string>
+
+    <!-- T7 — the one central ApiErrorCode -> copy map (ui/error/ApiErrorCopy.kt), reused by every
+         later task that renders an API error (Explore, Course Details, ...). Every one of
+         ApiErrorCode's 22 known codes, plus the Unknown fallback (which shares error_internal's
+         copy — see that file's kdoc). -->
+    <string name="error_validation">Please check the highlighted fields and try again.</string>
+    <string name="error_auth_invalid_credentials">Incorrect email or password.</string>
+    <string name="error_auth_token_expired">Your session has expired. Please log in again.</string>
+    <string name="error_auth_token_invalid">Your session is no longer valid. Please log in again.</string>
+    <string name="error_forbidden_role">You don\'t have permission to do that.</string>
+    <string name="error_forbidden_not_owner">You don\'t have permission to access this.</string>
+    <string name="error_forbidden_not_enrolled">You need to enroll in this course first.</string>
+    <string name="error_forbidden_csrf">Your session could not be verified. Please try again.</string>
+    <string name="error_course_not_found">This course could not be found.</string>
+    <string name="error_section_not_found">This section could not be found.</string>
+    <string name="error_lesson_not_found">This lesson could not be found.</string>
+    <string name="error_category_not_found">This category could not be found.</string>
+    <string name="error_quiz_not_found">This quiz could not be found.</string>
+    <string name="error_attempt_not_found">This quiz attempt could not be found.</string>
+    <string name="error_certificate_not_found">This certificate could not be found.</string>
+    <string name="error_learning_path_not_found">This learning path could not be found.</string>
+    <string name="error_media_not_found">This media could not be found.</string>
+    <string name="error_user_not_found">This account could not be found.</string>
+    <string name="error_email_already_registered">An account with this email already exists.</string>
+    <string name="error_category_in_use">This category is still in use and can\'t be removed.</string>
+    <string name="error_rate_limited_auth">Too many attempts. Please wait a moment and try again.</string>
+    <string name="error_rate_limited_ai_tutor">You\'ve reached the AI Tutor limit for now. Please try again shortly.</string>
+    <string name="error_internal">Something went wrong. Please try again.</string>
 </resources>

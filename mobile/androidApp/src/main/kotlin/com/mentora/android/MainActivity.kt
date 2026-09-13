@@ -70,7 +70,7 @@ private fun MentoraRootScreen(app: MentoraApplication) {
                 )
             }
         } else {
-            MentoraNavHost(authState = resolvedState)
+            MentoraNavHost(authState = resolvedState, sdk = app.sdk)
         }
     }
 }

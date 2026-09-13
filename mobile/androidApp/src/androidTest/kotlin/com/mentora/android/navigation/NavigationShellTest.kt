@@ -1,5 +1,6 @@
 package com.mentora.android.navigation
 
+import android.content.Context
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -11,30 +12,72 @@ import androidx.compose.ui.test.performClick
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
+import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.mentora.android.theme.MentoraTheme
 import com.mentora.android.ui.shell.MobileBottomNavigationTestTag
+import com.mentora.shared.MentoraSdk
+import com.mentora.shared.auth.AndroidTokenStorage
 import com.mentora.shared.auth.AuthState
 import com.mentora.shared.auth.Role
 import com.mentora.shared.auth.SessionUser
+import com.mentora.shared.auth.TokenStorage
+import com.mentora.shared.config.ApiEnvironment
+import com.mentora.shared.data.network.defaultHttpClientEngine
+import com.mentora.shared.settings.AndroidPreferenceStore
+import com.mentora.shared.settings.PreferenceStore
+import io.ktor.client.engine.HttpClientEngine
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.koin.dsl.module
 
 /**
  * T6 — the navigation shell's real, testable behaviors, per
  * `execution/PHASE_4_ANDROID_PLAN.md` T6's own test list. Drives [MentoraNavHost] directly with a
  * plain `authState: AuthState` value (a `mutableStateOf<AuthState>` the test flips itself) rather
- * than a real `MentoraSdk` — see `AuthGate.kt`'s kdoc for why that seam exists and is exactly what
- * makes tests 4/5 below possible without `MentoraSdk`'s `internal` constructor getting in the way.
+ * than reading `sdk.auth` for THAT part — see `AuthGate.kt`'s kdoc for why that seam exists and is
+ * exactly what makes tests 4/5 below possible without needing a real, functioning login/register
+ * network round trip.
+ *
+ * T7 fix-up: [MentoraNavHost] now takes a required `sdk: MentoraSdk` (Login/Register's real
+ * credential-form screens need one to construct their `AuthViewModel`). [buildTestSdk] below
+ * constructs one via the public `MentoraSdk.create(...)` factory — the same one
+ * `MentoraApplication.onCreate()` calls — rather than a "fake" (that class's own kdoc: `MentoraSdk`'s
+ * constructor is `internal`, so `:androidApp` cannot construct a mock/fake, only a real instance).
+ * This is safe here because `initKoin` builds a non-global `KoinApplication` (see that function's own
+ * kdoc) and none of the tests below ever tap Login/Register's submit button, so this real `sdk`'s
+ * `auth.login`/`auth.register` never actually fire a network call.
  */
 @RunWith(AndroidJUnit4::class)
 class NavigationShellTest {
 
     @get:Rule
     val composeTestRule = createAndroidComposeRule<ComponentActivity>()
+
+    private lateinit var sdk: MentoraSdk
+
+    @Before
+    fun setUp() {
+        sdk = buildTestSdk()
+    }
+
+    private fun buildTestSdk(): MentoraSdk {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val platformModule = module {
+            single<TokenStorage> { AndroidTokenStorage(context) }
+            single<PreferenceStore> { AndroidPreferenceStore(context) }
+            single<HttpClientEngine> { defaultHttpClientEngine() }
+        }
+        return MentoraSdk.create(
+            environment = ApiEnvironment.androidEmulator(),
+            platformModule = platformModule,
+            enableNetworkLogging = false,
+        )
+    }
 
     private val authenticatedStudent = AuthState.Authenticated(
         SessionUser(id = "u1", email = "ada@example.com", name = "Ada", role = Role.Student, preferredLocale = "en"),
@@ -47,7 +90,7 @@ class NavigationShellTest {
             // so tests that need to flip auth state declare it themselves (see test 4) instead of
             // calling this helper. This helper is for the fixed-auth-state tests (1, 2, 3, 5).
             MentoraTheme {
-                MentoraNavHost(authState = authState)
+                MentoraNavHost(authState = authState, sdk = sdk)
             }
         }
     }
@@ -125,7 +168,7 @@ class NavigationShellTest {
             var authState by mutableStateOf<AuthState>(AuthState.Unauthenticated)
             setAuthState = { authState = it }
             MentoraTheme {
-                MentoraNavHost(authState = authState)
+                MentoraNavHost(authState = authState, sdk = sdk)
             }
         }
 
@@ -138,9 +181,13 @@ class NavigationShellTest {
         composeTestRule.onNodeWithText("Course Details (placeholder): course-1").assertExists()
 
         // Attempting an auth-gated action (Enroll) routes through Login and records the intent.
+        // T7 fix-up: Login is now the real credential-form screen (`ui/auth/LoginScreen.kt`), not the
+        // "Login (placeholder)" / "Pending intent recorded" debug text T6 rendered — asserting the
+        // real title proves the gate landed on the real screen; the actual proof that the pending
+        // intent mechanism itself still works is the assertion below (lands on the ORIGINAL intent,
+        // not a generic Home, once auth state flips).
         composeTestRule.onNodeWithText("Enroll").performClick()
-        composeTestRule.onNodeWithText("Login (placeholder)").assertExists()
-        composeTestRule.onNodeWithText("Pending intent recorded").assertExists()
+        composeTestRule.onNodeWithText("Log in to Mentora").assertExists()
 
         // Simulate the auth state flipping to Authenticated (e.g. a real login call resolving).
         composeTestRule.runOnUiThread { setAuthState(authenticatedStudent) }
@@ -157,7 +204,7 @@ class NavigationShellTest {
             val nc = rememberNavController()
             navController = nc
             MentoraTheme {
-                MentoraNavHost(authState = authenticatedStudent, navController = nc)
+                MentoraNavHost(authState = authenticatedStudent, sdk = sdk, navController = nc)
             }
         }
 
@@ -210,7 +257,7 @@ class NavigationShellTest {
             val nc = rememberNavController()
             navController = nc
             MentoraTheme {
-                MentoraNavHost(authState = authenticatedStudent, navController = nc)
+                MentoraNavHost(authState = authenticatedStudent, sdk = sdk, navController = nc)
             }
         }
 

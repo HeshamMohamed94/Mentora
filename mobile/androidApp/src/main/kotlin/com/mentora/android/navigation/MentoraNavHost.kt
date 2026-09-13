@@ -33,18 +33,19 @@ import com.mentora.android.ui.screens.CoursePlayerScreen
 import com.mentora.android.ui.screens.DemoCheckoutScreen
 import com.mentora.android.ui.screens.ExploreScreen
 import com.mentora.android.ui.screens.HomeScreen
+import com.mentora.android.ui.auth.LoginScreen
+import com.mentora.android.ui.auth.RegisterScreen
 import com.mentora.android.ui.screens.LearningPathDetailsScreen
 import com.mentora.android.ui.screens.LearningPathsScreen
-import com.mentora.android.ui.screens.LoginScreen
 import com.mentora.android.ui.screens.MyLearningScreen
 import com.mentora.android.ui.screens.ProfileScreen
 import com.mentora.android.ui.screens.PurchaseSuccessScreen
 import com.mentora.android.ui.screens.QuizResultsScreen
 import com.mentora.android.ui.screens.QuizScreen
-import com.mentora.android.ui.screens.RegisterScreen
 import com.mentora.android.ui.screens.SettingsScreen
 import com.mentora.android.ui.shell.MentoraTopBar
 import com.mentora.android.ui.shell.MobileBottomNavigation
+import com.mentora.shared.MentoraSdk
 import com.mentora.shared.auth.AuthState
 
 /**
@@ -96,6 +97,7 @@ import com.mentora.shared.auth.AuthState
 @Composable
 fun MentoraNavHost(
     authState: AuthState,
+    sdk: MentoraSdk,
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController(),
 ) {
@@ -209,15 +211,26 @@ fun MentoraNavHost(
             destination.hasRoute<Destination.AiTutor>() ||
             destination.hasRoute<Destination.Profile>()
     } ?: true
+    // T7 fix-up: Login/Register sit OUTSIDE the tab bar with their own minimal logo-only header
+    // (`ux/SCREEN_UX_SPECS.md §§ 6-7`: "no Navbar link row/full app-shell chrome — nothing to
+    // navigate to from a focused auth form"). MentoraTopBar's generic title-plus-back-button chrome
+    // used to render for both anyway (neither is a tab root, so showBackButton fell out `true`) —
+    // that's exactly the "full app-shell/nav chrome" this screen must NOT show; system back (the
+    // device back gesture/button) still works regardless of whether this app-level bar renders.
+    val isAuthRoute = currentDestination?.let { destination ->
+        destination.hasRoute<Destination.Login>() || destination.hasRoute<Destination.Register>()
+    } ?: false
 
     Scaffold(
         modifier = modifier,
         topBar = {
-            MentoraTopBar(
-                title = titleFor(currentDestination),
-                showBackButton = !isTabRoot,
-                onBackClick = { navController.popBackStack() },
-            )
+            if (!isAuthRoute) {
+                MentoraTopBar(
+                    title = titleFor(currentDestination),
+                    showBackButton = !isTabRoot,
+                    onBackClick = { navController.popBackStack() },
+                )
+            }
         },
         bottomBar = {
             val tab = currentTab
@@ -314,11 +327,14 @@ fun MentoraNavHost(
             // Outside the tab bar entirely (ux/NAVIGATION_SPEC.md § 3) — top-level siblings of the
             // 5 tab graphs, reachable from anywhere since the outer graph is always an ancestor.
             composable<Destination.Login> {
-                LoginScreen(hasPendingIntent = pendingNavIntent != null)
+                LoginScreen(
+                    sdk = sdk,
+                    onOpenRegister = { navController.navigate(Destination.Register) },
+                )
             }
             composable<Destination.Register> {
                 RegisterScreen(
-                    hasPendingIntent = pendingNavIntent != null,
+                    sdk = sdk,
                     onOpenLogin = { navController.navigate(Destination.Login) },
                 )
             }
