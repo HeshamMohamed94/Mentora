@@ -88,4 +88,10 @@ dependencies {
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.kotlinx.coroutines.core)
+
+    // Task 5 (component kit A): Compose UI instrumented tests — see libs.versions.toml's comment on
+    // these two entries for why this is androidTest (real device), not Robolectric.
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
 }

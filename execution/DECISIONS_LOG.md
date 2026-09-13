@@ -1210,3 +1210,54 @@ androidTest runner deps). `mobile/shared/` untouched; `:shared:testDebugUnitTest
 one Phase 3 limitation explicitly assigned to Phase 4 (`PHASE_HANDOFF.md`'s "no Robolectric, no
 instrumented test yet" note). Next: Task 5 (Core component kit A).
 
+### D80 — 2026-09-13 — PHASE 4 Task 5: icon set ported from Web rather than adding a real Material
+Symbols asset; reviewer pixel-measurement pass found and fixed a HIGH loading/disabled color bug
+
+**Decision — icon source (G8 executed).** No Material Symbols Rounded asset (the design system's
+canonical icon language) exists anywhere in this repo, and this environment cannot download one.
+Rather than blocking on that or inventing a different icon system, all ~42 icons from
+`web/src/components/ui/icon.tsx` (itself a disclosed hand-drawn placeholder for the same missing
+asset, per that file's own header comment) were ported 1:1 to Compose `ImageVector`s via
+`PathParser`, preserving the exact path data, `strokeWidth 1.6`, round cap/join, and 24×24 viewBox.
+**Why accepted:** this keeps Web and Android visually identical (the locked visual-parity rule) and
+inherits, rather than creates, the already-disclosed icon-fidelity gap — both platforms swap to the
+real Material Symbols font later behind the same stable API (`MentoraIcon(name, ...)` on Android,
+`Icon` on Web), with zero call-site changes needed on either side.
+
+**Decision — a reviewer + pixel-measurement fix cycle was run before commit, given this is
+foundational code every later Phase 4 screen depends on.** The reviewer used real
+`captureToImage().toPixelMap()` and `getBoundsInRoot()` measurements on the actual rendered
+composables (on the `Chatting_Pixel_8_API_36` emulator) rather than code-reading alone, and found a
+genuine HIGH-severity bug: `MentoraButton`'s `loading` state computed its color palette from
+`enabled && !loading` combined, which silently took the *disabled* branch — every submit button
+in the app (Login, Register, Checkout, ...) would have shown a near-invisible ~38%-alpha spinner on
+a washed-out container instead of the spec's normal container + full-opacity spinner. Fixed by
+separating the two concerns: `enabled` alone drives color selection, `enabled && !loading` continues
+to drive only the interaction/clickable gate. Also found and fixed, all pixel/geometry-measured
+before and after: disabled `Select` text not dimmed to `text.disabled`; `Select` dropping
+`typography.body.medium`'s non-size properties (family/letterSpacing/lineHeight, including the
+Arabic-specific adjustments) plus missing 1-line truncation (measured: a 57-char value grew the
+field 64dp→77dp before the fix); three controls (`TextButton`, `CategoryChip`, `Select`'s option
+row) below Android's 48dp accessibility touch-target minimum despite correct visual sizing; `Tabs`'
+44dp row height silently overflowed by its children's real 48dp minimum (resolved to a disclosed
+48dp, not a broken 44dp); `IconButton`'s focus ring using `text.primary` instead of the locked
+`border.focus` token; disabled `TextField` label/supporting-text using `text.secondary` instead of
+`text.disabled`; error text not semantically linked (`semantics { error(...) }`) for screen readers.
+
+**Disclosed, not fixed this pass:** `MentoraTextField`/`MentoraSelect`'s real rendered height is a
+measured 64dp, not the spec's 52dp — M3's `OutlinedTextField` has no lower floor reachable without
+a custom `BasicTextField`+`DecorationBox` rebuild, which is a larger change than this fix-up
+warranted; the kdoc now states the real number so a future task doesn't have to re-discover it.
+`ExposedDropdownMenu`'s corner radius defaults to `shapes.extraSmall` (8dp) instead of the spec's
+`radius.medium` (12dp) — a real M3 1.3.1 API limitation (no exposed `shape` param), left as-is.
+
+**Why accepted:** every fix was itself pixel/geometry re-measured after the change (not just
+re-read), on the real emulator, before being reported done. No `shared` change was needed.
+
+**Impact:** `mobile/androidApp/**` only (`ui/components/**`, `theme/MentoraDimens.kt`,
+`theme/MentoraTheme.kt`, new `theme/MentoraMotion.kt`, test files under `src/test/`/`src/androidTest/`).
+`mobile/shared/` untouched; `:shared:testDebugUnitTest` still 249/249.
+`:androidApp:connectedDebugAndroidTest` 13/13 on the real emulator. `SearchField` was built in this
+task (not its originally-planned Task 8 slot per the plan doc) — Task 8 should reuse it, not rebuild
+it. Next: Task 6 (navigation shell).
+

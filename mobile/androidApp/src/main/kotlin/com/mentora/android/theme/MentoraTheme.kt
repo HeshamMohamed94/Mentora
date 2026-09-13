@@ -35,7 +35,29 @@ import androidx.compose.ui.unit.sp
 
 /** success/warning/info colors — the one visual-semantic group Material3's ColorScheme has no
  *  built-in slot for. Accessed via [MaterialTheme.extendedColors], mirroring the built-in
- *  `MaterialTheme.colorScheme` accessor convention. */
+ *  `MaterialTheme.colorScheme` accessor convention.
+ *
+ *  [primaryPressed]/[chipScrim]/[onSurfaceInverse] were added in Task 5 (component kit A) for the
+ *  same reason as success/warning/info: each is a real generated constant in
+ *  [MentoraColorsLight]/[MentoraColorsDark] (`brandPrimaryPressed`, `overlayChipScrim`,
+ *  `brandOnSurfaceInverse`) that platform-contract.json's `colorSchemeMapping` never wires into a
+ *  Material3 `ColorScheme` slot (there is no slot for a distinct "pressed" container color, a
+ *  second scrim tone, or a text-on-inverse-surface brand tone), so no `MaterialTheme.colorScheme.*`
+ *  accessor can reach them. Extending this existing CompositionLocal — rather than adding a new one
+ *  or reading `MentoraColorsLight`/`Dark` directly by re-deriving "is dark theme active" inside a
+ *  component — keeps exactly one accessor idiom for "theme-current value with no ColorScheme slot"
+ *  and keeps every component in this task's kit reading colors only through
+ *  `MaterialTheme.colorScheme`/`MaterialTheme.extendedColors`, never a raw token object.
+ *  - `primaryPressed`: PrimaryButton's Pressed state (`COMPONENTS.md` § PrimaryButton) is an
+ *    explicit distinct color (`color.brand.primaryPressed`), not an opacity overlay like
+ *    Secondary/Tonal/Text buttons' pressed states (which ARE derived via `stateOpacities.pressed`
+ *    over an existing ColorScheme color and need no new accessor).
+ *  - `chipScrim`: CategoryChip's "on image overlay" variant (`COMPONENTS.md` § CategoryChip) uses
+ *    `color.overlay.chipScrim`, a second overlay tone distinct from `color.overlay.scrim` (already
+ *    mapped to `ColorScheme.scrim`).
+ *  - `onSurfaceInverse`: Snackbar's action `TextButton` (`COMPONENTS.md` § Snackbar) uses
+ *    `color.brand.onSurfaceInverse`, "a token defined specifically for a brand-colored action on
+ *    surface.inverse" per that section's own note. */
 data class MentoraExtendedColors(
     val success: Color,
     val successContainer: Color,
@@ -49,6 +71,9 @@ data class MentoraExtendedColors(
     val infoContainer: Color,
     val onInfo: Color,
     val onInfoContainer: Color,
+    val primaryPressed: Color,
+    val chipScrim: Color,
+    val onSurfaceInverse: Color,
 )
 
 private val LightExtendedColors = MentoraExtendedColors(
@@ -64,6 +89,9 @@ private val LightExtendedColors = MentoraExtendedColors(
     infoContainer = MentoraColorsLight.infoContainer,
     onInfo = MentoraColorsLight.infoOnInfo,
     onInfoContainer = MentoraColorsLight.infoOnInfoContainer,
+    primaryPressed = MentoraColorsLight.brandPrimaryPressed,
+    chipScrim = MentoraColorsLight.overlayChipScrim,
+    onSurfaceInverse = MentoraColorsLight.brandOnSurfaceInverse,
 )
 
 private val DarkExtendedColors = MentoraExtendedColors(
@@ -79,6 +107,9 @@ private val DarkExtendedColors = MentoraExtendedColors(
     infoContainer = MentoraColorsDark.infoContainer,
     onInfo = MentoraColorsDark.infoOnInfo,
     onInfoContainer = MentoraColorsDark.infoOnInfoContainer,
+    primaryPressed = MentoraColorsDark.brandPrimaryPressed,
+    chipScrim = MentoraColorsDark.overlayChipScrim,
+    onSurfaceInverse = MentoraColorsDark.brandOnSurfaceInverse,
 )
 
 val LocalMentoraExtendedColors = staticCompositionLocalOf { LightExtendedColors }

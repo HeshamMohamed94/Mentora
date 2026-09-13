@@ -112,6 +112,14 @@ androidx-activity-compose = { module = "androidx.activity:activity-compose", ver
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "androidxCoreKtx" }
 # Task 4: see androidxLifecycle's version comment above.
 androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "androidxLifecycle" }
+# Task 5 (component kit A): Compose UI instrumented tests (Button/TextField/PasswordField/Select/
+# Tabs) — no Robolectric/Compose-testing setup existed before this task (verified: Tasks 1-4 only
+# ever added plain JUnit4 `testDebugUnitTest` + real-device `connectedDebugAndroidTest` for
+# Keystore, per `AndroidTokenStorageInstrumentedTest`'s own kdoc). These follow that same
+# real-device-instrumented convention rather than introducing Robolectric as a second, new test
+# framework. Both versions come from the already-declared `composeBom` platform, no version.ref.
+androidx-compose-ui-test-junit4 = { module = "androidx.compose.ui:ui-test-junit4" }
+androidx-compose-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest" }
 
 [plugins]
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
