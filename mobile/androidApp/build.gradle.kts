@@ -93,6 +93,11 @@ dependencies {
     implementation(libs.koin.android)
     implementation(libs.koin.androidx.compose)
 
+    // Task 8 (component kit B): CourseThumbnail loads a real thumbnailUrl via Coil, falling back to
+    // the governed motif/gradient artwork system on load failure — see gradle/libs.versions.toml's
+    // coil comment for the version choice.
+    implementation(libs.coil.compose)
+
     // Task 2: MentoraTokens.kt drift test — parses design-tokens.json/theme-*.json directly at
     // test time and compares against the generated Kotlin constants (JUnit4, the AGP
     // testDebugUnitTest default; kotlinx-serialization-json is already in this catalog for

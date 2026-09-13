@@ -73,6 +73,16 @@ skie = "0.9.5"
 # `kotlinx-serialization-core` dependency below, newly applied to this module for the same reason.
 androidxNavigation = "2.8.3"
 
+# Task 8 (component kit B — CourseThumbnail): Coil is the standard Compose image-loading library;
+# no equivalent already exists in this module. Pinned to 2.7.0 — the last Coil 2.x (Android/JVM-only,
+# matching this plain-Android :androidApp module, not the Coil 3.x multiplatform line which :shared
+# would need instead) stable release, contemporaneous with this catalog's `composeBom = "2024.10.01"`
+# (Coil 2.7.0 published 2024-08-14, well before that BOM's 2024-10-30 cut, and its own Compose UI
+# dependency floor is comfortably below this project's Compose BOM version) — a stable release per
+# this catalog's own "no alpha/beta pins" policy (see androidxDatastore's comment above for that
+# policy's precedent).
+coil = "2.7.0"
+
 [libraries]
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinxDatetime" }
@@ -138,6 +148,9 @@ androidx-navigation-compose = { module = "androidx.navigation:navigation-compose
 # runtime at compile+run time — same version as :shared's own kotlinx-serialization-json (no new
 # version introduced), just the `-core` artifact this module didn't previously depend on directly.
 kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kotlinxSerialization" }
+
+# Task 8 (component kit B — CourseThumbnail): see coil's version comment above.
+coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coil" }
 
 [plugins]
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }

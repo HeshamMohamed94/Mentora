@@ -1321,3 +1321,78 @@ emulator, run twice. Next: Task 7 (Login/Register screens) — the graph/routes/
 already exist and are verified; Task 7 replaces placeholder composables only, it should not need to
 touch `MentoraNavHost.kt`'s graph structure.
 
+### D82 — 2026-09-13 — PHASE 4 Task 8: two more HIGH foundational-kit bugs found and fixed; one
+finding (dialog scrim) required 3 fix attempts and 3 independent re-verifications before it was
+genuinely correct
+
+**Decision — a card layout bug and a theming bug were found and fixed, both foundational (every
+later screen consumes `CourseCard`/`AppDialog`/`MentoraBottomSheet`).** (1) `CourseCard`/
+`CourseProgressCard` had no self-determined height — in any bounded-height container (a 2-up grid
+`Row`, a `LazyRow` carousel, a plain non-scrolling `Column`) the card expanded to fill the entire
+available height, pushing its title/instructor/CTA off-screen; fixed by making the 16:9 thumbnail
+area genuinely self-size via `fillMaxWidth().aspectRatio(...)` instead of inheriting an unbounded
+parent height. (2) `AppDialog`/`MentoraBottomSheet`/`CourseCard` rendered a visible lavender tonal
+wash instead of the spec'd `surface.elevated`/`surface.default`, because `MentoraTheme` deliberately
+leaves `surfaceTint` unmapped to a neutral value (defaults to M3's `primary`), and any nonzero
+`tonalElevation` on an M3 `Surface` composites that tint onto the surface color; fixed by switching
+to `shadowElevation`/borders, this kit's own already-established "borders over shadow" pattern.
+Neither bug was caught by the delivered test suite on first pass — both were only caught by a
+reviewer using real pixel/bounds measurement (`captureToImage`, `getBoundsInRoot`) on the actual
+device, the same rigor D80 (Task 5) established was necessary for this kind of foundational,
+widely-reused Compose code.
+
+**Decision — the `AppDialog` scrim-color finding was chased through 3 fix attempts and 3
+independent re-verifications, not accepted on the first (or second) self-report.** Attempt 1
+(`DialogProperties(usePlatformDefaultWidth = false)`) did nothing to Android's own default ~60%-black
+window dim (that property only affects sizing) — measured 57-60% too dark in both themes via a real
+full-screen device screenshot. The implementer's own self-check had used `captureToImage()` on the
+dialog's OWN tagged Compose node, which is structurally blind to a residual dim on the window BEHIND
+it — a tautological "pass" that can never fail regardless of the real on-screen result. Attempt 2
+made the same self-verification mistake and was independently disproven the same way, to the same
+measured values. **Attempt 3** — obtaining the real `Window` via `(LocalView.current.parent as
+DialogWindowProvider).window` in a `SideEffect` and calling `setDimAmount(0f)`, plus
+`DialogProperties(decorFitsSystemWindows = false)` (the channel Compose's `AndroidDialog_androidKt`
+actually respects — a raw `WindowCompat` call was found to be silently overridden) plus
+`FLAG_LAYOUT_NO_LIMITS` (needed for the dialog's own WindowManager-allocated frame to actually extend
+under the system status/nav bars, confirmed via `adb shell dumpsys window windows`), together with a
+rewritten test using genuine `UiAutomation.takeScreenshot()` full-screen capture instead of the
+tautological node-capture — measured within ~3 units of the token value in both themes, across the
+general scrim area AND the status/nav-bar strips. An independent Codex second-opinion pass (invoked
+per the routing policy's "the review found serious or uncertain issues" criterion — this exact
+finding had, twice) confirmed the steady-state mechanism is now genuinely correct, structurally
+sound, and not another tautology.
+
+**Disclosed, not fixed — a 4th attempt was not pursued.** Codex's own review of attempt 3 surfaced a
+narrower residual concern: the window-correcting `SideEffect` runs after Compose's `Dialog` has
+already been shown, so a brief over-dimmed flash during the dialog's OPEN transition (before that
+first post-composition effect fires) is theoretically possible and not disproven — only the
+steady-state color (what a user sees for the duration the dialog stays open, which is the vast
+majority of its visible lifetime) was actually re-verified as correct. Accepted rather than chasing
+a 4th fix/re-verification round: the steady-state defect (the one that actually shipped, twice) is
+now genuinely closed, and a sub-frame open-transition flash is a materially smaller, cosmetic-only
+concern with no data-integrity or security dimension — consistent with this project's standing
+practice of disclosing a residual limitation rather than pursuing unbounded perfection on a single
+component.
+
+**Also fixed, lower severity:** a factually-backwards reduced-motion platform claim in
+`SuccessState.kt`'s kdoc (corrected to state Compose's own animations already respect the system
+animator-duration-scale setting automatically — a documentation fix, not a behavior change);
+`AppDialog`'s actions row was right-aligned when the locked spec requires full-width-stacked
+specifically on mobile (the kdoc had the two spec branches backwards — Android IS the mobile
+platform here); a hard 2-line description clamp on `EmptyState`/`SuccessState` contradicting the
+locked "wraps freely, never truncated" rule (removed, now consistent with the already-correct
+`ErrorState`); two missing single-line clamps (`CourseCard` instructor name, `StatCard` label) the
+spec requires for grid-rhythm reasons.
+
+**Why accepted:** every fix (except the disclosed open-transition flash) was re-measured on the real
+`Chatting_Pixel_8_API_36` emulator after the change, using the same measurement class that caught
+the original defect — not re-read code alone. No `shared`/`design-to-code`/`design-system` change was
+needed or made.
+
+**Impact:** `mobile/androidApp/**` only (`ui/components/*` — `CourseArtwork`, `CourseCard`, `AppDialog`,
+`MentoraBottomSheet`, `SuccessState`, `EmptyState`, `StatCard`, plus new test files) and
+`mobile/gradle/libs.versions.toml` (Coil 2.7.0). `mobile/shared/` untouched; `:shared:testDebugUnitTest`
+still 249/249. `:androidApp:connectedDebugAndroidTest` 65/65 on the real emulator. Next: Task 9
+(Explore + Learning Paths segment) — reuse `SearchField`/`ApiErrorCopy`/`CourseCard`/`CourseArtwork`/
+`CategoryChip`/state-pattern components, do not rebuild any of them.
+
