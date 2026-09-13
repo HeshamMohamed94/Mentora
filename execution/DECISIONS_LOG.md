@@ -1143,3 +1143,70 @@ unilaterally.
 updated (Phase 4 → IN_PROGRESS, resume point, new "PHASE 4 — Task Breakdown" table, all 20 tasks
 NOT STARTED). Next: Task 1 (`:androidApp` module scaffold).
 
+### D79 — 2026-09-13 — PHASE 4 Task 4: G1/G2 resolutions implemented; two independent review passes
+found and fixed real bugs, including a HIGH-severity gap (missing `INTERNET` permission) the primary
+review missed
+
+**Decision — G1/G2 implemented as planned.** `MentoraApplication` constructs and retains exactly one
+`AndroidPreferenceStore` instance itself, hands that same instance to Koin as the `PreferenceStore`
+binding (never calling `platformModule(context)`, which would construct a second, app-inaccessible
+instance), and reads it directly via `ThemeController` since `UserFacade.setTheme` is write-only in
+`shared`. First-run locale seeding (`LocaleController`) uses its own dedicated `SharedPreferences`
+file, fully separate from `shared`'s own storage, so a real user's later language choice is never
+silently re-seeded.
+
+**Decision — bootstrap ownership moved from Activity/Compose scope to `MentoraApplication`'s
+application scope.** The original implementation called `sdk.auth.restoreSession()` from
+`AppSessionViewModel.init` (Activity-scoped) and ran locale seeding independently. An Opus review
+found this allowed a real bug: a second `AppSessionViewModel` instance (created whenever the user
+re-enters the app after backgrounding) would re-run `restoreSession()`, which unconditionally
+overwrites `SessionManager`'s state, downgrading an already-known `Authenticated(user=nonNull)` back
+to `Authenticated(user=null)` and triggering a visible flash plus a redundant `getProfile()` call —
+and a related second bug where the locale-seed flag was written via async `SharedPreferences.apply()`
+with no auth-state guard, risking a lost write on process death that would cause the seed to re-run
+later and overwrite (both locally and via a real `PATCH /users/me`) a real authenticated user's
+deliberate language choice. A follow-up Codex review (run because this code touches session/token
+security) confirmed the fix direction but found the guard-based fix was not fully atomic against a
+theoretical concurrent-Activity-instance race. **Resolved categorically, not just patched**: session
+restoration now runs exactly once, from a single `CoroutineScope(SupervisorJob() + Dispatchers.Default)`
+held by `MentoraApplication` itself, sequenced strictly before locale seeding in the same coroutine.
+Neither `AppSessionViewModel` nor any Composable calls `restoreSession()` or the locale controller
+directly any more — they only observe state. This removes the race by removing its precondition
+(multiple call sites) rather than adding more guards around multiple call sites.
+
+**Decision — real, disclosed environmental limitation, not fabricated.** Codex flagged that a release
+build variant would hardcode `ApiEnvironment.androidEmulator()`, which cannot work outside a debug
+build (no cleartext exception, wrong host). No production backend exists anywhere in this project
+(Phases 1-3 never deployed one either), so rather than inventing a fake HTTPS endpoint, the
+environment selection is now explicitly `BuildConfig.DEBUG`-gated with both branches still resolving
+to the emulator URL and a code comment stating plainly that a real release build needs a real
+`ApiEnvironment.custom(url)` once a production backend exists. This mirrors this project's standing
+practice (e.g. the iOS/SKIE Windows-host limitation) of disclosing an environmental fact rather than
+silently working around it or fabricating something that doesn't exist.
+
+**Genuine catch worth recording on its own: the app manifest was completely missing
+`android.permission.INTERNET`.** Neither the main nor debug manifest declared it. This went
+undetected by the Opus review and by the implementer's own "real backend cold-start verification"
+claim in the original Task 4 report, because `restoreSession()` short-circuits to `Unauthenticated`
+locally when no tokens are stored — the verification never actually reached the network, so a
+completely non-functional networking stack looked identical to a working one at that checkpoint. The
+independent Codex review (run specifically because this task is security-sensitive) caught it. Fixed
+and verified end-to-end: added the permission, then made a real (temporary, removed before finishing)
+call to `sdk.catalog.listCategories()` against the live local backend and confirmed real category
+data returned over logcat, before removing the temporary probe.
+
+**Why accepted:** every fix is minimal and targeted at the specific finding, verified by rebuilding,
+re-running the full gate (`:androidApp:assembleDebug`/`testDebugUnitTest`, `:shared:testDebugUnitTest`
+unchanged at 249/249, `:androidApp:connectedDebugAndroidTest` 3/3 on the real
+`Chatting_Pixel_8_API_36` emulator) and a fresh cold-start smoke test after each round. No `shared`
+change was needed or made for any of this.
+
+**Impact:** `mobile/androidApp/**` only (`AndroidManifest.xml`, `MentoraApplication.kt`,
+`session/AppSessionViewModel.kt`, `locale/LocaleController.kt`, `theme/ThemeController.kt`,
+`MainActivity.kt`, `theme/MentoraTheme.kt`, `build.gradle.kts`) plus
+`mobile/gradle/libs.versions.toml` (`androidx-core-ktx`, `androidx-lifecycle-viewmodel-compose`,
+androidTest runner deps). `mobile/shared/` untouched; `:shared:testDebugUnitTest` still 249/249. New
+`AndroidTokenStorageInstrumentedTest` (3 tests, real Keystore, passing on a real emulator) closes the
+one Phase 3 limitation explicitly assigned to Phase 4 (`PHASE_HANDOFF.md`'s "no Robolectric, no
+instrumented test yet" note). Next: Task 5 (Core component kit A).
+

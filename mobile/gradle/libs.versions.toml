@@ -24,6 +24,19 @@ multiplatformSettings = "1.3.0"
 composeBom = "2024.10.01"
 androidxActivityCompose = "1.9.3"
 
+# Task 4 (F5 fix-up): LocaleController directly imports androidx.core.os.LocaleListCompat, which
+# previously resolved only transitively via activity-compose — matching this catalog's convention
+# (see androidxLifecycle's comment below) of an explicit entry for every directly-used library.
+# Pinned to the version already resolved transitively (verified via
+# `.\gradlew.bat :androidApp:dependencies`) rather than guessed.
+androidxCoreKtx = "1.13.1"
+
+# Task 4: AppSessionViewModel (session-state bootstrap plumbing) needs a plain ViewModel +
+# viewModelScope + Compose's viewModel() collection helper. Already present transitively (via
+# activity-compose) at 2.9.0 — pinned explicitly here since this module directly imports its APIs,
+# matching this catalog's convention of an explicit entry for every directly-used library.
+androidxLifecycle = "2.9.0"
+
 # Task 4 (TokenStorage): androidx.security:security-crypto's EncryptedSharedPreferences was
 # evaluated and rejected — it has sat at 1.1.0-alpha06 with no stable release for years, which
 # this catalog's policy of pinning every other dependency to a stable release (Ktor 3.0.1,
@@ -35,6 +48,13 @@ androidxDatastore = "1.1.1"
 # Task 2 (:androidApp theme token drift test): AGP's testDebugUnitTest task runs against JUnit4
 # by default — same convention as every other Android app module, not a new testing framework.
 junit = "4.13.2"
+
+# Task 4 (Part D): the real-Keystore instrumented test needs to run as connectedDebugAndroidTest
+# on a real device/emulator (not the JVM-only testDebugUnitTest surface) — androidx.test's runner +
+# JUnit4 integration are the minimal artifacts for that. Test-only (androidTestImplementation),
+# nothing production.
+androidxTestJunit = "1.2.1"
+androidxTestRunner = "1.6.2"
 
 # Task 15: SKIE (Swift Kotlin Interface Enhancer) generates idiomatic Swift bindings (sealed
 # classes -> Swift enums, suspend fun -> async/await, Flow -> AsyncSequence) for the public
@@ -75,6 +95,10 @@ kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotl
 # Task 2 (:androidApp theme token drift test): plain JUnit4, the AGP unit-test-task default.
 junit = { module = "junit:junit", version.ref = "junit" }
 
+# Task 4 (Part D): see androidxTestJunit/androidxTestRunner's version comment above.
+androidx-test-ext-junit = { module = "androidx.test.ext:junit", version.ref = "androidxTestJunit" }
+androidx-test-runner = { module = "androidx.test:runner", version.ref = "androidxTestRunner" }
+
 # Task 1 (:androidApp): Compose BOM — see composeBom's version comment above for why a same-era
 # BOM was chosen instead of chasing strict Kotlin-compiler-version compatibility (no longer a thing
 # post-Kotlin-2.0). ui/material3/ui-tooling-preview versions all come from this BOM (no explicit
@@ -84,6 +108,10 @@ androidx-compose-ui = { module = "androidx.compose.ui:ui" }
 androidx-compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview" }
 androidx-compose-material3 = { module = "androidx.compose.material3:material3" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidxActivityCompose" }
+# Task 4 (F5 fix-up): see androidxCoreKtx's version comment above.
+androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "androidxCoreKtx" }
+# Task 4: see androidxLifecycle's version comment above.
+androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "androidxLifecycle" }
 
 [plugins]
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }

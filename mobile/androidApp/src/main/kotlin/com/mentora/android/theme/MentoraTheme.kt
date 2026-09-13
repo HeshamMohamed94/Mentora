@@ -236,22 +236,26 @@ private val MentoraShapes: Shapes = Shapes(
  * a raw `MaterialTheme { }` so colors/typography/shapes always resolve from the generated design
  * tokens, never Material3's own baseline palette/type scale.
  *
- * Arabic-script detection currently reads the system configuration's active locale — this is a
- * structurally-correct placeholder for Task 4's app-owned locale/theme bootstrap (G1/G2 in
- * PHASE_4_ANDROID_PLAN.md § 6), which will thread the user's chosen in-app UI locale through
- * instead of relying on the device's system locale.
+ * [darkTheme]/[arabicScript] both default to a device-derived placeholder (`isSystemInDarkTheme()`/
+ * the system configuration's active locale) so `@Preview` call sites (`TokenSwatchPreview.kt`) and
+ * any other caller with no real preference source yet keep working unchanged. **Task 4's real app
+ * call site (`MainActivity`) passes both explicitly** — `darkTheme` from `theme.ThemeController`
+ * (which owns the app's actual `ThemePreference`, since `UserFacade.setTheme` has no read-back path
+ * — see that class's kdoc, G1) and `arabicScript` from `sdk.user.observeLocale()`'s current value
+ * (`AppLocale.Arabic`) via `locale.LocaleController`'s bootstrap, not this default — the app's own
+ * chosen in-app UI locale is the correct source of truth for script selection, not necessarily the
+ * device's system locale (G2).
  */
 @Composable
 fun MentoraTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
+    arabicScript: Boolean = LocalConfiguration.current.locales.get(0)?.language == "ar",
     content: @Composable () -> Unit,
 ) {
     val colorScheme = if (darkTheme) mentoraDarkColorScheme() else mentoraLightColorScheme()
     val extendedColors = if (darkTheme) DarkExtendedColors else LightExtendedColors
     val stateOpacities = if (darkTheme) DarkStateOpacities else LightStateOpacities
 
-    val configuration = LocalConfiguration.current
-    val arabicScript = configuration.locales.get(0)?.language == "ar"
     val typography = mentoraTypography(
         fontFamily = if (arabicScript) MentoraArabicFontFamily else FontFamily.Default,
         arabicScript = arabicScript,
