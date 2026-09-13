@@ -7,13 +7,17 @@ directory yet — that's Phase 4/5's job. See `execution/PHASE_3_KMP_PLAN.md` fo
 plan this module was built from, and `mobile/shared/README.md` for module-level (package layout,
 façade, platform-consumption) documentation.
 
+Phase 4 (Android) Task 1 has since added a bare `:androidApp` module scaffold — see
+`execution/PHASE_4_ANDROID_PLAN.md` for the full 20-task Phase 4 plan; this README's "Layout" section
+below reflects the scaffold, not yet any real screens.
+
 ## What this is
 
 `mobile/` is its own **independent Gradle root** (`rootProject.name = "mentora-mobile"`, its own
 Gradle wrapper), a **sibling build to `backend/` and `web/`** — not a composite/multi-module build
 with either of them. The three share only a wire contract (`execution/INTEGRATION_CONTRACT.md`),
-never compiled code. `mobile/settings.gradle.kts` currently declares exactly one subproject,
-`:shared` (`:androidApp`/`:iosApp` are added later, in Phase 4/5 respectively).
+never compiled code. `mobile/settings.gradle.kts` declares two subprojects, `:shared` and
+`:androidApp` (`:iosApp` is added later, in Phase 5).
 
 ## Prerequisites
 
@@ -101,22 +105,27 @@ for the full account.
 
 ```
 mobile/
-├── settings.gradle.kts          rootProject.name = "mentora-mobile"; include(":shared")
+├── settings.gradle.kts          rootProject.name = "mentora-mobile"; include(":shared", ":androidApp")
 ├── build.gradle.kts              plugin aliases, apply false
 ├── gradle.properties             kotlin.native.ignoreDisabledTargets=true, android.useAndroidX=true
-├── gradle/libs.versions.toml      version catalog (Kotlin/AGP/Ktor/serialization/datetime/coroutines/Koin)
+├── gradle/libs.versions.toml      version catalog (Kotlin/AGP/Ktor/serialization/datetime/coroutines/Koin/Compose)
 ├── gradlew / gradlew.bat / gradle/wrapper/
 ├── local.properties               GITIGNORED — sdk.dir (create this yourself, see Prerequisites)
 ├── .gitignore
-└── shared/                        the one KMP module — see mobile/shared/README.md
-    ├── build.gradle.kts
+├── shared/                        the one KMP module — see mobile/shared/README.md
+│   ├── build.gradle.kts
+│   └── src/
+│       ├── commonMain/            domain models, use cases, networking, auth/session, façade — all platforms
+│       ├── commonTest/            MockEngine + fakes, offline/deterministic
+│       ├── androidMain/           actual TokenStorage/PreferenceStore, OkHttp engine, Koin androidModule
+│       ├── androidUnitTest/       plain-JVM tests incl. the isolated LiveBackendIntegrationTest
+│       └── iosMain/               actual TokenStorage (Keychain)/PreferenceStore, Darwin engine — NOT
+│                                   wired into the build on this Windows host (see iOS limitation above)
+└── androidApp/                    the Android application module — Phase 4, see execution/PHASE_4_ANDROID_PLAN.md
+    ├── build.gradle.kts           application + Kotlin Android + Compose compiler plugins; depends on :shared
     └── src/
-        ├── commonMain/            domain models, use cases, networking, auth/session, façade — all platforms
-        ├── commonTest/            MockEngine + fakes, offline/deterministic
-        ├── androidMain/           actual TokenStorage/PreferenceStore, OkHttp engine, Koin androidModule
-        ├── androidUnitTest/       plain-JVM tests incl. the isolated LiveBackendIntegrationTest
-        └── iosMain/               actual TokenStorage (Keychain)/PreferenceStore, Darwin engine — NOT
-                                    wired into the build on this Windows host (see iOS limitation above)
+        ├── main/                  MainActivity (bare placeholder screen, Task 1), manifest, res/
+        └── debug/                 debug-only network security config (cleartext to 10.0.2.2 only)
 ```
 
 ## Further reading

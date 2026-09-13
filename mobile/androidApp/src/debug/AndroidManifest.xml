@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Debug-variant-only manifest override. Merges android:networkSecurityConfig onto <application> for
+    debug builds only — release builds never merge this file, so they never get any cleartext
+    exception. Deliberately does NOT set android:usesCleartextTraffic anywhere; the network security
+    config below scopes cleartext permission to a single host (the emulator's host-loopback alias),
+    not the whole app.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application android:networkSecurityConfig="@xml/network_security_config" />
+
+</manifest>

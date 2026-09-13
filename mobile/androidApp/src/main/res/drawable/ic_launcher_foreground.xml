@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Placeholder app-icon foreground — a simple centered "M" mark, replaced by the real Mentora
+     icon in a later task. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M32,74 L32,34 L44,34 L54,58 L64,34 L76,34 L76,74 L66,74 L66,50 L57,74 L51,74 L42,50 L42,74 Z" />
+</vector>

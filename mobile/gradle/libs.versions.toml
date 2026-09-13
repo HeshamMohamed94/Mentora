@@ -13,6 +13,17 @@ koin = "4.1.0"
 
 multiplatformSettings = "1.3.0"
 
+# Task 1 (:androidApp scaffold): Compose is wired via the Kotlin 2.0+ K2 compiler plugin
+# (org.jetbrains.kotlin.plugin.compose) rather than the pre-2.0 composeOptions.
+# kotlinCompilerExtensionVersion mechanism, which no longer applies. The plugin's own version
+# tracks the Kotlin Gradle plugin version 1:1 (see `kotlin-compose` below, version.ref = kotlin).
+# composeBom pins a BOM release contemporaneous with Kotlin 2.0.21 (Oct 2024) — with the compiler
+# now bundled into the Kotlin toolchain, the strict BOM/Kotlin compatibility matrix that existed
+# pre-2.0 no longer applies, but a same-era BOM keeps every Compose artifact resolved from it
+# (ui/material3/ui-tooling-preview) verified-compatible with this Kotlin version.
+composeBom = "2024.10.01"
+androidxActivityCompose = "1.9.3"
+
 # Task 4 (TokenStorage): androidx.security:security-crypto's EncryptedSharedPreferences was
 # evaluated and rejected — it has sat at 1.1.0-alpha06 with no stable release for years, which
 # this catalog's policy of pinning every other dependency to a stable release (Ktor 3.0.1,
@@ -45,6 +56,10 @@ ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" }
 
 koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin" }
 koin-test = { module = "io.insert-koin:koin-test", version.ref = "koin" }
+# Task 1 (:androidApp): pinned to the SAME koin = "4.1.0" already used by :shared's koin-core —
+# deliberately not a second Koin version.
+koin-android = { module = "io.insert-koin:koin-android", version.ref = "koin" }
+koin-androidx-compose = { module = "io.insert-koin:koin-androidx-compose", version.ref = "koin" }
 
 multiplatform-settings = { module = "com.russhwolf:multiplatform-settings", version.ref = "multiplatformSettings" }
 multiplatform-settings-coroutines = { module = "com.russhwolf:multiplatform-settings-coroutines", version.ref = "multiplatformSettings" }
@@ -53,9 +68,28 @@ androidx-datastore-preferences = { module = "androidx.datastore:datastore-prefer
 
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 
+# Task 1 (:androidApp): Compose BOM — see composeBom's version comment above for why a same-era
+# BOM was chosen instead of chasing strict Kotlin-compiler-version compatibility (no longer a thing
+# post-Kotlin-2.0). ui/material3/ui-tooling-preview versions all come from this BOM (no explicit
+# version.ref on those three).
+androidx-compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeBom" }
+androidx-compose-ui = { module = "androidx.compose.ui:ui" }
+androidx-compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview" }
+androidx-compose-material3 = { module = "androidx.compose.material3:material3" }
+androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidxActivityCompose" }
+
 [plugins]
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+# Task 1 (:androidApp): plain Kotlin/JVM-on-Android plugin (androidApp is not a KMP module, unlike
+# :shared) — same Kotlin version as the rest of this catalog.
+kotlinAndroid = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 androidLibrary = { id = "com.android.library", version.ref = "agp" }
+# Task 1 (:androidApp): the application-module counterpart to androidLibrary, same AGP version.
+androidApplication = { id = "com.android.application", version.ref = "agp" }
+# Task 1 (:androidApp): Kotlin 2.0+ K2 Compose compiler plugin — replaces the pre-2.0
+# composeOptions.kotlinCompilerExtensionVersion mechanism. Version tracks the Kotlin Gradle plugin
+# 1:1, hence version.ref = "kotlin" (not a separate composeCompiler version entry).
+kotlinCompose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 # Task 15: applied host-guarded (macOS only) in shared/build.gradle.kts — see skie's version comment above.
 skie = { id = "co.touchlab.skie", version.ref = "skie" }

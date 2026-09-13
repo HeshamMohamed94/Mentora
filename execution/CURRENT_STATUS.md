@@ -823,7 +823,7 @@ implemented." Task 3 extracts these into `design-to-code/screens/mobile-*.json` 
 
 | # | Task | Status |
 |---|---|---|
-| 1 | `:androidApp` module scaffold + version catalog + toolchain verification | NOT STARTED |
+| 1 | `:androidApp` module scaffold + version catalog + toolchain verification | DONE — new AGP `application` module `com.mentora.android` (`compileSdk`/`targetSdk` 36, `minSdk` 26 matching `:shared`'s androidTarget), Compose wired via the Kotlin 2.0+ K2 `org.jetbrains.kotlin.plugin.compose` plugin (not the old `composeOptions` mechanism), Compose BOM 2024.10.01, `koin-android`/`koin-androidx-compose` pinned to the existing `koin=4.1.0` (no second Koin version). Debug-only `network_security_config.xml` scopes cleartext to `10.0.2.2` only via a `src/debug/AndroidManifest.xml` merge — never `usesCleartextTraffic` app-wide; `supportsRtl="true"` set. Dependency set deliberately minimal (no Media3/Coil/Navigation-Compose yet — later tasks). Verified: `:androidApp:assembleDebug` green; `:shared:testDebugUnitTest` unchanged at 249/249 (confirms `:shared` untouched); installed and launched on the `Chatting_Pixel_8_API_36` AVD, placeholder screen rendered with no crash (logcat-verified, screenshot-confirmed). One in-scope fix: added `Modifier.windowInsetsPadding(WindowInsets.safeDrawing)` to the placeholder text since targetSdk 36 enforces edge-to-edge by default regardless of `enableEdgeToEdge()` being called. `git status` scope-verified to `mobile/` only. |
 | 2 | Token pipeline Android target + `MentoraTheme` | NOT STARTED |
 | 3 | Extract locked mobile visual references into `design-to-code/screens/mobile-*.json` | NOT STARTED |
 | 4 | App bootstrap: SDK wiring, session restore, locale/theme bootstrap, Keystore instrumented test | NOT STARTED |
@@ -844,5 +844,5 @@ implemented." Task 3 extracts these into `design-to-code/screens/mobile-*.json` 
 | 19 | Localization/RTL/theme/font-scale QA sweep + Compose UI test suite completion | NOT STARTED |
 | 20 | Live emulator verification, `androidApp/README.md`, Phase 4 → Phase 5 handoff | NOT STARTED |
 
-**Next immediate action:** Task 1 — `:androidApp` module scaffold. See
-`execution/PHASE_4_ANDROID_PLAN.md` § 5, Task T1 for exact acceptance criteria.
+**Next immediate action:** Task 2 — Token pipeline Android target + `MentoraTheme`. See
+`execution/PHASE_4_ANDROID_PLAN.md` § 5, Task T2 for exact acceptance criteria.

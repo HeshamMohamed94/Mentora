@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Debug-build-only (src/debug/) — never merged into release builds. Permits cleartext HTTP
+    specifically to 10.0.2.2 (the Android emulator's host-loopback alias, per
+    mobile/shared/README.md's ApiEnvironment.androidEmulator()) for local backend testing during
+    development. Deliberately no wildcard/base-config cleartext exception — a physical device on the
+    LAN (ApiEnvironment.lan(host)) will need its own explicit <domain> entry added here in a later
+    task, once that flow is actually exercised.
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">10.0.2.2</domain>
+    </domain-config>
+</network-security-config>
