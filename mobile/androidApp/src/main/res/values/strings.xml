@@ -1,4 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Mentora</string>
+
+    <!-- T6 — MobileBottomNavigation's 5 fixed labels, per
+         design-to-code/shared/navigation.json#/shells/mobileStudentShell/itemsStructuredSource
+         (ux/MOBILE_UX.md § 1, product/INFORMATION_ARCHITECTURE.md § 3, ux/NAVIGATION_SPEC.md § 3). -->
+    <string name="nav_home">Home</string>
+    <string name="nav_explore">Explore</string>
+    <string name="nav_my_learning">My Learning</string>
+    <string name="nav_ai_tutor">AI Tutor</string>
+    <string name="nav_profile">Profile</string>
 </resources>

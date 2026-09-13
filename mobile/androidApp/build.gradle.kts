@@ -2,11 +2,15 @@
 // tasks per execution/PHASE_4_ANDROID_PLAN.md). Depends on :shared only; Compose is wired via the
 // Kotlin 2.0+ K2 compiler plugin (org.jetbrains.kotlin.plugin.compose) rather than the pre-2.0
 // composeOptions.kotlinCompilerExtensionVersion mechanism, which no longer exists. Dependency set is
-// deliberately minimal — no Media3/ExoPlayer, Coil, or Navigation-Compose yet.
+// deliberately minimal — no Media3/ExoPlayer, Coil yet.
+// Task 6: navigation-compose's type-safe (`@Serializable`) routes need the Kotlin serialization
+// compiler plugin applied to THIS module (previously only :shared applied it) to generate
+// serializers for `navigation/Destinations.kt`'s route types.
 plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.kotlinAndroid)
     alias(libs.plugins.kotlinCompose)
+    alias(libs.plugins.kotlinSerialization)
 }
 
 android {
@@ -69,6 +73,19 @@ dependencies {
     // same as shared/di/PlatformModule.android.kt does. Same Ktor version as :shared's catalog
     // entry, no new artifact.
     implementation(libs.ktor.client.core)
+
+    // Task 6: the navigation shell — see gradle/libs.versions.toml's androidxNavigation comment for
+    // the exact version and why. kotlinx-serialization-core backs navigation-compose's type-safe
+    // (@Serializable) route model in navigation/Destinations.kt.
+    implementation(libs.androidx.navigation.compose)
+    implementation(libs.kotlinx.serialization.core)
+    // T6 fix-up (Finding 2): pendingNavIntent needs to survive rotation/process death via a
+    // rememberSaveable Saver that (de)serializes the sealed Destination route to a JSON string —
+    // kotlinx-serialization-json was already in this catalog (and already implementation-wired in
+    // :shared for the identical reason), just not previously wired as a main implementation()
+    // dependency of this module (only testImplementation, below). No new artifact/version
+    // introduced.
+    implementation(libs.kotlinx.serialization.json)
 
     // Task 15's Koin DI graph lives in :shared; these two add Android-specific
     // startKoin/androidContext() wiring and Compose's koinViewModel()/koinInject() helpers — actual

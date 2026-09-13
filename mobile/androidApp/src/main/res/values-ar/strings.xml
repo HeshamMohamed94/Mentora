@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- T6 — real Arabic labels verified at Task 3's design-to-code/screens/mobile-*.json extraction
+         pass (design-review-locked/Mentora Showcase.dc.html § 17, lines 1513-1521), restated in
+         ux/MOBILE_UX.md § 1 and design-to-code/shared/navigation.json#/shells/mobileStudentShell/rtlMirroring.
+         Not a fresh/independent translation. -->
+    <string name="nav_home">الرئيسية</string>
+    <string name="nav_explore">استكشف</string>
+    <string name="nav_my_learning">مساحة التعلّم</string>
+    <string name="nav_ai_tutor">المعلّم الذكي</string>
+    <string name="nav_profile">حسابي</string>
+</resources>

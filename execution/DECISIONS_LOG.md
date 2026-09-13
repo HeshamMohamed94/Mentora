@@ -1261,3 +1261,63 @@ re-read), on the real emulator, before being reported done. No `shared` change w
 task (not its originally-planned Task 8 slot per the plan doc) — Task 8 should reuse it, not rebuild
 it. Next: Task 6 (navigation shell).
 
+### D81 — 2026-09-13 — PHASE 4 Task 6: a HIGH navigation-backbone bug found, reproduced, and fixed
+before commit — `findStartDestination()` as a tab-switch anchor breaks after any full-stack reset
+
+**Decision — a structural anchor (`NavController.graph.findStartDestination()`) was replaced with an
+explicit, tracked anchor for the tab-switch pop-to-root mechanism.** The original implementation used
+Google's documented multiple-back-stacks pattern (`popUpTo(findStartDestination().id){saveState=true}`
++ `launchSingleTop` + `restoreState` on tab switch) correctly in isolation, but the app also has three
+legitimate full-stack-reset call sites (successful login with no pending intent, logout, arriving at
+Purchase Success) that pop the ENTIRE root graph inclusively — which removes the structural anchor
+destination from the back stack. Navigation-Compose 2.8.3's real runtime then silently no-ops any
+later `popBackStack` targeting that now-absent id, permanently breaking per-tab back-stack isolation
+for the rest of the app session. This was reproduced concretely (not just reasoned about): complete a
+demo purchase, then tab-switch repeatedly — sub-navigation stops being preserved per tab and instead
+accumulates on a single ever-growing stack. Fixed by tracking the current anchor tab explicitly
+(`rememberSaveable`) and updating it at all three reset sites, rather than deriving it structurally.
+**Why not the alternative fix (re-inserting the structural start tab under every reset target):**
+two of the three resets land on a different tab than the `NavHost`'s structural start destination
+(logout → Explore, purchase success → My Learning) — re-inserting a hidden entry for the structural
+start tab underneath the real target would have silently pushed a Home entry under a just-logged-out
+Explore stack, violating "Home is Student-only, never a guest's landing screen."
+
+**Also fixed in the same pass:** `pendingNavIntent` (the auth-gate's "return here after login" state)
+was a plain `remember` and did not survive rotation/process death — now `rememberSaveable` via a
+kotlinx-serialization `Saver` over the already-`@Serializable` `Destination` sealed type. An abandoned
+pending intent (back-pressed out of Login without completing it) was never cleared, risking a later,
+completely unrelated login silently redirecting into a stale target — now cleared when Login/Register
+leaves the back stack without a completed auth transition. One placeholder (Course Player's "Continue
+Learning") bypassed the auth gate entirely — now routed through the same `requireAuth` mechanism as
+every other gated action.
+
+**Disclosed, not fixed — both low-impact, both explicitly deferred:**
+- A one-tap dead-input quirk immediately after any full-stack reset: the very first tab tap can be a
+  no-op due to a separate Navigation-Compose runtime quirk (a null saved-state key left behind by the
+  just-completed reset) — distinct from the isolation-breaking defect above, not addressed by either
+  candidate fix, and not product-visible beyond "tap twice, works."
+- Routing "Continue Learning" through the auth gate (the fix above) creates one narrow, self-correcting
+  edge case: a *guest* triggering this specific gate lands the post-login navigation in a tab-less
+  context (`Login`), so the shared `CoursePlayer` destination (registered identically under 3 tab
+  graphs, by design, for the multi-graph reuse pattern) resolves to whichever graph is declared first
+  rather than necessarily the tab the guest came from. Bottom-nav hiding and back-press both still
+  behave correctly regardless (stack order, not which graph-node an entry references, drives back);
+  only a momentary, invisible "wrong tab associated" state results, self-correcting the instant the
+  user leaves Course Player. Left unfixed since no gated intent reaches a multi-graph-registered
+  destination from a tab-less context other than this one path today.
+
+**Why accepted:** the HIGH-severity fix was verified by reproducing the broken state first, then the
+fixed state, on the real `Chatting_Pixel_8_API_36` emulator via genuine `currentBackStack.value`
+inspection (new test infrastructure added specifically because the original 5 tests could only assert
+surface-level text visibility, not real back-stack shape — precisely why this defect wasn't caught the
+first time). Every other fix was similarly re-verified on the real device. No `shared` change needed.
+
+**Impact:** `mobile/androidApp/**` only (`navigation/{Destinations,AuthGate,MentoraNavHost}.kt`,
+`ui/shell/*`, `ui/screens/PlaceholderScreens.kt`, `MainActivity.kt`, test files, EN+AR string
+resources) plus `mobile/gradle/libs.versions.toml` (navigation-compose 2.8.3, kotlinx-serialization
+wired as a main — not just test — dependency of `:androidApp`). `mobile/shared/` untouched;
+`:shared:testDebugUnitTest` still 249/249. `:androidApp:connectedDebugAndroidTest` 19/19 on the real
+emulator, run twice. Next: Task 7 (Login/Register screens) — the graph/routes/auth-gate mechanism
+already exist and are verified; Task 7 replaces placeholder composables only, it should not need to
+touch `MentoraNavHost.kt`'s graph structure.
+

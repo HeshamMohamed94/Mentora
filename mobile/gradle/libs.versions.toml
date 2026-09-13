@@ -62,6 +62,17 @@ androidxTestRunner = "1.6.2"
 # application itself is host-guarded in shared/build.gradle.kts (disclosed limitation B1).
 skie = "0.9.5"
 
+# Task 6 (:androidApp navigation shell): navigation-compose was not yet a dependency of this
+# module. Pinned to 2.8.3 — verified (`dl.google.com/dl/android/maven2/.../maven-metadata.xml` +
+# each candidate release's own `Last-Modified` header) as the navigation-compose release
+# contemporaneous with the already-pinned `composeBom = "2024.10.01"` (BOM published 2024-10-30;
+# 2.8.3 published 2024-10-16, the latest navigation-compose release before that BOM date — 2.8.4
+# wasn't published until 2024-11-13, after this BOM). 2.8.x is the first line with stable
+# type-safe (`@Serializable`) route support, which this task's navigation graph uses (see
+# `navigation/Destinations.kt`'s kdoc) — hence the `kotlinSerialization` plugin/
+# `kotlinx-serialization-core` dependency below, newly applied to this module for the same reason.
+androidxNavigation = "2.8.3"
+
 [libraries]
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinxDatetime" }
@@ -120,6 +131,13 @@ androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-
 # framework. Both versions come from the already-declared `composeBom` platform, no version.ref.
 androidx-compose-ui-test-junit4 = { module = "androidx.compose.ui:ui-test-junit4" }
 androidx-compose-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest" }
+
+# Task 6: the navigation shell — see androidxNavigation's version comment above.
+androidx-navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "androidxNavigation" }
+# Task 6: navigation-compose's type-safe (`@Serializable`) routes need the kotlinx-serialization
+# runtime at compile+run time — same version as :shared's own kotlinx-serialization-json (no new
+# version introduced), just the `-core` artifact this module didn't previously depend on directly.
+kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kotlinxSerialization" }
 
 [plugins]
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }

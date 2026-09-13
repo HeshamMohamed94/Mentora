@@ -15,6 +15,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.mentora.android.navigation.MentoraNavHost
 import com.mentora.android.session.AppSessionViewModel
 import com.mentora.android.theme.MentoraTheme
 import com.mentora.android.theme.resolveDarkTheme
@@ -22,36 +23,34 @@ import com.mentora.shared.auth.AuthState
 import com.mentora.shared.settings.AppLocale
 
 // Task 1 scaffolded a bare MaterialTheme placeholder with no navigation/real screens yet. Task 2
-// wired in the real MentoraTheme (design-token-driven ColorScheme/Typography/Shapes). Task 4 wires
-// MentoraSdk session-restore + first-run locale/theme bootstrap through — navigation and real
-// screens (Login/Register/Home, ...) remain later tasks' concern; the composable below is still a
-// temporary smoke-test view, not a real screen.
-// Android 15+ (targetSdk 36) enforces edge-to-edge for every app regardless of whether
-// enableEdgeToEdge() is called, so a bare Surface(fillMaxSize()) draws under the status/nav bars.
-// windowInsetsPadding(WindowInsets.safeDrawing) is the one-line fix to keep this placeholder's text
-// clear of system bars — real inset-aware layout (Scaffold, top bars, etc.) is a later task's concern
-// once a real navigation shell exists.
+// wired in the real MentoraTheme (design-token-driven ColorScheme/Typography/Shapes). Task 4 wired
+// MentoraSdk session-restore + first-run locale/theme bootstrap through, behind a temporary
+// smoke-test screen. Task 6 replaces that smoke-test screen with the real navigation shell
+// (`MentoraNavHost`) — real screen content (Login/Register/Explore/...) remains later tasks' concern;
+// every destination MentoraNavHost renders today is still a placeholder composable.
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val app = application as MentoraApplication
         setContent {
-            MentoraSessionSmokeTestScreen(app)
+            MentoraRootScreen(app)
         }
     }
 }
 
 /**
- * T4's smoke-test composable — proves `MentoraSdk`/session-restore/locale-and-theme bootstrap wire
- * up end to end. Renders one of "Loading…" / "Signed in as {email/name}" / "Signed out" as plain
- * `Text`; a real screen (Login/Register/Home) is a later task's job.
+ * The app's real root composable. Collects [AppSessionViewModel]'s `sessionState` — unchanged from
+ * Task 4, still the ONE place this app observes `sdk.auth.observeAuthState()` — plus theme/locale
+ * state, then either shows a lightweight loading placeholder (while [AuthState.Unknown], i.e. before
+ * `MentoraApplication`'s `restoreSession()` bootstrap has resolved) or hands the resolved
+ * [AuthState] down into [MentoraNavHost], which owns the whole navigation shell from that point on.
  *
- * Session restore and locale seeding are no longer triggered from here — `MentoraApplication`
- * already ran that single, ordered, application-scoped bootstrap sequence in `onCreate()` (F3
- * fix) before this Activity/composable ever exists. This composable purely observes state.
+ * `MentoraNavHost` is only ever created once [AuthState] has left `Unknown` — deliberately: its own
+ * guest-mode/auth-gate logic (`navigation/MentoraNavHost.kt`'s kdoc) only needs to reason about the
+ * `Authenticated`/`Unauthenticated` distinction, never `Unknown`.
  */
 @Composable
-private fun MentoraSessionSmokeTestScreen(app: MentoraApplication) {
+private fun MentoraRootScreen(app: MentoraApplication) {
     val sessionViewModel: AppSessionViewModel = viewModel(factory = AppSessionViewModel.Factory(app.sdk))
     val sessionState by sessionViewModel.sessionState.collectAsState()
     val themePreference by app.themeController.theme.collectAsState()
@@ -61,21 +60,17 @@ private fun MentoraSessionSmokeTestScreen(app: MentoraApplication) {
         darkTheme = themePreference.resolveDarkTheme(),
         arabicScript = currentLocale == AppLocale.Arabic,
     ) {
-        Surface(modifier = Modifier.fillMaxSize()) {
-            Text(
-                text = sessionStatusText(sessionState),
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.windowInsetsPadding(WindowInsets.safeDrawing),
-            )
+        val resolvedState = sessionState
+        if (resolvedState is AuthState.Unknown) {
+            Surface(modifier = Modifier.fillMaxSize()) {
+                Text(
+                    text = "Loading…",
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.windowInsetsPadding(WindowInsets.safeDrawing),
+                )
+            }
+        } else {
+            MentoraNavHost(authState = resolvedState)
         }
     }
-}
-
-private fun sessionStatusText(state: AuthState): String = when (state) {
-    is AuthState.Unknown -> "Loading…"
-    is AuthState.Authenticated -> {
-        val user = state.user
-        if (user != null) "Signed in as ${user.name} (${user.email})" else "Loading…"
-    }
-    is AuthState.Unauthenticated -> "Signed out"
 }
