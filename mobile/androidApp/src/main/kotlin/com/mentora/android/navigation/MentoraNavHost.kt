@@ -28,7 +28,7 @@ import androidx.navigation.*
 import com.mentora.android.ui.screens.AiTutorScreen
 import com.mentora.android.ui.screens.CertificateDetailScreen
 import com.mentora.android.ui.screens.CertificatesScreen
-import com.mentora.android.ui.screens.CourseDetailsScreen
+import com.mentora.android.ui.coursedetails.CourseDetailsScreen
 import com.mentora.android.ui.screens.CoursePlayerScreen
 import com.mentora.android.ui.screens.DemoCheckoutScreen
 import com.mentora.android.ui.explore.ExploreScreen
@@ -270,11 +270,22 @@ fun MentoraNavHost(
                     val courseId = entry.toRoute<Destination.CourseDetails>().courseId
                     CourseDetailsScreen(
                         courseId = courseId,
+                        sdk = sdk,
+                        // T10 — a plain snapshot of the live AuthState at push time (never re-read
+                        // reactively inside the screen itself): every full auth-state TRANSITION
+                        // already resets the entire nav stack above (this LaunchedEffect(authState)),
+                        // so this destination never stays mounted across one — see
+                        // CourseDetailsViewModel's own kdoc.
+                        isAuthenticated = authState is AuthState.Authenticated,
                         onEnrollRequiringAuth = { requireAuth(Destination.DemoCheckout(courseId)) },
                         // T6 fix-up (Finding 5): Course Player is enrollment-gated per
                         // `ux/NAVIGATION_SPEC.md § 3` — this used to `navigate()` straight there,
                         // bypassing the auth gate every other gated action goes through.
                         onContinueLearning = { requireAuth(Destination.CoursePlayer(courseId)) },
+                        // T10 — a curriculum lesson row tap (enrolled only) into Course Player for
+                        // that specific lesson, through the same auth-gate mechanism as Continue
+                        // Learning above, for the same reason.
+                        onOpenLesson = { lessonId -> requireAuth(Destination.CoursePlayer(courseId, lessonId)) },
                     )
                 }
                 composable<Destination.DemoCheckout> { entry ->

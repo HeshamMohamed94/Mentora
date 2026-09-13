@@ -76,4 +76,21 @@
     <string name="explore_learning_paths_empty_description">Check back soon for new learning paths.</string>
     <string name="explore_learning_path_action">View Path</string>
     <string name="explore_learning_path_course_count">%1$d courses</string>
+
+    <!-- T10 — Course Details, design-to-code/screens/mobile-course-details.json /
+         ux/SCREEN_UX_SPECS.md § 3. Arabic translations for this screen's new keys are not yet added,
+         inheriting the same disclosed gap T9's own explore_* keys already have (no mobile-Arabic
+         translation pass has happened for either screen's new strings; Android falls back to this
+         file's English copy under values-ar until that pass happens). -->
+    <string name="course_details_error_title">Something went wrong</string>
+    <string name="course_details_hero_content_description">%1$s course preview</string>
+    <string name="course_details_demo_price_caption">Demo price</string>
+    <string name="course_details_enrolled_message">You\'re enrolled in this course</string>
+    <string name="course_details_cta_login_to_enroll">Login to Enroll</string>
+    <string name="course_details_cta_enroll">Enroll</string>
+    <string name="course_details_cta_continue_learning">Continue Learning</string>
+    <string name="course_details_curriculum_heading">Curriculum</string>
+    <string name="course_details_curriculum_lesson_count">%1$d lessons</string>
+    <string name="course_details_about_instructor_heading">About the instructor</string>
+    <string name="course_details_rating_content_description">Rated %1$.1f out of 5 (demo rating)</string>
 </resources>

@@ -51,4 +51,37 @@
     <string name="error_rate_limited_auth">محاولات كثيرة جدًا. يرجى الانتظار لحظة والمحاولة مرة أخرى.</string>
     <string name="error_rate_limited_ai_tutor">لقد بلغت الحد المسموح به من المعلّم الذكي حاليًا. يرجى المحاولة بعد قليل.</string>
     <string name="error_internal">حدث خطأ ما. يرجى المحاولة مرة أخرى.</string>
+
+    <!-- T9 — Explore (+ Learning Paths segment), see values/strings.xml for sourcing notes. -->
+    <string name="explore_heading">ابحث عن دورتك التالية</string>
+    <string name="explore_search_label">البحث</string>
+    <string name="explore_search_placeholder">البحث عن الدورات</string>
+    <string name="explore_search_clear">مسح البحث</string>
+    <string name="explore_category_all">الكل</string>
+    <string name="explore_tab_courses">الدورات</string>
+    <string name="explore_tab_learning_paths">مسارات التعلّم</string>
+    <string name="explore_categories_retry">إعادة المحاولة</string>
+    <string name="explore_error_title">حدث خطأ ما</string>
+    <string name="explore_empty_title">لا توجد نتائج</string>
+    <string name="explore_empty_description">جرّب بحثًا أو تصنيفًا مختلفًا.</string>
+    <string name="explore_clear_filters">مسح الفلاتر</string>
+    <string name="explore_course_action">الالتحاق</string>
+    <string name="explore_course_thumbnail_content_description">الصورة المصغّرة لدورة %1$s</string>
+    <string name="explore_learning_paths_empty_title">لا توجد مسارات تعلّم حتى الآن</string>
+    <string name="explore_learning_paths_empty_description">عد قريبًا لمشاهدة مسارات تعلّم جديدة.</string>
+    <string name="explore_learning_path_action">عرض المسار</string>
+    <string name="explore_learning_path_course_count">%1$d دورة</string>
+
+    <!-- T10 — Course Details, see values/strings.xml for sourcing notes. -->
+    <string name="course_details_error_title">حدث خطأ ما</string>
+    <string name="course_details_hero_content_description">معاينة دورة %1$s</string>
+    <string name="course_details_demo_price_caption">سعر تجريبي</string>
+    <string name="course_details_enrolled_message">أنت مُلتحق بهذه الدورة</string>
+    <string name="course_details_cta_login_to_enroll">سجّل الدخول للالتحاق</string>
+    <string name="course_details_cta_enroll">الالتحاق</string>
+    <string name="course_details_cta_continue_learning">متابعة التعلّم</string>
+    <string name="course_details_curriculum_heading">المنهج الدراسي</string>
+    <string name="course_details_curriculum_lesson_count">%1$d درس</string>
+    <string name="course_details_about_instructor_heading">عن المدرّب</string>
+    <string name="course_details_rating_content_description">التقييم %1$.1f من 5 (تقييم تجريبي)</string>
 </resources>

@@ -17,9 +17,6 @@ import com.mentora.android.ui.components.PrimaryButton
  * screen below is `Text("... (placeholder)")`-level, nothing more, EXCEPT the handful the task
  * explicitly calls out as needing a real, testable mechanism wired through them (still not real
  * content/design — no styling, no real course data, no credential form):
- * - [CourseDetailsScreen]: a minimal functional trigger to push `CourseDetails`/gate `DemoCheckout`
- *   through [com.mentora.android.navigation.decideAuthGate], so the guest-enroll-gate mechanism is
- *   reachable and instrumented-testable.
  * - [DemoCheckoutScreen]: a minimal trigger for the Purchase-Success back-stack mechanism.
  * - [ProfileScreen]: one trigger into `Settings`, since Settings is a real registered destination
  *   this task's manual smoke test needs to be able to reach.
@@ -39,6 +36,9 @@ import com.mentora.android.ui.components.PrimaryButton
  * `LearningPathsScreen` placeholder is gone entirely (folded into that screen's own Learning Paths
  * tab — see that file's kdoc for why). [LearningPathDetailsScreen] (the per-path detail screen) is
  * still a placeholder here; that's Task 16's job.
+ *
+ * T10 note: `CourseDetailsScreen` is no longer a placeholder here — Task 10 replaced it with a real
+ * screen in `com.mentora.android.ui.coursedetails` (`CourseDetailsScreen.kt`).
  */
 @Composable
 fun HomeScreen(modifier: Modifier = Modifier) = PlaceholderScreen("Home (placeholder)", modifier)
@@ -63,25 +63,6 @@ fun SettingsScreen(modifier: Modifier = Modifier) = PlaceholderScreen("Settings 
 @Composable
 fun LearningPathDetailsScreen(pathId: String, modifier: Modifier = Modifier) =
     PlaceholderScreen("Learning Path Details (placeholder): $pathId", modifier)
-
-@Composable
-fun CourseDetailsScreen(
-    courseId: String,
-    onEnrollRequiringAuth: () -> Unit,
-    onContinueLearning: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(modifier = modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text("Course Details (placeholder): $courseId", style = MaterialTheme.typography.bodyLarge)
-        // Real T6 mechanism: enrolling is auth-gated (ux/NAVIGATION_SPEC.md § 6) — a real
-        // CourseCard/pricing/curriculum-outline display is Task 10's job.
-        PrimaryButton(text = "Enroll", onClick = onEnrollRequiringAuth)
-        // Real T6 mechanism: the "already enrolled" path straight into Course Player
-        // (ux/NAVIGATION_SPEC.md § 3's mobile table) — the trigger this task's nav-hidden-on-Course-
-        // Player instrumented test needs to actually reach that route.
-        PrimaryButton(text = "Continue Learning", onClick = onContinueLearning)
-    }
-}
 
 @Composable
 fun DemoCheckoutScreen(courseId: String, onCompletePurchase: () -> Unit, modifier: Modifier = Modifier) {
