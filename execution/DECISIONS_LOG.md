@@ -1083,3 +1083,63 @@ Two smaller, same-category gaps found via the same audit: `SearchField` used a r
 
 **Impact:** No product/architecture document changed; no backend change. 248/248 tests pass (5 new: `InitKoinTest`'s 4 resolution/singleton/factory checks plus `NoUiImportBoundaryTest`), independently re-verified via a from-scratch `clean` build and a `--rerun` of the test task. No repository/use case from Tasks 5-14 had a missing or fabricated Koin dependency. `MentoraSdk` verified (by direct code read, not just trusting the report) to never reference `ApiClient`/`HttpClient`/any repository `Impl` type. SKIE's `apply(plugin = ...)` call verified genuinely host-guarded (`if (isMacOs)`), not merely commented as such. No defects found this pass.
 
+### D78 — 2026-09-13 — PHASE 4 (Android) task plan derived; scope, screen inventory, and gap resolutions locked in before implementation
+
+**Decision:** The `architect` subagent produced the authoritative Phase 4 task plan (20 tasks,
+dependency-ordered) after independently re-verifying the repo/KMP state rather than trusting the
+kickoff prompt — see `execution/PHASE_4_ANDROID_PLAN.md` for the persisted plan and full task detail.
+Key sourcing decisions: (1) the mobile screen inventory was assembled from `product/SCREEN_INVENTORY.md`
++ `INFORMATION_ARCHITECTURE.md § 3` + `ux/MOBILE_UX.md` + `NAVIGATION_SPEC.md § 3` — never from
+`web/src/components/screens/`, which mixes in 10 Web-only Instructor/Admin screens; (2) the Android
+token-mapping already exists and is locked in `design-to-code/shared/platform-contract.json`'s
+`"android"` block — not re-derived; (3) `design-review-locked/Mentora Showcase.dc.html` was found to
+contain genuine exact mobile device mockups (§§ 17/19/20/22 — bottom nav in LTR+RTL, an 8-screen
+"MOBILE PREVIEW" frame set) that Phase 2's `design-to-code` extraction pass never captured, so Task 3
+extracts them into `design-to-code/screens/mobile-*.json` *before* any of those 8 screens are built,
+avoiding the D48/D49-style build-first-compare-later rework at mobile scale.
+
+**Decisions on disclosed gaps (none required stopping — each has a clean in-plan resolution, recorded
+here so later tasks don't re-litigate them):**
+- **Theme read path (G1).** `UserFacade.setTheme` is write-only in `shared` (no `observeTheme`). Resolved
+  by the Android app constructing and retaining its own `AndroidPreferenceStore(context)` instance
+  (already a public class) in its own platform module, instead of only calling `platformModule(context)`
+  — zero `shared` change.
+- **First-run locale (G2).** `shared` never calls its own `resolveInitialLocale` (by design, deferred).
+  Android calls it explicitly on first run behind an app-owned flag (Task 4).
+- **My Learning progress join (G3).** `GetMyLearningUseCase` omits per-course progress, needed by
+  Home/My Learning. **Decision: join in `androidApp` (Task 12), mirroring web's already-accepted
+  N+1-at-demo-scale pattern (D40/D37), rather than reopening the signed-off `shared` module for an
+  additive change.** Tradeoff accepted knowingly: Phase 5 (iOS) will have to repeat this join, and the
+  two clients could drift — flagged for the user to decide at Phase 5 planning time whether to promote
+  it into `shared` then.
+- **Enrollment-aware CTA (G4).** No `isEnrolled` on `Course`/`CourseSummary` — Course Details derives
+  membership from `listEnrollments()` (Task 10).
+- **Learning Path list lacks `isFollowing` (G5).** Followed-paths modules call `getLearningPathDetail`
+  per path — trivial N+1 at today's seed scale (1 path).
+- **Widened touch surface beyond `mobile/` (G6).** Task 2 extends `tools/token-pipeline/generate.js`
+  (Android output target) and Task 3 adds files under `design-to-code/`. Both are the already-documented
+  route (D35, the generator's own note, `REPOSITORY_STRUCTURE.md`, `platform-contract.json`) — not scope
+  creep, but every prior phase's gate could claim "only `mobile/`/`execution/` touched," so Phase 4's
+  gate instead asserts web's generated output stays byte-identical (or additively changed with the web
+  gate re-verified green) and that `architecture/`, `product/`, `ux/`, `design-system/`,
+  `design-review-locked/`, `backend/`, `web/src/` stay untouched.
+- **Icon source (G8).** No Material Symbols asset exists in the repo. Decision: port web's existing
+  42-icon hand-drawn `ImageVector` set to Compose (Task 5) rather than adding `material-icons-extended`
+  — keeps Web/Android visually identical and inherits, rather than creates, the already-disclosed
+  icon-fidelity placeholder gap (D40/D48).
+- **Showcase-internal nav-label inconsistency (G11).** Bottom-nav item 3 is labelled "Learning" in
+  showcase §§ 20/22 but "My Learning" in § 17 and every rank-1 doc. Resolved to **"My Learning"** per
+  rank-1 precedence, recorded in Task 3's extraction as a disclosed `conflicts[]` entry, not silently
+  picked.
+
+**Why accepted:** every gap above already has a documented resolution path elsewhere in the locked
+docs or direct precedent from Phase 2/3 (D35, D37, D40, D42, D44, D48, D49, D53) — none is a genuine
+Product/UX/Architecture blocker requiring the user's input before implementation can proceed, per the
+Phase 4 kickoff prompt's own stopping rule. G3 and G6 are the two flagged for a future revisit (Phase 5
+promotion decision, and awareness of the widened touch surface respectively) rather than closed
+unilaterally.
+
+**Impact:** No code changed. `execution/PHASE_4_ANDROID_PLAN.md` created; `execution/CURRENT_STATUS.md`
+updated (Phase 4 → IN_PROGRESS, resume point, new "PHASE 4 — Task Breakdown" table, all 20 tasks
+NOT STARTED). Next: Task 1 (`:androidApp` module scaffold).
+
