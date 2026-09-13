@@ -55,4 +55,25 @@
     <string name="error_rate_limited_auth">Too many attempts. Please wait a moment and try again.</string>
     <string name="error_rate_limited_ai_tutor">You\'ve reached the AI Tutor limit for now. Please try again shortly.</string>
     <string name="error_internal">Something went wrong. Please try again.</string>
+
+    <!-- T9 — Explore (+ Learning Paths segment), design-to-code/screens/mobile-explore.json. -->
+    <string name="explore_heading">Find your next course</string>
+    <string name="explore_search_label">Search</string>
+    <string name="explore_search_placeholder">Search courses</string>
+    <string name="explore_search_clear">Clear search</string>
+    <string name="explore_category_all">All</string>
+    <string name="explore_tab_courses">Courses</string>
+    <string name="explore_tab_learning_paths">Learning Paths</string>
+    <string name="explore_categories_retry">Retry</string>
+    <string name="explore_error_title">Something went wrong</string>
+    <!-- The spec's exact states.empty copy (mobile-explore.json § states). -->
+    <string name="explore_empty_title">No results</string>
+    <string name="explore_empty_description">Try a different search or category.</string>
+    <string name="explore_clear_filters">Clear filters</string>
+    <string name="explore_course_action">Enroll</string>
+    <string name="explore_course_thumbnail_content_description">%1$s course thumbnail</string>
+    <string name="explore_learning_paths_empty_title">No learning paths yet</string>
+    <string name="explore_learning_paths_empty_description">Check back soon for new learning paths.</string>
+    <string name="explore_learning_path_action">View Path</string>
+    <string name="explore_learning_path_course_count">%1$d courses</string>
 </resources>

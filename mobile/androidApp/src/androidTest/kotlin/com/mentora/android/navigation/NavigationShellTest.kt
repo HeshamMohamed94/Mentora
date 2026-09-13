@@ -5,7 +5,10 @@ import androidx.activity.ComponentActivity
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -15,6 +18,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.mentora.android.theme.MentoraTheme
+import com.mentora.android.ui.explore.ExploreCourseCardTestTag
 import com.mentora.android.ui.shell.MobileBottomNavigationTestTag
 import com.mentora.shared.MentoraSdk
 import com.mentora.shared.auth.AndroidTokenStorage
@@ -95,14 +99,35 @@ class NavigationShellTest {
         }
     }
 
+    /**
+     * T9 fix-up: Explore is now the real screen (`ui/explore/ExploreScreen.kt`) — it needs at least
+     * one real course to have loaded from the live backend before a course card exists to tap
+     * (there is no fake `MentoraSdk`, see this class's own kdoc). Every test below that used to push
+     * `CourseDetails` via the T6-era "Open Course Details" placeholder trigger now goes through this
+     * helper instead, and every downstream assertion interpolates the REAL, dynamically-returned
+     * course id (never a hardcoded `"course-1"` fixture, since the live backend — not this test —
+     * decides which course search returns first).
+     */
+    private fun openFirstCourseFromExplore(clickExploreTab: Boolean = true): String {
+        if (clickExploreTab) {
+            composeTestRule.onNodeWithTag("bottom_nav_explore").performClick()
+        }
+        composeTestRule.waitUntil(timeoutMillis = 15_000) {
+            composeTestRule.onAllNodesWithTag(ExploreCourseCardTestTag).fetchSemanticsNodes().isNotEmpty()
+        }
+        composeTestRule.onAllNodesWithTag(ExploreCourseCardTestTag)[0].performClick()
+        val node = composeTestRule.onNode(hasText("Course Details (placeholder): ", substring = true)).fetchSemanticsNode()
+        val text = node.config[SemanticsProperties.Text].joinToString(separator = "") { it.text }
+        return text.removePrefix("Course Details (placeholder): ")
+    }
+
     // ---- Test 1: per-tab back-stack isolation ----
     @Test
     fun perTabBackStackIsolation_pushedSubDestinationSurvivesATabSwitchAwayAndBack() {
         setContentWithAuthState(authenticatedStudent)
 
-        composeTestRule.onNodeWithTag("bottom_nav_explore").performClick()
-        composeTestRule.onNodeWithText("Open Course Details").performClick()
-        composeTestRule.onNodeWithText("Course Details (placeholder): course-1").assertExists()
+        val courseId = openFirstCourseFromExplore()
+        composeTestRule.onNodeWithText("Course Details (placeholder): $courseId").assertExists()
 
         // Switch away to a different tab, then back.
         composeTestRule.onNodeWithTag("bottom_nav_my_learning").performClick()
@@ -112,7 +137,7 @@ class NavigationShellTest {
 
         // Explore's pushed CourseDetails is still on top — state was preserved, not reset to Explore's
         // own root.
-        composeTestRule.onNodeWithText("Course Details (placeholder): course-1").assertExists()
+        composeTestRule.onNodeWithText("Course Details (placeholder): $courseId").assertExists()
     }
 
     // ---- Test 2: tap-active-tab-pops-to-root ----
@@ -120,15 +145,14 @@ class NavigationShellTest {
     fun tapActiveTabPopsToRoot_tappingTheCurrentTabAgainClearsItsPushedStack() {
         setContentWithAuthState(authenticatedStudent)
 
-        composeTestRule.onNodeWithTag("bottom_nav_explore").performClick()
-        composeTestRule.onNodeWithText("Open Course Details").performClick()
-        composeTestRule.onNodeWithText("Course Details (placeholder): course-1").assertExists()
+        val courseId = openFirstCourseFromExplore()
+        composeTestRule.onNodeWithText("Course Details (placeholder): $courseId").assertExists()
 
         // Tap the SAME (already active) Explore tab again.
         composeTestRule.onNodeWithTag("bottom_nav_explore").performClick()
 
-        composeTestRule.onNodeWithText("Explore (placeholder)").assertExists()
-        composeTestRule.onNodeWithText("Course Details (placeholder): course-1").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Find your next course").assertExists()
+        composeTestRule.onNodeWithText("Course Details (placeholder): $courseId").assertDoesNotExist()
     }
 
     // ---- Test 3: nav hidden on Course Player/Quiz, reappears on back ----
@@ -138,25 +162,24 @@ class NavigationShellTest {
 
         composeTestRule.onNodeWithTag(MobileBottomNavigationTestTag).assertExists()
 
-        composeTestRule.onNodeWithTag("bottom_nav_explore").performClick()
-        composeTestRule.onNodeWithText("Open Course Details").performClick()
+        val courseId = openFirstCourseFromExplore()
         composeTestRule.onNodeWithText("Continue Learning").performClick()
-        composeTestRule.onNodeWithText("Course Player (placeholder): course-1").assertExists()
+        composeTestRule.onNodeWithText("Course Player (placeholder): $courseId").assertExists()
 
         // Fully removed from the tree, not just invisible.
         composeTestRule.onNodeWithTag(MobileBottomNavigationTestTag).assertDoesNotExist()
 
         composeTestRule.onNodeWithText("Take Quiz").performClick()
-        composeTestRule.onNodeWithText("Quiz (placeholder): course-1").assertExists()
+        composeTestRule.onNodeWithText("Quiz (placeholder): $courseId").assertExists()
         composeTestRule.onNodeWithTag(MobileBottomNavigationTestTag).assertDoesNotExist()
 
         // Back out of Quiz, then Course Player — the bottom nav reappears once neither is current.
         composeTestRule.runOnUiThread { composeTestRule.activity.onBackPressedDispatcher.onBackPressed() }
-        composeTestRule.onNodeWithText("Course Player (placeholder): course-1").assertExists()
+        composeTestRule.onNodeWithText("Course Player (placeholder): $courseId").assertExists()
         composeTestRule.onNodeWithTag(MobileBottomNavigationTestTag).assertDoesNotExist()
 
         composeTestRule.runOnUiThread { composeTestRule.activity.onBackPressedDispatcher.onBackPressed() }
-        composeTestRule.onNodeWithText("Course Details (placeholder): course-1").assertExists()
+        composeTestRule.onNodeWithText("Course Details (placeholder): $courseId").assertExists()
         composeTestRule.onNodeWithTag(MobileBottomNavigationTestTag).assertExists()
     }
 
@@ -174,11 +197,12 @@ class NavigationShellTest {
 
         // Guest mode: no bottom nav, landed on Explore (never the Student-only Home).
         composeTestRule.onNodeWithTag(MobileBottomNavigationTestTag).assertDoesNotExist()
-        composeTestRule.onNodeWithText("Explore (placeholder)").assertExists()
+        composeTestRule.onNodeWithText("Find your next course").assertExists()
 
-        // Guest browsing is allowed with no redirect: Explore -> Course Details.
-        composeTestRule.onNodeWithText("Open Course Details").performClick()
-        composeTestRule.onNodeWithText("Course Details (placeholder): course-1").assertExists()
+        // Guest browsing is allowed with no redirect: Explore -> Course Details. Guest mode has no
+        // bottom nav at all, and the app already opens straight onto Explore — no tab tap needed.
+        val courseId = openFirstCourseFromExplore(clickExploreTab = false)
+        composeTestRule.onNodeWithText("Course Details (placeholder): $courseId").assertExists()
 
         // Attempting an auth-gated action (Enroll) routes through Login and records the intent.
         // T7 fix-up: Login is now the real credential-form screen (`ui/auth/LoginScreen.kt`), not the
@@ -192,8 +216,9 @@ class NavigationShellTest {
         // Simulate the auth state flipping to Authenticated (e.g. a real login call resolving).
         composeTestRule.runOnUiThread { setAuthState(authenticatedStudent) }
 
-        // Lands on the ORIGINALLY intended route (Demo Checkout for course-1), never a generic Home.
-        composeTestRule.onNodeWithText("Demo Checkout (placeholder): course-1").assertExists()
+        // Lands on the ORIGINALLY intended route (Demo Checkout for the same course), never a
+        // generic Home.
+        composeTestRule.onNodeWithText("Demo Checkout (placeholder): $courseId").assertExists()
     }
 
     // ---- Test 5: Purchase Success back-stack shape ----
@@ -208,18 +233,17 @@ class NavigationShellTest {
             }
         }
 
-        composeTestRule.onNodeWithTag("bottom_nav_explore").performClick()
-        composeTestRule.onNodeWithText("Open Course Details").performClick()
+        val courseId = openFirstCourseFromExplore()
         composeTestRule.onNodeWithText("Enroll").performClick()
-        composeTestRule.onNodeWithText("Demo Checkout (placeholder): course-1").assertExists()
+        composeTestRule.onNodeWithText("Demo Checkout (placeholder): $courseId").assertExists()
 
         composeTestRule.onNodeWithText("Complete Demo Purchase").performClick()
-        composeTestRule.onNodeWithText("Purchase Success (placeholder): course-1").assertExists()
+        composeTestRule.onNodeWithText("Purchase Success (placeholder): $courseId").assertExists()
 
         composeTestRule.runOnUiThread { composeTestRule.activity.onBackPressedDispatcher.onBackPressed() }
 
         composeTestRule.onNodeWithText("My Learning (placeholder)").assertExists()
-        composeTestRule.onNodeWithText("Demo Checkout (placeholder): course-1").assertDoesNotExist()
+        composeTestRule.onNodeWithText("Demo Checkout (placeholder): $courseId").assertDoesNotExist()
         composeTestRule.onNodeWithTag("bottom_nav_my_learning").assertExists()
 
         // Real back-stack shape (not just surface text) — Finding 1's fix-up: DemoCheckout/
@@ -262,11 +286,10 @@ class NavigationShellTest {
         }
 
         // Complete a purchase — the full-stack reset in navigateToPurchaseSuccess.
-        composeTestRule.onNodeWithTag("bottom_nav_explore").performClick()
-        composeTestRule.onNodeWithText("Open Course Details").performClick()
+        val firstCourseId = openFirstCourseFromExplore()
         composeTestRule.onNodeWithText("Enroll").performClick()
         composeTestRule.onNodeWithText("Complete Demo Purchase").performClick()
-        composeTestRule.onNodeWithText("Purchase Success (placeholder): course-1").assertExists()
+        composeTestRule.onNodeWithText("Purchase Success (placeholder): $firstCourseId").assertExists()
 
         // T6 fix-up (Finding 1) disclosed, NOT-in-scope-to-eliminate quirk: the very FIRST tab tap
         // immediately after a full-stack reset can be a dead no-op (navigation-compose's own
@@ -282,9 +305,8 @@ class NavigationShellTest {
         composeTestRule.onNodeWithText("Home (placeholder)").assertExists()
 
         // Push sub-navigation into 2 different tabs, post-reset.
-        composeTestRule.onNodeWithTag("bottom_nav_explore").performClick()
-        composeTestRule.onNodeWithText("Open Course Details").performClick()
-        composeTestRule.onNodeWithText("Course Details (placeholder): course-1").assertExists()
+        val courseId = openFirstCourseFromExplore()
+        composeTestRule.onNodeWithText("Course Details (placeholder): $courseId").assertExists()
 
         composeTestRule.onNodeWithTag("bottom_nav_profile").performClick()
         composeTestRule.onNodeWithText("Settings").performClick()
@@ -308,7 +330,7 @@ class NavigationShellTest {
 
             composeTestRule.onNodeWithTag("bottom_nav_explore").performClick()
             // Explore's pushed CourseDetails must still be on top — preserved, not reset to root.
-            composeTestRule.onNodeWithText("Course Details (placeholder): course-1").assertExists()
+            composeTestRule.onNodeWithText("Course Details (placeholder): $courseId").assertExists()
             val afterExplore = navController.currentBackStack.value
             courseDetailsCount = afterExplore.count { it.destination.hasRoute<Destination.CourseDetails>() }
             myLearningGraphCount = afterExplore.count { it.destination.hasRoute<TabGraph.MyLearningGraph>() }

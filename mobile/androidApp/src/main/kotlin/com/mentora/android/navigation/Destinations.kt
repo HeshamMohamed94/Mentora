@@ -70,12 +70,14 @@ sealed interface Destination {
     @Serializable
     data class CourseDetails(val courseId: String) : Destination
 
-    /** Nested segment inside Explore (`ux/MOBILE_UX.md § 3`) — modeled as its own addressable
-     * pushed destination rather than an in-place tab state, per this task's own "your call, just
-     * make it addressable" allowance. */
-    @Serializable
-    data object LearningPaths : Destination
-
+    /**
+     * T9 fix-up: the T6-era `Destination.LearningPaths` PUSH destination (and its placeholder
+     * screen) is removed — `ux/MOBILE_UX.md § 3`'s "segment/tab... inside Explore" requirement is now
+     * literally satisfied by `ExploreScreen`'s own internal tab state
+     * ([com.mentora.android.ui.explore.ExploreTab]), not by a second pushed screen showing the exact
+     * same list. [LearningPathDetails] (the per-path detail screen) is unaffected — still its own
+     * pushed destination, reachable from Explore's Learning Paths tab.
+     */
     @Serializable
     data class LearningPathDetails(val pathId: String) : Destination
 

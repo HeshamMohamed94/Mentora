@@ -31,12 +31,11 @@ import com.mentora.android.ui.screens.CertificatesScreen
 import com.mentora.android.ui.screens.CourseDetailsScreen
 import com.mentora.android.ui.screens.CoursePlayerScreen
 import com.mentora.android.ui.screens.DemoCheckoutScreen
-import com.mentora.android.ui.screens.ExploreScreen
+import com.mentora.android.ui.explore.ExploreScreen
 import com.mentora.android.ui.screens.HomeScreen
 import com.mentora.android.ui.auth.LoginScreen
 import com.mentora.android.ui.auth.RegisterScreen
 import com.mentora.android.ui.screens.LearningPathDetailsScreen
-import com.mentora.android.ui.screens.LearningPathsScreen
 import com.mentora.android.ui.screens.MyLearningScreen
 import com.mentora.android.ui.screens.ProfileScreen
 import com.mentora.android.ui.screens.PurchaseSuccessScreen
@@ -259,12 +258,8 @@ fun MentoraNavHost(
             navigation<TabGraph.ExploreGraph>(startDestination = Destination.Explore) {
                 composable<Destination.Explore> {
                     ExploreScreen(
+                        sdk = sdk,
                         onOpenCourseDetails = { courseId -> navController.navigate(Destination.CourseDetails(courseId)) },
-                        onOpenLearningPaths = { navController.navigate(Destination.LearningPaths) },
-                    )
-                }
-                composable<Destination.LearningPaths> {
-                    LearningPathsScreen(
                         onOpenPathDetails = { pathId -> navController.navigate(Destination.LearningPathDetails(pathId)) },
                     )
                 }
@@ -425,7 +420,6 @@ private fun titleFor(destination: NavDestination?): String = when {
     destination.hasRoute<Destination.Login>() -> "Login"
     destination.hasRoute<Destination.Register>() -> "Register"
     destination.hasRoute<Destination.CourseDetails>() -> "Course Details"
-    destination.hasRoute<Destination.LearningPaths>() -> "Learning Paths"
     destination.hasRoute<Destination.LearningPathDetails>() -> "Learning Path Details"
     destination.hasRoute<Destination.CoursePlayer>() -> "Course Player"
     destination.hasRoute<Destination.Quiz>() -> "Quiz"

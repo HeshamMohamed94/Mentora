@@ -17,22 +17,28 @@ import com.mentora.android.ui.components.PrimaryButton
  * screen below is `Text("... (placeholder)")`-level, nothing more, EXCEPT the handful the task
  * explicitly calls out as needing a real, testable mechanism wired through them (still not real
  * content/design — no styling, no real course data, no credential form):
- * - [ExploreScreen] / [CourseDetailsScreen]: a minimal functional trigger to push
- *   `CourseDetails`/gate `DemoCheckout` through [com.mentora.android.navigation.decideAuthGate], so
- *   the guest-enroll-gate mechanism is reachable and instrumented-testable.
+ * - [CourseDetailsScreen]: a minimal functional trigger to push `CourseDetails`/gate `DemoCheckout`
+ *   through [com.mentora.android.navigation.decideAuthGate], so the guest-enroll-gate mechanism is
+ *   reachable and instrumented-testable.
  * - [DemoCheckoutScreen]: a minimal trigger for the Purchase-Success back-stack mechanism.
  * - [ProfileScreen]: one trigger into `Settings`, since Settings is a real registered destination
  *   this task's manual smoke test needs to be able to reach.
  *
- * Real screen content for every one of these (Explore's course grid, Course Details' CourseCard,
- * ...) is Tasks 8-18's job — this file's composables are the exact call sites those tasks replace,
- * without touching `MentoraNavHost.kt`.
+ * Real screen content for every one of these (Course Details' CourseCard, ...) is Tasks 10-18's job —
+ * this file's composables are the exact call sites those tasks replace, without touching
+ * `MentoraNavHost.kt`.
  *
  * T7 note: `LoginScreen`/`RegisterScreen` are no longer placeholders here — Task 7 replaced them with
  * real credential-form screens in `com.mentora.android.ui.auth` (`LoginScreen.kt`/`RegisterScreen.kt`).
  * See that package's kdoc for why neither screen navigates on its own success (the pending-intent-
  * return mechanism this file's kdoc used to describe is unchanged — `MentoraNavHost`'s own
  * `LaunchedEffect(authState)` still owns it).
+ *
+ * T9 note: `ExploreScreen`/`LearningPathsScreen` are no longer placeholders here — Task 9 replaced
+ * them with a real screen in `com.mentora.android.ui.explore` (`ExploreScreen.kt`); the old
+ * `LearningPathsScreen` placeholder is gone entirely (folded into that screen's own Learning Paths
+ * tab — see that file's kdoc for why). [LearningPathDetailsScreen] (the per-path detail screen) is
+ * still a placeholder here; that's Task 16's job.
  */
 @Composable
 fun HomeScreen(modifier: Modifier = Modifier) = PlaceholderScreen("Home (placeholder)", modifier)
@@ -55,30 +61,8 @@ fun ProfileScreen(onOpenSettings: () -> Unit, modifier: Modifier = Modifier) {
 fun SettingsScreen(modifier: Modifier = Modifier) = PlaceholderScreen("Settings (placeholder)", modifier)
 
 @Composable
-fun LearningPathsScreen(onOpenPathDetails: (String) -> Unit, modifier: Modifier = Modifier) {
-    Column(modifier = modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text("Learning Paths (placeholder)", style = MaterialTheme.typography.bodyLarge)
-        PrimaryButton(text = "Open a Learning Path", onClick = { onOpenPathDetails("path-1") })
-    }
-}
-
-@Composable
 fun LearningPathDetailsScreen(pathId: String, modifier: Modifier = Modifier) =
     PlaceholderScreen("Learning Path Details (placeholder): $pathId", modifier)
-
-@Composable
-fun ExploreScreen(
-    onOpenCourseDetails: (String) -> Unit,
-    onOpenLearningPaths: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(modifier = modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text("Explore (placeholder)", style = MaterialTheme.typography.bodyLarge)
-        // Minimal real navigation trigger (T6 AC) — a real course grid/SearchField is Task 9's job.
-        PrimaryButton(text = "Open Course Details", onClick = { onOpenCourseDetails("course-1") })
-        PrimaryButton(text = "Learning Paths", onClick = onOpenLearningPaths)
-    }
-}
 
 @Composable
 fun CourseDetailsScreen(

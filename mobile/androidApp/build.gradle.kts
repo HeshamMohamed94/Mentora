@@ -104,6 +104,11 @@ dependencies {
     // :shared's own use, not a new dependency).
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.serialization.json)
+    // Task 9: ExploreViewModel's debounce/pagination logic is a plain JVM unit test — Dispatchers
+    // .setMain (this artifact) swaps viewModelScope's Main dispatcher for a TestDispatcher with no
+    // real Android Looper/Robolectric needed, the same standard pattern :shared's own commonTest
+    // already relies on (see shared/build.gradle.kts's identical dependency, not a new artifact).
+    testImplementation(libs.kotlinx.coroutines.test)
 
     // Task 4 (Part D): real-Keystore instrumented test (connectedDebugAndroidTest) — test-only.
     androidTestImplementation(libs.junit)
