@@ -1,0 +1,46 @@
+{
+  "screenId": "mobile-purchase-success",
+  "screenNumber": 19,
+  "role": ["Student"],
+  "platform": "Mobile (Android/iOS)",
+  "shell": "none — full-bleed celebratory moment, minimal/no chrome, bottom nav not shown (matches purchase-success.json's Web shell field and the showcase's own frame, which also shows no nav row)",
+  "routeIntent": "Demo Checkout (pushed); browser/system back redirects to My Learning tab, not back into checkout (ux/NAVIGATION_SPEC.md § 3, § 6)",
+  "referenceType": "exact-showcase",
+  "sourceReferences": [
+    "design-review-locked/Mentora Showcase.dc.html § 22 Product Preview — MOBILE PREVIEW \"Purchase Success\" frame, lines 2310-2326 (verified by direct read)",
+    "ux/SCREEN_UX_SPECS.md § 19",
+    "product/SCREEN_INVENTORY.md § 19",
+    "ux/NAVIGATION_SPEC.md § 3, § 6",
+    "product/PRODUCT_SPEC.md § 15 (portfolio-priority screen)"
+  ],
+
+  "conflicts": [
+    {
+      "description": "product/SCREEN_INVENTORY.md § 19 locks the secondary action as \"Back to My Learning\" (matching purchase-success.json's Web spec exactly). The showcase's mobile frame instead labels its secondary TextButton \"View Demo Summary\" (line 2322) — a materially different label that could imply a different destination/behavior (reviewing the completed order) rather than navigating to the My Learning tab.",
+      "resolution": "Resolved in favor of rank-1 (product/SCREEN_INVENTORY.md § 19): the secondary action is \"Back to My Learning\", matching Web exactly and the locked back-navigation rule (shared/navigation.json#/backNavigationRules/purchaseSuccess, ux/NAVIGATION_SPEC.md § 6: system back also redirects to My Learning). The showcase's \"View Demo Summary\" wording is not adopted — it is not clear from the showcase alone whether this was an earlier design idea, an inconsistency with its own § 22 caption/behavior notes, or simply a different feature never carried into the locked product docs; not asserted as intentional, disclosed rather than silently overridden.",
+      "recordedIn": "design-to-code/validation/EXTRACTION_REPORT.md"
+    }
+  ],
+
+  "layout": { "structure": "centered content, single column, full mobile viewport height — SuccessState component, byte-matching purchase-success.json's Web structure" },
+
+  "sections": [
+    { "order": 0, "id": "icon", "content": ["88px circular success.container background + check_circle icon at success.default (lines 2314) — larger than shared/components.json#/successState's generic icon.large (32px) default, matching purchase-success.json's Web D52 fix note that the icon needed a celebratory custom size, not the generic icon.large"] },
+    { "order": 1, "id": "title", "content": ["\"Payment Successful\" (line 2315)"] },
+    { "order": 2, "id": "subtitle", "content": ["\"You're now enrolled!\" in brand.primary color (line 2316) — an extra emphasis line not present in purchase-success.json's Web section list, which folds this directly into its description"] },
+    { "order": 3, "id": "description", "content": ["\"{Course title} is in My Learning. Lesson 1 is ready when you are.\" (line 2317) — more specific/personalized than Web's generic description, naming the actual enrolled course"] },
+    { "order": 4, "id": "demoBadge", "content": ["small pill: \"Demo purchase · no real charge was made\" (line 2318) — an additional disclosure pill not present in purchase-success.json's Web section list"] },
+    { "order": 5, "id": "actions", "content": ["\"Start Learning\" PrimaryButton with play_arrow icon (line 2321) + secondary TextButton (line 2322) — see conflicts[0] re: the secondary button's label"] }
+  ],
+
+  "componentSequence": ["successState", "button.primary", "button.text"],
+
+  "navigation": { "exitDestinations": ["Course Player (Start Learning)", "My Learning (secondary action, per rank-1 — see conflicts[0])"], "backNavigationRule": "shared/navigation.json#/backNavigationRules/purchaseSuccess — browser/system back redirects to My Learning rather than re-entering completed checkout, verified consistent with ux/NAVIGATION_SPEC.md § 6's per-screen table entry for this exact screen" },
+
+  "states": { "entrance": "motion.duration.slow + easing.decelerate, or instant cross-fade under reduced motion — unconditionally, even for this celebratory moment (mirrors purchase-success.json's Web rule)" },
+
+  "ltrBehavior": "default", "rtlBehavior": "text content mirrors per logical properties; success checkmark iconography is non-directional and never mirrors (matches shared/navigation.json#/rtlMirroring) — not independently re-verified live for mobile in this pass (no mobile Arabic Purchase Success frame exists in the showcase)",
+  "themeBehavior": "standard semantic token resolution — not independently re-verified live for mobile in this pass",
+  "responsiveRules": "centered content, single column, full viewport height, every mobile width",
+  "knownGaps": ["No mobile Arabic-RTL or Dark-mode frame exists in the showcase for Purchase Success — rtlBehavior/themeBehavior above are inferred, not independently showcase-verified for this screen.", "Unlike purchase-success.json's Web spec (which discloses an UNFIXED gap: web/src/app/[locale]/app/layout.tsx wraps this route in the normal AppShell despite the spec's own 'none' shell field), this mobile spec's chromeless intent has no equivalent implementation to check yet — flagged here so Phase 4's eventual build of this screen does not inherit Web's same shell-mismatch defect by copying its layout wiring uncritically."]
+}

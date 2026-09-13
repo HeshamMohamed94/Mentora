@@ -1,0 +1,44 @@
+{
+  "screenId": "mobile-demo-checkout",
+  "screenNumber": 18,
+  "role": ["Student"],
+  "platform": "Mobile (Android/iOS)",
+  "shell": "shared/navigation.json#/shells/mobileStudentShell (bottom nav not shown on this pushed screen — consistent with ux/MOBILE_UX.md § 1's list of nav-visible screens NOT including Demo Checkout, and with the showcase's own frame, which also shows no nav row; no conflict here, unlike mobile-course-details.json)",
+  "routeIntent": "Course Details (pushed) — per ux/NAVIGATION_SPEC.md § 3",
+  "referenceType": "exact-showcase",
+  "sourceReferences": [
+    "design-review-locked/Mentora Showcase.dc.html § 22 Product Preview — MOBILE PREVIEW \"Demo Checkout\" frame, lines 2280-2308 (verified by direct read)",
+    "ux/SCREEN_UX_SPECS.md § 18",
+    "ux/MOBILE_UX.md § 5 (Demo Checkout mobile)",
+    "product/DEMO_PAYMENT_FLOW.md",
+    "product/SCREEN_INVENTORY.md § 18"
+  ],
+
+  "conflicts": [],
+
+  "layout": { "structure": "single-column, full-width card at every mobile width, per ux/MOBILE_UX.md § 5 — header (\"Demo checkout\" title + back) -> lineItem card -> order summary card -> demo-payment notice -> sticky footer actions" },
+
+  "sections": [
+    { "order": 0, "id": "header", "content": ["arrow_back + \"Demo checkout\" title (lines 2284-2285) — a real title here, unlike Course Details' icon-only header"] },
+    { "order": 1, "id": "lineItem", "content": ["course thumbnail (96px) + title + \"{instructor} · {N} lessons\" (lines 2288-2290) — reuses courseCard's compact content pattern, matching demo-checkout.json's Web spec"] },
+    { "order": 2, "id": "priceRows", "content": ["\"ORDER SUMMARY\" eyebrow, \"Course\" / price row, \"Total\" / price row in heading.h3-equivalent weight (lines 2292-2296) — no discount/original-price row shown in this mockup's demo data, consistent with demo-checkout.json's Web note that this row is conditional"] },
+    { "order": 3, "id": "demoNotice", "content": ["info.container-tinted notice: info icon + \"Demo Payment\" title + \"No real charges or payment information required.\" body (lines 2297-2300) — byte-matching demo-checkout.json's Web closedFieldSet copy"] },
+    { "order": 4, "id": "actions", "content": ["full-width \"Complete Demo Purchase\" PrimaryButton + \"Back to course\" TextButton (lines 2303-2304)"] }
+  ],
+
+  "componentSequence": ["checkout", "button.primary", "button.text"],
+
+  "closedFieldSet": {
+    "rule": "Same EXHAUSTIVE, CLOSED field list as demo-checkout.json (Web) — course line item, price rows, total, demo-payment notice, confirm/cancel actions. MUST NEVER contain card number, CVV, expiry, billing address, bank information, or any payment-provider logo. Confirmed by direct read: the showcase's own mobile frame contains exactly this field set and nothing more.",
+    "sourceReferences": ["design-system/DESIGN_RULES.md rule 15", "product/DEMO_PAYMENT_FLOW.md"]
+  },
+
+  "navigation": { "exitDestinations": ["Purchase Success (success)", "Course Details (cancel/back)"] },
+
+  "states": { "processing": "confirm button's own Loading state, rest of summary static (mirrors Web)", "error": "inline 'Demo checkout could not be completed. Try again.' + Try Again (mirrors Web)" },
+
+  "ltrBehavior": "default", "rtlBehavior": "notice text and price rows follow logical start/end; total amount stays Western Arabic numerals regardless of locale (matches shared/navigation.json#/rtlMirroring/neverMirrors/numerals) — not independently re-verified live for mobile in this pass (no mobile Arabic Demo Checkout frame exists in the showcase)",
+  "themeBehavior": "standard semantic token resolution — not independently re-verified live for mobile in this pass",
+  "responsiveRules": "single-column card at form-width cap, every mobile width (matches demo-checkout.json's Web responsiveRules, which is already mobile-appropriate)",
+  "knownGaps": ["No mobile Arabic-RTL or Dark-mode frame exists in the showcase for Demo Checkout — rtlBehavior/themeBehavior above are inferred, not independently showcase-verified for this screen.", "The mobile mockup's cancel action reads \"Back to course\" (line 2304) rather than demo-checkout.json's Web spec's plain \"Cancel\" label — both describe the identical behavior (return to Course Details) and neither contradicts any rank-1 IA/behavior rule, so this is noted as a literal microcopy difference only, not a conflicts[]-worthy IA disagreement."]
+}

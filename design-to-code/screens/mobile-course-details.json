@@ -1,0 +1,50 @@
+{
+  "screenId": "mobile-course-details",
+  "screenNumber": 3,
+  "role": ["Guest", "Student"],
+  "platform": "Mobile (Android/iOS)",
+  "shell": { "guest": "not specified — see mobile-explore.json's shell note; out of scope for this task", "student": "shared/navigation.json#/shells/mobileStudentShell (see conflicts[0] — this screen's own showcase frame does not visibly render the bottom nav)" },
+  "routeIntent": "Explore (pushed) or Home recommendations (pushed) or Learning Path Details (pushed) — per ux/NAVIGATION_SPEC.md § 3",
+  "referenceType": "exact-showcase",
+  "sourceReferences": [
+    "design-review-locked/Mentora Showcase.dc.html § 22 Product Preview — MOBILE PREVIEW \"Course Details\" frame, lines 2117-2156 (verified by direct read)",
+    "ux/SCREEN_UX_SPECS.md § 3",
+    "ux/MOBILE_UX.md § 1 (bottom-nav persistence rule), § 4 (Course Details mobile layout)",
+    "product/SCREEN_INVENTORY.md § 3",
+    "ux/NAVIGATION_SPEC.md § 3"
+  ],
+
+  "conflicts": [
+    {
+      "description": "ux/MOBILE_UX.md § 1 explicitly lists Course Details among the screens that keep the bottom nav visible (\"still 'browsing,' not 'doing'\"). The showcase's own Course Details mobile frame (lines 2117-2156) does not render a bottom-nav row at all — the frame's fixed 788px height is fully consumed by a header row (back/bookmark/share icons), the scrolling hero+tabs+description+instructor content, and a sticky footer bar (price + \"Enroll now\", lines 2150-2153), leaving no room for a 64px nav row in this specific illustration.",
+      "resolution": "Resolved in favor of rank-1 (ux/MOBILE_UX.md § 1): the bottom nav stays present per the locked rule; the showcase's omission is read as a space/illustration constraint of this one 788px mockup (which also omits the status bar's usual top padding seen elsewhere), not a deliberate 'hide nav here' instruction — Course Details is never listed anywhere alongside Course Player/Quiz's explicit hide rule. An implementer should render both the sticky CTA bar AND the bottom nav (stacked, CTA bar directly above the nav) rather than treating this as a Course-Player-style full-hide screen.",
+      "recordedIn": "design-to-code/validation/EXTRACTION_REPORT.md"
+    }
+  ],
+
+  "layout": { "structure": "single scrolling column: header icon row (back, bookmark, share — no page title in the showcase's own header, lines 2120-2125) -> 16:9 hero with center play affordance -> category chip + title + rating/students/duration meta row -> Overview/Curriculum/Instructor tabs -> tab body copy -> instructor summary card -> sticky footer (price + Enroll/Continue CTA)", "adaptation": "content hierarchy matches Web's course-details.json (hero -> description -> curriculum -> instructor) but the CTA is STICKY at the bottom of the viewport on mobile (ux/MOBILE_UX.md § 4), unlike Web's inline CTA" },
+
+  "sections": [
+    { "order": 0, "id": "header", "content": ["arrow_back icon, bookmark icon, ios_share icon — no title text in this header row (lines 2120-2125)"] },
+    { "order": 1, "id": "hero", "content": ["16:9 thumbnail with a centered play_arrow affordance overlay (lines 2127-2129) — a play-preview treatment not present on Web's course-details.json hero"] },
+    { "order": 2, "id": "meta", "content": ["category chip/badge, title (heading.h1-ish, showcase font:700 26px/33px), rating + student count + duration row (lines 2131-2137)"] },
+    { "order": 3, "id": "tabs", "content": ["Overview | Curriculum | Instructor — 3 tabs, not Web's 2 (lines 2138-2142); ux/SCREEN_UX_SPECS.md § 3 governs actual tab content per rank-1 if this differs from Web's own 2-tab structure"] },
+    { "order": 4, "id": "description", "content": ["body copy under the active tab (line 2143)"] },
+    { "order": 5, "id": "instructorSummary", "content": ["compact InstructorCard: avatar initials + name + \"{title} · {course count} courses\" (lines 2144-2147)"] },
+    { "order": 6, "id": "stickyFooter", "content": ["price + \"Demo price\" caption, full-width \"Enroll now\" PrimaryButton (lines 2150-2153) — sticky per ux/MOBILE_UX.md § 4, replaced by a Continue-Learning affordance once enrolled (inferred from Web's equivalent state, not separately shown in this specific mockup)"] }
+  ],
+
+  "componentSequence": ["button.icon", "card.courseCard (hero variant)", "chip.categoryChip", "tabs", "card.instructorCard", "button.primary", "mobileBottomNavigation"],
+
+  "typographyHierarchy": { "title": "typography.heading.h1 (showcase: font:700 26px/33px)", "description": "typography.body.medium", "price": "typography.heading.h3" },
+
+  "artworkRules": "shared/artwork.json — hero thumbnail.",
+  "navigation": { "shell": "mobileStudentShell", "exitDestinations": ["Login/Register (enroll-gate, Guest)", "Demo Checkout (Student, not enrolled)", "Course Player (Student, enrolled)"] },
+
+  "states": { "loading": "skeleton hero + text blocks", "error": "ErrorState if course fails to load", "empty": "not applicable — a course either exists or 404s" },
+
+  "ltrBehavior": "default", "rtlBehavior": "meta row and tab strip reorder start->end per logical properties; header icon row mirrors (back-arrow direction flips)",
+  "themeBehavior": "standard semantic token resolution — not independently re-verified live for mobile in this pass (no mobile Arabic/Dark Course Details frame exists in the showcase)",
+  "responsiveRules": "single column, every mobile width; sticky footer CTA always reachable without scrolling past the fold per ux/MOBILE_UX.md § 4",
+  "knownGaps": ["No mobile Arabic-RTL or Dark-mode frame exists in the showcase for Course Details — rtlBehavior/themeBehavior above are inferred from the general locked rules, not independently showcase-verified for this screen.", "This mobile frame shows a 3-tab (Overview/Curriculum/Instructor) structure, differing from course-details.json's Web description of exactly 2 tabs implied elsewhere in this pipeline for other editor-style screens — ux/SCREEN_UX_SPECS.md § 3 is the actual rank-1 authority for whichever tab count is correct; this spec records what the showcase visually shows without asserting it overrides rank-1 if a conflict is later found there.", "No student-count/duration meta fields are fabricated beyond what course-details.json (Web) already discloses as a real data gap — this mobile spec inherits that same disclosed limitation, not a new one."]
+}

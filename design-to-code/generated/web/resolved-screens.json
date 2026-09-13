@@ -25,6 +25,18 @@
       "knownGapCount": 0
     },
     {
+      "screenId": "mobile-explore",
+      "screenNumber": 2,
+      "role": [
+        "Guest",
+        "Student"
+      ],
+      "routeIntent": "Bottom Nav → Explore (tab root, Student); lighter pre-auth entry outside the tab bar (Guest)",
+      "referenceType": "exact-showcase",
+      "conflictCount": 2,
+      "knownGapCount": 2
+    },
+    {
       "screenId": "course-details",
       "screenNumber": 3,
       "role": [
@@ -34,6 +46,18 @@
       "routeIntent": "/{locale}/courses/{id} (public) and /{locale}/app/courses/{id} (authenticated)",
       "referenceType": "approved-pattern",
       "conflictCount": 0,
+      "knownGapCount": 3
+    },
+    {
+      "screenId": "mobile-course-details",
+      "screenNumber": 3,
+      "role": [
+        "Guest",
+        "Student"
+      ],
+      "routeIntent": "Explore (pushed) or Home recommendations (pushed) or Learning Path Details (pushed) — per ux/NAVIGATION_SPEC.md § 3",
+      "referenceType": "exact-showcase",
+      "conflictCount": 1,
       "knownGapCount": 3
     },
     {
@@ -94,6 +118,28 @@
       "knownGapCount": 2
     },
     {
+      "screenId": "mobile-home",
+      "screenNumber": 8,
+      "role": [
+        "Student"
+      ],
+      "routeIntent": "Bottom Nav → Home (tab root)",
+      "referenceType": "exact-showcase",
+      "conflictCount": 2,
+      "knownGapCount": 2
+    },
+    {
+      "screenId": "mobile-my-learning",
+      "screenNumber": 9,
+      "role": [
+        "Student"
+      ],
+      "routeIntent": "Bottom Nav → My Learning (tab root)",
+      "referenceType": "exact-showcase",
+      "conflictCount": 1,
+      "knownGapCount": 2
+    },
+    {
       "screenId": "my-learning",
       "screenNumber": 9,
       "role": [
@@ -114,6 +160,17 @@
       "referenceType": "exact-showcase",
       "conflictCount": 1,
       "knownGapCount": 1
+    },
+    {
+      "screenId": "mobile-course-player",
+      "screenNumber": 10,
+      "role": [
+        "Student"
+      ],
+      "routeIntent": "Explore or My Learning (pushed from either) — per ux/NAVIGATION_SPEC.md § 3",
+      "referenceType": "exact-showcase",
+      "conflictCount": 1,
+      "knownGapCount": 3
     },
     {
       "screenId": "quiz",
@@ -171,6 +228,17 @@
       "knownGapCount": 2
     },
     {
+      "screenId": "mobile-ai-tutor",
+      "screenNumber": 15,
+      "role": [
+        "Student"
+      ],
+      "routeIntent": "Bottom Nav → AI Tutor (tab root); also pushed contextually from Course Player",
+      "referenceType": "exact-showcase",
+      "conflictCount": 1,
+      "knownGapCount": 2
+    },
+    {
       "screenId": "profile",
       "screenNumber": 16,
       "role": [
@@ -202,6 +270,28 @@
       "referenceType": "approved-pattern",
       "conflictCount": 0,
       "knownGapCount": 0
+    },
+    {
+      "screenId": "mobile-demo-checkout",
+      "screenNumber": 18,
+      "role": [
+        "Student"
+      ],
+      "routeIntent": "Course Details (pushed) — per ux/NAVIGATION_SPEC.md § 3",
+      "referenceType": "exact-showcase",
+      "conflictCount": 0,
+      "knownGapCount": 2
+    },
+    {
+      "screenId": "mobile-purchase-success",
+      "screenNumber": 19,
+      "role": [
+        "Student"
+      ],
+      "routeIntent": "Demo Checkout (pushed); browser/system back redirects to My Learning tab, not back into checkout (ux/NAVIGATION_SPEC.md § 3, § 6)",
+      "referenceType": "exact-showcase",
+      "conflictCount": 1,
+      "knownGapCount": 2
     },
     {
       "screenId": "purchase-success",

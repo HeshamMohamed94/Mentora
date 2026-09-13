@@ -1,0 +1,57 @@
+{
+  "screenId": "mobile-course-player",
+  "screenNumber": 10,
+  "role": ["Student"],
+  "platform": "Mobile (Android/iOS)",
+  "shell": "shared/navigation.json#/shells/mobileStudentShell (bottom nav FULLY HIDDEN on this screen — see #/shells/mobileStudentShell/hiddenOn; this is the mobile counterpart of course-player.json's Web coursePlayerShell, but a full hide, not a 72px collapse)",
+  "routeIntent": "Explore or My Learning (pushed from either) — per ux/NAVIGATION_SPEC.md § 3",
+  "referenceType": "exact-showcase",
+  "sourceReferences": [
+    "design-review-locked/Mentora Showcase.dc.html § 22 Product Preview — MOBILE PREVIEW \"Course Player · curriculum lives in a Bottom Sheet, never beside the video\" frame, lines 2234-2278 (verified by direct read)",
+    "design-review-locked/Mentora Showcase.dc.html § 19 English and Arabic — \"PLAYER · EN\" (lines 1707-1724) / \"PLAYER · AR\" (lines 1725-1744) chrome-mirrors-scrubber-stays-LTR frames",
+    "ux/SCREEN_UX_SPECS.md § 10",
+    "ux/MOBILE_UX.md § 6 (Course Player mobile), § 7 (Curriculum Bottom Sheet)",
+    "design-system/COMPONENTS.md § Media & Playback",
+    "design-system/LOCALIZATION.md § 2-3 (scrubber never mirrors)",
+    "product/SCREEN_INVENTORY.md § 10"
+  ],
+
+  "conflicts": [
+    {
+      "description": "shared/navigation.json#/shells/coursePlayerShell's showcaseDeviationNote (already recorded for Web) warns that the showcase's own § 17 caption over-states the Course Player exception as removing the sidebar entirely. On MOBILE specifically, this over-statement is actually CORRECT rather than an over-statement: ux/MOBILE_UX.md § 1 confirms the bottom nav really is fully hidden (not collapsed) on Course Player/Quiz — the showcase's mobile frame (lines 2234-2278) shows no nav row at all, consistent with a full hide.",
+      "resolution": "No conflict on mobile — this entry exists only to explicitly disclose that the Web-side coursePlayerShell conflict note does NOT carry over to mobile unchanged; mobile's full-hide behavior is correct as shown, not an over-statement to correct. See shared/navigation.json#/shells/mobileStudentShell/hiddenOn/platformDifferenceFromWeb for the reverse-direction disclosure (mobile differs from Web, not that mobile's own showcase evidence is wrong).",
+      "recordedIn": "design-to-code/shared/navigation.json#/shells/mobileStudentShell/hiddenOn, design-to-code/validation/EXTRACTION_REPORT.md"
+    }
+  ],
+
+  "layout": {
+    "$description": "Single-column mobile layout — the single largest structural divergence from course-player.json's Web two-column (content-left/curriculum-right) layout, per ux/MOBILE_UX.md § 6: curriculum moves from a persistent side panel into an overlay Bottom Sheet.",
+    "topBar": ["back affordance -> previous screen", "course title + \"Lesson N of M · X% complete\" (lines 2238-2239)", "Ask AI Tutor entry point (auto_awesome icon, line 2240)"],
+    "structure": "top bar -> VideoPlayer (16:9, full width) -> lesson title -> ProgressBar -> short description -> \"Course content · N / M\" expandable row (triggers Bottom Sheet) -> Previous/Next lesson row",
+    "curriculumBottomSheet": "overlay, NOT a column — triggered by the \"Course content\" row; see sections[5] below"
+  },
+
+  "sections": [
+    { "order": 0, "id": "topBar", "content": ["back", "title + \"Lesson N of M · X%\"", "askAiTutor (auto_awesome icon)"] },
+    { "order": 1, "id": "video", "content": ["VideoPlayer 16:9, speed-control chip (\"1×\", top-end corner, line 2243) overlaid on the video itself — a mobile-only placement not present in course-player.json's Web spec, which places speed control inside the control bar only"] },
+    { "order": 2, "id": "lessonInfo", "content": ["lesson title (heading.h4-ish, showcase font:600 20px/28px, line 2254)", "course-level ProgressBar (line 2255)", "short description (line 2256) — no Overview/Resources Tabs component on mobile, unlike Web's 2-tab structure"] },
+    { "order": 3, "id": "curriculumTrigger", "content": ["full-width \"Course content · N / M\" row: list icon (leading) + label + expand_less/more chevron (trailing) — button-styled row, not a plain link (line 2257)"] },
+    { "order": 4, "id": "prevNextRow", "content": ["chevron_left icon-only Previous button (outlined) + full-width \"Next lesson\" PrimaryButton with trailing chevron_right (lines 2259-2261) — no separate \"Mark Complete\" button visible in this frame; ux/SCREEN_UX_SPECS.md § 10 is the rank-1 authority on whether Mark Complete is a distinct action or folded into Next on mobile, not independently re-derived here"] },
+    { "order": 5, "id": "curriculumBottomSheet", "content": ["drag handle + \"Course content\" title + close (X) icon (lines 2264-2266)", "\"SECTION N · {name}\" eyebrow (line 2267)", "lesson rows: check_circle (complete, success.default) / play_circle (current, brand.primaryContainer highlight) / lock_open (unlocked, not yet started) / quiz icon (module quiz row) — each row: icon + title (1-line ellipsis) + duration or question-count trailing label (lines 2268-2272)"] }
+  ],
+
+  "componentSequence": ["videoPlayer", "progressBar", "button.icon", "button.primary", "dialogsAndSheets.bottomSheet", "chip.badge"],
+
+  "typographyHierarchy": { "lessonTitle": "typography.heading.h4", "topBarMeta": "typography.label.large + typography.caption", "curriculumSectionHeading": "typography.caption (showcase: font:600 12px/16px, letter-spacing 0.5px — an eyebrow treatment, not label.large as Web's course-player.json uses for its h3 section headings)" },
+
+  "artworkRules": "n/a — video content, no course-thumbnail artwork on this screen (matches course-player.json's Web rule).",
+  "navigation": { "shell": "mobileStudentShell (fully hidden)", "exitDestinations": ["Quiz (automatic, last lesson)", "AI Tutor (contextual, top-bar entry)", "back to whichever tab/screen pushed this one"] },
+
+  "states": { "loading": "16:9 video skeleton", "error": "inline error sized to video frame, icon+title+retry (mirrors Web)", "completion": "not a separate screen state — routes to Quiz or an inline completion confirmation (mirrors course-player.json's Web note)" },
+
+  "ltrBehavior": "default single-column layout",
+  "rtlBehavior": "top bar, lesson-info block, and curriculum Bottom Sheet all mirror per logical properties — VERIFIED via § 19's \"PLAYER · AR\" frame (lines 1725-1744): the video control bar's icon row visually mirrors (fullscreen icon moves to the RTL-logical end via margin-inline-start:auto, not a DOM reorder) while the scrubber itself stays in an explicit dir=\"ltr\" wrapper (line 1730) regardless of the outer dir=\"rtl\" context — the LOCKED EXCEPTION, unchanged from Web's course-player.json rtlBehavior and shared/navigation.json#/rtlMirroring/neverMirrors/videoPlayerScrubber.",
+  "themeBehavior": "video control bar tokens (color.overlay.scrim, color.text.inverse) are deliberately theme-invariant, identical to course-player.json's Web rule and shared/components.json#/videoPlayer's own description — confirmed by § 19's player frames using the same literal chrome colors regardless of the surrounding EN/AR frame's light theme.",
+  "responsiveRules": "single column at every mobile width; Curriculum Bottom Sheet is a partial sheet by default (several lessons visible, scrollable, drag handle to expand toward full-height) per ux/MOBILE_UX.md § 7 — not independently re-verified live, since the showcase's own frame (lines 2263-2275) shows the sheet already in its fully-open overlay state, not the partial default height",
+  "knownGaps": ["The showcase's own captured Bottom Sheet frame shows it fully expanded over the whole screen (position:absolute;inset:0, line 2263) rather than the partial/several-lessons-visible default height ux/MOBILE_UX.md § 7 describes — the partial-height default behavior is asserted from that rank-1 text, not independently pixel-verified from this specific showcase frame.", "No Overview/Resources Tabs equivalent is visible on mobile, unlike Web's explicit 2-tab structure (course-player.json) — ux/SCREEN_UX_SPECS.md § 10 is the rank-1 authority on whether mobile drops tabs entirely (folding Resources into the Bottom Sheet or a different affordance) or simply wasn't captured in this compact frame; not resolved here.", "No mobile Dark-mode Course Player frame exists in the showcase — themeBehavior above is inferred from the general locked video-player token-invariance rule plus § 19's EN/AR (both light-theme) frames, not independently mobile-Dark-verified."]
+}

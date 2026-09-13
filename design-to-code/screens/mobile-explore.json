@@ -1,0 +1,58 @@
+{
+  "screenId": "mobile-explore",
+  "screenNumber": 2,
+  "role": ["Guest", "Student"],
+  "platform": "Mobile (Android/iOS)",
+  "shell": { "guest": "not specified — pre-auth mobile Explore is reached via a lighter entry surfaced from the Login/Register stack, or the app opens straight into Guest-mode Explore with the bottom nav withheld until authentication (ux/NAVIGATION_SPEC.md § 3, 'the bottom nav itself is only shown once authenticated'); no mobile Guest shell is specified by this task, out of scope per the Phase 4 plan (only the Student-facing mobileStudentShell was in scope for T3)", "student": "shared/navigation.json#/shells/mobileStudentShell" },
+  "routeIntent": "Bottom Nav → Explore (tab root, Student); lighter pre-auth entry outside the tab bar (Guest)",
+  "referenceType": "exact-showcase",
+  "sourceReferences": [
+    "design-review-locked/Mentora Showcase.dc.html § 22 Product Preview — MOBILE PREVIEW \"Explore\" frame, lines 2071-2115 (verified by direct read)",
+    "design-review-locked/Mentora Showcase.dc.html § 20 Responsive — \"MOBILE · 360\" Explore composition, lines 1830-1868, and the locked guidance quote at line 1918",
+    "ux/SCREEN_UX_SPECS.md § 2",
+    "ux/MOBILE_UX.md § 3 (mobile course discovery), § 12 (Learning Paths nested under Explore)",
+    "product/SCREEN_INVENTORY.md § 2",
+    "product/INFORMATION_ARCHITECTURE.md § 3",
+    "ux/NAVIGATION_SPEC.md § 3"
+  ],
+
+  "conflicts": [
+    {
+      "description": "Showcase-internal English-microcopy inconsistency, same root cause as mobile-home.json's conflicts[0]: the \"MOBILE · 360\" Explore frame's own bottom-nav row (line 1864) and the § 22 Explore frame's bottom-nav row (line 2109) both label item 3 \"Learning\", not \"My Learning\".",
+      "resolution": "Resolved to \"My Learning\" per rank-1 precedence — see shared/navigation.json#/shells/mobileStudentShell/labelConflict for the full cross-reference.",
+      "recordedIn": "design-to-code/shared/navigation.json#/shells/mobileStudentShell/labelConflict, design-to-code/validation/EXTRACTION_REPORT.md"
+    },
+    {
+      "description": "ux/MOBILE_UX.md § 3 and product/INFORMATION_ARCHITECTURE.md § 3 both lock Learning Paths as living inside Explore via a \"segment/tab\" control. Neither of the two showcase Explore frames actually shows a segment/tab control anywhere — § 22's Explore frame instead shows a single brand-tinted LearningPathCard promo (\"Become a Frontend Engineer\", lines 2085-2089) inlined directly among the search/filter/course-card flow, with no visible tab strip switching between a \"Courses\" view and a \"Learning Paths\" view.",
+      "resolution": "Not resolved by this pass — genuinely ambiguous evidence, disclosed rather than guessed. Two readings are both plausible from the same 788px-tall captured frame: (a) the segment/tab control exists above the fold and simply isn't visible in this compact illustration, and the LearningPathCard shown is an unrelated in-feed promotional card that coexists with the tab control; or (b) the showcase's own composition deliberately promotes a single followed/recommended Learning Path inline rather than requiring a tab switch at all, and the rank-1 docs' 'segment/tab' language is the more literal source of truth to build against regardless. Rank-1 (product/UX) governs the BEHAVIOR (a segment/tab must exist, per SOURCE_MANIFEST.json precedence) — this spec's sections/componentSequence below include a segment/tab as required by rank-1, while also disclosing that the showcase's inline promo card is real visual evidence worth keeping alongside it, not a substitute for it.",
+      "recordedIn": "design-to-code/validation/EXTRACTION_REPORT.md"
+    }
+  ],
+
+  "layout": { "structure": "single scrolling column: page heading -> SearchField -> horizontally scrollable CategoryChip row -> Learning Paths segment/tab (rank-1-required, not directly visible in the showcase frame — see conflicts[1]) -> CourseCard list (1 column, full-width)", "adaptation": "no multi-column grid at any mobile width per shared/responsive.json's Mobile 0-599 tier (\"1 card/row\", § 20 line 1822) — never a squeezed version of explore.json's desktop grid" },
+
+  "sections": [
+    { "order": 0, "id": "heading", "content": ["\"Explore\" / \"Find your next course\" heading (showcase uses both phrasings across its two Explore frames — heading.h1/display style, lines 1838 and 2075)"] },
+    { "order": 1, "id": "search", "content": ["SearchField, full width, placeholder \"Search courses\" (line 2077-2078)"] },
+    { "order": 2, "id": "filters", "content": ["CategoryChip row, horizontally scrollable, not wrapping (ux/MOBILE_UX.md § 3, line 2080-2084: ALL / DATA SCIENCE / DESIGN)"] },
+    { "order": 3, "id": "learningPathsEntry", "content": ["rank-1-required segment/tab into Learning Paths (ux/MOBILE_UX.md § 3) — the showcase's own visible evidence is a single inline LearningPathCard promo instead (lines 2085-2089); see conflicts[1]"] },
+    { "order": 4, "id": "grid", "content": ["CourseCard list, 1 column full-width, full-width in-card CTA per the § 20 locked guidance quote (line 1918: \"the card action goes full-width for thumb reach\")"] }
+  ],
+
+  "componentSequence": ["textField (searchField variant)", "chip.categoryChip", "card.learningPathCard", "card.courseCard", "statePatterns.emptyState", "statePatterns.loadingState", "statePatterns.errorState", "mobileBottomNavigation"],
+
+  "typographyHierarchy": { "heading": "typography.display.medium or heading.h1 (showcase: font:700 26px/33px, line 2075)", "resultCount": "typography.caption" },
+  "artworkRules": "shared/artwork.json — every CourseCard thumbnail.",
+  "navigation": { "shell": "mobileStudentShell", "exitDestinations": ["Course Details", "Learning Path Details (via Learning Paths entry)"] },
+
+  "states": {
+    "loading": "skeleton list (shared/components.json#/statePatterns/loadingState)",
+    "empty": "\"No results\" row + \"Clear filters\" action",
+    "error": "full ErrorState"
+  },
+
+  "ltrBehavior": "default", "rtlBehavior": "search icon, filter chip order, and card content mirror per logical properties, consistent with explore.json's Web rtlBehavior — not independently re-verified live for mobile in this pass (no mobile Arabic Explore frame exists in the showcase; only Home has an Arabic RTL mobile frame)",
+  "themeBehavior": "standard semantic token resolution — not independently re-verified live for mobile Dark in this pass (no mobile Dark Explore frame exists in the showcase; only Home has one)",
+  "responsiveRules": "1 column, 1 card/row at every mobile width (shared/responsive.json Mobile 0-599 tier); filter row is horizontally scrollable rather than wrapping, per the § 20 locked guidance quote",
+  "knownGaps": ["No mobile Arabic-RTL or Dark-mode frame exists in the showcase for Explore specifically (only Home has both) — rtlBehavior/themeBehavior above are inferred from the general locked rules and Web's own explore.json precedent, not independently showcase-verified for this screen.", "The Learning Paths segment/tab control itself has no direct showcase visual evidence — see conflicts[1]; its own visual design (tab strip vs. segmented control vs. something else) is not specified by this pass and is left to whichever later Phase 4 task builds this screen, informed by ux/MOBILE_UX.md § 3 and the existing tabs component recipe (shared/components.json#/tabs)."]
+}

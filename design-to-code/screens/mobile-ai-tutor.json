@@ -1,0 +1,44 @@
+{
+  "screenId": "mobile-ai-tutor",
+  "screenNumber": 15,
+  "role": ["Student"],
+  "platform": "Mobile (Android/iOS)",
+  "shell": "shared/navigation.json#/shells/mobileStudentShell (tab-root visibility inferred, not directly shown — see conflicts[0])",
+  "routeIntent": "Bottom Nav → AI Tutor (tab root); also pushed contextually from Course Player",
+  "referenceType": "exact-showcase",
+  "sourceReferences": [
+    "design-review-locked/Mentora Showcase.dc.html § 22 Product Preview — MOBILE PREVIEW \"AI Tutor\" frame, lines 2199-2232 (verified by direct read)",
+    "ux/SCREEN_UX_SPECS.md § 15",
+    "ux/MOBILE_UX.md § 10 (AI Tutor mobile), § 14 (keyboard behavior)",
+    "design-system/COMPONENTS.md § AI Tutor",
+    "product/SCREEN_INVENTORY.md § 15"
+  ],
+
+  "conflicts": [
+    {
+      "description": "The showcase's only captured AI Tutor mobile frame depicts the CONTEXTUAL invocation (header subtitle \"Lesson 15 context\", a more_vert menu instead of a back arrow, lines 2202-2206) launched from Course Player — not the tab-root variant reached by tapping the AI Tutor bottom-nav item directly. This frame renders NO bottom-nav row at all (788px height fully consumed by header + chat thread + composer, lines 2199-2229). ux/MOBILE_UX.md § 10 describes AI Tutor as a \"Full-screen tab,\" and § 1's persistence rule does not list AI Tutor among the screens that hide the nav — implying the tab-root variant SHOULD show it, but no showcase evidence directly confirms that for AI Tutor's own frame (only Home/Explore/My Learning's frames show the nav row explicitly).",
+      "resolution": "Not resolved by asserting a specific answer — disclosed as inferred, not shown. This spec assumes the tab-root variant keeps the bottom nav visible (consistent with § 1's rule that only Course Player/Quiz hide it) while the contextual-from-Course-Player variant reasonably hides it (since Course Player itself already hides the nav, and this is effectively still \"inside\" that focused-learning context) — both readings are consistent with rank-1 text, neither is showcase-pixel-verified for this specific screen.",
+      "recordedIn": "design-to-code/validation/EXTRACTION_REPORT.md"
+    }
+  ],
+
+  "layout": { "structure": "single scrolling column: header (avatar/icon badge + \"AI Tutor\" title + contextual subtitle + more_vert or back) -> chat thread (scrolling) -> quick-action row (horizontally scrollable, pinned above input) -> pill-shaped composer + circular send button", "adaptation": "full-screen on mobile (no persistent Sidebar beside it, unlike Web's full-height panel with Sidebar still visible per ai-tutor.json)" },
+
+  "sections": [
+    { "order": 0, "id": "header", "content": ["circular icon badge (secondary.container background, auto_awesome icon, lines 2203) + \"AI Tutor\" title + contextual subtitle (\"Lesson 15 context\") + more_vert trigger (lines 2202-2206)"] },
+    { "order": 1, "id": "thread", "content": ["AITutorBubble messages — AI bubble on surface.variant with bottom-start-reduced corner (border-radius \"16px 16px 16px 8px\", line 2208), Student bubble on brand.primaryContainer with bottom-end-reduced corner (border-radius \"16px 16px 8px 16px\", line 2209) — an exact match to shared/components.json#/aiTutor/bubble's tailCorner rule; \"thinking\" indeterminate 3-dot indicator shown inline as its own bubble-shaped row when AI is composing (lines 2211-2217)"] },
+    { "order": 2, "id": "quickActions", "content": ["horizontally scrollable pill chips (lines 2220-2224): showcase shows 3 of the 5 locked defaultActions visible in the compact frame (\"Give me an example\", \"Quiz me\", \"What next?\" — an abbreviation of \"What should I learn next?\" for space, not a 4th/different action) — all 5 from shared/components.json#/aiTutor/quickAction/defaultActions still apply, this frame just can't show all 5 in 340px width"] },
+    { "order": 3, "id": "input", "content": ["pill-shaped composer (radius.full, placeholder \"Ask anything…\") + circular icon send button (lines 2225-2228) — same pill/circular-send treatment ai-tutor.json's D52 fix already brought to Web, confirming Web's D52 correction was actually restoring parity with this pre-existing mobile mockup, not inventing a new pattern"] }
+  ],
+
+  "componentSequence": ["avatar", "aiTutor.bubble", "aiTutor.quickAction", "textField", "button.icon", "statePatterns.loadingState", "mobileBottomNavigation"],
+
+  "navigation": { "shell": "mobileStudentShell", "entryPoints": ["Bottom Nav tab tap", "Course Player's AI Tutor affordance (contextual, lesson-scoped)"] },
+
+  "states": { "empty": "welcome message on first open (mirrors ai-tutor.json's Web behavior)", "loading": "AI 'thinking' indeterminate 3-dot indicator (lines 2211-2217)", "error": "inline retry within the bubble slot (mirrors Web)" },
+
+  "ltrBehavior": "default", "rtlBehavior": "AI bubble tail direction mirrors (bottom-start AI / bottom-end Student swap, matching ai-tutor.json's Web rtlBehavior) — not independently re-verified live for mobile in this pass (no mobile Arabic AI Tutor frame exists in the showcase)",
+  "themeBehavior": "standard semantic token resolution — not independently re-verified live for mobile in this pass",
+  "responsiveRules": "bubble max-width caps at 85% of chat container in this mobile frame (line 2208: max-width:85%) — a narrower cap than ai-tutor.json's Web 80%, reflecting mobile's already-narrow viewport; keyboard-avoidance per ux/MOBILE_UX.md § 14 (composer stays pinned above the keyboard, thread scrolls behind it, keyboard stays open after Send)",
+  "knownGaps": ["No mobile Arabic-RTL or Dark-mode frame exists in the showcase for AI Tutor — rtlBehavior/themeBehavior above are inferred, not independently showcase-verified for this screen.", "The tab-root (non-contextual) variant's bottom-nav visibility is inferred, not directly shown — see conflicts[0]."]
+}

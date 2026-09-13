@@ -1,0 +1,47 @@
+{
+  "screenId": "mobile-my-learning",
+  "screenNumber": 9,
+  "role": ["Student"],
+  "platform": "Mobile (Android/iOS)",
+  "shell": "shared/navigation.json#/shells/mobileStudentShell",
+  "routeIntent": "Bottom Nav → My Learning (tab root)",
+  "referenceType": "exact-showcase",
+  "sourceReferences": [
+    "design-review-locked/Mentora Showcase.dc.html § 22 Product Preview — MOBILE PREVIEW \"My Learning\" frame, lines 2158-2197 (verified by direct read)",
+    "ux/SCREEN_UX_SPECS.md § 9",
+    "ux/MOBILE_UX.md § 1 (bottom nav persistence — My Learning's course list keeps it visible), § 11 (Certificates nested under My Learning)",
+    "product/SCREEN_INVENTORY.md § 9",
+    "product/INFORMATION_ARCHITECTURE.md § 3"
+  ],
+
+  "conflicts": [
+    {
+      "description": "Showcase-internal English-microcopy inconsistency, same root cause as mobile-home.json's conflicts[0]: this frame's own bottom-nav row (line 2191) labels item 3 \"Learning\" even though it is the active tab on the \"My Learning\" screen itself (page heading \"My Learning\", line 2162) — the frame's own heading and its own active nav label disagree with each other within the same illustration.",
+      "resolution": "Resolved to \"My Learning\" per rank-1 precedence — see shared/navigation.json#/shells/mobileStudentShell/labelConflict for the full cross-reference.",
+      "recordedIn": "design-to-code/shared/navigation.json#/shells/mobileStudentShell/labelConflict, design-to-code/validation/EXTRACTION_REPORT.md"
+    }
+  ],
+
+  "layout": { "structure": "single scrolling column: page heading -> In progress/Completed tabs -> courseProgressCard list (vertical stack, not Web's horizontal-row adaptation) -> certificate-ready highlight card", "adaptation": "the showcase's mobile mockup renders courseProgressCard as a vertical-stack card (thumbnail+meta row, then ProgressBar, then %-complete+Resume row) — my-learning.json (Web) explicitly notes ITS horizontal-row layout is a deliberate desktop adaptation of this exact same mobile-native vertical pattern; this mobile spec is that pattern's true source, not a derivative of it." },
+
+  "sections": [
+    { "order": 0, "id": "heading", "content": ["\"My Learning\" (line 2162, heading.h1-ish, showcase font:700 26px/33px)"] },
+    { "order": 1, "id": "filter", "content": ["In progress / Completed tabs (lines 2163-2166) — matches ux/SCREEN_UX_SPECS.md § 9's status-filter requirement, rendered here as Tabs rather than Web's chip-style filter"] },
+    { "order": 2, "id": "progressList", "content": ["courseProgressCard rows: 88px thumbnail + title + \"Lesson N of M\" (lines 2167-2182), ProgressBar, \"N% complete\" caption + \"Resume\" text button"] },
+    { "order": 3, "id": "certificatesEntry", "content": ["success.container-tinted highlight card: workspace_premium icon + completed-course title + \"Completed · certificate ready\" (lines 2183-2186) — this is the \"+ Certificates entry\" the product screen inventory (§ 9) refers to: a completed-course row surfaces its earned certificate inline rather than requiring a separate top-level nav item, consistent with ux/MOBILE_UX.md § 11 (Certificates nested under My Learning, not a 6th tab)"] }
+  ],
+
+  "componentSequence": ["tabs", "card.courseProgressCard", "progressBar", "button.text", "chip.badge", "mobileBottomNavigation"],
+
+  "typographyHierarchy": { "heading": "typography.heading.h1 (showcase: font:700 26px/33px)", "cardTitle": "typography.label.large", "cardMeta": "typography.caption" },
+
+  "artworkRules": "shared/artwork.json — progress-row thumbnails.",
+  "navigation": { "shell": "mobileStudentShell", "exitDestinations": ["Course Player (Resume)", "Certificate Detail / Certificates List (certificate-ready card tap)", "Learning Path Details (followed paths, not directly shown in this frame)"] },
+
+  "states": { "loading": "skeleton list", "empty": "\"no enrollments yet\" + CTA \"Explore Courses\" (mirrors my-learning.json's Web empty state)" },
+
+  "ltrBehavior": "default", "rtlBehavior": "tab strip and card content mirror per logical properties, consistent with my-learning.json's Web rtlBehavior — not independently re-verified live for mobile in this pass (no mobile Arabic/Dark My Learning frame exists in the showcase)",
+  "themeBehavior": "standard semantic token resolution — not independently re-verified live for mobile in this pass",
+  "responsiveRules": "vertical card list at every mobile width; this is the mobile-native layout mobile-to-desktop-adaptation.json's Web counterpart adapts FROM, not a squeeze of it",
+  "knownGaps": ["No mobile Arabic-RTL or Dark-mode frame exists in the showcase for My Learning — rtlBehavior/themeBehavior above are inferred, not independently showcase-verified for this screen.", "The showcase frame shows no followed-Learning-Path module (unlike my-learning.json's Web spec, which includes one) — not fabricated here for that reason; a real implementation may still need one per product/SCREEN_INVENTORY.md § 9's 'followed Learning Paths' content note, this spec just discloses the showcase itself doesn't visually demonstrate it on mobile."]
+}

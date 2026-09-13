@@ -1,0 +1,56 @@
+{
+  "screenId": "mobile-home",
+  "screenNumber": 8,
+  "role": ["Student"],
+  "platform": "Mobile (Android/iOS)",
+  "shell": "shared/navigation.json#/shells/mobileStudentShell",
+  "routeIntent": "Bottom Nav → Home (tab root)",
+  "referenceType": "exact-showcase",
+  "sourceReferences": [
+    "design-review-locked/Mentora Showcase.dc.html § 22 Product Preview — MOBILE PREVIEW \"Home\" frame, lines 2036-2069 (verified by direct read)",
+    "design-review-locked/Mentora Showcase.dc.html § 22 Product Preview — MOBILE PREVIEW \"Home · Arabic RTL\" frame, lines 2328-2372, and \"Home · Dark Mode\" frame, lines 2374-2409",
+    "ux/SCREEN_UX_SPECS.md § 8",
+    "ux/MOBILE_UX.md § 1 (bottom nav), § 9 (no dedicated Progress screen)",
+    "product/SCREEN_INVENTORY.md § 8",
+    "product/INFORMATION_ARCHITECTURE.md § 3"
+  ],
+
+  "conflicts": [
+    {
+      "description": "Showcase-internal English-microcopy inconsistency in the bottom nav row rendered inside this very frame (line 2063) and its Dark Mode variant (line 2403): item 3 reads \"Learning\", not \"My Learning\" as § 17's dedicated nav component (and every rank-1 doc) locks it. The Arabic RTL variant of this same frame (line 2366) already correctly reads \"مساحة التعلّم\" (My Learning) — the inconsistency is English-only.",
+      "resolution": "Resolved to \"My Learning\" per rank-1 precedence (ux/MOBILE_UX.md § 1, product/INFORMATION_ARCHITECTURE.md § 3, ux/NAVIGATION_SPEC.md § 3) and per § 17's own already-correct component spec. See shared/navigation.json#/shells/mobileStudentShell/labelConflict for the full cross-reference.",
+      "recordedIn": "design-to-code/shared/navigation.json#/shells/mobileStudentShell/labelConflict, design-to-code/validation/EXTRACTION_REPORT.md"
+    },
+    {
+      "description": "The showcase's mobile Home frame renders a 4th-of-4 stat metric slot pattern only partially — it actually shows exactly 2 stat cards (\"Learning hours\" and \"Certificates\"), not the Web Dashboard's 4-card row. \"Learning hours\" is the same metric already flagged as unbuildable in dashboard.json#/conflicts[1] (no watch-time/duration field exists anywhere in the backend).",
+      "resolution": "Not resolved by fabricating the field. This mobile screen's stat-card content is deliberately NOT copied verbatim from the showcase's 2-card row for this reason — see knownGaps below for the disclosed substitution this spec recommends (courses-in-progress + avg-progress, both real, mirroring dashboard.json's own resolution for the identical data gap) rather than inventing Learning-hours data. This is a content-truthfulness decision flagged here for the implementer, not silently resolved either way.",
+      "recordedIn": "design-to-code/screens/dashboard.json#/conflicts[1], design-to-code/validation/EXTRACTION_REPORT.md"
+    }
+  ],
+
+  "layout": {
+    "structure": "single scrolling column, top-to-bottom: greeting row -> Continue Learning module (brand-tinted) -> stat row (2 cards) -> Recommended section (horizontal-feel single row shown in the mockup, more likely a vertical list/row of courseCards at real scale) -> Bottom Nav",
+    "statusBarNote": "the showcase's mobile frames render a device status bar (9:41, signal/wifi/battery) purely as device chrome for the illustration — not a Mentora UI element, not part of this spec"
+  },
+
+  "sections": [
+    { "order": 0, "id": "greeting", "content": ["Avatar (40dp, initials fallback) + time-of-day greeting (\"Good morning\", line 2041) + first name, no page title/theme-toggle row (unlike Web's D55 header — mobile has no theme-toggle-in-header composition in the showcase; theme lives in Settings per ux/MOBILE_UX.md § 13)"] },
+    { "order": 1, "id": "continueLearning", "content": ["brand.primary-tinted card: \"CONTINUE LEARNING\" eyebrow, lesson title, \"{course} · Lesson N of M\" meta, inverse-tinted ProgressBar, \"Resume\" PrimaryButton with play_arrow icon (lines 2043-2049)"] },
+    { "order": 2, "id": "statRow", "content": ["2 statCards in the showcase mockup: \"Learning hours\" + \"Certificates\" (lines 2050-2053) — see conflicts[1]: Learning hours cannot be truthfully computed (no backend field), same gap dashboard.json already discloses; recommend substituting a real metric (e.g. courses in progress / avg. progress) rather than fabricating hours, mirroring dashboard.json's own resolution"] },
+    { "order": 3, "id": "recommended", "content": ["\"Recommended\" heading + \"See all\" text link (line 2054), 1 compact horizontal courseCard row shown (88px thumbnail + title + instructor/duration, lines 2055-2058) — real implementation would repeat this row for multiple recommendations"] }
+  ],
+
+  "componentSequence": ["avatar", "card.courseProgressCard", "progressBar", "button.primary", "card.statCard", "card.courseCard", "mobileBottomNavigation"],
+
+  "typographyHierarchy": { "greeting": "typography.caption (eyebrow) + typography.heading.h4 (name)", "continueLearningTitle": "typography.heading.h4", "continueLearningMeta": "typography.caption", "statValue": "typography.display.medium (28/36, showcase font:700 28px/36px — heavier weight than Web's statCard heading.h2)", "statLabel": "typography.body.medium", "recommendedHeading": "typography.heading.h4" },
+
+  "artworkRules": "shared/artwork.json — Continue Learning and Recommended course thumbnails.",
+  "navigation": { "shell": "mobileStudentShell", "exitDestinations": ["Course Player (Continue/Resume)", "Explore (See all)", "Course Details (Recommended card tap)"] },
+
+  "states": { "loading": "skeletons per module (statePatterns.loadingState)", "empty": "Continue Learning module degrades to a single \"Start your first course\" prompt if no enrollment in progress, mirroring dashboard.json's identical module-level empty-state rule — not a fabricated placeholder" },
+
+  "ltrBehavior": "default", "rtlBehavior": "verified in the showcase's own \"Home · Arabic RTL\" frame (lines 2328-2372): greeting/eyebrow/card text mirror via logical start/end alignment, avatar stays leading-edge, bottom nav icon/label order visually mirrors as a whole (not per-item reorder). That frame's greeting row shows the Mentora wordmark glyph at its trailing edge where the Dark Mode frame instead shows a dark_mode icon (line 2381) and the Light/LTR frame shows neither — an illustration-frame variance across the 3 captured Home variants, not a locked per-theme/per-direction rule.",
+  "themeBehavior": "Dark mode explicitly verified in the showcase's own \"Home · Dark Mode\" frame (lines 2374-2409) — same structure, dark surface/brand-container token values, standard semantic resolution",
+  "responsiveRules": "single column at every mobile width (no multi-column breakpoint on mobile per shared/responsive.json's Mobile 0-599 tier); this is the mobile-native composition, not a squeezed version of dashboard.json's 2-column desktop grid",
+  "knownGaps": ["Showcase mockup's stat row (2 cards: Learning hours, Certificates) could not be reproduced verbatim — Learning hours has no real backend data source, exactly the same disclosed gap as dashboard.json#/conflicts[1]. Recommend the same resolution Web already applies (avg. progress or courses-in-progress in that slot) when this screen is implemented in Phase 4 T12 — not decided here, since resolving it is that task's job, this spec only flags the inherited gap.", "The showcase's single mobile Home frame does not show an \"Up Next\" module (dashboard.json's D49 real-data-driven module) or an AI Tutor nudge card — mobile's Continue Learning + stat row + Recommended composition is visually simpler than Web's Dashboard; this spec does not invent either module for parity, since no mobile mockup evidence supports them existing on this screen."]
+}
