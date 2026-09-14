@@ -394,7 +394,9 @@ private fun ExploreLearningPathCard(path: LearningPath, onClick: () -> Unit) {
     LearningPathCard(
         title = path.title,
         description = path.description,
-        metaLabel = stringResource(R.string.explore_learning_path_course_count, path.courseCount),
+        // `%1$s` + `.toString()`, not `%1$d` — Western-numeral in every locale regardless of the
+        // current Locale's numbering system (`design-system/LOCALIZATION.md § 8`).
+        metaLabel = stringResource(R.string.explore_learning_path_course_count, path.courseCount.toString()),
         actionLabel = stringResource(R.string.explore_learning_path_action),
         onActionClick = onClick,
         onClick = onClick,

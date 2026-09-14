@@ -1575,3 +1575,419 @@ PlaceholderScreens.kt`, `values/strings.xml`/`values-ar/strings.xml`, 3 new test
 (`LessonPlaybackController` + Course Player + Curriculum Bottom Sheet — the plan's own
 highest-risk task).
 
+### D85 — 2026-09-14 — PHASE 4 Task 13 implementation plan (pre-implementation, no code): ExoPlayer
+binding, 5-minute-TTL refresh strategy, RTL scrubber exception, Curriculum Bottom Sheet, and the
+progress-write lifecycle — plus three genuine locked-spec/inherited defects found while grounding it
+
+**Why this entry exists before any code:** `PHASE_4_ANDROID_PLAN.md § 7` names T13 ("ExoPlayer +
+Curriculum Bottom Sheet + 5-minute URL TTL + RTL scrubber exception") the single riskiest task of the
+20, and instructs landing the playback controller as its own sub-commit before the full player screen.
+This is the `architect`-derived, implementation-ready plan for that task, in the same plan-before-build
+convention D78 established for Phase 4 as a whole. It decides the open architectural questions, records
+the tradeoffs, and — per the standing stopping rule — hands three items back rather than deciding them
+unilaterally (see "Open questions" at the end).
+
+**Decision 1 — the ExoPlayer binding is a plain class owned by the screen's `ViewModel`, not an
+Application-scoped singleton and not a `remember`-ed Composable object.** `mobile/androidApp/src/main/
+kotlin/com/mentora/android/playback/MediaPlaybackController.kt` implements `shared`'s
+`LessonPlaybackController` (`mobile/shared/src/commonMain/kotlin/com/mentora/shared/playback/
+LessonPlaybackController.kt:32-55`) verbatim, is constructed by `CoursePlayerViewModel` from the
+**application** `Context` (never the Activity — it outlives Activity re-creation), and is released in
+`onCleared()`. Rationale against the two alternatives: an Application-scoped player would outlive the
+screen and keep decoding/holding audio focus with nothing to stop it, and it only earns its keep with a
+`MediaSessionService`/notification — i.e. background playback, which no locked doc puts in MVP scope
+(`architecture/MEDIA_ARCHITECTURE.md:88-96` describes a foreground player only). A `remember {
+ExoPlayer.Builder(...).build() }` in the Composable would be destroyed and rebuilt on every rotation —
+`mobile/androidApp/src/main/AndroidManifest.xml:14-22` sets neither `screenOrientation` nor
+`configChanges`, so this app genuinely rotates and genuinely recreates its Activity — costing a visible
+re-buffer and a position round trip each time. A ViewModel scoped to the `Destination.CoursePlayer`
+`NavBackStackEntry` survives exactly that, and dies exactly when the entry is popped. **Thread
+confinement:** ExoPlayer is single-threaded by contract (the `Looper` it was built on); every
+`MediaPlaybackController` method and every `Player.Listener` callback stays on the main thread — its
+internal scope is `Dispatchers.Main.immediate`, stated in the class kdoc so a later contributor doesn't
+"helpfully" move work off it.
+
+**API shape (additive to `shared`'s interface, zero `shared` change):**
+- `override fun prepare(url: String)` / `play()` / `pause()` / `seekTo(position: Duration)` plus the
+  three `Flow`s `currentPosition` / `duration` / `state` (`PlaybackState`, `mobile/shared/.../playback/
+  PlaybackState.kt:10-32`) — the contract implemented exactly as specified, including attaching **no**
+  `Authorization` header (the `?token=` in the URL is the auth — `LessonPlaybackController.kt:14-22`,
+  `INTEGRATION_CONTRACT.md:170`).
+- Plus **one Android-only addition**: `fun prepareLesson(mediaId: String, source: PlaybackSource,
+  startPosition: Duration)`. Load-bearing, not convenience: `prepare(url: String)` carries neither the
+  `mediaId` nor the `expiresAt` that Decision 2's refresh strategy needs, so the interface method alone
+  structurally cannot self-refresh. `prepare(url)` is still implemented (same path, no refresh context)
+  and its kdoc says plainly that it is the no-auto-refresh form. Recorded as a real, narrow shape gap in
+  the Phase 3 contract — **not** fixed by reopening `shared` (which stays untouched this task, the same
+  rule every Phase 4 task since T12 has held).
+- `currentPosition` is a `MutableStateFlow<Duration>` driven by a 250 ms ticker that runs only while
+  `isPlaying`, plus a push on `onPositionDiscontinuity`. **Collect it inside the scrubber composable
+  only** — never at the screen root, or every 250 ms recomposes the whole player screen including the
+  curriculum list.
+- Audio behaviour set once at construction: `setAudioAttributes(usage = MEDIA, contentType = MOVIE,
+  handleAudioFocus = true)` and `setHandleAudioBecomingNoisy(true)`. Cheap, and the alternative
+  (ignoring audio focus) is a real defect on a phone.
+
+**Decision 2 — the 5-minute URL TTL is handled by rewriting the token on every HTTP open
+(`ResolvingDataSource`), not by a periodic timer that re-prepares the player.** Verified from source,
+not assumed: the stream route mints a 5-minute JWT (`backend/src/main/kotlin/com/mentora/backend/media/
+service/MediaService.kt:85-92`, `PLAYBACK_TTL_MINUTES = 5` at :194) and validates it **per request**
+(`MediaRoutes.kt:60-65` → `MediaService.verifyPlaybackToken`:100-109) on an otherwise-public route. The
+consequence that decides the design: an already-open connection is never revalidated mid-stream, but
+**any new request** (a seek outside the buffer, a re-buffer, a network-blip retry, a resume after a long
+pause) after expiry fails. So the correct hook is "whenever a new request is about to be opened", which
+is exactly `androidx.media3.datasource.ResolvingDataSource.Resolver.resolveDataSpec(...)`.
+Implementation: `playback/PlaybackUrlResolver.kt` holds the current `PlaybackSource` and on each
+`resolveDataSpec` calls `sdk.media.refreshPlaybackUrl(mediaId, current)` (`mobile/shared/.../domain/
+usecase/media/RefreshPlaybackUrlUseCase.kt:30-46`) via `runBlocking` on ExoPlayer's own loader thread (a
+background thread built for blocking IO — never the main thread): `null` → still valid, reuse the
+current URI unchanged; `Success` → adopt it and return `dataSpec.withUri(fresh)`; `Failure` → throw an
+`IOException` carrying the `ApiErrorCode`, which ExoPlayer surfaces as a `PlaybackException` →
+`PlaybackState.Error` → the inline retry affordance. The near-expiry threshold is **not** reimplemented
+in `androidApp` — `RefreshPlaybackUrlUseCase` already returns `null` while the source is comfortably
+valid (30 s buffer, that file's `DEFAULT_REFRESH_BUFFER`:44), which is precisely this call's contract.
+
+*Tradeoff, stated plainly:* the rejected alternative — a coroutine timer firing at `expiresAt − 30s`,
+calling `refreshPlaybackUrl`, then `setMediaItem(newUri, startPositionMs = currentPosition)` +
+`prepare()` — is what `LessonPlaybackController.kt:24-27`'s own kdoc literally suggests, and it is
+simpler to read. It is rejected because it forces a buffer discard and a visible re-buffer stall every
+~4.5 minutes of an otherwise-fine session, and it still needs separate handling for "paused past the
+TTL", "backgrounded for an hour", and "position must be saved and restored across the re-prepare" —
+three extra states the resolver approach never has, because a paused player that needs no bytes needs no
+token. The resolver costs one `@OptIn(UnstableApi::class)` and one `runBlocking` on a loader thread;
+that is the better trade. The **initial** fetch stays in the ViewModel as an ordinary
+`sdk.media.getLessonPlaybackSource(videoMediaId)` call, so a first-load failure is a typed `ApiResult`
+mapped through the existing `ui/error/ApiErrorCopy.kt` (e.g. `ForbiddenNotEnrolled`) rather than an
+opaque `PlaybackException` — only mid-session refreshes go through the resolver.
+
+**Decision 3 — no `media3-ui`; the video surface is a plain `SurfaceView` in an `AndroidView`, and 100%
+of the control chrome is Compose.** `architecture/MEDIA_ARCHITECTURE.md:93` already locks the shape
+("Media3/ExoPlayer, wrapped in a Compose `AndroidView`, same custom control skin"), and the control skin
+must be Mentora's own regardless (`design-system/COMPONENTS.md:440-479`: the LTR-locked scrubber, the
+token'd chrome, 48 dp targets, localized labels) — `PlayerControlView` could never be used. That leaves
+`PlayerView(useController = false)` purely for surface plumbing, and its POM pulls
+`androidx.recyclerview` plus the legacy `androidx.media` support library into a Compose-only app
+(verified against `media3-ui-1.4.1.pom`), which this module's deliberately-minimal dependency policy
+argues against. So: `AndroidView { SurfaceView(it) }` + `player.setVideoSurfaceView(view)` (ExoPlayer
+registers its own `SurfaceHolder.Callback`, so create/destroy is the library's job, not ours),
+`clearVideoSurface()` in `onDispose`, and aspect handled explicitly — the outer `Box` is the spec's 16:9
+(`fillMaxWidth().aspectRatio(16f/9f)`, the exact T8 `CourseArtwork` idiom) on a black background, and
+the inner surface takes `Modifier.aspectRatio(videoAspect)` from `Player.Listener.onVideoSizeChanged`,
+so a non-16:9 source letterboxes instead of stretching. This is safe **specifically because** the video
+block does not scroll (the showcase frame pins it between the top bar and the scrollable middle section
+— `design-review-locked/Mentora Showcase.dc.html:2241-2252`, `flex:none`); a `SurfaceView` inside a
+scrolling container would be a different, worse call. **Named fallback:** if on-device verification shows
+surface-lifecycle artifacts (black frame after rotation, flicker on lesson switch), add `media3-ui` and
+swap in `PlayerView(useController = false, resizeMode = RESIZE_MODE_FIT)` — a contained, one-file
+change, which is why this decision is cheap to reverse.
+
+**Decision 4 — the RTL scrubber exception is a `LocalLayoutDirection` override scoped to the scrubber
+and its time label, nothing wider.** The rule is genuinely locked and genuinely narrow — confirmed at
+five independent sources rather than assumed from the "media transports are usually LTR" folk rule:
+`design-system/LOCALIZATION.md:28` ("Progress/timeline scrubbers in the course player: kept **LTR
+always**") and :81-85 (scrubber **and time labels**; the surrounding play/pause/volume/fullscreen row
+lays out start-to-end and **does** mirror as a group), `design-system/COMPONENTS.md:475`,
+`ux/SCREEN_UX_SPECS.md:419` ("the one locked exception in the entire product"), `ux/MOBILE_UX.md:42`
+("unchanged on mobile"), and the locked showcase's own PLAYER-AR frame, where the scrubber sits in an
+explicit `dir="ltr"` wrapper (`Mentora Showcase.dc.html:1730`; the mobile frame does the same at :2245
+and wraps the `07:24 / 18:02` label at :2247) while the icon row visually mirrors via
+`margin-inline-start:auto`. Compose implementation: `CompositionLocalProvider(LocalLayoutDirection
+provides LayoutDirection.Ltr)` around the scrubber + time label **only** — the exact analogue of web's
+`dir="ltr"` (`web/src/components/ui/video-player.tsx:189`, :214). It is load-bearing, not decorative:
+Material3's `Slider` mirrors under RTL by default, so without the override the scrubber would silently
+run right-to-left in Arabic. Build the scrubber as an M3 `Slider` with custom `track`/`thumb` lambdas
+rather than a hand-drawn `Canvas`: it inherits drag handling, the 48 dp touch target and
+`ProgressBarRangeInfo` semantics, which is what satisfies `design-system/ACCESSIBILITY.md:178`
+("correct aria-valuenow/equivalent regardless of app layout direction") without hand-rolling it — a
+`Canvas` scrubber would need all three re-implemented, and `drawRect` does not mirror even when layout
+does, a subtle way to get this exact rule wrong. The icon row uses a plain `Modifier.weight(1f)` spacer
+so it mirrors with the ambient direction, matching the frame.
+
+**Decision 5 — the video-control chrome is theme-invariant, sourced from the LIGHT resolution of each
+locked token; a disclosed workaround for a real defect in the locked token tree, not a freelance colour
+choice.** `design-system/design-tokens.json:438` asserts the player chrome is "deliberately
+theme-invariant ... color.text.inverse is legible on it in both themes." That assertion is factually
+false: `text.inverse` means "text on an INVERSE surface", so it is `#FFFFFF` in Light
+(`mobile/androidApp/.../theme/MentoraTokens.kt:34`) and `#1A1B20` in Dark (:85) — near-black glyphs on a
+near-black scrim. Following the token literally would ship invisible controls in Dark theme. Resolution:
+a small `theme/MentoraPlayerChrome.kt` holder pinning control-bar background =
+`MentoraColorsLight.overlayScrim` (`#111217` at 48%), icons/time labels =
+`MentoraColorsLight.textInverse` (`#FFFFFF`), scrubber fill/thumb = `MentoraColorsLight.brandPrimary`
+(`#6558D3`), track/buffered = white at `hoverOpacity`/`pressedOpacity`, speed chip = `overlayChipScrim`
+(already identical in both themes, `MentoraTokens.kt:70`/:121). No value is invented — each is the exact
+literal the locked showcase's own player frames use (`Mentora Showcase.dc.html:2245-2248`:
+`rgba(17,18,23,0.48)`, `#FFFFFF`, `#6558D3`) — and the choice implements the design system's STATED
+INTENT where its own token reference contradicts it. **The same latent defect exists on Web**
+(`web/src/app/components.css:1660` resolves that same token per theme, so Dark-theme web player controls
+are dark-on-dark too) — recorded here, out of Phase 4 scope to fix, flagged for whoever owns a future
+design-system correction.
+
+**Decision 6 — every progress WRITE leaves the ViewModel through a scope navigation cannot cancel;
+reads stay on `viewModelScope`.** This is the "don't lose a completion event on rapid navigation away"
+risk, and it is real: `viewModelScope` is cancelled IN `onCleared()`, so a final flush launched there
+never runs. The categorical fix (D79's "remove the precondition, not add guards" precedent) is a
+dedicated `private val writeScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)` held by
+`CoursePlayerViewModel` and **never cancelled** — coroutines launched on it run to completion (bounded
+by Ktor's own timeouts) and the scope is then garbage. Injectable, so JVM tests drive it
+deterministically. It deliberately does **not** reach for `MentoraApplication`'s `applicationScope`
+(`MentoraApplication.kt:51`), which is `private` AND — decisively — absent in instrumented tests, where
+`NoOpApplicationTestRunner` substitutes a plain `Application` (T11, D83): any `context as
+MentoraApplication` in a screen would `ClassCastException` the entire instrumented suite.
+
+**Write schedule** (mirroring web's shipped behaviour, `web/src/components/ui/video-player.tsx:92-95`
+and `web/src/components/screens/course-player-screen.tsx:66-81`): (1) once per lesson load, with the
+resolved start position — this is also what makes the opened lesson the server-side resume point, since
+`POST .../position` sets `currentLessonId` (`backend/.../progress/service/ProgressService.kt:78-92`);
+(2) every 15 s of playback advance (web's own threshold — parity, not a new number); (3) on user pause;
+(4) on lesson switch, for the outgoing lesson; (5) when the screen becomes invisible/disposed; (6) on
+`Ended`, immediately followed by `sdk.progress.completeLesson(...)`. `shared`'s
+`ReportPlaybackPositionUseCase` already throttles to one send per 5 s per SDK instance
+(`mobile/shared/.../domain/usecase/progress/ReportPlaybackPositionUseCase.kt:34-48`) and that stays the
+only throttle — the 15 s cadence is the primary mechanism, the 5 s window a floor guard. **Disclosed
+consequence:** that throttle is per-SDK-instance and global across lessons/courses (D76), so a final
+flush landing under 5 s after a heartbeat is silently dropped (returns `null`), leaving a resume point
+up to ~5 s stale. Accepted, not worked around: `androidApp` cannot construct its own
+`ReportPlaybackPositionUseCase` (the repository `Impl` classes are `internal`, D76), the error is
+bounded and smaller than web's own 15 s granularity, and — the part that actually matters —
+**completion** goes through `completeLesson`, which is not throttled and can never be dropped this way.
+
+**Ordering rule for `onCleared()`:** read the final position from the player FIRST, then release the
+player, then launch the flush with the captured value. Releasing first loses the number.
+**Visibility hooks:** a `LifecycleEventObserver` on `ON_STOP` (backgrounding) **and** a
+`DisposableEffect { onDispose { ... } }` (leaving composition — which is what a bottom-nav tab switch
+does, while `saveState = true` keeps the ViewModel, and therefore the player, alive and audible). Both
+guarded by `activity.isChangingConfigurations`, so a rotation neither pauses playback nor fires a
+redundant flush. If that guard proves flaky on-device, the fallback is to pause unconditionally and
+accept "rotation pauses playback" as a disclosed wart — say so, do not leave it unexplained.
+
+**Decision 7 — lesson switching is ViewModel state, never navigation; the route's `lessonId` is the
+initial lesson only.** `Destination.CoursePlayer(courseId, lessonId)` already exists
+(`navigation/Destinations.kt:95-96`). Pushing a new destination per lesson would stack one back entry
+per lesson, tear down and rebuild the ExoPlayer each time, and contradict `ux/NAVIGATION_SPEC.md:70`,
+which lists this screen's exits as Quiz / AI Tutor / the Bottom Sheet overlay — lesson switching is not
+among them. Web does the same (`course-player-screen.tsx:32`, a plain `useState`). When `lessonId` is
+`null`, the initial lesson comes from `sdk.progress.resumeCourse(courseId)`
+(`mobile/shared/.../domain/usecase/progress/ResumeCourseUseCase.kt:21-43`), NOT from a local
+re-derivation: `CurriculumLessonResolver` is `internal` to `shared` (`CurriculumLessonResolver.kt:21`)
+precisely so Android and iOS can never resolve two different "next lesson"s from identical data, and
+re-implementing it here would be the exact divergence that file exists to prevent. Cost: `resumeCourse`
+re-fetches course + progress that this screen also fetches for its own UI — two redundant round trips at
+seed scale, knowingly accepted on the same G3/G5 precedent (`PHASE_4_ANDROID_PLAN.md § 6`). When
+`lessonId` is non-null, the start position is `progress.currentPositionSeconds` **only if**
+`progress.currentLessonId == lessonId`, else 0 (web's own rule, `course-player-screen.tsx:127-129`).
+`LessonProgressTarget.CourseFinished` routes to the completion state, not to a lesson. T12's
+`resolveLessonPosition` (`domain/mylearning/CourseLessonPosition.kt:38`) is reused for the top bar's
+"Lesson N of M" DISPLAY only — it is an explicitly heuristic fallback, never a resume resolver.
+
+**Decision 8 — the Curriculum Bottom Sheet reuses `MentoraBottomSheet` unchanged.** Its current API
+(`ui/components/MentoraBottomSheet.kt:53-91`) already supplies the drag handle, top-corners-only
+`radius.xlarge`, `surface.elevated`, the T8 border-over-shadow treatment and `space.5` padding — the
+sheet's title row ("Course content" + close X, showcase :2265-2266) and its list are plain content, so
+**no component change is needed or permitted** (it is foundational to the whole kit; D82). Two concrete
+cautions for the implementer: the content slot is a `ColumnScope`, so the lesson list must be a
+`LazyColumn` with an explicit `heightIn(max = ...)` derived from `LocalConfiguration` — an unbounded
+`LazyColumn` inside a `Column` is the classic "measured with infinity maximum height" crash — and the
+partial-height default `ux/MOBILE_UX.md:49` requires means keeping `rememberModalBottomSheetState()`'s
+default (`skipPartiallyExpanded = false`) and verifying the half-expanded state on-device, since the
+showcase's own frame captures it fully expanded (that spec's own `knownGaps[0]`,
+`design-to-code/screens/mobile-course-player.json:56`). Data shape, assembled in the ViewModel and not
+in the composable: `CurriculumSheetState(sections, currentLessonId, quizRow)`,
+`SheetSection(sectionId, title, order, lessons)`, `SheetLesson(lessonId, globalIndex, title, state:
+Completed | Current | NotStarted, hasVideo)` — `globalIndex` gives the showcase's "14 · Pivot tables"
+prefix (:2269-2271). Row tap switches lesson AND dismisses; swipe/scrim dismiss does not navigate
+(`ux/MOBILE_UX.md:48`). Completion state is carried as an icon PLUS text, never colour alone
+(`ux/SCREEN_UX_SPECS.md:421`).
+
+**Three content gaps in the showcase frame that must be disclosed, not fabricated:**
+- **Per-lesson duration labels ("08:12") cannot be built.** No read endpoint anywhere exposes lesson
+  duration — `Lesson` has no duration field by design (`mobile/shared/.../domain/model/Lesson.kt:6-11`,
+  `INTEGRATION_CONTRACT.md:166`), and the player only knows the duration of the lesson it has LOADED.
+  Omit the trailing label on lesson rows; do not invent one. The QUIZ row's trailing "N Q" label IS real
+  (`quiz.questions.size`) and should be rendered.
+- **The sheet's per-module quiz row is a per-course quiz row.** The backend has exactly one quiz per
+  course (`GET /courses/{id}/quiz`, `QuizFacade`/`GetQuizUseCase` -> `QuizLookupResult.Found | NoQuiz`),
+  not one per section. Render a single quiz row after the last section when `Found`; render none when
+  `NoQuiz` (a legitimate state — at least one seeded course has no quiz).
+- **`closed_caption` and the `list` leading glyph are not built.** No subtitle/caption asset or media
+  kind exists anywhere in the product, and captions are explicitly not an MVP deliverable
+  (`product/PRODUCT_SPEC.md:87`); web's own player has no caption control either
+  (`web/src/components/ui/video-player.tsx:8-21`). The `list` glyph has no equivalent in the ported
+  42-icon set (G8/D80) and web's own `IconName` union has none — keep the curriculum trigger's label plus
+  its trailing `ExpandMore`/`ExpandLess` chevron and skip the leading glyph, rather than inventing an
+  icon or substituting a semantically-wrong one. Volume is likewise omitted (absent from the mobile
+  frame; hardware keys cover it on a phone).
+
+**Decision 9 — the footer's primary action is state-driven, which resolves the spec's own open
+question.** `mobile-course-player.json`'s `sections[4]` explicitly defers to rank-1 on whether "Mark
+Complete" is a distinct action on mobile; rank-1 (`ux/SCREEN_UX_SPECS.md:402`, :407) says it is, while
+the showcase frame (:2259-2261) shows exactly two footer controls — an icon-only outlined Previous and
+one full-width primary "Next lesson". Both are satisfied by keeping the frame's two-control geometry and
+driving the primary's label from state: **"Mark Complete" while the current lesson is incomplete ->
+"Next lesson" (trailing chevron) once complete -> "Take Quiz" on the last lesson when a quiz exists and
+has not been passed.** Auto-advance on video end goes through `sdk.progress.completeLesson(...)` and uses
+`LessonCompletionOutcome.autoAdvanceTarget` (`CompleteLessonUseCase.kt:15-18`, :40-56) — never a
+client-side guess — with `CourseFinished` routing to Quiz (`ux/NAVIGATION_SPEC.md:71`, "automatic after
+last lesson") or, when there is no quiz, to the inline completion state (`SuccessState` plus a separate
+`MentoraTextButton` for "Back to My Learning"; do NOT grow `SuccessState` a secondary-action slot — T11's
+`PurchaseSuccessScreen` already set that precedent).
+
+**Decision 10 — Course Player becomes chromeless at the shell level and owns its own top bar.** The
+spec's top bar is back + course title + "Lesson N of M · X% complete" + an Ask-AI affordance
+(`mobile-course-player.json:29`, showcase :2237-2240) — per-screen data the generic `MentoraTopBar`
+(`ui/shell/MentoraTopBar.kt:29-57`) cannot carry, and T10 already declined to add an actions slot to that
+shared bar for exactly this reason. So `MentoraNavHost.kt` gains an `isCoursePlayer` flag folded into its
+existing `isChromeless` condition (:288-295) — the identical mechanism T11 used for `PurchaseSuccess`,
+not a new one — and the screen renders its own bar with `onBack = navController.popBackStack()`. That
+back target is correct: the MOBILE nav table says "Pop to whichever tab/screen pushed it"
+(`ux/NAVIGATION_SPEC.md:70`); the "always back to My Learning" rule at :41 is the WEB row and does not
+apply here. The bottom nav already hides correctly via `isFocusedLearningScreen` (:261-263) — unchanged.
+The Ask-AI affordance is wired to a real tab switch to AI Tutor through the existing `onTabTapped`
+mechanism (T12's precedent); `NAVIGATION_SPEC.md:76`'s "pop back to Course Player" contextual push, and
+the `courseId` + `lessonContextId` send-both-or-neither context pair, belong to T17, which owns that
+screen and its parameters — disclosed as a T13 -> T17 handoff, not silently skipped.
+
+**Dependencies to add** (`mobile/gradle/libs.versions.toml` + `mobile/androidApp/build.gradle.kts`),
+version chosen by this catalog's own stated rule — the latest stable release preceding the pinned
+`composeBom = "2024.10.01"` (published 2024-10-30), the same reasoning already written out for
+`androidxNavigation = "2.8.3"` at `libs.versions.toml:65-74`: **`media3 = "1.4.1"`** (its POM published
+2024-08-27, verified via `dl.google.com`'s own `Last-Modified` header; 1.5.0 is 2024-11-25, i.e. after
+this BOM). Wired as three explicit entries — `androidx.media3:media3-exoplayer`,
+`androidx.media3:media3-common` (`Player`/`MediaItem`/`PlaybackException`/`VideoSize`) and
+`androidx.media3:media3-datasource` (`ResolvingDataSource`/`DefaultDataSource`) — because this module
+imports from each directly, which is this catalog's own convention (see its `androidx-core-ktx` comment
+at :28-32). Compatibility checked, not assumed: media3 1.4.1 needs compileSdk >= 34 (this module is 36),
+minSdk >= 21 (this module is 26) and Java 8 (this module is 11), and has no Compose dependency at all,
+so the Compose BOM is not a constraint. **Not added:** `media3-ui` (Decision 3), `media3-session` (no
+background playback/MediaSession in MVP), `media3-datasource-okhttp` (the default `HttpURLConnection`
+data source already honours the debug `network_security_config.xml`'s `10.0.2.2` cleartext exception, so
+plain ExoPlayer reaches the local backend with no extra wiring). Media3's
+`ResolvingDataSource`/`DefaultHttpDataSource` are `@UnstableApi`: opt in PER FILE with
+`@OptIn(UnstableApi::class)` on the two files that need it, never a module-wide `freeCompilerArgs` flag —
+that keeps the unstable-API surface visible and contained.
+
+**Files** — new: `playback/MediaPlaybackController.kt`, `playback/PlaybackUrlResolver.kt`,
+`ui/courseplayer/CoursePlayerScreen.kt`, `CoursePlayerViewModel.kt`, `PlayerSurface.kt`,
+`PlayerControls.kt`, `CurriculumBottomSheet.kt`, `theme/MentoraPlayerChrome.kt`. Modified:
+`navigation/MentoraNavHost.kt` (the chromeless flag, plus the `coursePlayerContent` lambda at :164-171
+gaining `sdk`/`onBack`/`onOpenAiTutor`/`onTakeQuiz`/`onOpenCertificates`),
+`ui/screens/PlaceholderScreens.kt` (delete `CoursePlayerScreen`:69-85, add the T13 note to the file
+kdoc), `res/values/strings.xml` AND `res/values-ar/strings.xml` in the same commit (the standing
+requirement recorded in `CURRENT_STATUS.md`'s "Next immediate action" after T9/T10's 29-string gap),
+`libs.versions.toml`, `androidApp/build.gradle.kts`.
+
+**Commit sequence** (executing `PHASE_4_ANDROID_PLAN.md § 7`'s own instruction to split this task):
+1. **C1 — the controller alone.** Media3 dependency + `MediaPlaybackController` + `PlaybackUrlResolver`,
+   plus JVM unit tests for the resolver's three branches (still-valid / refreshed / failed, with a fake
+   refresh lambda and a fabricated `PlaybackSource`), plus one instrumented test that a real ExoPlayer
+   reaches `Playing` on a real seeded lesson video against the live backend. No screen, no nav change.
+   This is the sub-commit § 7 asks for; everything after it builds on a proven player.
+2. **C2 — `CoursePlayerViewModel`** (course + progress + quiz load, lesson resolution, sheet-state
+   assembly, the write schedule) + JVM tests, following the T9/T10/T12 lambda-seam + `Factory` convention
+   exactly — `ui/coursedetails/CourseDetailsViewModel.kt:84-168` is the model to copy (plain suspend
+   lambdas, because the facade constructors are `internal` and `:androidApp` cannot fake a `MentoraSdk`).
+   No UI.
+3. **C3 — the screen**: own top bar, video surface, controls (LTR scrubber), lesson info block,
+   curriculum trigger, footer, Curriculum Bottom Sheet, nav wiring, EN+AR strings, instrumented tests,
+   `NavigationShellTest` updates.
+4. **C4 (conditional) — fullscreen**, only if Open Question 1 is answered "build it".
+5. The usual `CURRENT_STATUS.md` continuity commit.
+
+**Tests that must keep passing / must change.**
+`NavigationShellTest.bottomNavIsFullyHiddenOnCoursePlayerAndQuiz_andReappearsOnBack`
+(`navigation/NavigationShellTest.kt:280-307`) asserts on two strings that stop existing: `"Course Player
+(placeholder): $courseId"` (three call sites, :290 and :301) and the placeholder's `"Take Quiz"` button
+(:295). Fix it the same way T10/T11/T12 fixed theirs — a root `CoursePlayerScreenTestTag`, plus reaching
+Quiz via `navController.navigate(Destination.Quiz(courseId))` instead of a tap, since that harness
+deliberately performs no real login (its own kdoc, :264-279) and therefore can never legitimately reach a
+100%-complete "Take Quiz" state. **Non-obvious requirement that follows:** `CoursePlayerScreen` must
+render its root test tag in EVERY state including the error state — in that harness `getCourseProgress`
+fails with `ForbiddenNotEnrolled` — exactly as `MyLearningScreenTestTag` already does ("present
+regardless of its async load state", :234-237).
+
+**Verification plan, including one fact that changes how the TTL must be proven.** The seeded lesson
+videos are **19.5-25.5 seconds long** (`tools/seed-media/generate-lesson-videos.js:166-170`), so a seeded
+lesson is fetched in a single request within milliseconds and then fully buffered — **natural playback
+can never exercise the 5-minute refresh path, and a "watched a lesson, it worked" report is not evidence
+that the TTL handling works.** Prove it deliberately instead: (a) JVM unit tests over the resolver's
+branches; (b) a temporary, removed-before-commit probe that hands the controller a `PlaybackSource` whose
+`expiresAt` is already in the past, so the very first `open()` runs the real refresh against the real
+backend (the D79 temporary-real-probe precedent); (c) a `curl` of a more-than-5-minute-old stream URL
+confirming the backend really does reject it, so the failure being prevented is demonstrated rather than
+assumed. Everything else follows the standing gate: `:androidApp:assembleDebug`,
+`:androidApp:testDebugUnitTest`, `:shared:testDebugUnitTest` unchanged at 249/249, a full
+`:androidApp:connectedDebugAndroidTest` on a freshly-relaunched emulator (D84's host-load flake note),
+plus an on-device Arabic/RTL pass specifically checking that the scrubber runs left-to-right while the
+top bar, lesson block, footer and sheet all mirror.
+
+**Open questions — deliberately handed back rather than decided here:**
+1. **Fullscreen.** The showcase frame shows a `fullscreen` control (:2248),
+   `architecture/MEDIA_ARCHITECTURE.md:92` lists it in the control set, and web implements it
+   (`video-player.tsx:133-137`). On Android it means an orientation request plus system-bar hiding plus a
+   full-bleed layer, against an Activity that genuinely recreates on rotation — a window-level surface
+   this project's own history (D82's three-attempt scrim fix) shows is expensive here. **Recommendation:**
+   make it the conditional C4 sub-commit, and if it slips, omit the control entirely and record that —
+   never ship a no-op icon (the T10 rule). Needs a yes/no before C3 finalizes the control row.
+2. **Western numerals under `ar` — a probable pre-existing, app-wide violation this task would
+   compound.** "Western numerals always, both locales" is locked (`design-system/LOCALIZATION.md:28`,
+   restated in `PHASE_4_ANDROID_PLAN.md § 3`). But `stringResource(id, intArg)` formats `%d` with the
+   configuration locale, which under `ar` yields Arabic-Indic digits. The `%1$d` strings already shipped
+   by T9/T10/T12 (`home_continue_learning_meta`, `my_learning_percent_complete`,
+   `course_details_curriculum_lesson_count`, `explore_learning_path_course_count`,
+   `home_continue_learning_progress_content_description`) are therefore suspect, and T13 adds several more
+   numeric strings ("Lesson N of M · X%", "Course content · N / M", the time labels). **Recommendation:**
+   T13 declares its own placeholders as `%1$s` and passes `Int.toString()` (always ASCII digits) —
+   costless and correct — and the five existing strings get checked on a real `ar` device; if confirmed,
+   either fix them centrally in the same session (the T10 same-session-backfill precedent) or assign them
+   to T19's QA sweep. That call is yours.
+3. **`LessonPlaybackController.prepare(url: String)` is structurally insufficient for TTL refresh**
+   (Decision 1). Android works around it additively via `prepareLesson(mediaId, source, startPosition)`
+   with zero `shared` change, which is right for Phase 4. Whether `shared`'s interface should be widened —
+   so iOS does not independently re-invent the same workaround — is a Phase 5 planning decision, in the
+   same bucket as G3's "promote the join into `shared`?" question. Recorded here so Phase 5 planning finds
+   it rather than rediscovering it mid-build.
+
+**Impact:** No code changed by this entry — it is a plan, in the D78 mould. `execution/CURRENT_STATUS.md`
+is deliberately NOT touched here (the coordinating session owns that once implementation starts). Next:
+Task 13 implementation, beginning at commit C1 (the playback controller alone).
+
+### D86 — 2026-09-14 — Cross-task fix: 5 already-shipped strings (Tasks 9/10/12) violated the locked
+"Western Arabic numerals everywhere" rule
+
+**Decision — fixed immediately, in this session, rather than deferred to Task 19's QA sweep.** D85
+(Task 13's architect plan) flagged, while researching T13's own numeral-formatting approach, that 5
+strings shipped across Tasks 9/10/12 (`explore_learning_path_course_count`,
+`course_details_curriculum_lesson_count`, `home_continue_learning_meta`,
+`home_continue_learning_progress_content_description`, `my_learning_percent_complete`) pass an `Int`
+through a `%1$d`-style format specifier — which formats through the current `Resources` configuration's
+own Locale/numbering system (Arabic-Indic digits under `ar`), not literal ASCII digits. This directly
+contradicts `design-system/LOCALIZATION.md § 8`'s locked, rank-1 decision: "Western Arabic numerals
+(`0-9`) everywhere, including Arabic UI." Task 10's own `formatDemoPrice` kdoc
+(`CourseDetailsScreen.kt`) had already identified and worked around the identical risk for price
+formatting ("a bare Int-to-string is trivially Western-numeral in every locale... with no ICU/Locale-
+numbering-system plumbing needed") — these 5 strings simply hadn't had the same treatment applied.
+
+**Fix**: changed each `%1$d`/`%2$d`/`%3$d` placeholder to `%1$s`/`%2$s`/`%3$s` in both `strings.xml`
+and `values-ar/strings.xml`, and updated all 6 Kotlin call sites (`CourseDetailsScreen.kt`,
+`ExploreScreen.kt`, `HomeScreen.kt` ×2, `MyLearningScreen.kt` ×2) to pass `Int.toString()` instead of
+the raw `Int` — Kotlin's plain `.toString()` is locale-independent, always ASCII digits, identical
+mechanism to `formatDemoPrice`'s already-established precedent. No visual/behavior change in `en`
+(where the default numbering system is already Western); only affects `ar` rendering.
+
+**Why immediate, not Task 19:** this is a locked-rule correctness bug in already-shipped, already-
+committed code, not a new gap introduced by in-progress work — the same reasoning Task 10's own
+mid-session EN/AR backfill follow-up already established (`CURRENT_STATUS.md`'s own standing note:
+"do not let this recur"). Left for Task 19 would mean 3 more tasks' worth of screens shipping before
+a known, locked-rule violation gets corrected.
+
+**Not fixed here (out of scope, correctly deferred):** the Arabic percent sign glyph (`٪`) in
+`home_continue_learning_progress_content_description`/`my_learning_percent_complete` — that is a
+symbol, not a numeral glyph, and § 8's locked rule is about numerals specifically; left as-is.
+
+**Verified**: `:shared:testDebugUnitTest` unchanged, `:androidApp:testDebugUnitTest` all passing
+(no test asserted on the old `%d`-based format strings' literal output), `:androidApp:assembleDebug`
+clean.
+
+**Impact:** `mobile/androidApp/src/main/res/{values,values-ar}/strings.xml` (5 keys each) +
+4 Kotlin files (6 call sites). No `mobile/shared/` change. Not bundled into Task 13's own commits —
+a standalone fix to already-shipped work, landed just ahead of Task 13 implementation.
+

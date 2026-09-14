@@ -384,7 +384,11 @@ private fun CourseDetailsCurriculumHeading(course: Course) {
             color = MaterialTheme.colorScheme.onSurface,
         )
         Text(
-            text = stringResource(R.string.course_details_curriculum_lesson_count, lessonCount),
+            // `%1$s` + a plain `.toString()`, not `%1$d` — a bare Int-to-string is trivially
+            // Western-numeral in every locale (`design-system/LOCALIZATION.md § 8`), while `%d`
+            // formats through the current Locale's own numbering system (Arabic-Indic digits under
+            // `ar`) — same fix/rationale as `formatDemoPrice`'s own kdoc below.
+            text = stringResource(R.string.course_details_curriculum_lesson_count, lessonCount.toString()),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

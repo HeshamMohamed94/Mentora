@@ -236,7 +236,9 @@ private fun MyLearningItemsSection(
                     // Precomputed here (a @Composable context) rather than inside
                     // `progressLabelFormatter` itself — that parameter is a plain, non-@Composable
                     // `(Float) -> String` lambda, so it cannot call `stringResource` directly.
-                    val percentLabel = stringResource(R.string.my_learning_percent_complete, item.progress.completionPercent)
+                    // `%1$s` + `.toString()`, not `%1$d` — Western-numeral in every locale regardless
+                    // of the current Locale's numbering system (`design-system/LOCALIZATION.md § 8`).
+                    val percentLabel = stringResource(R.string.my_learning_percent_complete, item.progress.completionPercent.toString())
                     CourseProgressCard(
                         title = item.course.title,
                         instructorName = item.course.instructorName,
@@ -268,7 +270,9 @@ private fun FollowedPathCard(path: LearningPathDetail, onClick: () -> Unit) {
     LearningPathCard(
         title = path.title,
         description = path.description,
-        metaLabel = stringResource(R.string.my_learning_percent_complete, path.progressPercent ?: 0),
+        // `%1$s` + `.toString()`, not `%1$d` — Western-numeral in every locale (same rationale as
+        // this file's other `my_learning_percent_complete` call site above).
+        metaLabel = stringResource(R.string.my_learning_percent_complete, (path.progressPercent ?: 0).toString()),
         actionLabel = stringResource(R.string.my_learning_path_view_action),
         onActionClick = onClick,
         onClick = onClick,

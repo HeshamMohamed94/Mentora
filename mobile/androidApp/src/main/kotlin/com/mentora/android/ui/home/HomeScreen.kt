@@ -316,11 +316,14 @@ private fun ContinueLearningCard(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
+                // `%1$s`/`%2$s`/`%3$s` + plain `.toString()`s, not `%d` — Western-numeral in every
+                // locale regardless of the current Locale's numbering system
+                // (`design-system/LOCALIZATION.md § 8`).
                 text = stringResource(
                     R.string.home_continue_learning_meta,
                     item.course.title,
-                    position.currentLessonNumber,
-                    position.totalLessons,
+                    position.currentLessonNumber.toString(),
+                    position.totalLessons.toString(),
                 ),
                 style = MaterialTheme.typography.labelSmall, // typography.caption.
                 color = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -331,7 +334,7 @@ private fun ContinueLearningCard(
                 progress = progressFraction,
                 contentDescriptionLabel = stringResource(
                     R.string.home_continue_learning_progress_content_description,
-                    item.progress.completionPercent,
+                    item.progress.completionPercent.toString(),
                 ),
             )
             PrimaryButton(

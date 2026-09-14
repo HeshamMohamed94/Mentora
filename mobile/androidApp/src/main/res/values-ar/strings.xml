@@ -70,7 +70,7 @@
     <string name="explore_learning_paths_empty_title">لا توجد مسارات تعلّم حتى الآن</string>
     <string name="explore_learning_paths_empty_description">عد قريبًا لمشاهدة مسارات تعلّم جديدة.</string>
     <string name="explore_learning_path_action">عرض المسار</string>
-    <string name="explore_learning_path_course_count">%1$d دورة</string>
+    <string name="explore_learning_path_course_count">%1$s دورة</string>
 
     <!-- T10 — Course Details, see values/strings.xml for sourcing notes. -->
     <string name="course_details_error_title">حدث خطأ ما</string>
@@ -81,7 +81,7 @@
     <string name="course_details_cta_enroll">الالتحاق</string>
     <string name="course_details_cta_continue_learning">متابعة التعلّم</string>
     <string name="course_details_curriculum_heading">المنهج الدراسي</string>
-    <string name="course_details_curriculum_lesson_count">%1$d درس</string>
+    <string name="course_details_curriculum_lesson_count">%1$s درس</string>
     <string name="course_details_about_instructor_heading">عن المدرّب</string>
     <string name="course_details_rating_content_description">التقييم %1$.1f من 5 (تقييم تجريبي)</string>
 
@@ -115,8 +115,8 @@
     <string name="home_greeting_evening">مساء الخير</string>
     <string name="home_greeting_night">تصبح على خير</string>
     <string name="home_continue_learning_eyebrow">متابعة التعلّم</string>
-    <string name="home_continue_learning_meta">%1$s · الدرس %2$d من %3$d</string>
-    <string name="home_continue_learning_progress_content_description">اكتمل %1$d٪</string>
+    <string name="home_continue_learning_meta">%1$s · الدرس %2$s من %3$s</string>
+    <string name="home_continue_learning_progress_content_description">اكتمل %1$s٪</string>
     <string name="home_resume_action">استئناف</string>
     <string name="home_stat_in_progress">دورات قيد التقدم</string>
     <string name="home_stat_certificates">الشهادات</string>
@@ -137,7 +137,7 @@
     <string name="my_learning_filter_completed">مكتملة</string>
     <string name="my_learning_resume_action">استئناف</string>
     <string name="my_learning_review_action">مراجعة</string>
-    <string name="my_learning_percent_complete">اكتمل %1$d٪</string>
+    <string name="my_learning_percent_complete">اكتمل %1$s٪</string>
     <string name="my_learning_thumbnail_content_description">الصورة المصغّرة لدورة %1$s</string>
     <string name="my_learning_empty_title">لا توجد تسجيلات بعد</string>
     <string name="my_learning_empty_description">استكشف الدورات وابدأ التعلّم</string>

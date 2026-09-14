@@ -75,7 +75,7 @@
     <string name="explore_learning_paths_empty_title">No learning paths yet</string>
     <string name="explore_learning_paths_empty_description">Check back soon for new learning paths.</string>
     <string name="explore_learning_path_action">View Path</string>
-    <string name="explore_learning_path_course_count">%1$d courses</string>
+    <string name="explore_learning_path_course_count">%1$s courses</string>
 
     <!-- T10 — Course Details, design-to-code/screens/mobile-course-details.json /
          ux/SCREEN_UX_SPECS.md § 3. Arabic translations for this screen's new keys are not yet added,
@@ -90,7 +90,7 @@
     <string name="course_details_cta_enroll">Enroll</string>
     <string name="course_details_cta_continue_learning">Continue Learning</string>
     <string name="course_details_curriculum_heading">Curriculum</string>
-    <string name="course_details_curriculum_lesson_count">%1$d lessons</string>
+    <string name="course_details_curriculum_lesson_count">%1$s lessons</string>
     <string name="course_details_about_instructor_heading">About the instructor</string>
     <string name="course_details_rating_content_description">Rated %1$.1f out of 5 (demo rating)</string>
 
@@ -137,8 +137,8 @@
     <string name="home_greeting_evening">Good evening</string>
     <string name="home_greeting_night">Good night</string>
     <string name="home_continue_learning_eyebrow">CONTINUE LEARNING</string>
-    <string name="home_continue_learning_meta">%1$s · Lesson %2$d of %3$d</string>
-    <string name="home_continue_learning_progress_content_description">%1$d%% complete</string>
+    <string name="home_continue_learning_meta">%1$s · Lesson %2$s of %3$s</string>
+    <string name="home_continue_learning_progress_content_description">%1$s%% complete</string>
     <string name="home_resume_action">Resume</string>
     <string name="home_stat_in_progress">Courses in progress</string>
     <string name="home_stat_certificates">Certificates</string>
@@ -160,7 +160,7 @@
     <string name="my_learning_filter_completed">Completed</string>
     <string name="my_learning_resume_action">Resume</string>
     <string name="my_learning_review_action">Review</string>
-    <string name="my_learning_percent_complete">%1$d%% complete</string>
+    <string name="my_learning_percent_complete">%1$s%% complete</string>
     <string name="my_learning_thumbnail_content_description">%1$s course thumbnail</string>
     <string name="my_learning_empty_title">No enrollments yet</string>
     <string name="my_learning_empty_description">Explore courses and start learning</string>
