@@ -1,12 +1,80 @@
 # Mentora — Current Implementation Status
 
-**Last updated:** 2026-09-13 (PHASE 4 — Android — IN_PROGRESS, explicitly approved by the user 2026-09-13; task plan derived by the `architect` subagent, see `execution/PHASE_4_ANDROID_PLAN.md` and `DECISIONS_LOG.md` D78; see "PHASE 4 — Task Breakdown" near the end of this file for live per-task status)
+**Last updated:** 2026-09-15 (PHASE 4 — Android — IN_PROGRESS, mid-Task-19, paused for a planned user shutdown — see the "TASK 19 CHECKPOINT" bullet immediately below for the exact resume point; task plan derived by the `architect` subagent, see `execution/PHASE_4_ANDROID_PLAN.md` and `DECISIONS_LOG.md` D78; see "PHASE 4 — Task Breakdown" near the end of this file for live per-task status)
 
 ---
 
 ## EXACT RESUME POINT
 
 **Read this section first when resuming.**
+
+- **TASK 19 CHECKPOINT (2026-09-15) — READ THIS FIRST.** The session was paused mid-Task-19 for a
+  planned user shutdown, not a crash or a blocker. Working tree is clean; the WIP was committed as
+  `1fc9fae` ("Phase 4 Task 19 WIP checkpoint: locale-reload + hardcoded-string sweep") on top of Task
+  18's real completion commit `b19a0ce`. **`1fc9fae` is explicitly NOT a "Task 19 DONE" commit** — do
+  not mark the Task 19 row DONE in the table below until the remaining work here is finished and its
+  own final commit lands.
+  - **Task 18 status (confirmed complete, not part of this pause):** DONE, committed `b19a0ce`, D93.
+    `:shared:testDebugUnitTest` 249/249, `:androidApp:testDebugUnitTest` 233/233,
+    `:androidApp:connectedDebugAndroidTest` 91/91 — all independently verified before Task 18 was
+    marked done.
+  - **Task 19 work completed and committed in `1fc9fae`:** new `viewmodel/LocaleReload.kt` — the
+    cross-cutting mechanism closing D93's disclosed MEDIUM gap (server-sourced content silently stayed
+    on stale-locale payloads after a language switch, since `MentoraNavHost`'s
+    `popUpTo{saveState=true}` tab-switch mechanism keeps a tab-root ViewModel alive, merely
+    backgrounded, across a locale change) — wired into `CertificatesViewModel`/
+    `CertificateDetailViewModel`/`CourseDetailsViewModel`/`ExploreViewModel`/`HomeViewModel`/
+    `LearningPathDetailsViewModel`/`MyLearningViewModel` (deliberately NOT `CoursePlayerViewModel`/
+    `QuizViewModel`/`CheckoutViewModel`/`PurchaseSuccessViewModel` — each has in-flight state a forced
+    reload could destroy). An in-progress Opus review round found and this checkpoint already fixes: 1
+    HIGH (`ErrorState`'s `retryLabel` default was a raw English literal, live/reachable at 7 production
+    call sites that never override it) + several MEDIUM/LOW hardcoded-string and numeral-locale gaps
+    (`LoadingState`/`MentoraSelect`/`MentoraTopBar` content descriptions; `CourseCard`'s rating format
+    missing a pinned `Locale.US`). New `AiTutorContentTest.kt` — Compose UI test coverage for
+    `AiTutorScreen`, closing a gap D92 disclosed (JVM ViewModel tests only, no `androidTest` before
+    this). New `values-ar/strings.xml` entries paired with every new key.
+  - **Task 19 work NOT yet done (this is the exact remaining scope):**
+    1. The Opus review's own last stated next step — widening `StringsParityTest.kt`'s format-specifier
+       regex as a defensive guard against future numeral/specifier regressions — was announced by the
+       reviewing fork but never implemented before the pause.
+    2. Unclear whether the Opus review round had additional findings beyond what's listed above — the
+       fork was stopped (`TaskStop`, clean kill, not a crash) mid-flow, so its own review transcript may
+       contain more findings than what made it into this checkpoint. **Do not assume the review is
+       fully applied — re ask a fresh `reviewer` pass, or resume from this checkpoint and have it
+       self-report what it already found**, before treating Task 19's fix set as complete.
+    3. The rest of Task 19's originally-scoped audit was NOT started/confirmed complete: the full
+       RTL-mirroring spot-check on a real RTL-switched emulator, the Light/Dark theme sweep across the
+       18-screen inventory, and the font-scale (130%/150%) sweep for squeezed controls — none of these
+       have a documented result yet.
+    4. `:androidApp:connectedDebugAndroidTest` (the full instrumented suite, ~97 tests including the new
+       `AiTutorContentTest.kt`) has **NOT** been run against this exact commit — do not assume it
+       passes. It was deliberately not run before this checkpoint per the user's explicit "no
+       long-running tests" shutdown instruction.
+    5. No `execution/DECISIONS_LOG.md` D94 entry exists yet — write one covering the full Task 19
+       account (both the locale-reload design decision and the review findings) once the task is
+       actually complete.
+    6. `execution/CURRENT_STATUS.md`'s own Task 19 table row (below) still reads "NOT STARTED" —
+       update it to DONE, with the full account, only once every item above is closed and a final
+       (non-WIP) commit lands. Update "Next immediate action" to Task 20 at that point.
+  - **Tests already passed (fresh, run immediately before the checkpoint commit):**
+    `:shared:testDebugUnitTest` 249/249 (zero diff in `mobile/shared` — Phase 3 regression guard
+    intact), `:androidApp:testDebugUnitTest` 240/240 (up from 233 at Task 18), `:androidApp:
+    compileDebugKotlin`/`compileDebugUnitTestKotlin`/`compileDebugAndroidTestKotlin` all clean.
+  - **Tests still pending:** `:androidApp:connectedDebugAndroidTest` (full instrumented suite) — not
+    run since Task 18. `StringsParityTest.kt`'s widened regex — doesn't exist yet, so there's nothing
+    to run for it.
+  - **Exact next action on resume:** (1) dispatch a fresh fork/agent with full context on this
+    checkpoint bullet; (2) have it self-report or re-derive the complete Opus review finding list so
+    nothing from the stopped review is silently dropped; (3) finish the `StringsParityTest.kt` regex
+    widening; (4) complete the RTL/theme/font-scale spot-checks; (5) run
+    `:androidApp:connectedDebugAndroidTest` on the real `Chatting_Pixel_8_API_36` emulator and confirm
+    it's green; (6) write the D94 `DECISIONS_LOG.md` entry; (7) mark this table's Task 19 row DONE and
+    update "Next immediate action" to Task 20; (8) commit the final Task 19 work as ITS OWN commit on
+    top of `1fc9fae` (do not amend `1fc9fae` — it's a real, meaningful checkpoint in its own right, and
+    amending a commit that may already be relied upon as a resume anchor is unnecessary risk for no
+    benefit). Only after Task 19 is genuinely DONE should Task 20 (the final Phase 4 task) begin — and
+    per the phase's own hard boundary, Phase 5 (iOS) still requires explicit user approval after Phase
+    4 completes, regardless of how Task 19/20 go.
 
 - **Phase:** PHASE 4 — Android — `IN_PROGRESS` (explicitly approved by the user 2026-09-13; task plan derived by the `architect` subagent — see `execution/PHASE_4_ANDROID_PLAN.md` and `DECISIONS_LOG.md` D78). Phase 3 — KMP Shared Mobile Core — `COMPLETE` (all 17 tasks done, gates green, working tree clean through Task 16's commit). Phase 1 and Phase 2 are both `COMPLETE` (approved 2026-09-06 and 2026-09-11 respectively); the same-day PRE-PHASE-3 content passes (D67/D68) are also `COMPLETE`. See "PHASE 3 — Task Breakdown" near the end of this file for the full Phase 3 per-task account and `execution/PHASE_HANDOFF.md`'s Phase 3 entry for the complete write-up (implementation summary, files/contracts produced, tests/verification, known limitations, decisions, and what Phase 4 depends on/must not redo). See "PHASE 4 — Task Breakdown" for live Phase 4 per-task status.
 - **Exact resume point:** Phase 4 is executing task-by-task automatically per the standing Phase Execution Policy (continue without stopping for per-task approval; only a genuine Product/UX/Architecture/System Design blocker pauses mid-phase). Phase 4 consumes `mobile/shared` exclusively through `MentoraSdk` (see `mobile/shared/README.md`) and supplies its own `LessonPlaybackController` (ExoPlayer/Media3) implementation — `shared` provides the interface only. Do not start Phase 5 (iOS) or Phase 6 (real AI provider integration) under any circumstances before explicit user approval of the completed Phase 4.
@@ -841,12 +909,14 @@ implemented." Task 3 extracts these into `design-to-code/screens/mobile-*.json` 
 | 16 | Learning Path Details (follow/unfollow) | DONE — real `LearningPathDetailsScreen` built from `ux/SCREEN_UX_SPECS.md § 5` directly (no exact-showcase mockup exists), delegated to an implementer then Opus-reviewed once. Completed/Current/Upcoming derived client-side (one `getCourseProgress` call per member course, no server-side per-course status field exists). The D90 navigation-registration checklist (see Task 15's own entry) was applied proactively for this task's new `CourseDetails`/`DemoCheckout` push chain under `MyLearningGraph`, and independently re-verified clean by the reviewer via the FULL transitive push closure — no repeat of D90's own HIGH finding. Review found and fixed 1 MEDIUM (the hero progress bar and per-course Completed badges used two different "course completed" definitions and could visibly contradict each other — a course with every lesson watched but its quiz not yet passed showed a Completed badge while the bar above it correctly showed no progress; now both use the identical server-side `courseCompletedAt != null` definition) + 1 LOW (a staleness race in the proactively-added `MyLearningViewModel.refreshFollowedPaths()`, fixed with a tracked cancel-and-replace `Job`) + 2 disclosed-not-fixed LOW items + 1 disclosed, deliberate spec deviation (an Unfollow button added since the locked spec text has no secondary action at all, which would have left half this task's own name unimplementable). Full account in `DECISIONS_LOG.md` D91. Verified: `:shared:testDebugUnitTest` 249/249 (zero diff in `mobile/shared`); `:androidApp:testDebugUnitTest` 195/195; `:androidApp:assembleDebug` clean; `:androidApp:connectedDebugAndroidTest` 87/87 on the real emulator. `git status` scoped to `mobile/androidApp/**` only — `shared` untouched. |
 | 17 | AI Tutor (streaming chat, stub provider) | DONE — real `AiTutorScreen`/`AiTutorViewModel` built from `ux/SCREEN_UX_SPECS.md § 15`/`ux/MOBILE_UX.md §§ 10, 14` directly (no exact-showcase mockup covers the TAB-ROOT case — `mobile-ai-tutor.json` is an exact-showcase of the CONTEXTUAL Course-Player-launched variant instead, its own disclosed `conflicts[0]`), delegated to an implementer then Opus-reviewed once. Streams `MentoraSdk.aiTutor.sendMessage` — a cold `Flow<AiStreamResult>` (`Chunk`/`PreStreamFailure`/`StreamFailed`, the last's partial text real and never discarded) — against the backend's still-genuinely-stubbed `StubAiProvider` (confirmed, no real LLM call). All 5 `AiQuickAction`s offered with `courseId=null, lessonContextId=null` always — the Course-Player-contextual/docked variant is explicitly out of scope, an inherited limitation matching Phase 2 Task 9's own disclosed Web gap. `Destination.AiTutor`'s transitive push closure is empty (it takes no navigation lambdas at all) — independently re-verified by the reviewer via a direct `MentoraNavHost.kt` grep, no repeat of D90/D91's registration-gap category. Review found and fixed 4 HIGH (the implementer's own disclosed `AITutorBubble` 80%→85% max-width change was itself a regression against the locked rank-2 `COMPONENTS.md` contract, reverted; disabling the composer field while sending silently closed the keyboard, violating the one behavior `MOBILE_UX.md § 14` names for this screen by name; missing `.imePadding()` let the IME overlay the composer under this app's edge-to-edge `targetSdk`; the history load unconditionally overwrote `items`, capable of destroying an in-flight turn sent before it resolved) + 7 MEDIUM (retry of a `StreamFailed` partial bubble discarded the real partial text; no auto-scroll on new/growing content; the accessibility live region announced nothing — `mergeDescendants` fix, scoped to fire once on completion not per-chunk; a retry-row `Text` with no `weight` could squeeze the Retry button to 0dp at large font scale; quick-action chips stayed enabled and silently no-opped while sending; the same chips sat below the 48dp touch-target minimum; only the oldest 20 history messages were ever loaded, disagreeing with the backend's own true-recent-history AI context) + 5 LOW, all HIGH/MEDIUM and most LOW fixed same-session. Full account in `DECISIONS_LOG.md` D92. Verified: `:shared:testDebugUnitTest` 249/249 (zero diff in `mobile/shared`); `:androidApp:testDebugUnitTest` 211/211; `:androidApp:assembleDebug` clean; `:androidApp:connectedDebugAndroidTest` 87/87 on the real emulator (two prior attempts hit unrelated Gradle/Windows tooling errors — a stale-file MD5-hash failure, then a locked logcat file from an orphaned daemon — resolved by stopping the Gradle daemons and clearing stale `androidTest-results`/`androidTests` report directories, not a test or product defect). `git status` scoped to `mobile/androidApp/**` only — `shared` untouched. |
 | 18 | Profile + Settings (language selector, theme, logout) | DONE — real `ProfileScreen`/`SettingsScreen` built from `ux/SCREEN_UX_SPECS.md §§ 16-17`/`ux/MOBILE_UX.md § 13` directly (no exact-showcase mockup exists for either). Two disclosed scope resolutions (both re-verified against the source docs during review): no account/password fields (no backend endpoint exists, same D44 precedent); Logout lives on Profile only, not duplicated on Settings (`MOBILE_UX.md § 13`'s own literal mobile-specific resolution overriding `SCREEN_UX_SPECS.md`'s generic Settings-Logout bullet). **The central deliverable**: new `locale/LocalizedContent.kt` makes Settings' Language selector genuinely functional for the first time in this phase — before this task, `sdk.user.setLocale()` never actually changed what any `stringResource` resolved to anywhere in the app (governed entirely by the device's OS locale), a real, previously-undocumented gap for a LOCKED MVP requirement. Implemented via a pure-Compose `LocalContext`/`LocalConfiguration`/`LocalLayoutDirection` override (a `ContextWrapper`, never a raw `createConfigurationContext` result — the two are NOT interchangeable, see D93 for the exact, real consequences of getting this wrong), deliberately not `AppCompatDelegate` (this app has no `AppCompatActivity`/AppCompat dependency anywhere, and that API's below-API-33 correctness requires it). A `LocalAppLocale`/`WithCurrentAppLocale` pair closes the one real live gap this creates (`Dialog`/`Popup`/`ModalBottomSheet` reset `LocalContext` for their own sub-composition) — applied to `MentoraBottomSheet` only, the one shared overlay primitive with a real affected call site; `AppDialog`/`MentoraSelect` verified unaffected. A same-session architect handoff (from a teammate's independently-dispatched subagent) caught a real regression this task was about to introduce into Task 17's `AiTutorViewModel` (quick-action prompt text resolving off a stale `Application` context the new mechanism can't reach) — fixed same-session, `AiTutorScreen`'s own call site now resolves it correctly. One Opus review round (after a first dispatch stalled/timed out and was retried) found 4 MEDIUM (4 more hardcoded English nav titles now visibly wrong post-switch, fixed; server content doesn't refresh on a language switch, disclosed and handed to Task 19 below; `Avatar` had no accessible name, fixed; `onRetryTapped` didn't retry stats, fixed) + 4 LOW (name-save errors now route to inline field copy per the D51 precedent; `MentoraSelect`'s hardcoded `loadingOptionsLabel` disclosed to Task 19; a regression test for the AiTutor fix; a new format-specifier-parity check added to the new `StringsParityTest`). Running the full instrumented suite (not just review) caught one more real bug review missed: `SettingsScreen`'s original `applicationContext as MentoraApplication` cast crashed under every instrumented test (this module's `testInstrumentationRunner` is globally `NoOpApplicationTestRunner`, which substitutes a plain `Application`) — fixed by threading `ThemeController` through `MentoraNavHost`'s own parameters instead, the same way `sdk` already is; a second, unrelated stale `"Settings (placeholder)"` test assertion was also found and fixed. Full account in `DECISIONS_LOG.md` D93. Verified: `:shared:testDebugUnitTest` 249/249 (zero diff in `mobile/shared`); `:androidApp:testDebugUnitTest` 233/233; `:androidApp:assembleDebug` clean; `:androidApp:connectedDebugAndroidTest` 91/91 on the real emulator (a first full run surfaced the `SettingsScreen` crash above plus 4 unrelated screenshot-capture flakes in Task 8's own component-kit tests — confirmed as the same documented emulator-load pattern by killing/relaunching the AVD fresh and re-running clean). `PlaceholderScreens.kt` deleted entirely — every one of Phase 4's 18 in-scope screens now has a real implementation. `git status` scoped to `mobile/androidApp/**` only — `shared` untouched. |
-| 19 | Localization/RTL/theme/font-scale QA sweep + Compose UI test suite completion | NOT STARTED |
-| 20 | Live emulator verification, `androidApp/README.md`, Phase 4 → Phase 5 handoff | NOT STARTED |
+| 19 | Localization/RTL/theme/font-scale QA sweep + Compose UI test suite completion | IN_PROGRESS — WIP checkpoint committed `1fc9fae` (2026-09-15, paused for a planned user shutdown, not a blocker). See the "TASK 19 CHECKPOINT" bullet at the very top of this file's EXACT RESUME POINT section for the precise done/remaining split, test status, and exact next action. Do not treat this row as DONE until that checkpoint bullet says so. |
+| 20 | Live emulator verification, `androidApp/README.md`, Phase 4 → Phase 5 handoff | NOT STARTED — blocked on Task 19 actually finishing (see above), not merely on this WIP checkpoint. |
 
-**Next immediate action:** Task 19 — Localization/RTL/theme/font-scale QA sweep + Compose UI test suite
-completion. This task now has two concrete, disclosed gaps handed to it from Task 18 (D93), in addition
-to its own already-planned scope:
+**Next immediate action:** Finish Task 19 per the "TASK 19 CHECKPOINT" bullet at the top of this file's
+EXACT RESUME POINT section (the authoritative, most current account of exactly what remains). The
+scope description below is Task 19's original, still-accurate planned scope as handed off from Task 18
+(D93), kept for reference — the checkpoint bullet above additionally covers what's already been done
+against it and what a fresh review pass should re-verify:
 1. **Stale-locale-content gap**: server-provided content (Explore's course list, My Learning, Course
    Details, ...) does not refresh when a student switches language via Settings — the relevant
    ViewModels don't observe `sdk.user.observeLocale()`, and `MentoraNavHost`'s `popUpTo{saveState=true}`
