@@ -24,9 +24,9 @@ enum class AiTutorSender { Ai, User }
  * `color.text.primary` text. User: `color.brand.primaryContainer` background /
  * `color.brand.onPrimaryContainer` text. Radius `radius.large` (16) with the tail corner (bottom-left
  * for AI, bottom-right for user — mirrored for the other sender) reduced to `radius.small` (8). Max
- * width 80% of the chat container: computed via [BoxWithConstraints] + `widthIn(max = ...)` so a
- * short message doesn't stretch to fill 80% — only a message actually long enough to hit that ceiling
- * wraps at it, matching "max width," not "fixed width."
+ * width 80% of the chat container: computed via [BoxWithConstraints] + `widthIn(max = ...)` so a short
+ * message doesn't stretch to fill it — only a message actually long enough to hit that ceiling wraps at
+ * it, matching "max width," not "fixed width."
  *
  * "The AI Tutor uses the exact same surfaces, radii, and type scale as the rest of the product" per
  * the spec's own note — every value below is a `MaterialTheme`/`extendedColors` token, no bubble-only
@@ -63,6 +63,13 @@ fun AITutorBubble(
     }
 
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
+        // T17 review note: `mobile-ai-tutor.json`'s `responsiveRules` claims a mobile-specific 85% cap,
+        // but that reading was rejected — `design-system/COMPONENTS.md § AITutorBubble` (rank 2, the
+        // locked component contract, no platform qualifier) and `design-to-code/components.json` both
+        // say 80%, and `SOURCE_MANIFEST.json`'s conflict rule is explicit that rank-2 token values are
+        // never overridden by the showcase's own literal CSS (rank 3) when the two disagree, and no
+        // conflict was ever recorded for this value in `EXTRACTION_REPORT.md`. Kept at 80%, matching Web
+        // (`components.css`) and every other platform.
         val maxBubbleWidth = maxWidth * 0.8f
         Row(
             modifier = Modifier.fillMaxWidth(),

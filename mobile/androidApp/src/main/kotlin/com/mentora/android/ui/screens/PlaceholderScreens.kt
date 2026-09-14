@@ -60,10 +60,10 @@ import com.mentora.android.ui.components.PrimaryButton
  *
  * T16 note: `LearningPathDetailsScreen` is no longer a placeholder here — Task 16 replaced it with a
  * real screen in `com.mentora.android.ui.learningpathdetails` (`LearningPathDetailsScreen.kt`).
+ *
+ * T17 note: `AiTutorScreen` is no longer a placeholder here — Task 17 replaced it with a real screen in
+ * `com.mentora.android.ui.aitutor` (`AiTutorScreen.kt`, plus `AiTutorViewModel.kt`).
  */
-@Composable
-fun AiTutorScreen(modifier: Modifier = Modifier) = PlaceholderScreen("AI Tutor (placeholder)", modifier)
-
 @Composable
 fun ProfileScreen(onOpenSettings: () -> Unit, modifier: Modifier = Modifier) {
     Column(modifier = modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {

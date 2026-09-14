@@ -304,4 +304,31 @@
     <string name="learning_path_details_course_continue_action">Continue Learning</string>
     <string name="learning_path_details_course_thumbnail_content_description">%1$s course thumbnail</string>
     <string name="learning_path_details_course_progress_content_description">%1$s%% complete</string>
+
+    <!-- T17 — AI Tutor (ux/SCREEN_UX_SPECS.md § 15, ux/UX_STATES.md § 10, ux/MOBILE_UX.md §§ 10/14).
+         `ai_tutor_quick_action_*_prompt` strings are the actual MESSAGE CONTENT sent when that quick
+         action is tapped (never shown as UI text themselves) — distinct from the `*_label` strings,
+         which are the visible chip text. `AiQuickAction` (`mobile/shared`) deliberately carries neither
+         (that enum's own kdoc) — both live here per this task's own instruction. This screen never has
+         lesson context (`AiTutorViewModel`'s own kdoc — an inherited, disclosed limitation, same as the
+         Web precedent), so `ExplainThisLesson`/`Summarize`/`GiveMeAnExample`'s prompts are phrased as a
+         plain request the backend can answer generically or ask a clarifying follow-up to, per that
+         spec section's own "a clarifying AI response, not a UI-level error" instruction — no
+         client-side gating is added for these three despite their `requiresLessonContext = true`. -->
+    <string name="ai_tutor_welcome_message">Hi! Ask me anything about your courses, or try a quick action below.</string>
+    <string name="ai_tutor_composer_placeholder">Ask anything…</string>
+    <string name="ai_tutor_send_content_description">Send</string>
+    <string name="ai_tutor_thinking_content_description">AI Tutor is thinking</string>
+    <string name="ai_tutor_retry_action">Retry</string>
+    <string name="ai_tutor_stream_failed_message">Something went wrong. Tap Retry to continue.</string>
+    <string name="ai_tutor_quick_action_explain_lesson_label">Explain this lesson</string>
+    <string name="ai_tutor_quick_action_explain_lesson_prompt">Explain this lesson to me.</string>
+    <string name="ai_tutor_quick_action_summarize_label">Summarize</string>
+    <string name="ai_tutor_quick_action_summarize_prompt">Summarize this lesson for me.</string>
+    <string name="ai_tutor_quick_action_example_label">Give me an example</string>
+    <string name="ai_tutor_quick_action_example_prompt">Give me an example related to this lesson.</string>
+    <string name="ai_tutor_quick_action_quiz_me_label">Quiz me</string>
+    <string name="ai_tutor_quick_action_quiz_me_prompt">Quiz me on what I\'ve learned so far.</string>
+    <string name="ai_tutor_quick_action_learn_next_label">What should I learn next?</string>
+    <string name="ai_tutor_quick_action_learn_next_prompt">What should I learn next?</string>
 </resources>

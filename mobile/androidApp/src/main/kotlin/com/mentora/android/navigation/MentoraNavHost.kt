@@ -27,7 +27,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.*
 import androidx.compose.ui.res.stringResource
 import com.mentora.android.R
-import com.mentora.android.ui.screens.AiTutorScreen
+import com.mentora.android.ui.aitutor.AiTutorScreen
 import com.mentora.android.ui.certificates.CertificateDetailScreen
 import com.mentora.android.ui.certificates.CertificatesScreen
 import com.mentora.android.ui.coursedetails.CourseDetailsScreen
@@ -564,8 +564,12 @@ fun MentoraNavHost(
                 }
             }
 
+            // T17: Destination.AiTutor's own tab root, no child destinations — reached exclusively via
+            // the bottom-nav tab tap / onTabTapped (the [coursePlayerContent]'s own `onOpenAiTutor` is
+            // a full TAB SWITCH into this same graph root, not a push of a child destination here) so
+            // this is the graph's only registration, confirmed not needed under any other TabGraph.
             navigation<TabGraph.AiTutorGraph>(startDestination = Destination.AiTutor) {
-                composable<Destination.AiTutor> { AiTutorScreen() }
+                composable<Destination.AiTutor> { AiTutorScreen(sdk = sdk) }
             }
 
             navigation<TabGraph.ProfileGraph>(startDestination = Destination.Profile) {
@@ -681,7 +685,11 @@ private fun titleFor(destination: NavDestination?): String = when {
     destination.hasRoute<Destination.Home>() -> "Home"
     destination.hasRoute<Destination.Explore>() -> "Explore"
     destination.hasRoute<Destination.MyLearning>() -> "My Learning"
-    destination.hasRoute<Destination.AiTutor>() -> "AI Tutor"
+    // T17: localized, real string resource (already existed for `MobileBottomNavigation`'s own tab
+    // label — reused verbatim here, same "AI Tutor" title text) — same reasoning as
+    // `LearningPathDetails`/`Quiz`/`Certificates` above (this destination moves from placeholder to a
+    // real screen in this task).
+    destination.hasRoute<Destination.AiTutor>() -> stringResource(R.string.nav_ai_tutor)
     destination.hasRoute<Destination.Profile>() -> "Profile"
     destination.hasRoute<Destination.Login>() -> "Login"
     destination.hasRoute<Destination.Register>() -> "Register"

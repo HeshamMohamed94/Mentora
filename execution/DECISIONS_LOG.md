@@ -2520,3 +2520,126 @@ removed), `values/strings.xml` + `values-ar/strings.xml` (13 new pairs, real tra
 `mobile/shared/` change. Task 16 is now **DONE** — see `CURRENT_STATUS.md`'s Phase 4 task table. Next:
 Task 17 (AI Tutor — streaming chat, stub provider).
 
+### D92 — 2026-09-14 — PHASE 4 Task 17 complete: AI Tutor (streaming chat, stub provider), one review
+round with 4 HIGH + 7 MEDIUM findings, all fixed same-session
+
+**Context.** No exact-showcase mockup covers this screen's actual TAB-ROOT case —
+`design-to-code/screens/mobile-ai-tutor.json` is an exact-showcase of the CONTEXTUAL,
+Course-Player-launched variant instead (its own disclosed `conflicts[0]`) — so `AiTutorScreen`/
+`AiTutorViewModel` were built from `ux/SCREEN_UX_SPECS.md § 15` / `ux/MOBILE_UX.md §§ 10, 14` directly,
+reusing Task 8's `AITutorBubble`/`AITutorQuickAction` verbatim. Streams `MentoraSdk.aiTutor.sendMessage`
+(a cold `Flow<AiStreamResult>` — `Chunk`/`PreStreamFailure`/`StreamFailed`, the last carrying real,
+must-not-discard partial text) against the backend's still-genuinely-stubbed `StubAiProvider`
+(confirmed unchanged, placeholder chunked text — no real LLM call, per Phase 6's own boundary). All 5
+`AiQuickAction`s are offered unconditionally with `courseId=null, lessonContextId=null` — this screen
+never has lesson context (the Course-Player-contextual/docked variant is explicitly out of scope, an
+inherited limitation matching the Web precedent, Phase 2 Task 9's own disclosed gap).
+
+**Navigation-registration checklist (D90/D91), reconfirmed a third time.** `Destination.AiTutor` is its
+own tab-root graph (`TabGraph.AiTutorGraph`) with an EMPTY transitive push closure — `AiTutorScreen`
+takes no navigation lambdas at all, so there is nothing to register anywhere else. Independently
+re-verified by the reviewer via a direct `MentoraNavHost.kt` grep, not just the implementer's own
+comment. Course Player's pre-existing "Ask AI Tutor" full-tab-switch link (`onOpenAiTutor` →
+`onTabTapped(..., TabGraph.AiTutorGraph, ...)`) is unchanged and confirmed not half-converted toward the
+out-of-scope contextual variant.
+
+**Review round 1 — 4 HIGH + 7 MEDIUM + 5 LOW, every HIGH/MEDIUM and most LOW fixed same-session:**
+
+1. **HIGH — the disclosed `AITutorBubble` 80%→85% max-width "fix" was itself a regression.** The
+   implementer's citation (`mobile-ai-tutor.json`'s `responsiveRules`, showcase line 2208's literal
+   `max-width:85%`) was factually accurate but the wrong source won: `design-system/COMPONENTS.md §
+   AITutorBubble` (rank 2, the locked cross-platform component contract) and
+   `design-to-code/components.json` both say 80% with no platform qualifier, and
+   `design-to-code/SOURCE_MANIFEST.json`'s own conflict rule is explicit that a rank-2 token value is
+   never overridden by the showcase's own literal CSS (rank 3) when the two disagree — and no conflict
+   was ever recorded in `EXTRACTION_REPORT.md` for this value, meaning the 85% reading was an
+   unregistered extraction error, not a locked mobile override. Reverted to 80% (matching Web's
+   `components.css`), kdoc corrected.
+2. **HIGH — disabling the composer's `OutlinedTextField` while sending silently closed the keyboard**,
+   because Compose clears focus (and with it the IME) from a field the instant it becomes disabled —
+   directly contradicting `ux/MOBILE_UX.md § 14`'s own "sending a message keeps the keyboard open"
+   despite the file's own kdoc claiming compliance (no explicit hide-keyboard call ≠ no keyboard-hiding
+   effect). Fixed: the text field now stays enabled unconditionally; only the send button gates on
+   `isSending` (the ViewModel's own re-entrancy guard already makes a stray tap on it a no-op).
+3. **HIGH — no `.imePadding()` anywhere on this screen**, so with this app's `targetSdk = 36`
+   edge-to-edge default, the IME would overlay the composer/quick-action row instead of the composer
+   staying pinned above it (`ux/SCREEN_UX_SPECS.md:599`) — every other text-input screen in this phase
+   (`LoginScreen`/`RegisterScreen`) already applies this. Added to the screen's root `Column`.
+4. **HIGH — the history load unconditionally overwrote `items`, capable of destroying an in-flight
+   turn.** `loadConversation()` suspends on a real network call while the composer/quick actions are
+   already interactive from the first frame; if a student sent before it resolved, the late-arriving
+   history completion would silently wipe their own just-sent user bubble and thinking indicator. Fixed
+   by only applying the loaded history while `items` is still genuinely untouched
+   (`state.items.isEmpty()`) — a real, timing-dependent regression test
+   (`send_whileHistoryLoadStillInFlight_historyArrivingLateDoesNotEraseTheNewTurn`, using a
+   `CompletableDeferred` to hold the load open past the send) proves the fix actually depends on
+   ordering, not just incidental correctness.
+5. **MEDIUM — retrying a `StreamFailed` partial-text bubble discarded the real partial text.** Reusing
+   that turn's own item id for retry (the same mechanism correctly used for a content-free
+   `PreStreamError`) meant the fresh `Thinking` row overwrote the already-arrived, genuine partial reply
+   the instant a retry started — permanently, if the retry then failed too. Fixed: retrying THIS shape
+   keeps the original bubble exactly as-is (only clearing its own retry affordance) and starts a whole
+   new turn (its own fresh id and a visible re-sent user bubble) for the attempt — the original content
+   is never at risk regardless of how the retry resolves. New regression test proves both halves.
+6. **MEDIUM — the chat thread never auto-scrolled**, so once it exceeded one viewport, a new turn (or a
+   streaming reply still growing) rendered below the fold with zero visible feedback — the screen's
+   primary interaction. Added a `LazyListState` + a `LaunchedEffect` keyed on the item list's own content
+   (re-fires per `Chunk`, keeping a growing reply pinned in view for the whole stream, not just at its
+   start/end).
+7. **MEDIUM — the accessibility live region announced nothing.** `Modifier.semantics { liveRegion = ... }`
+   sat on `AITutorBubble`'s outer non-merging container, a sibling of (not a parent merging) its own
+   inner `Text` node — TalkBack had no text to actually announce. The implementer's own cited precedent
+   (`PurchaseSuccessScreen`) was verified to be real, but applies the modifier directly to a `Text`,
+   which this screen's reused component doesn't expose. Fixed with `mergeDescendants = true`, and
+   additionally scoped to fire only once a turn's `isStreaming` flips to `false` — announcing once on
+   completion rather than re-announcing a fragment on every arbitrary `Chunk` boundary (`AiStreamResult`'s
+   own kdoc: chunk boundaries are "never a semantic unit").
+8. **MEDIUM — the `StreamFailed` retry row's `Text` had no `weight`**, so at large font scale it could
+   consume the entire row and squeeze the Retry button — the only way to recover that turn — to 0dp.
+   Fixed with `Modifier.weight(1f)`.
+9. **MEDIUM — quick-action chips stayed enabled while a turn was in flight**, silently no-opping against
+   the ViewModel's own guard with zero feedback (the chip's `indication = null` means not even a
+   ripple). Added a new `enabled` param to `AITutorQuickAction` (Task 8's component, its first real
+   consumer), gated on `!isSending`, with a dimmed disabled-state text color matching this codebase's
+   existing `stateOpacities.disabledContent` convention.
+10. **MEDIUM — quick-action chips were 36dp tall with no hit-slop expansion**, below the 48dp Android
+    minimum `ACCESSIBILITY.md § 4` names chips under explicitly. Fixed with `minimumInteractiveComponentSize()`
+    applied outermost before the visual `.height(36.dp)` — the identical ordering `CategoryChip`'s own
+    prior F4 fix already established (visual size unchanged, tappable region inflated).
+11. **MEDIUM (disclosed, fixed) — only the oldest 20 messages were ever loaded**, since the backend
+    pages forward from the oldest message with a 20-message default and `nextCursor` was never read —
+    disagreeing with the true recent history the backend's own AI completion uses as context. Fixed by
+    requesting the server's own `MAX_LIMIT` (100) explicitly rather than building a real backward-paging
+    "load older" affordance, which is genuinely out of this task's scope at seed-scale conversation
+    lengths.
+12. **LOW (3, fixed)**: a shared `AiTutorRetryButtonTestTag` would throw "multiple nodes found" the
+    moment two failed/partial turns coexisted (id-scoped); the top-kdoc's composer-shape citation was
+    corrected (the pill/circular-send treatment is D52's locked Web pattern, not `mobile-ai-tutor.json`
+    — that file's own cited lines actually show a plain 12px corner, same as `MentoraTextField` already
+    has); the composer's `ArrowUpward` send icon deviating from D52's locked `arrowForward` is now
+    disclosed (direction-neutral, RTL-safe regardless, but an undisclosed judgment call until now).
+13. **LOW (2, fixed, not requested but judged in-scope while already in this code)**: the composer had
+    no client-side length guard, so a paste past `SendAiTutorMessageUseCase`'s own 4000-char limit
+    produced a generic, unexplained rejection — clamped `onInputChanged` to the identical limit; the
+    `quickActionPrompt`/chip-label locale-resolution pairing (`Application.getString` vs.
+    `stringResource`) was disclosed as a latent trap that only matters if per-app locale override is
+    ever wired up (it isn't today — both resolve from the OS locale).
+
+**Verified:** `:shared:testDebugUnitTest` 249/249 (zero diff in `mobile/shared`);
+`:androidApp:testDebugUnitTest` 211/211 (208 post-fix baseline + 3 new regression tests: the H4
+history-race test, the M1 retry-preserves-partial-text test, an input-clamp test);
+`:androidApp:assembleDebug` clean; `:androidApp:connectedDebugAndroidTest` 87/87 on the real
+`Chatting_Pixel_8_API_36` emulator, zero failures (two prior attempts hit unrelated Gradle/Windows
+tooling errors — a stale-file MD5-hash failure, then a locked logcat-output file from an orphaned daemon
+— resolved by `--stop`-ing the Gradle daemons and clearing the stale `androidTest-results`/
+`androidTests` report directories before the successful rerun; not a test or product defect).
+
+**Impact:** new directory `mobile/androidApp/src/main/kotlin/com/mentora/android/ui/aitutor/
+{AiTutorScreen.kt,AiTutorViewModel.kt}` + matching JVM tests; modified `MentoraNavHost.kt` (real screen
+wiring), `AITutorBubble.kt` (max-width reverted to the locked 80%), `AITutorQuickAction.kt` (new
+`enabled` param + 48dp hit-slop, Task 8's own component, first touched by a real consumer),
+`PlaceholderScreens.kt` (placeholder removed), `values/strings.xml` + `values-ar/strings.xml` (full
+EN/AR parity for every new key, verified programmatically). No `mobile/shared/` change. Task 17 is now
+**DONE** — see `CURRENT_STATUS.md`'s Phase 4 task table. Next: Task 18 (Profile + Settings — language
+selector, theme, logout).
+

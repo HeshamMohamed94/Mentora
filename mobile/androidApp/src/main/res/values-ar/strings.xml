@@ -262,4 +262,22 @@
     <string name="learning_path_details_course_continue_action">متابعة التعلّم</string>
     <string name="learning_path_details_course_thumbnail_content_description">الصورة المصغّرة لدورة %1$s</string>
     <string name="learning_path_details_course_progress_content_description">اكتمل %1$s٪</string>
+
+    <!-- Task 17 — AI Tutor, see values/strings.xml for sourcing notes. -->
+    <string name="ai_tutor_welcome_message">مرحبًا! اسألني عن أي شيء يخص دوراتك، أو جرّب أحد الإجراءات السريعة أدناه.</string>
+    <string name="ai_tutor_composer_placeholder">اسأل أي شيء…</string>
+    <string name="ai_tutor_send_content_description">إرسال</string>
+    <string name="ai_tutor_thinking_content_description">المعلّم الذكي يفكّر</string>
+    <string name="ai_tutor_retry_action">إعادة المحاولة</string>
+    <string name="ai_tutor_stream_failed_message">حدث خطأ ما. اضغط على إعادة المحاولة للمتابعة.</string>
+    <string name="ai_tutor_quick_action_explain_lesson_label">اشرح هذا الدرس</string>
+    <string name="ai_tutor_quick_action_explain_lesson_prompt">اشرح لي هذا الدرس.</string>
+    <string name="ai_tutor_quick_action_summarize_label">لخّص</string>
+    <string name="ai_tutor_quick_action_summarize_prompt">لخّص لي هذا الدرس.</string>
+    <string name="ai_tutor_quick_action_example_label">أعطني مثالًا</string>
+    <string name="ai_tutor_quick_action_example_prompt">أعطني مثالًا متعلقًا بهذا الدرس.</string>
+    <string name="ai_tutor_quick_action_quiz_me_label">اختبرني</string>
+    <string name="ai_tutor_quick_action_quiz_me_prompt">اختبرني فيما تعلمته حتى الآن.</string>
+    <string name="ai_tutor_quick_action_learn_next_label">ماذا يجب أن أتعلم بعد ذلك؟</string>
+    <string name="ai_tutor_quick_action_learn_next_prompt">ماذا يجب أن أتعلم بعد ذلك؟</string>
 </resources>
