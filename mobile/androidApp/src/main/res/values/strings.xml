@@ -92,7 +92,9 @@
     <string name="course_details_curriculum_heading">Curriculum</string>
     <string name="course_details_curriculum_lesson_count">%1$s lessons</string>
     <string name="course_details_about_instructor_heading">About the instructor</string>
-    <string name="course_details_rating_content_description">Rated %1$.1f out of 5 (demo rating)</string>
+    <!-- T19 review fix (MEDIUM, D94): was %1$.1f (a raw numeral placeholder) — now %1$s, the caller
+         pre-formats with Locale.US pinned before passing it in. -->
+    <string name="course_details_rating_content_description">Rated %1$s out of 5 (demo rating)</string>
 
     <!-- T11 — Demo Checkout + Purchase Success, design-to-code/screens/mobile-demo-checkout.json /
          mobile-purchase-success.json. Nav-title casing/copy mirrors each spec's own exact-showcase
@@ -356,4 +358,17 @@
     <string name="profile_avatar_content_description">%1$s\'s profile photo</string>
     <string name="profile_name_error_required">Name is required.</string>
     <string name="profile_name_error_too_long">Name is too long — 120 characters maximum.</string>
+
+    <!-- T19 — MentoraSelect's loading-state row (design-system/COMPONENTS.md § Select / Dropdown),
+         D93 LOW-6's disclosed hardcoded default, swept here. -->
+    <string name="select_loading_options_label">Loading options…</string>
+
+    <!-- T19 — hardcoded-string sweep (execution/DECISIONS_LOG.md D94): both were raw English
+         literals, unreachable from any real locale flip before Task 18's LocalizedContent.kt. -->
+    <string name="loading_state_content_description">Loading</string>
+    <string name="top_bar_back_content_description">Back</string>
+
+    <!-- T19 review fix (HIGH): ErrorState's own retryLabel default — see ErrorState.kt's own kdoc.
+         Live/reachable at 7 call sites that never overrode it. -->
+    <string name="error_state_retry_label">Try again</string>
 </resources>

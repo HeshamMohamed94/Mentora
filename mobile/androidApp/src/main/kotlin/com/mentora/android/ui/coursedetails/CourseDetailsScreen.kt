@@ -52,6 +52,7 @@ import com.mentora.shared.MentoraSdk
 import com.mentora.shared.domain.model.Course
 import com.mentora.shared.domain.model.Lesson
 import com.mentora.shared.domain.model.Section
+import java.util.Locale
 
 /**
  * T10 — the real Course Details screen (`design-to-code/screens/mobile-course-details.json`,
@@ -493,9 +494,16 @@ private fun CourseDetailsInstructorSection(instructorName: String) {
  */
 private fun formatDemoPrice(amount: Int, currency: String): String = "$currency $amount"
 
+// T19 review fix (MEDIUM, D94): `course_details_rating_content_description` used to embed a raw
+// `%1$.1f` placeholder — `Resources.getString(id, args)` formats using the CONFIGURATION's own
+// locale (genuinely Arabic under `LocalizedContent.kt` since Task 18, not just the device's), which
+// renders Arabic-Indic digits for this one argument while the string's own hardcoded "out of 5"
+// stayed Western — a single sentence mixing two numbering systems. Pre-formatting with `Locale.US`
+// (same fix shape as `CourseCard`'s identical rating text) and passing the result through as `%1$s`
+// keeps this argument Western regardless of UI locale, matching every other numeral in this app.
 @Composable
 private fun ratingContentDescription(ratingSeed: Double): String =
-    stringResource(R.string.course_details_rating_content_description, ratingSeed)
+    stringResource(R.string.course_details_rating_content_description, String.format(Locale.US, "%.1f", ratingSeed))
 
 // Test-only hooks (`ui.test.onNodeWithTag`), unused by production code otherwise.
 const val CourseDetailsLoadingTestTag = "course-details-loading"

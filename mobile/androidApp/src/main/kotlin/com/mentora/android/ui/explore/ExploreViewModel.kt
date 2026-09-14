@@ -8,9 +8,11 @@ import com.mentora.shared.data.network.ApiErrorCode
 import com.mentora.shared.data.network.ApiResult
 import com.mentora.shared.data.network.CursorPage
 import com.mentora.shared.data.repository.catalog.CourseFilters
+import com.mentora.android.viewmodel.reloadOnLocaleChange
 import com.mentora.shared.domain.model.Category
 import com.mentora.shared.domain.model.CourseSummary
 import com.mentora.shared.domain.model.LearningPath
+import com.mentora.shared.settings.AppLocale
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -79,6 +81,11 @@ class ExploreViewModel(
     private val listCategories: suspend () -> ApiResult<List<Category>>,
     private val searchCourses: suspend (CourseFilters, String?) -> ApiResult<CursorPage<CourseSummary>>,
     private val listLearningPaths: suspend () -> ApiResult<List<LearningPath>>,
+    /** T19 — see [reloadOnLocaleChange]'s own kdoc. Explore is the phase's highest-traffic
+     *  server-locale-sensitive list (categories/courses/learning paths all render server-supplied
+     *  text) and a documented tab-root case (`MentoraNavHost`'s `popUpTo{saveState=true}`), making
+     *  it the primary fix target D93 deferred here. */
+    private val observeLocale: () -> StateFlow<AppLocale> = { MutableStateFlow(AppLocale.English) },
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ExploreUiState())
@@ -92,6 +99,11 @@ class ExploreViewModel(
         loadCategories()
         loadCourses(resetting = true)
         loadLearningPaths()
+        viewModelScope.reloadOnLocaleChange(observeLocale) {
+            loadCategories()
+            loadCourses(resetting = true)
+            loadLearningPaths()
+        }
     }
 
     fun onSearchQueryChange(query: String) {
@@ -130,7 +142,19 @@ class ExploreViewModel(
 
     /** Cursor-based "load more", called as the course list scrolls near its end (see
      *  `ExploreScreen.kt`'s `LaunchedEffect` on the `LazyListState`). A no-op if there is no next
-     *  page, a page load isn't showing yet, or one is already in flight. */
+     *  page, a page load isn't showing yet, or one is already in flight.
+     *
+     *  **T19 — disclosed, pre-existing race (not introduced by this task).** [current] is captured by
+     *  value before this call's own suspend point; if ANY OTHER trigger that resets [courses] straight
+     *  to [CoursesUiState.Loading] (`onRetryCourses`/`onClearFilters`/`onCategorySelected`, and now also
+     *  a locale change via [reloadOnLocaleChange]) lands while this page fetch is still in flight, this
+     *  call's own success branch below still merges its result onto the STALE `current.items` it
+     *  captured, silently clobbering whatever that other trigger produced. Pre-existing since Task 9 —
+     *  `MyLearningViewModel.loadFollowedPaths`'s own `followedPathsJob`-tracked cancel-and-replace
+     *  pattern (D91) is the established fix shape for this exact class of race, not applied here since
+     *  retrofitting it is out of this audit task's own scope; the reproduction window (scrolling to
+     *  trigger a page load AND a locale switch landing in the same narrow interval) is narrow enough
+     *  that this is disclosed rather than fixed in this pass. */
     fun onLoadMoreCourses() {
         val current = _uiState.value.courses
         if (current !is CoursesUiState.Loaded || current.nextCursor == null || current.isLoadingMore) return
@@ -218,6 +242,7 @@ class ExploreViewModel(
             listCategories = sdk.catalog.listCategories::invoke,
             searchCourses = sdk.catalog.searchCourses::invoke,
             listLearningPaths = sdk.learningPaths.listLearningPaths::invoke,
+            observeLocale = sdk.user.observeLocale::invoke,
         ) as T
     }
 }

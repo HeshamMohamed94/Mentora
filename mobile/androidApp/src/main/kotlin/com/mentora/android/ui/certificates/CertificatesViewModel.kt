@@ -36,6 +36,13 @@ sealed interface CertificatesUiState {
  * Cursor-paginated, following `ExploreViewModel.CoursesUiState`'s exact pattern (`onLoadMore` guards
  * on `nextCursor`/`isLoadingMore`, a failed page load never discards what's already on screen) — no new
  * pagination shape invented here.
+ *
+ * **T19 — deliberately excluded from the phase's locale-reload sweep**
+ * (`com.mentora.android.viewmodel.reloadOnLocaleChange`, `execution/DECISIONS_LOG.md` D94).
+ * `CertificateRepository.listCertificates`'s own kdoc confirms this read never carries `?language=`
+ * at all — the response is a frozen server-side snapshot, unaffected by the active UI locale — so
+ * wiring a locale-triggered reload here would be a real, extra network call with zero visible
+ * effect, not a genuine fix. `CertificateDetailViewModel` is excluded for the identical reason.
  */
 class CertificatesViewModel(
     private val listCertificates: suspend (String?, Int?) -> ApiResult<CursorPage<CertificateSummary>>,

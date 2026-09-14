@@ -13,7 +13,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.mentora.android.R
 import com.mentora.android.theme.MentoraDimens
 import com.mentora.android.ui.components.MentoraIconButton
 import com.mentora.android.ui.components.MentoraIconName
@@ -44,7 +46,9 @@ fun MentoraTopBar(
         if (showBackButton) {
             MentoraIconButton(
                 icon = MentoraIconName.ArrowBack,
-                contentDescription = "Back",
+                // T19 — was a raw English literal, unreachable from any locale flip before
+                // LocalizedContent.kt (Task 18); a genuine gap now (D94, execution/DECISIONS_LOG.md).
+                contentDescription = stringResource(R.string.top_bar_back_content_description),
                 onClick = onBackClick,
             )
         }

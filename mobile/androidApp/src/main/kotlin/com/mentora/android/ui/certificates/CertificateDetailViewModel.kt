@@ -28,6 +28,10 @@ sealed interface CertificateDetailUiState {
  * T15 — Certificate Detail's ViewModel. Same lambda-constructor seam as `CourseDetailsViewModel`'s own
  * (single-id) [Factory] idiom — [certificateId] is captured once at construction, exactly the same
  * pattern as `CourseDetailsViewModel.courseId`.
+ *
+ * **T19 — deliberately excluded from the phase's locale-reload sweep** — see
+ * [CertificatesViewModel]'s own kdoc for why (this read never carries `?language=` either; a
+ * locale-triggered reload here would be a real, extra network call with zero visible effect).
  */
 class CertificateDetailViewModel(
     private val certificateId: String,

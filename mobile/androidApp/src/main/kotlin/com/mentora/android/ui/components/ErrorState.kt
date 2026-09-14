@@ -10,7 +10,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import com.mentora.android.R
 import com.mentora.android.theme.MentoraDimens
 
 /** Test-only hook (`ui.test.onNodeWithTag`) for asserting the retry action fires its callback. */
@@ -33,7 +35,16 @@ fun ErrorState(
     description: String,
     onRetryClick: () -> Unit,
     modifier: Modifier = Modifier,
-    retryLabel: String = "Try again",
+    // T19 review fix (HIGH, D94): this default was a raw English literal, live and reachable at 7
+    // production call sites (CourseDetailsScreen/MyLearningScreen/ExploreScreen(x2)/HomeScreen(x2)/
+    // LearningPathDetailsScreen) that never passed their own `retryLabel` override — every OTHER call
+    // site already does, following the exact lesson `CertificatesScreen.kt`'s own "Round-1 review,
+    // MEDIUM-1" comment records, but that lesson was never generalized back to the component's own
+    // default. Real and reachable since Task 18's LocalizedContent.kt made an in-app language switch
+    // genuinely flip `stringResource` app-wide: an Arabic-language student hitting any network error
+    // on one of those 7 screens saw an otherwise-fully-Arabic error card with an English "Try again"
+    // button.
+    retryLabel: String = stringResource(R.string.error_state_retry_label),
     retryVariant: MentoraButtonVariant = MentoraButtonVariant.Tonal,
 ) {
     Column(

@@ -6,12 +6,14 @@ import androidx.lifecycle.viewModelScope
 import com.mentora.android.domain.mylearning.GetMyLearningWithProgressUseCase
 import com.mentora.android.domain.mylearning.LearningItemWithProgress
 import com.mentora.android.domain.mylearning.MyLearningLoadState
+import com.mentora.android.viewmodel.reloadOnLocaleChange
 import com.mentora.shared.MentoraSdk
 import com.mentora.shared.data.network.ApiErrorCode
 import com.mentora.shared.data.network.ApiResult
 import com.mentora.shared.data.network.CursorPage
 import com.mentora.shared.data.repository.catalog.CourseFilters
 import com.mentora.shared.domain.model.CourseSummary
+import com.mentora.shared.settings.AppLocale
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -80,6 +82,8 @@ class HomeViewModel(
     private val searchCourses: suspend (CourseFilters, String?) -> ApiResult<CursorPage<CourseSummary>>,
     val resolveThumbnailUrl: (String) -> String,
     currentHour: () -> Int = { LocalTime.now().hour },
+    /** T19 — see `com.mentora.android.viewmodel.reloadOnLocaleChange`'s own kdoc. */
+    private val observeLocale: () -> StateFlow<AppLocale> = { MutableStateFlow(AppLocale.English) },
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(
@@ -92,6 +96,7 @@ class HomeViewModel(
 
     init {
         loadMyLearningThenRecommended()
+        viewModelScope.reloadOnLocaleChange(observeLocale) { loadMyLearningThenRecommended() }
     }
 
     /**
@@ -170,6 +175,7 @@ class HomeViewModel(
             )::invoke,
             searchCourses = sdk.catalog.searchCourses::invoke,
             resolveThumbnailUrl = sdk.media.resolveThumbnailUrl::invoke,
+            observeLocale = sdk.user.observeLocale::invoke,
         ) as T
     }
 }

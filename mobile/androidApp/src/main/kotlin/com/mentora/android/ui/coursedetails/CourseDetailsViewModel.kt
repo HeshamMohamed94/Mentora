@@ -3,6 +3,7 @@ package com.mentora.android.ui.coursedetails
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.mentora.android.viewmodel.reloadOnLocaleChange
 import com.mentora.shared.MentoraSdk
 import com.mentora.shared.data.network.ApiErrorCode
 import com.mentora.shared.data.network.ApiResult
@@ -10,6 +11,7 @@ import com.mentora.shared.data.network.CursorPage
 import com.mentora.shared.domain.model.Category
 import com.mentora.shared.domain.model.Course
 import com.mentora.shared.domain.model.Enrollment
+import com.mentora.shared.settings.AppLocale
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -88,6 +90,8 @@ class CourseDetailsViewModel(
     private val listEnrollments: suspend (String?, Int?) -> ApiResult<CursorPage<Enrollment>>,
     private val listCategories: suspend () -> ApiResult<List<Category>>,
     private val resolveThumbnailUrl: (String) -> String,
+    /** T19 — see `com.mentora.android.viewmodel.reloadOnLocaleChange`'s own kdoc. */
+    private val observeLocale: () -> StateFlow<AppLocale> = { MutableStateFlow(AppLocale.English) },
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CourseDetailsUiState())
@@ -96,6 +100,10 @@ class CourseDetailsViewModel(
     init {
         loadCourse()
         loadCategories()
+        viewModelScope.reloadOnLocaleChange(observeLocale) {
+            loadCourse()
+            loadCategories()
+        }
     }
 
     fun onRetry() = loadCourse()
@@ -164,6 +172,7 @@ class CourseDetailsViewModel(
             listEnrollments = sdk.enrollment.listEnrollments::invoke,
             listCategories = sdk.catalog.listCategories::invoke,
             resolveThumbnailUrl = sdk.media.resolveThumbnailUrl::invoke,
+            observeLocale = sdk.user.observeLocale::invoke,
         ) as T
     }
 }

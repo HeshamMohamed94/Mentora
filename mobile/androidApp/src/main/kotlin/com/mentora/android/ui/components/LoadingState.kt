@@ -26,9 +26,11 @@ import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import com.mentora.android.R
 import com.mentora.android.theme.MentoraDimens
 import com.mentora.android.theme.MentoraMotionDuration
 
@@ -52,6 +54,7 @@ fun SkeletonBlock(
     shape: Shape = MaterialTheme.shapes.extraSmall,
 ) {
     val colorScheme = MaterialTheme.colorScheme
+    val loadingContentDescription = stringResource(R.string.loading_state_content_description)
     val transition = rememberInfiniteTransition(label = "skeleton-shimmer")
     val sweep by transition.animateFloat(
         initialValue = -1f,
@@ -74,7 +77,8 @@ fun SkeletonBlock(
                 )
                 onDrawBehind { drawRect(brush) }
             }
-            .semantics { contentDescription = "Loading" },
+            // T19 — was a raw English literal (D94, execution/DECISIONS_LOG.md).
+            .semantics { contentDescription = loadingContentDescription },
     )
 }
 
@@ -113,7 +117,8 @@ fun CourseCardSkeleton(modifier: Modifier = Modifier) {
 @Composable
 fun FullScreenLoadingState(
     modifier: Modifier = Modifier,
-    contentDescriptionLabel: String = "Loading",
+    // T19 — was a raw English literal (D94, execution/DECISIONS_LOG.md).
+    contentDescriptionLabel: String = stringResource(R.string.loading_state_content_description),
 ) {
     Box(
         modifier = modifier

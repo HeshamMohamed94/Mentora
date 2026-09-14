@@ -20,8 +20,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.semantics
+import com.mentora.android.R
 import com.mentora.android.theme.MentoraDimens
 import com.mentora.android.theme.stateOpacities
 
@@ -73,7 +75,12 @@ fun <T> MentoraSelect(
     /** Disabled-looking field + inline spinner replacing the trailing indicator; if opened before
      * options resolve, the menu shows a single "Loading options…" row instead of the real list. */
     loading: Boolean = false,
-    loadingOptionsLabel: String = "Loading options…",
+    // T19 — was a raw English literal (D93 LOW-6, disclosed); every Select in this app is currently
+    // static (this default was unreachable from any real call site), so this had no visible effect
+    // yet, but a future dynamically-populated Select would have silently shown untranslated English
+    // under Arabic. `stringResource` as a Composable function's own default parameter expression is
+    // evaluated per-call like any other default, same idiom Compose itself uses throughout.
+    loadingOptionsLabel: String = stringResource(R.string.select_loading_options_label),
 ) {
     var expanded by remember { mutableStateOf(false) }
     val colorScheme = MaterialTheme.colorScheme

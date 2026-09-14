@@ -83,7 +83,8 @@
     <string name="course_details_curriculum_heading">المنهج الدراسي</string>
     <string name="course_details_curriculum_lesson_count">%1$s درس</string>
     <string name="course_details_about_instructor_heading">عن المدرّب</string>
-    <string name="course_details_rating_content_description">التقييم %1$.1f من 5 (تقييم تجريبي)</string>
+    <!-- T19 review fix (MEDIUM, D94): was %1$.1f, now %1$s (pre-formatted, Locale.US pinned). -->
+    <string name="course_details_rating_content_description">التقييم %1$s من 5 (تقييم تجريبي)</string>
 
     <!-- T11 — Demo Checkout + Purchase Success, see values/strings.xml for sourcing notes. -->
     <string name="demo_checkout_nav_title">الدفع التجريبي</string>
@@ -305,4 +306,14 @@
     <string name="profile_avatar_content_description">الصورة الشخصية لـ %1$s</string>
     <string name="profile_name_error_required">الاسم مطلوب.</string>
     <string name="profile_name_error_too_long">الاسم طويل جدًا — 120 حرفًا كحد أقصى.</string>
+
+    <!-- T19 — MentoraSelect's loading-state row, D93 LOW-6's disclosed hardcoded default, swept here. -->
+    <string name="select_loading_options_label">جارٍ تحميل الخيارات…</string>
+
+    <!-- T19 — hardcoded-string sweep (execution/DECISIONS_LOG.md D94). -->
+    <string name="loading_state_content_description">جارٍ التحميل</string>
+    <string name="top_bar_back_content_description">رجوع</string>
+
+    <!-- T19 review fix (HIGH): ErrorState's own retryLabel default. -->
+    <string name="error_state_retry_label">أعد المحاولة</string>
 </resources>

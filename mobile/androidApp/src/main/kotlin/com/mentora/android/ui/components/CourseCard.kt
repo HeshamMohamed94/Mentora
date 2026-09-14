@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextOverflow
 import com.mentora.android.theme.MentoraDimens
 import com.mentora.android.theme.MentoraMotionDuration
+import java.util.Locale
 import kotlin.math.roundToInt
 
 /**
@@ -161,7 +162,12 @@ internal fun CourseMetaRow(
         rating?.let {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(MentoraDimens.spacing.space1)) {
                 Text(text = "★", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(text = String.format("%.1f", it), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                // T19 review fix (MEDIUM, D94): `Locale.getDefault(FORMAT)` — the implicit locale an
+                // unqualified `String.format` uses — resolves to Arabic-Indic digits on an Arabic
+                // device, violating design-system/LOCALIZATION.md § 8's locked "Western numerals
+                // everywhere" rule. `Locale.US` pinned, same precedent as `PlayerControls
+                // .formatPlaybackTime`/`CertificateFormatting`'s own identical fix.
+                Text(text = String.format(Locale.US, "%.1f", it), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         studentCount?.let {

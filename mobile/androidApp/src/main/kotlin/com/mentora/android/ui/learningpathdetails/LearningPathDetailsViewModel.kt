@@ -3,12 +3,14 @@ package com.mentora.android.ui.learningpathdetails
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.mentora.android.viewmodel.reloadOnLocaleChange
 import com.mentora.shared.MentoraSdk
 import com.mentora.shared.data.network.ApiErrorCode
 import com.mentora.shared.data.network.ApiResult
 import com.mentora.shared.domain.model.CourseProgress
 import com.mentora.shared.domain.model.LearningPathCourse
 import com.mentora.shared.domain.model.LearningPathDetail
+import com.mentora.shared.settings.AppLocale
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -106,6 +108,8 @@ class LearningPathDetailsViewModel(
     private val unfollowLearningPath: suspend (String) -> ApiResult<Boolean>,
     private val getCourseProgress: suspend (String) -> ApiResult<CourseProgress>,
     val resolveThumbnailUrl: (String) -> String,
+    /** T19 — see `com.mentora.android.viewmodel.reloadOnLocaleChange`'s own kdoc. */
+    private val observeLocale: () -> StateFlow<AppLocale> = { MutableStateFlow(AppLocale.English) },
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LearningPathDetailsUiState())
@@ -113,6 +117,21 @@ class LearningPathDetailsViewModel(
 
     init {
         loadPath()
+        // T19 — self-review fix: reloading unconditionally here would silently drop the result of an
+        // in-flight follow/unfollow call. `loadPath()` resets `path` straight to `Loading`; when that
+        // call's response then arrives, `updateSuccess`'s `as? LearningPathLoadState.Success` cast on
+        // the now-`Loading` state fails and the update is dropped as a no-op — the tap the student
+        // just made would appear to have done nothing. Narrow window (this destination is a PUSH, not
+        // a tab root, but its `NavBackStackEntry`/ViewModelStore stays alive while merely covered by a
+        // later push — e.g. Settings pushed on top without popping this screen — so a locale change
+        // made there can still reach this instance while a toggle it started is still resolving).
+        // Skipping the reload entirely for that one window is enough: `onFollowToggleClicked`'s own
+        // completion re-renders correctly regardless of which locale's copy briefly showed, and the
+        // student's next real re-entry/retry naturally reloads in the new locale anyway.
+        viewModelScope.reloadOnLocaleChange(observeLocale) {
+            val current = _uiState.value.path as? LearningPathLoadState.Success
+            if (current?.followInFlight != true) loadPath()
+        }
     }
 
     fun onRetry() = loadPath()
@@ -239,6 +258,7 @@ class LearningPathDetailsViewModel(
             unfollowLearningPath = sdk.learningPaths.unfollowLearningPath::invoke,
             getCourseProgress = sdk.progress.getCourseProgress::invoke,
             resolveThumbnailUrl = sdk.media.resolveThumbnailUrl::invoke,
+            observeLocale = sdk.user.observeLocale::invoke,
         ) as T
     }
 }

@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.mentora.android.domain.mylearning.GetMyLearningWithProgressUseCase
 import com.mentora.android.domain.mylearning.LearningItemWithProgress
 import com.mentora.android.domain.mylearning.MyLearningLoadState
+import com.mentora.android.viewmodel.reloadOnLocaleChange
 import com.mentora.shared.MentoraSdk
 import com.mentora.shared.data.network.ApiResult
 import com.mentora.shared.data.network.CursorPage
@@ -13,6 +14,7 @@ import com.mentora.shared.domain.model.CertificateSummary
 import com.mentora.shared.domain.model.Category
 import com.mentora.shared.domain.model.LearningPath
 import com.mentora.shared.domain.model.LearningPathDetail
+import com.mentora.shared.settings.AppLocale
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -75,6 +77,8 @@ class MyLearningViewModel(
     private val listCertificates: suspend (String?, Int?) -> ApiResult<CursorPage<CertificateSummary>>,
     private val listCategories: suspend () -> ApiResult<List<Category>>,
     val resolveThumbnailUrl: (String) -> String,
+    /** T19 — see `com.mentora.android.viewmodel.reloadOnLocaleChange`'s own kdoc. */
+    private val observeLocale: () -> StateFlow<AppLocale> = { MutableStateFlow(AppLocale.English) },
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MyLearningUiState())
@@ -85,6 +89,12 @@ class MyLearningViewModel(
         loadFollowedPaths()
         loadCertificates()
         loadCategories()
+        viewModelScope.reloadOnLocaleChange(observeLocale) {
+            loadItems()
+            loadFollowedPaths()
+            loadCertificates()
+            loadCategories()
+        }
     }
 
     fun onFilterSelected(filter: MyLearningFilter) {
@@ -190,6 +200,7 @@ class MyLearningViewModel(
             listCertificates = sdk.certificates.listCertificates::invoke,
             listCategories = sdk.catalog.listCategories::invoke,
             resolveThumbnailUrl = sdk.media.resolveThumbnailUrl::invoke,
+            observeLocale = sdk.user.observeLocale::invoke,
         ) as T
     }
 }

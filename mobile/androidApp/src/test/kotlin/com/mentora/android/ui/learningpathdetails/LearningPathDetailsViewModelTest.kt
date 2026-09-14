@@ -5,8 +5,12 @@ import com.mentora.shared.data.network.ApiResult
 import com.mentora.shared.domain.model.CourseProgress
 import com.mentora.shared.domain.model.LearningPathCourse
 import com.mentora.shared.domain.model.LearningPathDetail
+import com.mentora.shared.settings.AppLocale
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -72,6 +76,7 @@ class LearningPathDetailsViewModelTest {
         getCourseProgress: suspend (String) -> ApiResult<CourseProgress> =
             { ApiResult.Failure(ApiErrorCode.ForbiddenNotEnrolled, "not enrolled", null, 403) },
         resolveThumbnailUrl: (String) -> String = { "https://example.test/media/$it/file" },
+        observeLocale: () -> StateFlow<AppLocale> = { MutableStateFlow(AppLocale.English) },
     ) = LearningPathDetailsViewModel(
         pathId = pathId,
         isAuthenticated = isAuthenticated,
@@ -80,7 +85,66 @@ class LearningPathDetailsViewModelTest {
         unfollowLearningPath = unfollowLearningPath,
         getCourseProgress = getCourseProgress,
         resolveThumbnailUrl = resolveThumbnailUrl,
+        observeLocale = observeLocale,
     )
+
+    // ---- T19 — locale-reload sweep (execution/DECISIONS_LOG.md D94) -----------------------------
+
+    @Test
+    fun localeChange_reloadsThePath() = runTest(testDispatcher) {
+        var loadCount = 0
+        val locale = MutableStateFlow(AppLocale.English)
+        buildViewModel(
+            isAuthenticated = true,
+            getLearningPathDetail = { loadCount++; ApiResult.Success(pathDetail(it)) },
+            observeLocale = { locale },
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertEquals(1, loadCount)
+
+        locale.value = AppLocale.Arabic
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(2, loadCount)
+    }
+
+    /** Self-review fix regression (MEDIUM) — a locale change landing while a follow/unfollow call is
+     *  still in flight must NOT reload the path: [LearningPathDetailsViewModel.loadPath] resets `path`
+     *  straight to [LearningPathLoadState.Loading], which would silently drop that in-flight call's own
+     *  result the moment it resolves (`updateSuccess`'s `as? Success` cast fails against a `Loading`
+     *  state). Uses a [CompletableDeferred] to hold the follow call open past the locale change, proving
+     *  the fix actually depends on timing and isn't just incidentally correct. */
+    @Test
+    fun localeChange_whileAFollowToggleIsInFlight_doesNotReloadTheDataFromUnderTheOutstandingCall() = runTest(testDispatcher) {
+        val followDeferred = CompletableDeferred<ApiResult<Boolean>>()
+        var loadCount = 0
+        val locale = MutableStateFlow(AppLocale.English)
+        val viewModel = buildViewModel(
+            isAuthenticated = true,
+            getLearningPathDetail = { loadCount++; ApiResult.Success(pathDetail(it, isFollowing = false)) },
+            followLearningPath = { followDeferred.await() },
+            observeLocale = { locale },
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertEquals(1, loadCount)
+
+        viewModel.onFollowToggleClicked()
+        testDispatcher.scheduler.advanceUntilIdle() // The follow call is now in flight (deliberately unresolved).
+        assertTrue((viewModel.uiState.value.path as LearningPathLoadState.Success).followInFlight)
+
+        // The locale change must be a no-op here — reloading now would drop the in-flight call's result.
+        locale.value = AppLocale.Arabic
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertEquals(1, loadCount)
+        assertTrue(viewModel.uiState.value.path is LearningPathLoadState.Success)
+
+        // The outstanding call resolves late and must still land correctly.
+        followDeferred.complete(ApiResult.Success(true))
+        testDispatcher.scheduler.advanceUntilIdle()
+        val success = viewModel.uiState.value.path as LearningPathLoadState.Success
+        assertTrue(success.isFollowing)
+        assertFalse(success.followInFlight)
+    }
 
     @Test
     fun guest_neverCallsGetCourseProgress_andTreatsTheFirstCourseAsCurrent() = runTest(testDispatcher) {

@@ -10,8 +10,11 @@ import com.mentora.shared.domain.model.CourseLevel
 import com.mentora.shared.domain.model.CourseSummary
 import com.mentora.shared.domain.model.LearningPath
 import com.mentora.shared.domain.model.PriceDisplay
+import com.mentora.shared.settings.AppLocale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -78,13 +81,55 @@ class ExploreViewModelTest {
         listCategories: suspend () -> ApiResult<List<Category>> = { ApiResult.Success(emptyList()) },
         search: FakeSearch = FakeSearch(),
         listLearningPaths: suspend () -> ApiResult<List<LearningPath>> = { ApiResult.Success(emptyList()) },
+        observeLocale: () -> StateFlow<AppLocale> = { MutableStateFlow(AppLocale.English) },
     ): Pair<ExploreViewModel, FakeSearch> {
         val viewModel = ExploreViewModel(
             listCategories = listCategories,
             searchCourses = search::invoke,
             listLearningPaths = listLearningPaths,
+            observeLocale = observeLocale,
         )
         return viewModel to search
+    }
+
+    // ---- T19 — locale-reload sweep (execution/DECISIONS_LOG.md D94) -----------------------------
+
+    @Test
+    fun localeChange_reloadsCoursesCategoriesAndLearningPaths_butOnlyAfterTheInitialLoad() = runTest(testDispatcher) {
+        var categoriesCallCount = 0
+        var learningPathsCallCount = 0
+        val locale = MutableStateFlow(AppLocale.English)
+        val (viewModel, search) = buildViewModel(
+            listCategories = { categoriesCallCount++; ApiResult.Success(emptyList()) },
+            listLearningPaths = { learningPathsCallCount++; ApiResult.Success(emptyList()) },
+            observeLocale = { locale },
+        )
+        testDispatcher.scheduler.advanceUntilIdle() // Resolve init's own initial loads.
+        assertEquals(1, search.callCount)
+        assertEquals(1, categoriesCallCount)
+        assertEquals(1, learningPathsCallCount)
+
+        locale.value = AppLocale.Arabic
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(2, search.callCount)
+        assertEquals(2, categoriesCallCount)
+        assertEquals(2, learningPathsCallCount)
+    }
+
+    @Test
+    fun localeChange_preservesTheCurrentSearchQueryAndCategoryFilter() = runTest(testDispatcher) {
+        val locale = MutableStateFlow(AppLocale.English)
+        val (viewModel, search) = buildViewModel(observeLocale = { locale })
+        testDispatcher.scheduler.advanceUntilIdle()
+        viewModel.onCategorySelected("cat-2")
+        testDispatcher.scheduler.advanceUntilIdle()
+        search.recordedFilters.clear()
+
+        locale.value = AppLocale.Arabic
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals("cat-2", search.recordedFilters.single().category)
     }
 
     @Test
