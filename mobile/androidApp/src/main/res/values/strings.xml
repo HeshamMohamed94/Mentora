@@ -281,4 +281,27 @@
     <string name="certificate_detail_completed_on">Completed %1$s</string>
     <string name="certificate_detail_issued_on">Issued %1$s</string>
     <string name="certificate_detail_certificate_id">Certificate ID: %1$s</string>
+
+    <!-- Task 16 — Learning Path Details (follow/unfollow), ux/SCREEN_UX_SPECS.md § 5 (no exact-showcase
+         mockup exists — design-derived, ux-only). Numeral placeholders are %1$s/`Int.toString()`,
+         never %1$d, per design-system/LOCALIZATION.md § 8, same rule every prior task was reviewed
+         for compliance with. `learning_path_details_unfollow_action` is a deliberate, disclosed
+         addition beyond the locked spec's own literal "ProgressBar if following, else a Follow Path
+         button" wording (§ 5 Main content item 2 never separately describes an unfollow control) —
+         without it, a student who already followed a path would have no way to unfollow one from
+         this screen at all, which would leave half of this task's own "(follow/unfollow)" name
+         unreachable from the UI. See LearningPathDetailsScreen.kt's own kdoc for the full rationale. -->
+    <string name="learning_path_details_nav_title">Learning Path</string>
+    <string name="learning_path_details_error_title">This learning path couldn\'t be loaded</string>
+    <string name="learning_path_details_course_count">%1$s courses</string>
+    <string name="learning_path_details_progress_label">%1$s of %2$s complete</string>
+    <string name="learning_path_details_follow_action">Follow Path</string>
+    <string name="learning_path_details_unfollow_action">Unfollow</string>
+    <string name="learning_path_details_status_completed">Completed</string>
+    <string name="learning_path_details_status_current">Current</string>
+    <string name="learning_path_details_status_upcoming">Upcoming</string>
+    <string name="learning_path_details_course_enroll_action">Enroll</string>
+    <string name="learning_path_details_course_continue_action">Continue Learning</string>
+    <string name="learning_path_details_course_thumbnail_content_description">%1$s course thumbnail</string>
+    <string name="learning_path_details_course_progress_content_description">%1$s%% complete</string>
 </resources>

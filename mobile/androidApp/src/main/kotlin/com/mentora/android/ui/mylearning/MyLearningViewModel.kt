@@ -13,6 +13,7 @@ import com.mentora.shared.domain.model.CertificateSummary
 import com.mentora.shared.domain.model.Category
 import com.mentora.shared.domain.model.LearningPath
 import com.mentora.shared.domain.model.LearningPathDetail
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -92,6 +93,34 @@ class MyLearningViewModel(
 
     fun onRetryItems() = loadItems()
 
+    /**
+     * T16 — closes a real, proactively-flagged staleness gap: this screen has no refresh-on-return
+     * mechanism of its own, but [MyLearningScreen] genuinely leaves and re-enters composition whenever
+     * Learning Path Details is pushed on top of `MyLearningGraph`'s own back stack (Navigation-Compose
+     * disposes the covered destination's composition while another is pushed on top) and popped back
+     * — the exact same mechanism `CoursePlayerViewModel.refreshQuizStatus`'s own kdoc already
+     * documents (`DECISIONS_LOG.md` D89). [MyLearningScreen]'s own `LaunchedEffect(Unit)` calls this on
+     * every (re-)entry so following/unfollowing a path from the Detail screen and returning here shows
+     * the up-to-date followed-paths list immediately, not stale until some unrelated reload. Narrow and
+     * additive by design — only [loadFollowedPaths] re-runs, not the other 3 independent loads
+     * [init] already kicks off (this class's own kdoc: 3 independent loads, no reason to force a full
+     * reload of unrelated content just to refresh one module).
+     */
+    /** Round-1 review finding (LOW): tracks the in-flight [loadFollowedPaths] 1+N join so a NEWER call
+     *  always wins — without this, two overlapping calls (the guaranteed [init]+[refreshFollowedPaths]
+     *  double-fire on first entry, or a fast follow/unfollow round trip started while a slower earlier
+     *  refresh is still resolving) could resolve out of order and let the OLDER, now-stale result
+     *  silently overwrite the newer one (e.g. unfollow -> back (refresh A starts, slow) -> re-enter,
+     *  follow again -> back (refresh B starts, fast) -> B writes the correct followed list -> A lands
+     *  late and overwrites it back to stale). [Job.cancel] on the previous call before launching a new
+     *  one makes only the LATEST call's result ever apply, the same "newer supersedes older" shape
+     *  [com.mentora.android.ui.courseplayer.CoursePlayerViewModel.refreshQuizStatus]'s own
+     *  `progressBeforeFetch` identity check achieves by a different, field-count-appropriate mechanism
+     *  (a single mutable field there vs. a whole list-rebuilding join here). */
+    private var followedPathsJob: Job? = null
+
+    fun refreshFollowedPaths() = loadFollowedPaths()
+
     private fun loadItems() {
         _uiState.update { it.copy(items = MyLearningLoadState.Loading) }
         viewModelScope.launch {
@@ -103,7 +132,8 @@ class MyLearningViewModel(
     }
 
     private fun loadFollowedPaths() {
-        viewModelScope.launch {
+        followedPathsJob?.cancel()
+        followedPathsJob = viewModelScope.launch {
             when (val listResult = listLearningPaths()) {
                 is ApiResult.Success -> {
                     val followed = mutableListOf<LearningPathDetail>()

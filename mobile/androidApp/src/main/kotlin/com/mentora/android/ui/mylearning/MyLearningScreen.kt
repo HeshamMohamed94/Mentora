@@ -14,6 +14,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -80,6 +81,14 @@ fun MyLearningScreen(
 ) {
     val viewModel: MyLearningViewModel = viewModel(factory = MyLearningViewModel.Factory(sdk))
     val uiState by viewModel.uiState.collectAsState()
+
+    // T16 — re-fires on every (re-)entry into this composable's composition, including a return from a
+    // pushed Learning Path Details screen via back (Navigation-Compose disposes the covered
+    // destination's composition while another is pushed on top) — see
+    // `MyLearningViewModel.refreshFollowedPaths`'s own kdoc for the full rationale. Firing on the very
+    // first composition too is harmless — it just re-fetches the same followed-paths join `init`
+    // already kicked off moments earlier.
+    LaunchedEffect(Unit) { viewModel.refreshFollowedPaths() }
 
     MyLearningScreenContent(
         uiState = uiState,

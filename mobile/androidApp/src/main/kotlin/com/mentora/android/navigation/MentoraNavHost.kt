@@ -37,7 +37,7 @@ import com.mentora.android.ui.explore.ExploreScreen
 import com.mentora.android.ui.home.HomeScreen
 import com.mentora.android.ui.auth.LoginScreen
 import com.mentora.android.ui.auth.RegisterScreen
-import com.mentora.android.ui.screens.LearningPathDetailsScreen
+import com.mentora.android.ui.learningpathdetails.LearningPathDetailsScreen
 import com.mentora.android.ui.mylearning.MyLearningScreen
 import com.mentora.android.ui.screens.ProfileScreen
 import com.mentora.android.ui.checkout.PurchaseSuccessScreen
@@ -264,6 +264,25 @@ fun MentoraNavHost(
             onOpenLesson = { lessonId -> requireAuth(Destination.CoursePlayer(courseId, lessonId)) },
         )
     }
+    // T16: Learning Path Details is registered under BOTH ExploreGraph (Task 9's original wiring, the
+    // Learning Paths tab's own card tap) and MyLearningGraph (My Learning's own followed-paths row) —
+    // one shared content lambda, same established pattern as [courseDetailsContent]/[coursePlayerContent]
+    // above. `onFollowRequiringAuth` mirrors `courseDetailsContent`'s own `onEnrollRequiringAuth` gate
+    // exactly: `requireAuth(Destination.LearningPathDetails(pathId))` re-pushes this SAME destination
+    // (never a different one) as the pending intent, so a guest who logs in lands back on a fresh
+    // instance of this screen — now authenticated, with the Follow button wired for real — rather than
+    // auto-following on their behalf (mirrors Course Details' own guest flow: login lands back on the
+    // checkout PREVIEW, never auto-completes a purchase).
+    val learningPathDetailsContent: @Composable AnimatedContentScope.(androidx.navigation.NavBackStackEntry) -> Unit = { entry ->
+        val pathId = entry.toRoute<Destination.LearningPathDetails>().pathId
+        LearningPathDetailsScreen(
+            pathId = pathId,
+            sdk = sdk,
+            isAuthenticated = authState is AuthState.Authenticated,
+            onFollowRequiringAuth = { requireAuth(Destination.LearningPathDetails(pathId)) },
+            onOpenCourseDetails = { courseId -> navController.navigate(Destination.CourseDetails(courseId)) },
+        )
+    }
     // T12: Certificates (+ Detail) is registered under MyLearningGraph (its conceptual IA home,
     // `product/INFORMATION_ARCHITECTURE.md § 3`'s routing table: "Certificates + Detail | My Learning
     // (pushed)") AND HomeGraph, for the identical "reachable from more than one tab" reason as
@@ -455,9 +474,7 @@ fun MentoraNavHost(
                         onOpenPathDetails = { pathId -> navController.navigate(Destination.LearningPathDetails(pathId)) },
                     )
                 }
-                composable<Destination.LearningPathDetails> { entry ->
-                    LearningPathDetailsScreen(pathId = entry.toRoute<Destination.LearningPathDetails>().pathId)
-                }
+                composable<Destination.LearningPathDetails>(content = learningPathDetailsContent)
                 composable<Destination.CourseDetails>(content = courseDetailsContent)
                 composable<Destination.DemoCheckout>(content = demoCheckoutContent)
                 composable<Destination.CoursePlayer>(content = coursePlayerContent)
@@ -503,9 +520,18 @@ fun MentoraNavHost(
                 composable<Destination.CoursePlayer>(content = coursePlayerContent)
                 composable<Destination.Quiz>(content = quizContent)
                 composable<Destination.QuizResults>(content = quizResultsContent)
-                composable<Destination.LearningPathDetails> { entry ->
-                    LearningPathDetailsScreen(pathId = entry.toRoute<Destination.LearningPathDetails>().pathId)
-                }
+                composable<Destination.LearningPathDetails>(content = learningPathDetailsContent)
+                // T16: [learningPathDetailsContent] (registered immediately above) pushes
+                // `Destination.CourseDetails` on a member-course tap, and that screen's own
+                // `onEnrollRequiringAuth` can in turn push `Destination.DemoCheckout` — both need their
+                // own registration here, same navigation-registration checklist [Destinations]'s own
+                // kdoc and this task's own brief call out (the exact class of bug D90 found and fixed
+                // for `CertificateDetail`/`ExploreGraph`): omitting either would let a tap reached via
+                // My Learning → Learning Path Details silently mis-anchor the bottom nav to whichever
+                // OTHER tab-graph happens to declare it first, risking a whole-tab-stack loss on the
+                // next same-tab tap.
+                composable<Destination.CourseDetails>(content = courseDetailsContent)
+                composable<Destination.DemoCheckout>(content = demoCheckoutContent)
                 composable<Destination.Certificates>(content = certificatesContent)
                 composable<Destination.CertificateDetail>(content = certificateDetailContent)
                 composable<Destination.PurchaseSuccess> { entry ->
@@ -660,7 +686,9 @@ private fun titleFor(destination: NavDestination?): String = when {
     destination.hasRoute<Destination.Login>() -> "Login"
     destination.hasRoute<Destination.Register>() -> "Register"
     destination.hasRoute<Destination.CourseDetails>() -> "Course Details"
-    destination.hasRoute<Destination.LearningPathDetails>() -> "Learning Path Details"
+    // T16: localized, real string resource — same reasoning as `Quiz`/`QuizResults`/`Certificates`
+    // above (this destination moves from placeholder to a real screen in this task).
+    destination.hasRoute<Destination.LearningPathDetails>() -> stringResource(R.string.learning_path_details_nav_title)
     destination.hasRoute<Destination.CoursePlayer>() -> "Course Player"
     // Task 14: localized, real string resources — same reasoning as `DemoCheckout`/`PurchaseSuccess`
     // below (T11 fix-up note): both destinations move from placeholder to real screens in this task.

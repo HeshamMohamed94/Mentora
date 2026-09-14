@@ -247,4 +247,19 @@
     <string name="certificate_detail_completed_on">اكتملت في %1$s</string>
     <string name="certificate_detail_issued_on">صدرت في %1$s</string>
     <string name="certificate_detail_certificate_id">معرّف الشهادة: %1$s</string>
+
+    <!-- Task 16 — Learning Path Details (follow/unfollow), see values/strings.xml for sourcing notes. -->
+    <string name="learning_path_details_nav_title">مسار التعلّم</string>
+    <string name="learning_path_details_error_title">تعذّر تحميل مسار التعلّم هذا</string>
+    <string name="learning_path_details_course_count">%1$s دورة</string>
+    <string name="learning_path_details_progress_label">اكتمل %1$s من %2$s</string>
+    <string name="learning_path_details_follow_action">متابعة المسار</string>
+    <string name="learning_path_details_unfollow_action">إلغاء المتابعة</string>
+    <string name="learning_path_details_status_completed">مكتملة</string>
+    <string name="learning_path_details_status_current">الحالية</string>
+    <string name="learning_path_details_status_upcoming">القادمة</string>
+    <string name="learning_path_details_course_enroll_action">الالتحاق</string>
+    <string name="learning_path_details_course_continue_action">متابعة التعلّم</string>
+    <string name="learning_path_details_course_thumbnail_content_description">الصورة المصغّرة لدورة %1$s</string>
+    <string name="learning_path_details_course_progress_content_description">اكتمل %1$s٪</string>
 </resources>

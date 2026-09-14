@@ -33,8 +33,8 @@ import com.mentora.android.ui.components.PrimaryButton
  * T9 note: `ExploreScreen`/`LearningPathsScreen` are no longer placeholders here — Task 9 replaced
  * them with a real screen in `com.mentora.android.ui.explore` (`ExploreScreen.kt`); the old
  * `LearningPathsScreen` placeholder is gone entirely (folded into that screen's own Learning Paths
- * tab — see that file's kdoc for why). [LearningPathDetailsScreen] (the per-path detail screen) is
- * still a placeholder here; that's Task 16's job.
+ * tab — see that file's kdoc for why). The per-path detail screen's own placeholder retirement is
+ * covered by the T16 note below.
  *
  * T10 note: `CourseDetailsScreen` is no longer a placeholder here — Task 10 replaced it with a real
  * screen in `com.mentora.android.ui.coursedetails` (`CourseDetailsScreen.kt`).
@@ -57,6 +57,9 @@ import com.mentora.android.ui.components.PrimaryButton
  * T15 note: `CertificatesScreen`/`CertificateDetailScreen` are no longer placeholders here — Task 15
  * replaced them with real screens in `com.mentora.android.ui.certificates`
  * (`CertificatesScreen.kt`/`CertificateDetailScreen.kt`).
+ *
+ * T16 note: `LearningPathDetailsScreen` is no longer a placeholder here — Task 16 replaced it with a
+ * real screen in `com.mentora.android.ui.learningpathdetails` (`LearningPathDetailsScreen.kt`).
  */
 @Composable
 fun AiTutorScreen(modifier: Modifier = Modifier) = PlaceholderScreen("AI Tutor (placeholder)", modifier)
@@ -71,10 +74,6 @@ fun ProfileScreen(onOpenSettings: () -> Unit, modifier: Modifier = Modifier) {
 
 @Composable
 fun SettingsScreen(modifier: Modifier = Modifier) = PlaceholderScreen("Settings (placeholder)", modifier)
-
-@Composable
-fun LearningPathDetailsScreen(pathId: String, modifier: Modifier = Modifier) =
-    PlaceholderScreen("Learning Path Details (placeholder): $pathId", modifier)
 
 @Composable
 private fun PlaceholderScreen(text: String, modifier: Modifier = Modifier) {

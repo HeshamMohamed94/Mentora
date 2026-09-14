@@ -220,6 +220,26 @@ class MyLearningViewModelTest {
     }
 
     @Test
+    fun refreshFollowedPaths_reloadsTheFollowedPathsModule_reflectingAFollowUnfollowThatHappenedElsewhere() = runTest(testDispatcher) {
+        var isFollowing = false
+        val viewModel = buildViewModel(
+            listLearningPaths = { ApiResult.Success(listOf(learningPath("path-1"))) },
+            getLearningPathDetail = { id -> ApiResult.Success(learningPathDetail(id, isFollowing = isFollowing)) },
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertEquals(emptyList<LearningPathDetail>(), viewModel.uiState.value.followedPaths)
+
+        // Simulates a follow that happened on Learning Path Details while My Learning was off-screen —
+        // this screen's own init-time load already ran with the old (not-following) value above.
+        isFollowing = true
+        viewModel.refreshFollowedPaths()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(1, viewModel.uiState.value.followedPaths.size)
+        assertEquals("path-1", viewModel.uiState.value.followedPaths.first().id)
+    }
+
+    @Test
     fun certificates_loadSuccessfully_populateTheUiState() = runTest(testDispatcher) {
         val viewModel = buildViewModel(
             listCertificates = { _, _ -> ApiResult.Success(CursorPage(items = listOf(certificate("MTR-1"), certificate("MTR-2")), nextCursor = null)) },

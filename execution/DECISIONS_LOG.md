@@ -2434,3 +2434,89 @@ registration), `ui/components/CertificateCard.kt` (`CertificatePreviewPlaceholde
 translations). No `mobile/shared/` change. Task 15 is now **DONE** — see `CURRENT_STATUS.md`'s Phase 4
 task table. Next: Task 16 (Learning Path Details — follow/unfollow).
 
+### D91 — 2026-09-14 — PHASE 4 Task 16 complete: Learning Path Details (follow/unfollow), one review
+round, the D90 navigation-registration checklist applied proactively and verified clean
+
+**Context.** No exact-showcase mockup exists (`design-to-code/screens/learning-path-details.json` is
+`"referenceType": "ux-only"`) — built from `ux/SCREEN_UX_SPECS.md § 5` directly, same footing as Course
+Details/Quiz/Certificates. `LearningPathCourse` carries no completion/enrollment status field at all,
+so Completed/Current/Upcoming is derived client-side, one `sdk.progress.getCourseProgress(courseId)`
+call per member course (small N, same N+1-is-fine-at-seed-scale precedent `MyLearningViewModel`'s own
+Learning-Paths join already established). Guest gating on the Follow button mirrors Course Details'
+existing `isAuthenticated`/`onEnrollRequiringAuth` mechanism exactly, per this task's own brief —
+`followLearningPath`/`unfollowLearningPath` are hard-authenticated server-side, so a guest tap must
+route to Login, never attempt a doomed API call.
+
+**D90 navigation-registration checklist applied proactively, and independently re-verified by the
+reviewer as complete.** `Destination.LearningPathDetails` pushes `Destination.CourseDetails` on a
+member-course tap; `CourseDetails` can in turn push `DemoCheckout`/`CoursePlayer`. The reviewer
+computed the FULL transitive push closure from `LearningPathDetails` under both graphs it's registered
+in (Explore, My Learning) — `{CourseDetails, DemoCheckout, CoursePlayer, Quiz, QuizResults,
+Certificates, CertificateDetail}` — and confirmed every one of the 7 is registered under both graphs
+(the implementer proactively added the 2 that were actually missing from `MyLearningGraph`,
+`CourseDetails`/`DemoCheckout`; the other 5 were already present from earlier tasks). No repeat of
+D90's own HIGH finding.
+
+**Review round 1 — 1 MEDIUM + 3 LOW + 1 disclosed spec deviation, all MEDIUM/actionable-LOW items
+fixed same-session:**
+
+1. **MEDIUM — the hero progress bar and the per-course Completed badges used two different
+   definitions of "course completed", and could visibly contradict each other.** The bar renders the
+   server's own `progressPercent` (`LearningPathService.kt`: counts courses with `courseCompletedAt !=
+   null`, which `CertificateService.checkAndIssueIfComplete` only sets once ALL lessons are done AND
+   (no quiz OR quiz passed)). The client-side badge derivation instead used `completionPercent >= 100`
+   — lesson-count-only (`ProgressService.complete`), with no awareness of an unpassed quiz. Concrete
+   failure: a course with every lesson watched but its quiz not yet passed rendered a **Completed**
+   badge and got skipped for the **Current** badge, while the progress bar directly above it (correctly)
+   showed the path as not yet advanced past that course — an internally contradictory screen, and a
+   state Task 14 (Quiz) made newly reachable. Fixed by switching the client-side `completed` derivation
+   to the identical `courseCompletedAt != null` definition the server itself uses for `progressPercent`
+   — the two can no longer disagree, by construction. New regression test
+   (`lessonsDoneButQuizNotPassed_isNOTTreatedAsCompleted`) covers exactly this combination; the two
+   pre-existing tests this change broke needed their hand-built `CourseProgress` fakes' `courseCompletedAt`
+   field set explicitly rather than left at the old always-`null` default.
+2. **LOW — `MyLearningViewModel.refreshFollowedPaths()`'s underlying join had no staleness guard,
+   unlike the `CoursePlayerViewModel.refreshQuizStatus` precedent it explicitly cites.** Two overlapping
+   calls (guaranteed on first entry, since both `init` and the new `LaunchedEffect(Unit)` call it) could
+   resolve out of order, letting an older, slower call's stale result silently overwrite a newer one's
+   correct result (e.g. unfollow → back (slow refresh starts) → re-follow → back (fast refresh starts
+   and finishes first) → the slow one lands late and reverts the list back to "not following"). Fixed
+   with a tracked `Job?` field, cancelling any prior in-flight call before starting a new one — only the
+   LATEST call's result can ever apply, closing both the staleness race and the redundant first-entry
+   double-fetch in one fix.
+3. **LOW (2, disclosed rather than fixed)**: any non-`ForbiddenNotEnrolled` `getCourseProgress` failure
+   (a transient network blip, not "confirmed not enrolled") currently falls back to the SAME
+   "not enrolled, not completed" state as a real 403 — for an enrolled student mid-path, a flaky
+   request could visibly (if temporarily) revert their own progress bars/CTAs/Current badge. Judged
+   low-value to fix given no established "per-item fetch error" status exists anywhere else in this
+   app's component vocabulary to fall back to instead — fail-safe-to-"not enrolled" is still a
+   defensible default, just not a maximally-informative one. The guest-follow-gate's pending nav intent
+   targets the SAME destination the guest is already standing on, so consuming it leaves a stale
+   guest-era copy of this screen underneath the freshly-authenticated one on the back stack (backing out
+   of the new copy lands on the stale one, briefly showing "Follow Path" for a path the user does
+   follow — self-correcting on the next real tap, since `followLearningPath` is server-idempotent) —
+   the reviewer confirmed this lives in shared, already-established pending-intent-consumption code
+   used by every `requireAuth`-gated action in this app, not something to patch locally for one screen.
+
+**Disclosed spec deviation, not a bug**: `ux/SCREEN_UX_SPECS.md § 5` line 213 literally reads
+"Secondary: none" for this screen's hero action row — but the task's own name is "follow/**unfollow**",
+and no other surface in this app (including `MyLearningScreen`'s own `FollowedPathCard`, which only
+navigates) offers any way to unfollow a path. Without an unfollow control, `UnfollowLearningPathUseCase`
+would be dead, unreachable code and half this task's own scope unimplementable. A small `SecondaryButton`
+("Unfollow") was added next to the progress bar specifically to make that half of the task's own name
+real — a deliberate, disclosed departure from the locked spec text's literal wording, not an oversight.
+
+**Verified:** `:shared:testDebugUnitTest` 249/249 (zero diff in `mobile/shared`);
+`:androidApp:testDebugUnitTest` 195/195 (194 pre-fix + 1 new MEDIUM regression test);
+`:androidApp:assembleDebug` clean; `:androidApp:connectedDebugAndroidTest` 87/87 on the real
+`Chatting_Pixel_8_API_36` emulator, zero failures.
+
+**Impact:** new directory `mobile/androidApp/src/main/kotlin/com/mentora/android/ui/learningpathdetails
+/{LearningPathDetailsScreen.kt,LearningPathDetailsViewModel.kt}` + matching JVM tests; modified
+`MentoraNavHost.kt` (real screen wiring + the 2 new `MyLearningGraph` registrations per the D90
+checklist), `MyLearningViewModel.kt` (`refreshFollowedPaths()` + its staleness-guard `Job` field),
+`MyLearningScreen.kt` (the `LaunchedEffect(Unit)` calling it), `PlaceholderScreens.kt` (placeholder
+removed), `values/strings.xml` + `values-ar/strings.xml` (13 new pairs, real translations). No
+`mobile/shared/` change. Task 16 is now **DONE** — see `CURRENT_STATUS.md`'s Phase 4 task table. Next:
+Task 17 (AI Tutor — streaming chat, stub provider).
+
