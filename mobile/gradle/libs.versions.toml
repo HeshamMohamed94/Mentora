@@ -83,6 +83,14 @@ androidxNavigation = "2.8.3"
 # policy's precedent).
 coil = "2.7.0"
 
+# Task 13 (D85 "Dependencies to add"): the ExoPlayer/Media3 playback controller. Pinned to 1.4.1 —
+# its POM published 2024-08-27, the latest media3 release preceding this catalog's `composeBom =
+# "2024.10.01"` (published 2024-10-30; 1.5.0 is 2024-11-25, after this BOM), same reasoning already
+# established for androidxNavigation above. media3 1.4.1 needs compileSdk >= 34 (this module is 36),
+# minSdk >= 21 (this module is 26), Java 8 (this module is 11) — all satisfied, no Compose dependency
+# at all so the Compose BOM is not a constraint.
+media3 = "1.4.1"
+
 [libraries]
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinxDatetime" }
@@ -151,6 +159,17 @@ kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serializa
 
 # Task 8 (component kit B — CourseThumbnail): see coil's version comment above.
 coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coil" }
+
+# Task 13 (D85 Decision 1/2/"Dependencies to add"): three explicit entries — this module imports
+# from each directly (Player/MediaItem/PlaybackException from media3-common,
+# ResolvingDataSource/DefaultDataSource from media3-datasource), matching this catalog's own
+# convention (see androidx-core-ktx's comment above). Deliberately NOT added: media3-ui (D85
+# Decision 3), media3-session (no background playback/MediaSession in MVP), media3-datasource-okhttp
+# (the default HttpURLConnection data source already honours the debug cleartext exception for
+# 10.0.2.2, see D85's "Dependencies to add").
+media3-exoplayer = { module = "androidx.media3:media3-exoplayer", version.ref = "media3" }
+media3-common = { module = "androidx.media3:media3-common", version.ref = "media3" }
+media3-datasource = { module = "androidx.media3:media3-datasource", version.ref = "media3" }
 
 [plugins]
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }

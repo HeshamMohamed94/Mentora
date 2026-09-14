@@ -101,6 +101,13 @@ dependencies {
     // coil comment for the version choice.
     implementation(libs.coil.compose)
 
+    // Task 13 C1 (D85 Decision 1/2, "Dependencies to add"): the ExoPlayer/Media3 playback
+    // controller — see gradle/libs.versions.toml's media3-* comments for the version choice and
+    // why exactly these three artifacts (and no others).
+    implementation(libs.media3.exoplayer)
+    implementation(libs.media3.common)
+    implementation(libs.media3.datasource)
+
     // Task 2: MentoraTokens.kt drift test — parses design-tokens.json/theme-*.json directly at
     // test time and compares against the generated Kotlin constants (JUnit4, the AGP
     // testDebugUnitTest default; kotlinx-serialization-json is already in this catalog for
