@@ -26,13 +26,16 @@ import kotlinx.serialization.Serializable
  * Screens reachable from more than one tab per `ux/NAVIGATION_SPEC.md § 3` ([Destination.CoursePlayer],
  * [Destination.Quiz], [Destination.QuizResults], [Destination.LearningPathDetails]) are deliberately
  * registered as `composable<T>()` children of EVERY tab-graph that can reach them (see
- * `MentoraNavHost.kt`) — Navigation-Compose resolves `navigate(route)` against the CURRENT
- * back-stack entry's own graph ancestry, so a route nested only under one tab's graph is
- * unreachable-by-name from a sibling tab's graph. Duplicating the *registration* (never the route
- * *type* — there is exactly one `Destination.CoursePlayer` class) across every tab that can push it
- * is the correct, intended shape of this pattern for a shared deep screen, not a workaround; each
- * registration resolves to the identical destination ID since the ID is derived purely from the
- * route's own serialized shape, not from which graph it's registered under.
+ * `MentoraNavHost.kt`). **Not because an unregistered route is unreachable** — Navigation-Compose
+ * 2.8.3's `matchRouteComprehensive` searches the current graph's own children first, then falls back
+ * to its PARENT graph's ancestry (child match wins ties), so `navigate(route)` for a route nested only
+ * under one tab's graph still resolves, just under the WRONG tab: the push lands as a child of
+ * whichever graph actually declares it, not the tab the user was on, silently mis-anchoring that tab's
+ * bottom-nav highlight and any later `popUpTo(anchorTab)`-based reset. Duplicating the *registration*
+ * (never the route *type* — there is exactly one `Destination.CoursePlayer` class) across every tab
+ * that can push it is the correct, intended shape of this pattern for a shared deep screen, not a
+ * workaround; each registration resolves to the identical destination ID since the ID is derived
+ * purely from the route's own serialized shape, not from which graph it's registered under.
  *
  * T6 fix-up (Finding 2): the sealed interface itself is `@Serializable` (in addition to every one
  * of its individual subtypes already being `@Serializable`, unchanged) so kotlinx-serialization's

@@ -42,13 +42,11 @@ import com.mentora.android.ui.components.PrimaryButton
  * T11 note: `DemoCheckoutScreen`/`PurchaseSuccessScreen` are no longer placeholders here — Task 11
  * replaced them with real screens in `com.mentora.android.ui.checkout`
  * (`DemoCheckoutScreen.kt`/`PurchaseSuccessScreen.kt`).
+ *
+ * T12 note: `HomeScreen`/`MyLearningScreen` are no longer placeholders here — Task 12 replaced them
+ * with real screens in `com.mentora.android.ui.home` (`HomeScreen.kt`) and
+ * `com.mentora.android.ui.mylearning` (`MyLearningScreen.kt`).
  */
-@Composable
-fun HomeScreen(modifier: Modifier = Modifier) = PlaceholderScreen("Home (placeholder)", modifier)
-
-@Composable
-fun MyLearningScreen(modifier: Modifier = Modifier) = PlaceholderScreen("My Learning (placeholder)", modifier)
-
 @Composable
 fun AiTutorScreen(modifier: Modifier = Modifier) = PlaceholderScreen("AI Tutor (placeholder)", modifier)
 

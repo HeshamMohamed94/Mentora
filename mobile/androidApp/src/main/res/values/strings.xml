@@ -126,4 +126,50 @@
     <string name="purchase_success_disclosure">Demo purchase · no real charge was made</string>
     <string name="purchase_success_start_learning">Start Learning</string>
     <string name="purchase_success_back_to_my_learning">Back to My Learning</string>
+
+    <!-- T12 — Home, design-to-code/screens/mobile-home.json (exact-showcase). Greeting copy is the
+         showcase's own literal eyebrow line (line 2041), split from the name (rendered separately,
+         see HomeScreen.kt); "Learning hours"/"Certificates" stat-row conflict resolved to
+         (Courses in progress, Certificates) per that spec's own conflicts[1] recommendation — see
+         HomeScreen.kt's kdoc. -->
+    <string name="home_greeting_morning">Good morning</string>
+    <string name="home_greeting_afternoon">Good afternoon</string>
+    <string name="home_greeting_evening">Good evening</string>
+    <string name="home_greeting_night">Good night</string>
+    <string name="home_continue_learning_eyebrow">CONTINUE LEARNING</string>
+    <string name="home_continue_learning_meta">%1$s · Lesson %2$d of %3$d</string>
+    <string name="home_continue_learning_progress_content_description">%1$d%% complete</string>
+    <string name="home_resume_action">Resume</string>
+    <string name="home_stat_in_progress">Courses in progress</string>
+    <string name="home_stat_certificates">Certificates</string>
+    <string name="home_empty_title">No courses yet</string>
+    <string name="home_empty_description">Enroll in a course to see your progress here</string>
+    <string name="home_explore_courses">Explore Courses</string>
+    <string name="home_my_learning_error_title">Couldn\'t load your learning</string>
+    <string name="home_recommended_heading">Recommended</string>
+    <string name="home_recommended_see_all">See all</string>
+    <string name="home_recommended_thumbnail_content_description">%1$s course thumbnail</string>
+    <string name="home_recommended_error_title">Something went wrong</string>
+
+    <!-- T12 — My Learning, design-to-code/screens/mobile-my-learning.json (exact-showcase). Filter is
+         the rank-1-required 3-segment All/In Progress/Completed control (disclosed resolution vs. the
+         showcase's own 2-tab mockup — see MyLearningScreen.kt's kdoc). -->
+    <string name="my_learning_heading">My Learning</string>
+    <string name="my_learning_filter_all">All</string>
+    <string name="my_learning_filter_in_progress">In Progress</string>
+    <string name="my_learning_filter_completed">Completed</string>
+    <string name="my_learning_resume_action">Resume</string>
+    <string name="my_learning_review_action">Review</string>
+    <string name="my_learning_percent_complete">%1$d%% complete</string>
+    <string name="my_learning_thumbnail_content_description">%1$s course thumbnail</string>
+    <string name="my_learning_empty_title">No enrollments yet</string>
+    <string name="my_learning_empty_description">Explore courses and start learning</string>
+    <string name="my_learning_explore_courses">Explore Courses</string>
+    <string name="my_learning_filter_empty_title">No courses match this filter</string>
+    <string name="my_learning_filter_empty_description">Try a different filter</string>
+    <string name="my_learning_error_title">Couldn\'t load your learning</string>
+    <string name="my_learning_certificates_entry_content_description">Certificates</string>
+    <string name="my_learning_paths_heading">Learning Paths in progress</string>
+    <string name="my_learning_path_view_action">View Path</string>
+    <string name="my_learning_certificate_ready_subtitle">Completed · certificate ready</string>
 </resources>

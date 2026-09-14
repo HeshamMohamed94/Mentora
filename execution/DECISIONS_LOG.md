@@ -1481,3 +1481,97 @@ closed alongside it.
 SessionManager.kt`, `auth/AuthPlugin.kt`'s call site, `LiveBackendIntegrationTest.kt`'s call site).
 Next: Task 12 (Home + My Learning + Certificates entry).
 
+### D84 — 2026-09-14 — PHASE 4 Task 12: real Home + My Learning screens, delegated to an implementer
+sub-agent then an Opus reviewer per the standing routing policy; 4 real medium-severity bugs found
+and fixed before landing
+
+**Decision — delegated the initial build to an `implementer` sub-agent** (two new exact-showcase
+screens plus the G3/G5 N+1 join logic, per the routing policy's normal-feature-implementation
+criterion), then the primary Opus `reviewer` (a substantial completed feature) rather than
+hand-implementing directly — consistent with how Task 11's SessionManager fix later needed an
+independent second opinion, this kept the coordinating session's own context focused on verifying
+and fixing rather than the full build.
+
+**Built**: real `HomeScreen`/`MyLearningScreen` (`ui/home/`, `ui/mylearning/`) replacing their
+placeholders, backed by `HomeViewModel`/`MyLearningViewModel`. **The G3/G5 joins** (`domain/
+mylearning/GetMyLearningWithProgressUseCase.kt`) are deliberately layered in `androidApp`, not
+`shared`, per `PHASE_4_ANDROID_PLAN.md` § 6's own G3/G5 decision (already made, not relitigated here):
+`sdk.enrollment.getMyLearning()` (itself an enrollment+course join) then one `sdk.progress.
+getCourseProgress()` call per enrollment; an analogous per-path join for followed Learning Paths.
+Certificates entry point: an always-present icon button on My Learning's header plus real
+"certificate ready" highlight rows built from actual `CertificateSummary` entries. 22 new JVM tests,
+`NavigationShellTest.kt` updated for the two new real screens plus 2 new instrumented tests.
+
+**The Opus review's 4 real, fixed findings** (all traced to exact code, not speculative):
+1. **Home's greeting name/avatar stayed permanently blank after a cold start with a restored
+   session.** `HomeViewModel`'s `firstName` was computed ONCE in the constructor from `userName`, but
+   a cold start composes Home with `Authenticated(user = null)` first (`SessionManager.
+   restoreSession`'s own documented gap) — `AppSessionViewModel`'s later `getProfile()` follow-up
+   resolves the real name, but the already-constructed `ViewModel` instance (the `viewModel(factory=
+   ...)` call only consults the factory once) never re-read it. Fixed with `HomeViewModel.
+   onUserNameChanged()` called from a `LaunchedEffect(userName)` in `HomeScreen`.
+2. **Home's stat row (and its Certificates entry point) vanished exactly for students who had
+   finished every course they started**, with factually-wrong "No courses yet" copy — the stat row
+   was nested inside the Continue-Learning module's own `inProgress.isEmpty()` branch instead of being
+   its own independent section (`mobile-home.json`'s own `statRow`, `order: 2`; web's `DashboardScreen`
+   precedent). Fixed by hoisting the stat row out, gating the empty-state prompt on `items.isEmpty()`
+   only.
+3. **Home's My Learning module's loading skeleton rendered at 0dp height (invisible)** —
+   `SkeletonBlock` has no intrinsic size of its own; every other call site in the app sets an explicit
+   height, this one didn't. Fixed with a `height(220.dp)` approximating the module's real rendered size.
+4. **"Continue Learning" always picked the OLDEST stalled enrollment, not the most recent** —
+   `inProgress.first()` combined with the backend's `GET /enrollments` sorting ascending by `_id`
+   (`EnrollmentRepository.kt`) deterministically surfaced the earliest, most-likely-abandoned course.
+   The underlying gap (no last-accessed timestamp anywhere in `shared`) is real and stays disclosed,
+   but `.last()` (most recently enrolled, still unfinished) is a strictly better proxy — fixed, kdoc
+   corrected to state the fallback honestly instead of the neutral "preserves return order" framing.
+
+**Also fixed (lower severity, same pass):** My Learning never showed real course thumbnails —
+`resolveThumbnailUrl` was injected into the ViewModel but never threaded through to the
+`CourseProgressCard` call (dead parameter); wired through both `MyLearningScreenContent` and the
+private `MyLearningItemsSection` it delegates to. Home's Resume button could open a DIFFERENT lesson
+than the card's own "Lesson N of M" text named (the card showed `resolveLessonPosition`'s resolved
+lesson, but `onResume` passed the raw, possibly-null/stale `progress.currentLessonId`) — fixed by
+computing `position` once in the parent and using `position.currentLesson?.lessonId` for both. A
+factually-incorrect kdoc claim in `Destinations.kt`/`MentoraNavHost.kt` ("a destination nested under
+only one tab's graph is unreachable-by-name from a sibling tab") was disproven by the reviewer
+disassembling navigation-runtime 2.8.3 — the real behavior is the route still resolves, just under the
+WRONG tab's graph (parent-graph fallback, child-wins-ties) — corrected everywhere it appeared, and
+`Destination.DemoCheckout` (reachable from Course Details' Enroll action, now reachable from Home too)
+registered under `HomeGraph` as well, closing the actual mis-anchoring risk the wrong comment had been
+hiding. Added `CourseLessonPositionTest.kt` (6 tests) for `resolveLessonPosition`'s previously-untested
+edge cases (stale/missing lesson id, zero-lesson course, index coercion, multi-section flattening).
+Aligned `my_learning_heading`'s Arabic ("تعلّمي" → "مساحة التعلّم") with the already-locked
+`nav_my_learning` label for the same screen, same terminology-consistency precedent D83 established.
+
+**Disclosed, not fixed — genuinely out of this task's scope:** the reviewer's independent
+`NavigationShellTest` run hit one `EmailAlreadyRegistered` 409 on a freshly-generated, millisecond-
+timestamped throwaway email, with Mongo evidence suggesting `POST /auth/register` reached the backend
+twice for one client call — did not reproduce across 3 later runs in this session (including the
+final clean full-suite pass), consistent with a rare, pre-existing `shared`/backend-level flake
+Task 12 merely increases exposure to (two more real-registration tests), not one it introduced. Left
+disclosed rather than chased, matching D83's own precedent for not over-investing in an intermittent
+issue without new reproducible evidence.
+
+**Emulator-load flakiness, resolved by a fresh emulator relaunch, not a code change.** A full-suite
+run after all fixes showed 3 failures (`CourseArtworkTest` × 2, `MentoraTextFieldTest` × 1) — all
+`PixelCopyException`/`ComposeTimeoutException` in screenshot-capture code, all in Task 5/8 kit-
+component test files this task never touched. The same class of flake this project's history already
+documents (D80/D82's own "host resource contention" precedent) — confirmed, not merely assumed: the
+emulator had been running continuously for ~2 hours across this session's many Task 11/12 test runs
+(`adb shell uptime`: load average 5-6). Killed and relaunched fresh; the identical isolated re-run
+passed clean, and a full-suite re-run on the fresh instance was 86/86 with zero failures.
+
+**Why accepted:** every fix was re-verified against the real backend/emulator — `:shared:
+testDebugUnitTest` unchanged, `:androidApp:testDebugUnitTest` 88/88 (82 + 6 new), `:androidApp:
+assembleDebug` clean, `NavigationShellTest` 9/9 on the real emulator (including the two new T12
+tests), full `:androidApp:connectedDebugAndroidTest` 86/86 with zero failures on a freshly-relaunched
+emulator. `git diff --stat mobile/shared` empty — `shared` untouched, confirming the G3/G5
+architecture stayed exactly where the plan already decided it should live.
+
+**Impact:** `mobile/androidApp/**` only (`domain/mylearning/*`, `ui/home/*`, `ui/mylearning/*`,
+`navigation/{Destinations,MentoraNavHost}.kt`, `navigation/NavigationShellTest.kt`, `ui/screens/
+PlaceholderScreens.kt`, `values/strings.xml`/`values-ar/strings.xml`, 3 new test files). Next: Task 13
+(`LessonPlaybackController` + Course Player + Curriculum Bottom Sheet — the plan's own
+highest-risk task).
+

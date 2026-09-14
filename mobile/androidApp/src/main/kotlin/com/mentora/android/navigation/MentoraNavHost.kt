@@ -34,11 +34,11 @@ import com.mentora.android.ui.coursedetails.CourseDetailsScreen
 import com.mentora.android.ui.screens.CoursePlayerScreen
 import com.mentora.android.ui.checkout.DemoCheckoutScreen
 import com.mentora.android.ui.explore.ExploreScreen
-import com.mentora.android.ui.screens.HomeScreen
+import com.mentora.android.ui.home.HomeScreen
 import com.mentora.android.ui.auth.LoginScreen
 import com.mentora.android.ui.auth.RegisterScreen
 import com.mentora.android.ui.screens.LearningPathDetailsScreen
-import com.mentora.android.ui.screens.MyLearningScreen
+import com.mentora.android.ui.mylearning.MyLearningScreen
 import com.mentora.android.ui.screens.ProfileScreen
 import com.mentora.android.ui.checkout.PurchaseSuccessScreen
 import com.mentora.android.ui.screens.QuizResultsScreen
@@ -176,6 +176,65 @@ fun MentoraNavHost(
         val args = entry.toRoute<Destination.QuizResults>()
         QuizResultsScreen(courseId = args.courseId, attemptId = args.attemptId)
     }
+    // T12: Course Details is now reachable from BOTH Explore (Task 10's original wiring) and Home
+    // (a Recommended-card tap, `ux/SCREEN_UX_SPECS.md § 8` module 2's own "Course Details" exit) — one
+    // shared content lambda registered under both `navigation<TabGraph.ExploreGraph>` and
+    // `navigation<TabGraph.HomeGraph>`, mirroring [coursePlayerContent]/[quizContent]'s own established
+    // shared-lambda-across-multiple-graphs pattern (so `currentTab`'s `hierarchy.any { hasRoute<...>() }`
+    // check resolves the CORRECT tab regardless of which tab this destination was reached from, rather
+    // than always resolving to whichever graph happened to declare it first).
+    val courseDetailsContent: @Composable AnimatedContentScope.(androidx.navigation.NavBackStackEntry) -> Unit = { entry ->
+        val courseId = entry.toRoute<Destination.CourseDetails>().courseId
+        CourseDetailsScreen(
+            courseId = courseId,
+            sdk = sdk,
+            // T10 — a plain snapshot of the live AuthState at push time (never re-read reactively
+            // inside the screen itself): every full auth-state TRANSITION already resets the entire
+            // nav stack above (this LaunchedEffect(authState)), so this destination never stays
+            // mounted across one — see CourseDetailsViewModel's own kdoc.
+            isAuthenticated = authState is AuthState.Authenticated,
+            onEnrollRequiringAuth = { requireAuth(Destination.DemoCheckout(courseId)) },
+            // T6 fix-up (Finding 5): Course Player is enrollment-gated per
+            // `ux/NAVIGATION_SPEC.md § 3` — this used to `navigate()` straight there, bypassing the
+            // auth gate every other gated action goes through.
+            onContinueLearning = { requireAuth(Destination.CoursePlayer(courseId)) },
+            // T10 — a curriculum lesson row tap (enrolled only) into Course Player for that specific
+            // lesson, through the same auth-gate mechanism as Continue Learning above, for the same
+            // reason.
+            onOpenLesson = { lessonId -> requireAuth(Destination.CoursePlayer(courseId, lessonId)) },
+        )
+    }
+    // T12: Certificates (+ Detail) is registered under MyLearningGraph (its conceptual IA home,
+    // `product/INFORMATION_ARCHITECTURE.md § 3`'s routing table: "Certificates + Detail | My Learning
+    // (pushed)") AND HomeGraph, for the identical "reachable from more than one tab" reason as
+    // [courseDetailsContent] above — Home's own Certificates entry-point affordance
+    // (`HomeScreen.kt`'s kdoc) pushes it directly from within the Home tab; without this second
+    // registration the push would still succeed (see [Destinations]'s own kdoc for why an
+    // unregistered destination resolves via the PARENT graph rather than erroring) but would
+    // mis-anchor under MyLearningGraph instead of Home.
+    val certificatesContent: @Composable AnimatedContentScope.(androidx.navigation.NavBackStackEntry) -> Unit = {
+        CertificatesScreen()
+    }
+    val certificateDetailContent: @Composable AnimatedContentScope.(androidx.navigation.NavBackStackEntry) -> Unit = { entry ->
+        CertificateDetailScreen(certificateId = entry.toRoute<Destination.CertificateDetail>().certificateId)
+    }
+    // T12 fix-up: [courseDetailsContent]'s own `onEnrollRequiringAuth` pushes `Destination.DemoCheckout`
+    // by `navigate()`, and Course Details is now reachable from Home too — registered under BOTH
+    // `HomeGraph` and `ExploreGraph`, same shared-lambda-across-multiple-graphs pattern as
+    // [courseDetailsContent] above, so an Enroll tap reached via Home anchors DemoCheckout under
+    // HomeGraph rather than silently resolving to ExploreGraph's own registration (see [Destinations]'s
+    // own kdoc for exactly why an unregistered destination still resolves, just under the wrong tab).
+    val demoCheckoutContent: @Composable AnimatedContentScope.(androidx.navigation.NavBackStackEntry) -> Unit = { entry ->
+        val courseId = entry.toRoute<Destination.DemoCheckout>().courseId
+        DemoCheckoutScreen(
+            courseId = courseId,
+            sdk = sdk,
+            onCompletePurchase = {
+                navigateToPurchaseSuccess(navController, courseId) { anchorTab = it }
+            },
+            onBackToCourse = { navController.popBackStack() },
+        )
+    }
 
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = backStackEntry?.destination
@@ -264,7 +323,35 @@ fun MentoraNavHost(
             modifier = Modifier.padding(contentPadding),
         ) {
             navigation<TabGraph.HomeGraph>(startDestination = Destination.Home) {
-                composable<Destination.Home> { HomeScreen() }
+                composable<Destination.Home> {
+                    // T12 — a plain snapshot of the live AuthState at the moment this tab-root
+                    // destination is composed (Home only ever renders once Authenticated — see
+                    // MentoraNavHost's own kdoc/startGraph logic — so `user` is expected non-null by
+                    // the time bootstrap completes; falls back to an empty first name in the rare
+                    // `Authenticated(user = null)` window rather than crashing).
+                    val user = (authState as? AuthState.Authenticated)?.user
+                    HomeScreen(
+                        sdk = sdk,
+                        userName = user?.name.orEmpty(),
+                        onOpenCourseDetails = { courseId -> navController.navigate(Destination.CourseDetails(courseId)) },
+                        // Explore is a TAB ROOT (TabGraph.ExploreGraph's own `startDestination`), not a
+                        // plain pushed screen — a bare `navigate(Destination.Explore)` here would skip
+                        // the `saveState`/`restoreState` dance that preserves Explore's own back stack
+                        // (it WOULD still resolve, just under the wrong tab context — see
+                        // `Destinations.kt`'s own kdoc). Reuses the exact same `onTabTapped` the bottom
+                        // nav itself calls — `isCurrentTab = false` always holds here since Home and
+                        // Explore are different tabs.
+                        onOpenExplore = { onTabTapped(navController, TabGraph.ExploreGraph, isCurrentTab = false, anchorTab = anchorTab) },
+                        onOpenCertificates = { navController.navigate(Destination.Certificates) },
+                        onContinueLearning = { courseId, lessonId ->
+                            navController.navigate(Destination.CoursePlayer(courseId, lessonId))
+                        },
+                    )
+                }
+                composable<Destination.CourseDetails>(content = courseDetailsContent)
+                composable<Destination.Certificates>(content = certificatesContent)
+                composable<Destination.CertificateDetail>(content = certificateDetailContent)
+                composable<Destination.DemoCheckout>(content = demoCheckoutContent)
                 composable<Destination.CoursePlayer>(content = coursePlayerContent)
                 composable<Destination.Quiz>(content = quizContent)
                 composable<Destination.QuizResults>(content = quizResultsContent)
@@ -281,56 +368,39 @@ fun MentoraNavHost(
                 composable<Destination.LearningPathDetails> { entry ->
                     LearningPathDetailsScreen(pathId = entry.toRoute<Destination.LearningPathDetails>().pathId)
                 }
-                composable<Destination.CourseDetails> { entry ->
-                    val courseId = entry.toRoute<Destination.CourseDetails>().courseId
-                    CourseDetailsScreen(
-                        courseId = courseId,
-                        sdk = sdk,
-                        // T10 — a plain snapshot of the live AuthState at push time (never re-read
-                        // reactively inside the screen itself): every full auth-state TRANSITION
-                        // already resets the entire nav stack above (this LaunchedEffect(authState)),
-                        // so this destination never stays mounted across one — see
-                        // CourseDetailsViewModel's own kdoc.
-                        isAuthenticated = authState is AuthState.Authenticated,
-                        onEnrollRequiringAuth = { requireAuth(Destination.DemoCheckout(courseId)) },
-                        // T6 fix-up (Finding 5): Course Player is enrollment-gated per
-                        // `ux/NAVIGATION_SPEC.md § 3` — this used to `navigate()` straight there,
-                        // bypassing the auth gate every other gated action goes through.
-                        onContinueLearning = { requireAuth(Destination.CoursePlayer(courseId)) },
-                        // T10 — a curriculum lesson row tap (enrolled only) into Course Player for
-                        // that specific lesson, through the same auth-gate mechanism as Continue
-                        // Learning above, for the same reason.
-                        onOpenLesson = { lessonId -> requireAuth(Destination.CoursePlayer(courseId, lessonId)) },
-                    )
-                }
-                composable<Destination.DemoCheckout> { entry ->
-                    val courseId = entry.toRoute<Destination.DemoCheckout>().courseId
-                    DemoCheckoutScreen(
-                        courseId = courseId,
-                        sdk = sdk,
-                        onCompletePurchase = {
-                            navigateToPurchaseSuccess(navController, courseId) { anchorTab = it }
-                        },
-                        onBackToCourse = { navController.popBackStack() },
-                    )
-                }
+                composable<Destination.CourseDetails>(content = courseDetailsContent)
+                composable<Destination.DemoCheckout>(content = demoCheckoutContent)
                 composable<Destination.CoursePlayer>(content = coursePlayerContent)
                 composable<Destination.Quiz>(content = quizContent)
                 composable<Destination.QuizResults>(content = quizResultsContent)
             }
 
             navigation<TabGraph.MyLearningGraph>(startDestination = Destination.MyLearning) {
-                composable<Destination.MyLearning> { MyLearningScreen() }
+                composable<Destination.MyLearning> {
+                    MyLearningScreen(
+                        sdk = sdk,
+                        onResumeCourse = { courseId, lessonId ->
+                            navController.navigate(Destination.CoursePlayer(courseId, lessonId))
+                        },
+                        onOpenLearningPathDetails = { pathId -> navController.navigate(Destination.LearningPathDetails(pathId)) },
+                        onOpenCertificates = { navController.navigate(Destination.Certificates) },
+                        onOpenCertificateDetail = { certificateId -> navController.navigate(Destination.CertificateDetail(certificateId)) },
+                        // T12: Explore is a different tab ROOT — reuses the same `onTabTapped`
+                        // save/restore tab-switch mechanism the bottom nav itself calls, same
+                        // rationale as Home's identical `onOpenExplore` (see that composable's own
+                        // comment) — a bare `navigate(Destination.Explore)` would skip the
+                        // `saveState`/`restoreState` dance (`Destinations.kt`'s own kdoc).
+                        onOpenExplore = { onTabTapped(navController, TabGraph.ExploreGraph, isCurrentTab = false, anchorTab = anchorTab) },
+                    )
+                }
                 composable<Destination.CoursePlayer>(content = coursePlayerContent)
                 composable<Destination.Quiz>(content = quizContent)
                 composable<Destination.QuizResults>(content = quizResultsContent)
                 composable<Destination.LearningPathDetails> { entry ->
                     LearningPathDetailsScreen(pathId = entry.toRoute<Destination.LearningPathDetails>().pathId)
                 }
-                composable<Destination.Certificates> { CertificatesScreen() }
-                composable<Destination.CertificateDetail> { entry ->
-                    CertificateDetailScreen(certificateId = entry.toRoute<Destination.CertificateDetail>().certificateId)
-                }
+                composable<Destination.Certificates>(content = certificatesContent)
+                composable<Destination.CertificateDetail>(content = certificateDetailContent)
                 composable<Destination.PurchaseSuccess> { entry ->
                     val courseId = entry.toRoute<Destination.PurchaseSuccess>().courseId
                     PurchaseSuccessScreen(

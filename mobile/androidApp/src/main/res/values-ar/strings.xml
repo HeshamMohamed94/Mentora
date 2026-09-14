@@ -106,4 +106,47 @@
     <string name="purchase_success_disclosure">شراء تجريبي · لم يتم خصم أي رسوم حقيقية</string>
     <string name="purchase_success_start_learning">ابدأ التعلّم</string>
     <string name="purchase_success_back_to_my_learning">العودة إلى مساحة التعلّم</string>
+
+    <!-- T12 — Home, see values/strings.xml for sourcing notes. Greeting/stat copy reuses web's
+         dashboard.* namespace (web/messages/ar.json) where an equivalent concept exists, per the
+         D45/D51 cross-platform-consistency precedent. -->
+    <string name="home_greeting_morning">صباح الخير</string>
+    <string name="home_greeting_afternoon">طاب نهارك</string>
+    <string name="home_greeting_evening">مساء الخير</string>
+    <string name="home_greeting_night">تصبح على خير</string>
+    <string name="home_continue_learning_eyebrow">متابعة التعلّم</string>
+    <string name="home_continue_learning_meta">%1$s · الدرس %2$d من %3$d</string>
+    <string name="home_continue_learning_progress_content_description">اكتمل %1$d٪</string>
+    <string name="home_resume_action">استئناف</string>
+    <string name="home_stat_in_progress">دورات قيد التقدم</string>
+    <string name="home_stat_certificates">الشهادات</string>
+    <string name="home_empty_title">لا توجد دورات بعد</string>
+    <string name="home_empty_description">سجّل في دورة لترى تقدمك هنا</string>
+    <string name="home_explore_courses">استكشف الدورات</string>
+    <string name="home_my_learning_error_title">تعذّر تحميل تعلّمك</string>
+    <string name="home_recommended_heading">موصى بها لك</string>
+    <string name="home_recommended_see_all">عرض الكل</string>
+    <string name="home_recommended_thumbnail_content_description">الصورة المصغّرة لدورة %1$s</string>
+    <string name="home_recommended_error_title">حدث خطأ ما</string>
+
+    <!-- T12 — My Learning, see values/strings.xml for sourcing notes. Reuses web's myLearning.*
+         namespace (web/messages/ar.json) for every equivalent string. -->
+    <string name="my_learning_heading">مساحة التعلّم</string>
+    <string name="my_learning_filter_all">الكل</string>
+    <string name="my_learning_filter_in_progress">قيد التقدم</string>
+    <string name="my_learning_filter_completed">مكتملة</string>
+    <string name="my_learning_resume_action">استئناف</string>
+    <string name="my_learning_review_action">مراجعة</string>
+    <string name="my_learning_percent_complete">اكتمل %1$d٪</string>
+    <string name="my_learning_thumbnail_content_description">الصورة المصغّرة لدورة %1$s</string>
+    <string name="my_learning_empty_title">لا توجد تسجيلات بعد</string>
+    <string name="my_learning_empty_description">استكشف الدورات وابدأ التعلّم</string>
+    <string name="my_learning_explore_courses">استكشف الدورات</string>
+    <string name="my_learning_filter_empty_title">لا توجد دورات مطابقة لهذا الفلتر</string>
+    <string name="my_learning_filter_empty_description">جرّب فلترًا مختلفًا</string>
+    <string name="my_learning_error_title">تعذّر تحميل تعلّمك</string>
+    <string name="my_learning_certificates_entry_content_description">الشهادات</string>
+    <string name="my_learning_paths_heading">مسارات تعلّم قيد التقدم</string>
+    <string name="my_learning_path_view_action">عرض المسار</string>
+    <string name="my_learning_certificate_ready_subtitle">مكتملة · الشهادة جاهزة</string>
 </resources>

@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -22,6 +23,10 @@ import com.mentora.android.ui.checkout.PurchaseSuccessBackToMyLearningButtonTest
 import com.mentora.android.ui.checkout.PurchaseSuccessContentTestTag
 import com.mentora.android.ui.coursedetails.CourseDetailsCtaButtonTestTag
 import com.mentora.android.ui.explore.ExploreCourseCardTestTag
+import com.mentora.android.ui.home.HomeCertificatesStatCardTestTag
+import com.mentora.android.ui.home.HomeContinueLearningCardTestTag
+import com.mentora.android.ui.home.HomeScreenTestTag
+import com.mentora.android.ui.mylearning.MyLearningScreenTestTag
 import com.mentora.android.ui.shell.MobileBottomNavigationTestTag
 import com.mentora.shared.MentoraSdk
 import com.mentora.shared.auth.AndroidTokenStorage
@@ -144,11 +149,11 @@ class NavigationShellTest {
      * [purchaseThenRepeatedTabSwitches_preservesEachTabsSubStack_neverResetsNeverAccumulates] both
      * need their OWN clean session before registering, not a leftover one.
      */
-    private fun registerFreshRealStudent() {
+    private fun registerFreshRealStudent(prefix: String = "t11-navshelltest") {
         runBlocking { runCatching { sdk.auth.logout() } }
-        val email = "t11-navshelltest-${System.currentTimeMillis()}@example.com"
+        val email = "$prefix-${System.currentTimeMillis()}@example.com"
         val result = runBlocking {
-            sdk.auth.register(email = email, password = "MentoraTest1", name = "T11 Test Student")
+            sdk.auth.register(email = email, password = "MentoraTest1", name = "Test Student")
         }
         check(result is ApiResult.Success) { "real register failed in test setup: $result" }
     }
@@ -226,8 +231,12 @@ class NavigationShellTest {
         assertOnCourseDetailsFor(courseId)
 
         // Switch away to a different tab, then back.
+        // T12 fix-up: My Learning is now the real screen (`ui/mylearning/MyLearningScreen.kt`), which
+        // no longer renders a literal "My Learning (placeholder)" text node — asserts on the real
+        // screen's own root test tag instead (present regardless of its async load state), same
+        // T10-established pattern as every other placeholder-text assertion this phase has retired.
         composeTestRule.onNodeWithTag("bottom_nav_my_learning").performClick()
-        composeTestRule.onNodeWithText("My Learning (placeholder)").assertExists()
+        composeTestRule.onNodeWithTag(MyLearningScreenTestTag).assertExists()
 
         composeTestRule.onNodeWithTag("bottom_nav_explore").performClick()
 
@@ -396,7 +405,8 @@ class NavigationShellTest {
 
         composeTestRule.runOnUiThread { composeTestRule.activity.onBackPressedDispatcher.onBackPressed() }
 
-        composeTestRule.onNodeWithText("My Learning (placeholder)").assertExists()
+        // T12 fix-up: same real-screen test-tag treatment as test 1 above.
+        composeTestRule.onNodeWithTag(MyLearningScreenTestTag).assertExists()
         composeTestRule.onNodeWithTag(PurchaseSuccessContentTestTag).assertDoesNotExist()
         composeTestRule.onNodeWithTag("bottom_nav_my_learning").assertExists()
 
@@ -480,7 +490,10 @@ class NavigationShellTest {
         // known quirk from what this test actually needs to verify below.
         composeTestRule.onNodeWithTag("bottom_nav_home").performClick()
         composeTestRule.onNodeWithTag("bottom_nav_home").performClick()
-        composeTestRule.onNodeWithText("Home (placeholder)").assertExists()
+        // T12 fix-up: Home is now the real screen (`ui/home/HomeScreen.kt`), which no longer renders
+        // a literal "Home (placeholder)" text node — same real-screen test-tag treatment as every
+        // other placeholder-text assertion this phase has retired.
+        composeTestRule.onNodeWithTag(HomeScreenTestTag).assertExists()
 
         // Push sub-navigation into 2 different tabs, post-reset.
         val courseId = openFirstCourseFromExplore()
@@ -538,5 +551,94 @@ class NavigationShellTest {
             1,
             myLearningGraphCount,
         )
+    }
+
+    // ---- Test 7 (T12): Home/My Learning's "Explore Courses" empty-state CTA must genuinely SWITCH to
+    // the Explore tab (the real `onTabTapped` save/restore mechanism), never a bare cross-graph
+    // `navigate()` — `Destinations.kt`'s own kdoc documents that a destination nested only under one
+    // tab's graph is unreachable-by-name from a sibling tab's graph, so this is a real correctness
+    // property, not just a style check. A freshly registered account genuinely has zero enrollments
+    // (a real, not fail-safe, empty success — contrast the fake-`authState`-only tests above, which
+    // never reach a real `getMyLearning()` call at all and would render an ErrorState instead of this
+    // empty state), so both screens' real empty-state CTA is reachable. ----
+    @Test
+    fun homeAndMyLearning_emptyStateExploreCoursesCta_switchesToTheRealExploreTab() {
+        registerFreshRealStudent(prefix = "t12-navshelltest")
+        composeTestRule.setContent {
+            val nc = rememberNavController()
+            navController = nc
+            MentoraTheme {
+                MentoraNavHost(authState = authenticatedStudent, sdk = sdk, navController = nc)
+            }
+        }
+
+        composeTestRule.onNodeWithTag("bottom_nav_home").performClick()
+        composeTestRule.waitUntil(timeoutMillis = 15_000) {
+            composeTestRule.onAllNodesWithText("Explore Courses").fetchSemanticsNodes().isNotEmpty()
+        }
+        composeTestRule.onNodeWithText("Explore Courses").performClick()
+        composeTestRule.waitUntil(timeoutMillis = 15_000) {
+            navController.currentBackStackEntry?.destination?.hasRoute<Destination.Explore>() == true
+        }
+        // A genuine tab switch (not a redundant push) — Explore's own root content renders and the
+        // Explore tab is the one now highlighted.
+        composeTestRule.onNodeWithText("Find your next course").assertExists()
+        composeTestRule.onNodeWithTag(MobileBottomNavigationTestTag).assertExists()
+
+        // Same CTA, from My Learning this time.
+        composeTestRule.onNodeWithTag("bottom_nav_my_learning").performClick()
+        composeTestRule.waitUntil(timeoutMillis = 15_000) {
+            composeTestRule.onAllNodesWithText("Explore Courses").fetchSemanticsNodes().isNotEmpty()
+        }
+        composeTestRule.onNodeWithText("Explore Courses").performClick()
+        composeTestRule.waitUntil(timeoutMillis = 15_000) {
+            navController.currentBackStackEntry?.destination?.hasRoute<Destination.Explore>() == true
+        }
+        composeTestRule.onNodeWithText("Find your next course").assertExists()
+    }
+
+    // ---- Test 8 (T12): Home's Certificates entry point (the tapped stat card) is a real, working
+    // navigation affordance, verified end to end after a genuine completed demo purchase (real G3-
+    // joined data — enrollment + course + progress — actually renders the Continue Learning module and
+    // stat row before this test taps into it). ----
+    @Test
+    fun home_certificatesEntryPoint_navigatesToCertificates_afterARealPurchase() {
+        registerFreshRealStudent(prefix = "t12-navshelltest")
+        composeTestRule.setContent {
+            val nc = rememberNavController()
+            navController = nc
+            MentoraTheme {
+                MentoraNavHost(authState = authenticatedStudent, sdk = sdk, navController = nc)
+            }
+        }
+
+        openFirstCourseFromExplore()
+        composeTestRule.onNodeWithText("Enroll").performClick()
+        composeTestRule.waitUntil(timeoutMillis = 15_000) {
+            composeTestRule.onAllNodesWithTag(DemoCheckoutConfirmButtonTestTag).fetchSemanticsNodes().isNotEmpty()
+        }
+        composeTestRule.onNodeWithTag(DemoCheckoutConfirmButtonTestTag).performClick()
+        composeTestRule.waitUntil(timeoutMillis = 15_000) {
+            navController.currentBackStackEntry?.destination?.hasRoute<Destination.PurchaseSuccess>() == true
+        }
+        composeTestRule.waitUntil(timeoutMillis = 15_000) {
+            composeTestRule.onAllNodesWithTag(PurchaseSuccessBackToMyLearningButtonTestTag).fetchSemanticsNodes().isNotEmpty()
+        }
+        composeTestRule.onNodeWithTag(PurchaseSuccessBackToMyLearningButtonTestTag).performClick()
+
+        // T6 fix-up (Finding 1)'s disclosed, NOT-in-scope-to-eliminate quirk (see test 6's own
+        // comment above): the very FIRST tab tap immediately after a full-stack reset (landing on
+        // My Learning here IS that reset) can be a dead no-op — tapping twice isolates that known
+        // quirk from what this test actually verifies.
+        composeTestRule.onNodeWithTag("bottom_nav_home").performClick()
+        composeTestRule.onNodeWithTag("bottom_nav_home").performClick()
+        composeTestRule.waitUntil(timeoutMillis = 15_000) {
+            composeTestRule.onAllNodesWithTag(HomeContinueLearningCardTestTag).fetchSemanticsNodes().isNotEmpty()
+        }
+
+        composeTestRule.onNodeWithTag(HomeCertificatesStatCardTestTag).performClick()
+        composeTestRule.waitUntil(timeoutMillis = 15_000) {
+            navController.currentBackStackEntry?.destination?.hasRoute<Destination.Certificates>() == true
+        }
     }
 }
