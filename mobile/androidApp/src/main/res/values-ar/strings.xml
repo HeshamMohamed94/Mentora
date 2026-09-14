@@ -185,4 +185,40 @@
     <string name="course_player_time_label">%1$s / %2$s</string>
     <string name="course_player_scrubber_content_description">تحديد موضع الفيديو</string>
     <string name="course_player_scrubber_state_description">%1$s من %2$s</string>
+
+    <!-- Task 14 — Quiz + Quiz Results, see values/strings.xml for sourcing notes. -->
+    <string name="quiz_nav_title">اختبار</string>
+    <string name="quiz_loading_content_description">جارٍ تحميل الاختبار</string>
+    <string name="quiz_error_title">تعذّر تحميل الاختبار</string>
+    <string name="quiz_retry_action">أعد المحاولة</string>
+    <string name="quiz_no_quiz_title">لا يوجد اختبار</string>
+    <string name="quiz_no_quiz_description">لا يحتوي هذا المقرر على اختبار لإجرائه.</string>
+    <string name="quiz_progress_label">السؤال %1$s من %2$s</string>
+    <string name="quiz_next_action">التالي</string>
+    <string name="quiz_submit_action">إرسال الاختبار</string>
+    <string name="quiz_next_disabled_reason">اختر إجابة للمتابعة</string>
+    <string name="quiz_answer_correct_label">صحيحة</string>
+    <string name="quiz_answer_incorrect_label">غير صحيحة</string>
+
+    <string name="quiz_results_nav_title">نتائج الاختبار</string>
+    <string name="quiz_results_loading_content_description">جارٍ تحميل نتائج الاختبار</string>
+    <string name="quiz_results_error_title">تعذّر تحميل نتيجة الاختبار</string>
+    <string name="quiz_results_retry_action">أعد المحاولة</string>
+    <string name="quiz_results_score_label">النتيجة</string>
+    <string name="quiz_results_score_value">%1$s/%2$s</string>
+    <string name="quiz_results_badge_passed">ناجح</string>
+    <string name="quiz_results_badge_failed">راسب</string>
+    <string name="quiz_results_score_content_description_passed">%1$s من %2$s، ناجح</string>
+    <string name="quiz_results_score_content_description_failed">%1$s من %2$s، راسب</string>
+    <string name="quiz_results_breakdown_heading">تفاصيل الأسئلة</string>
+    <string name="quiz_results_question_fallback">السؤال %1$s</string>
+    <string name="quiz_results_correct_label">صحيحة</string>
+    <string name="quiz_results_incorrect_label">غير صحيحة</string>
+    <string name="quiz_results_row_correct_content_description">%1$s — صحيحة</string>
+    <string name="quiz_results_row_incorrect_content_description">%1$s — غير صحيحة</string>
+    <string name="quiz_results_completion_banner_title">🎉 أكملت الدورة!</string>
+    <string name="quiz_results_completion_banner_description">لقد أنهيت جميع الدروس واجتزت الاختبار. شهادتك جاهزة.</string>
+    <string name="quiz_results_view_certificate_action">عرض الشهادة</string>
+    <string name="quiz_results_continue_action">متابعة</string>
+    <string name="quiz_results_retry_quiz_action">إعادة الاختبار</string>
 </resources>

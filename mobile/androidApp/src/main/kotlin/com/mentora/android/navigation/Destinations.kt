@@ -98,8 +98,16 @@ sealed interface Destination {
     @Serializable
     data class Quiz(val courseId: String) : Destination
 
+    /**
+     * Task 14 fix-up: the T6-era `attemptId: String? = null` param is removed — dead API surface,
+     * never populated by anything (no domain type anywhere carries an attempt id;
+     * [com.mentora.shared.domain.model.QuizAttemptResult] has none). Quiz Results always looks up
+     * "the latest attempt" itself (`QuizResultsViewModel`'s own `getLatestAttempt` call, this task's
+     * decision 1 — re-fetch, don't pass the attempt through navigation), so this param served no
+     * purpose.
+     */
     @Serializable
-    data class QuizResults(val courseId: String, val attemptId: String? = null) : Destination
+    data class QuizResults(val courseId: String) : Destination
 
     // ---- My Learning subtree ----
     @Serializable

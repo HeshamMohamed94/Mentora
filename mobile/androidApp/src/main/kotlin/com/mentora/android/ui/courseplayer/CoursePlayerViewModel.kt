@@ -445,6 +445,91 @@ class CoursePlayerViewModel(
         _uiState.update { it.copy(content = CoursePlayerContentState.Error(code)) }
     }
 
+    /**
+     * Task 14 — a narrow, additive refresh for exactly the gap `CoursePlayerScreen.kt`'s own
+     * `quizNotYetPassed` kdoc discloses: nothing previously re-fetched `progress`/`quiz` after a
+     * student took the quiz and popped back, so a passed quiz never flipped this screen's own
+     * `quizPassed`/`quizRow`/footer state. Re-fetches ONLY [getCourseProgress]/[getQuiz] (the exact
+     * lambda-seam fields, unchanged) and re-derives whichever of [CoursePlayerContentState.Ready]/
+     * [CoursePlayerContentState.CourseCompleted] is currently showing from the fresh values —
+     * [rebuildReadyState] for Ready (reusing [CoursePlayerReadyState]'s own already-current
+     * `currentLessonId`/`hasVideoSource`/`videoLoadError`, none of which this refresh has any fresh
+     * information about or reason to touch) and [rebuildCourseCompletedState] for CourseCompleted.
+     * [CoursePlayerContentState.Loading]/[CoursePlayerContentState.Error] are left alone — there is no
+     * Ready/CourseCompleted state yet to re-derive, and [load] already owns getting there.
+     *
+     * **Deliberately touches NO playback field/method** — [controller], [activeLessonId],
+     * [preparedLessonId], [switchGeneration], [writeQueue], [pendingLessonId] are all untouched, and
+     * neither [resumeCourse] nor any lesson-resolution logic is called. A pure "re-read progress+quiz,
+     * re-render" operation, launched on [viewModelScope] (main-thread-confined), mirroring every other
+     * read-path call in this class (see [load]'s own launch).
+     *
+     * A failed [getCourseProgress]/[getQuiz] call simply leaves the prior state as-is — this is a
+     * passive background refresh, not the initial [load], so (unlike [load]'s own failure path) a
+     * hiccup here must never replace an already-showing Ready/CourseCompleted screen with a full-screen
+     * [CoursePlayerContentState.Error].
+     *
+     * **Round-1 review, MEDIUM-1**: the [CoursePlayerContentState.Ready] branch now threads
+     * `isCompletionInFlight`/`completionError` from the CURRENT `Ready` state through to
+     * [rebuildReadyState] explicitly — those two fields exist to track an in-flight/failed
+     * [completeLesson] call for the SAME lesson (`onMarkCompleteTapped`/[completeLessonAndAdvance]'s
+     * own `alreadyInFlight` guard reads [CoursePlayerReadyState.isCompletionInFlight] directly), and
+     * this refresh must never silently reset them back to their defaults while that's in flight — doing
+     * so both visibly flips the footer back to enabled mid-completion and defeats the very re-entrancy
+     * guard that in-flight flag exists for, letting a second tap enqueue a duplicate [completeLesson]
+     * call.
+     *
+     * **Round-1 review, MEDIUM-2**: [getCourseProgress]/[getQuiz] are two plain, unordered network
+     * calls — NOT routed through [writeQueue]'s single-consumer ordering guarantee — so a
+     * `completeLesson` response (which DOES go through the queue) landing and updating [progress]
+     * WHILE this refresh's own calls are still in flight must always win; this refresh's own
+     * now-stale snapshot must never regress it back. Guarded by capturing [progress]'s identity before
+     * the two awaits and skipping the whole apply-and-rebuild step if it has changed by the time they
+     * resolve — the exact same "did something else already commit, then bail out" shape
+     * [activateLesson]'s own `switchGeneration` check uses, sized down to this function's single
+     * mutable field instead of a dedicated counter (no lesson SWITCH is possible while resolving this
+     * refresh, so identity comparison on [progress] itself is sufficient here).
+     */
+    fun refreshQuizStatus() {
+        val loadedCourse = course ?: return
+        val progressBeforeFetch = progress
+        viewModelScope.launch {
+            try {
+                val newProgress = when (val result = getCourseProgress(courseId)) {
+                    is ApiResult.Success -> result.data
+                    is ApiResult.Failure -> return@launch
+                }
+                val newQuiz = when (val result = getQuiz(courseId)) {
+                    is ApiResult.Success -> result.data
+                    is ApiResult.Failure -> return@launch
+                }
+                if (progress !== progressBeforeFetch) return@launch
+                progress = newProgress
+                quiz = newQuiz
+                when (val content = _uiState.value.content) {
+                    is CoursePlayerContentState.Ready -> rebuildReadyState(
+                        loadedCourse,
+                        content.state.currentLessonId,
+                        content.state.hasVideoSource,
+                        content.state.videoLoadError,
+                        isCompletionInFlight = content.state.isCompletionInFlight,
+                        completionError = content.state.completionError,
+                    )
+                    is CoursePlayerContentState.CourseCompleted ->
+                        rebuildCourseCompletedState(loadedCourse, newQuiz, newProgress)
+                    else -> Unit
+                }
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (error: Throwable) {
+                // Mirrors `load()`'s own uncaught-exception guard (round 4, HIGH) — a genuinely
+                // reachable case here too (a connection drop mid-body), but per this function's own
+                // kdoc, a failure here leaves the prior state exactly as it was rather than surfacing
+                // an Error screen.
+            }
+        }
+    }
+
     /** Review finding (round 3, LOW): now `suspend` to [PlaybackController.stop] whatever media is
      *  still loaded — a first draft only nulled [activeLessonId] (which does block the write-schedule
      *  collectors and transport-control guards, so there is no CORRECTNESS gap), but left the last
@@ -466,18 +551,30 @@ class CoursePlayerViewModel(
             controller.stop()
             activeLessonId = null
             preparedLessonId = null
-            _uiState.update {
-                it.copy(
-                    content = CoursePlayerContentState.CourseCompleted(
-                        CoursePlayerCourseCompletedState(
-                            courseId = course.id,
-                            courseTitle = course.title,
-                            quizRow = quizRow(quiz),
-                            quizPassed = progress.quizPassed,
-                        ),
+            rebuildCourseCompletedState(course, quiz, progress)
+        }
+    }
+
+    /** The [CoursePlayerContentState.CourseCompleted]-building half of [setCourseCompleted], split out
+     *  (Task 14) so [refreshQuizStatus] can re-derive this state from fresh [progress]/[quiz] values
+     *  WITHOUT going through [setCourseCompleted]'s own [controller]/[activeLessonId]/[preparedLessonId]
+     *  side effects — those are only correct/needed the first time a course transitions INTO the
+     *  completed state (stopping whatever lesson media was still loaded), never on a subsequent
+     *  same-state refresh where nothing playback-related has changed. Pure state derivation, no
+     *  suspension, safe to call from either a `Main.immediate` block or a plain `viewModelScope`
+     *  coroutine. */
+    private fun rebuildCourseCompletedState(course: Course, quiz: QuizLookupResult, progress: CourseProgress) {
+        _uiState.update {
+            it.copy(
+                content = CoursePlayerContentState.CourseCompleted(
+                    CoursePlayerCourseCompletedState(
+                        courseId = course.id,
+                        courseTitle = course.title,
+                        quizRow = quizRow(quiz),
+                        quizPassed = progress.quizPassed,
                     ),
-                )
-            }
+                ),
+            )
         }
     }
 
@@ -591,7 +688,20 @@ class CoursePlayerViewModel(
         }
     }
 
-    private fun rebuildReadyState(course: Course, lessonId: String, hasVideoSource: Boolean, videoLoadError: ApiErrorCode?) {
+    /** [isCompletionInFlight]/[completionError] default to the "reset" behavior every existing caller
+     *  (only [activateLesson]) correctly relies on — a lesson SWITCH legitimately abandons any pending
+     *  completion feedback for the lesson just left. [refreshQuizStatus] (Task 14, round-1 review
+     *  MEDIUM-1) is the one caller that must NOT reset them — it passes the current Ready state's own
+     *  values through explicitly, since it re-renders the SAME lesson's footer from fresher
+     *  progress/quiz data, not a switch to a different one. */
+    private fun rebuildReadyState(
+        course: Course,
+        lessonId: String,
+        hasVideoSource: Boolean,
+        videoLoadError: ApiErrorCode?,
+        isCompletionInFlight: Boolean = false,
+        completionError: ApiErrorCode? = null,
+    ) {
         val currentProgress = progress ?: return
         val currentQuiz = quiz ?: return
         val orderedLessons = orderedLessons(course)
@@ -619,6 +729,8 @@ class CoursePlayerViewModel(
                         videoLoadError = videoLoadError,
                         sheet = sheet,
                         footerAction = footerAction,
+                        isCompletionInFlight = isCompletionInFlight,
+                        completionError = completionError,
                     ),
                 ),
             )

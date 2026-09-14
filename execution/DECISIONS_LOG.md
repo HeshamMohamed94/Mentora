@@ -2205,3 +2205,139 @@ commit — no backfill needed, per the standing requirement Task 10's entry esta
 dependency). No `mobile/shared/` change anywhere in Task 13 (C2 or C3). Task 13 is now **DONE** — see
 `CURRENT_STATUS.md`'s Phase 4 task table. Next: Task 14 (Quiz + Quiz Results).
 
+### D89 — 2026-09-14 — PHASE 4 Task 14 complete: Quiz + Quiz Results, one review round, a new
+process-scoped draft store for cross-pop answer persistence
+
+**Context.** No exact-showcase mockup exists for either screen (confirmed: `design-to-code/screens/`
+has no `mobile-quiz*.json`) — built directly from `ux/SCREEN_UX_SPECS.md` §§ 11-12, same footing as
+Task 10 (Course Details). Delegated to an implementer sub-agent from a brief specifying three explicit
+design decisions up front, then reviewed by the primary Opus reviewer per the standing routing policy.
+
+**Three design decisions made before implementation, all confirmed correctly implemented by the
+review:**
+1. **Quiz → Quiz Results does not pass `QuizAttemptResult` through navigation.** `QuizResultsScreen`
+   re-fetches via `sdk.quiz.getLatestAttempt(courseId)` after submission has already completed —
+   traced end to end by the reviewer: `POST /quiz/attempts` commits the attempt insert AND
+   `progress.setQuizPassed` in one Mongo transaction, then `certificates.checkAndIssueIfComplete` runs
+   in its own transaction, and only THEN responds — so both the attempt and `courseCompletedAt` are
+   guaranteed committed before the client ever navigates. Genuinely race-free, not merely convenient.
+2. **`Destination.QuizResults`'s vestigial `attemptId` param removed entirely** — no domain type
+   anywhere ever carried an attempt id; confirmed zero dangling references repo-wide.
+3. **`CoursePlayerViewModel` gets a narrow, additive `refreshQuizStatus()`** closing the gap Task 13's
+   own C3 review (round 6) disclosed: nothing previously re-fetched `progress`/`quiz` after a student
+   took the quiz and returned, so a passed quiz never flipped the Course Completed screen's own
+   `quizPassed`/footer state. Called from `CoursePlayerScreen.kt` via `LaunchedEffect(Unit)` (re-fires
+   on every composition re-entry, including a return from Quiz, per the same "leaving composition on a
+   push" mechanism `onScreenLeaving`'s own `DisposableEffect(Unit)` already relies on). `setCourseCompleted`
+   was refactored to extract a shared `rebuildCourseCompletedState` helper so both it and the new
+   refresh path build that state identically — confirmed by the reviewer to still execute INSIDE
+   `setCourseCompleted`'s original single `Main.immediate` atomic commit block (D87's own guarantee),
+   and confirmed the refresh's own read-then-update sequence has no suspension point that could let an
+   `activateLesson` commit interleave.
+
+**Review round 1 — 2 HIGH + 4 MEDIUM + 3 LOW found, all fixed same-session (not delegated back to the
+implementer — fixed directly, given the concurrency-adjacency of several findings):**
+
+1. **HIGH — stale placeholder assertion.** `NavigationShellTest.kt` still asserted
+   `"Quiz (placeholder): $courseId"` text that no longer exists once the real `QuizScreen` replaced the
+   placeholder — same fix-up class as every prior task's placeholder retirement (T10/T13's own
+   precedent): swapped to the new `QuizScreenTestTag` (present on the outer `Scaffold`, so present
+   regardless of content state).
+2. **HIGH — quiz answers did not survive backing out mid-attempt, violating a LOCKED requirement.**
+   `ux/NAVIGATION_SPEC.md` lines 42/71/116 and `product/USER_FLOWS.md:135` all require answers to
+   survive "backing out of Quiz mid-attempt" specifically — but `QuizViewModel`'s `answers` was a plain
+   field on a ViewModel scoped to Quiz's own `NavBackStackEntry`, which a plain pop (the back button)
+   destroys entirely along with its `ViewModelStore`. A reviewer probe confirmed: back out, tap "Take
+   Quiz" again, land on a brand-new `QuizViewModel` at question 1 with zero answers — the exact
+   "force-reset" the spec forbids. **Fix**: a new process-scoped, courseId-keyed singleton,
+   `QuizAttemptDraftStore` (`mobile/androidApp/.../ui/quiz/QuizAttemptDraftStore.kt`) — mirrors
+   `MentoraApplication`'s own "one process-lifetime instance" convention for state that need not
+   survive process death (no local DB exists anywhere in this app). `QuizViewModel.answers` is now a
+   live reference into the store (mutations persist automatically); `currentQuestionIndex` is
+   explicitly written through on every `onNextTapped`; `load()` resumes from the stored position
+   (clamped defensively) instead of always restarting at question 1. `QuizAttemptDraftStore.clear` is
+   called from exactly the two paths that legitimately want a blank slate: a successful submission
+   (`QuizViewModel.onSubmitTapped`) and "Retry Quiz" (`MentoraNavHost.kt`'s `quizResultsContent
+   .onRetry`) — never from a plain back-navigation, which is the whole point of the store existing.
+   Being a genuine JVM-process-wide singleton required a test-hygiene follow-up: `QuizAttemptDraftStore
+   .clearAllForTests()`, called from `QuizViewModelTest`'s `@Before`/`@After` (every test in that file
+   reuses the same default `courseId`, so without this a draft written by one test leaked into the
+   next).
+3. **MEDIUM — `refreshQuizStatus` silently reset `isCompletionInFlight`/`completionError`.**
+   `rebuildReadyState` (reused from `activateLesson`, where resetting those two on a genuine lesson
+   SWITCH is correct) has no way to preserve them on a same-lesson refresh. A reviewer probe against
+   the real ViewModel showed a concrete consequence: a `refreshQuizStatus` resolving while a
+   `completeLesson` call is in flight would flip the footer back to enabled mid-completion AND defeat
+   `completeLessonAndAdvance`'s own `alreadyInFlight` re-entrancy guard (confirmed: a second tap then
+   enqueues a duplicate `completeLesson` POST). **Fix**: `rebuildReadyState` gained two optional params,
+   `isCompletionInFlight`/`completionError`, defaulting to the reset behavior every existing caller
+   (only `activateLesson`) still correctly relies on; `refreshQuizStatus` is now the one caller that
+   passes the CURRENT Ready state's own values through explicitly.
+4. **MEDIUM — `refreshQuizStatus` could regress `progress` behind a newer concurrent write.** Its two
+   `getCourseProgress`/`getQuiz` calls are unordered relative to `writeQueue`'s own single-consumer
+   ordering guarantee — a `completeLesson` response landing while this passive refresh's own calls are
+   still in flight must always win. **Fix**: `progress`'s identity is captured before the two awaits and
+   the whole apply-and-rebuild step is skipped if it has changed by the time they resolve — the same
+   "did something else already commit, bail out" shape `activateLesson`'s own `switchGeneration` check
+   uses, sized down to reference-identity comparison on this function's single mutable field (no lesson
+   SWITCH is reachable while a refresh is resolving, so identity comparison alone is sufficient here).
+5. **MEDIUM — nested `Scaffold` double-applied system-bar insets on both Quiz and Quiz Results** — the
+   identical mechanism Task 13's own round-5 review already found and fixed on Course Player
+   (`contentWindowInsets` defaulting to `systemBars` on an inner `Scaffold` whose `topBar`/`bottomBar`
+   are both empty, nested inside the outer `MentoraNavHost` Scaffold that is already the sole real
+   inset source for these two routes). Fixed identically: `contentWindowInsets = WindowInsets(0)` on
+   both screens' own `Scaffold`.
+6. **MEDIUM — answer options had no radio-group semantics; selection was invisible to TalkBack.**
+   `ux/SCREEN_UX_SPECS.md:479` requires "each answer option is a real radio-group member." Fixed at the
+   `QuizScreen.kt` call site (not by modifying the shared Task 8 `AnswerOption` component itself):
+   `Modifier.selectableGroup()` on the container, `selected`/`Role.RadioButton` semantics per option —
+   layered onto, not replacing, `AnswerOption`'s own internal `disabled`/`stateDescription` semantics.
+7. **LOW (3, all fixed)**: `isSubmitting` was never cleared on a successful submit, leaving a
+   permanently disabled-and-spinning Quiz screen reachable via system-back-from-Results (Quiz stays on
+   the back stack by design) — now reset alongside the draft-store clear. `QuizResultsViewModel`'s
+   breakdown rows trusted `attempt.breakdown`'s own list order rather than the same `QuizQuestion.order`
+   `QuizViewModel` itself sorts by (the backend builds `breakdown` from raw document order, which is
+   not guaranteed to match `order` if the two ever diverge) — now explicitly sorted by `order`, with a
+   defensive fallback for a question missing from the joined quiz. The stored `score` field being
+   silently ignored in favor of a `breakdown`-recomputed `correctCount`/`totalCount` (while `passed`
+   still always comes from the stored attempt, never recomputed) is now an explicit disclosed comment
+   rather than an unstated choice — recomputing from `breakdown` keeps the count consistent with what
+   the per-row list actually displays.
+
+**Disclosed, not fixed (genuinely low-priority per the reviewer's own assessment)**: `onContinue`
+hardcodes `isCurrentTab = false` into the My-Learning tab switch (inherited verbatim from Course
+Player's own `onBackToMyLearning`, same pre-existing pattern, not a regression this task introduced) —
+worth a manual device check some day, not a code change. **Spec conflict, resolved by this entry**: on
+a failed quiz, `ux/NAVIGATION_SPEC.md:43`/`SCREEN_UX_SPECS.md:501` say "Retry Quiz" returns to Course
+Player; `product/USER_FLOWS.md:153` says it "returns to § 14" (Quiz itself). This implementation
+deliberately follows the former reading literally while ALSO satisfying the latter's intent: "Retry
+Quiz" pops both the failed Quiz and Results entries back to Course Player, then immediately pushes a
+genuinely fresh `Destination.Quiz` — so the user's very next frame IS a fresh Quiz attempt (§ 14's own
+intent), while the back stack itself is anchored on Course Player (the other two docs' literal target),
+meaning a subsequent system back from that fresh attempt correctly pops to Course Player, never to the
+old exhausted Quiz screen. Both readings are satisfied simultaneously by this one navigation call;
+future screens should not treat this as two independently-satisfiable requirements needing a choice.
+
+**Verified (final, post-review-fix state):** `:shared:testDebugUnitTest` 249/249 (zero diff in
+`mobile/shared`); `:androidApp:testDebugUnitTest` 169/169 (166 pre-fix + 3 new regression tests for
+HIGH-2's fix: answers/position survive a simulated pop-then-repush, a successful submit clears the
+draft store, a successful submit resets `isSubmitting`); `:androidApp:assembleDebug` clean;
+`:androidApp:connectedDebugAndroidTest` 87/87 on the real `Chatting_Pixel_8_API_36` emulator (one run
+showed 3 failures, all in pre-existing, unrelated screenshot-capture tests — `AnswerOptionTest`/
+`CourseArtworkTest`, neither touching Quiz/QuizResults/Course Player — with individual test times
+inflated up to 246s and a 25m51s total runtime, matching the documented "long instrumented-test
+sessions degrade emulator responsiveness" pattern (`CURRENT_STATUS.md`'s own Task 13-era note); a
+clean rerun on a freshly relaunched emulator instance passed all 87 in 3m18s).
+
+**Impact:** new files `mobile/androidApp/src/main/kotlin/com/mentora/android/ui/quiz
+/{QuizScreen.kt,QuizViewModel.kt,QuizResultsScreen.kt,QuizResultsViewModel.kt,QuizAttemptDraftStore.kt}`
++ matching JVM tests under `.../src/test/.../ui/quiz/`; modified `Destinations.kt` (`attemptId`
+removed), `MentoraNavHost.kt` (real Quiz/QuizResults wiring + draft-store clear on Retry),
+`CoursePlayerViewModel.kt` (additive: `refreshQuizStatus`, `rebuildCourseCompletedState` extracted,
+`rebuildReadyState` gained two optional params), `CoursePlayerScreen.kt` (the `LaunchedEffect(Unit)`
+refresh hook), `PlaceholderScreens.kt` (Quiz/QuizResults placeholders removed), `values/strings.xml` +
+`values-ar/strings.xml` (33 new pairs, real translations, locked-numerals-rule compliant),
+`NavigationShellTest.kt` (tag-based assertion fix). No `mobile/shared/` change. Task 14 is now
+**DONE** — see `CURRENT_STATUS.md`'s Phase 4 task table. Next: Task 15 (Certificates List +
+Certificate Detail).
+

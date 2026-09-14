@@ -41,8 +41,9 @@ import com.mentora.android.ui.screens.LearningPathDetailsScreen
 import com.mentora.android.ui.mylearning.MyLearningScreen
 import com.mentora.android.ui.screens.ProfileScreen
 import com.mentora.android.ui.checkout.PurchaseSuccessScreen
-import com.mentora.android.ui.screens.QuizResultsScreen
-import com.mentora.android.ui.screens.QuizScreen
+import com.mentora.android.ui.quiz.QuizAttemptDraftStore
+import com.mentora.android.ui.quiz.QuizResultsScreen
+import com.mentora.android.ui.quiz.QuizScreen
 import com.mentora.android.ui.screens.SettingsScreen
 import com.mentora.android.ui.shell.MentoraTopBar
 import com.mentora.android.ui.shell.MobileBottomNavigation
@@ -189,12 +190,51 @@ fun MentoraNavHost(
             onOpenCertificates = { navController.navigate(Destination.Certificates) },
         )
     }
+    // Task 14: real Quiz/Quiz Results screens, replacing the T6-era placeholders. `onSubmitted` is a
+    // plain forward push (never popping Quiz off) — Quiz Results' own "Back behavior: Pop to Quiz
+    // (rare)" (`ux/NAVIGATION_SPEC.md § 3`) depends on Quiz's own back-stack entry still being there
+    // underneath, which is also what makes a system-back-then-back from Results land correctly back on
+    // Course Player with Quiz's own in-memory answers (`QuizViewModel`'s own kdoc) untouched.
     val quizContent: @Composable AnimatedContentScope.(androidx.navigation.NavBackStackEntry) -> Unit = { entry ->
-        QuizScreen(courseId = entry.toRoute<Destination.Quiz>().courseId)
+        val args = entry.toRoute<Destination.Quiz>()
+        QuizScreen(
+            courseId = args.courseId,
+            sdk = sdk,
+            onSubmitted = { navController.navigate(Destination.QuizResults(args.courseId)) },
+        )
     }
     val quizResultsContent: @Composable AnimatedContentScope.(androidx.navigation.NavBackStackEntry) -> Unit = { entry ->
         val args = entry.toRoute<Destination.QuizResults>()
-        QuizResultsScreen(courseId = args.courseId, attemptId = args.attemptId)
+        QuizResultsScreen(
+            courseId = args.courseId,
+            sdk = sdk,
+            // ux/NAVIGATION_SPEC.md § 3 — passed: "Continue" lands on My Learning, never back to
+            // Course Player. Same tab-switch mechanism as `coursePlayerContent`'s own
+            // `onBackToMyLearning` (Quiz Results is reachable from Home/Explore/My Learning's own
+            // Course Player push, so a plain `popBackStack()` cannot be guaranteed to land there).
+            onContinue = {
+                onTabTapped(navController, TabGraph.MyLearningGraph, isCurrentTab = false, anchorTab = anchorTab)
+            },
+            // failed: "Retry Quiz" pops BOTH Quiz and Quiz Results off (back to the Course Player entry
+            // directly underneath Quiz — always present, since Quiz's own only entry point is Course
+            // Player's "Take Quiz") and pushes a genuinely FRESH `Destination.Quiz`, so the new attempt
+            // gets its own fresh `QuizViewModel` (blank answers) rather than resuming the just-failed
+            // attempt's own stale, already-submitted one — and so a system back from the fresh attempt
+            // correctly pops to Course Player, never to the old exhausted Quiz screen underneath it.
+            // `product/USER_FLOWS.md § 14`'s own "a fresh Quiz entry, fresh attempt" wording.
+            onRetry = {
+                // Round-1 review, HIGH-2: an explicit new attempt — must not silently resume the
+                // just-failed attempt's own stale draft (see `QuizAttemptDraftStore`'s own kdoc).
+                QuizAttemptDraftStore.clear(args.courseId)
+                navController.navigate(Destination.Quiz(args.courseId)) {
+                    popUpTo<Destination.CoursePlayer> { inclusive = false }
+                }
+            },
+            // "View Certificate" (only offered when the completion banner shows) — same general
+            // Certificates list target as `coursePlayerContent`'s own `onOpenCertificates` (no
+            // courseId->certificateId join exists anywhere in this app, same disclosed gap).
+            onOpenCertificates = { navController.navigate(Destination.Certificates) },
+        )
     }
     // T12: Course Details is now reachable from BOTH Explore (Task 10's original wiring) and Home
     // (a Recommended-card tap, `ux/SCREEN_UX_SPECS.md § 8` module 2's own "Course Details" exit) — one
@@ -278,8 +318,11 @@ fun MentoraNavHost(
     val currentTab = remember(currentDestination) {
         AllTabGraphs.firstOrNull { tab -> currentDestination.isInTab(tab) }
     }
+    // Task 14: `Destination.QuizResults` joins this set — `ux/SCREEN_UX_SPECS.md § 12`'s own "Header
+    // structure: same minimal chrome as Quiz" (§ 11's own "bottom nav hidden on Mobile"), so Quiz
+    // Results hides the bottom nav for the identical reason Quiz itself already does.
     val isFocusedLearningScreen = currentDestination?.hierarchy?.any {
-        it.hasRoute<Destination.CoursePlayer>() || it.hasRoute<Destination.Quiz>()
+        it.hasRoute<Destination.CoursePlayer>() || it.hasRoute<Destination.Quiz>() || it.hasRoute<Destination.QuizResults>()
     } ?: false
     // T11: DemoCheckout/PurchaseSuccess also hide the bottom nav — DemoCheckout per
     // `mobile-demo-checkout.json`'s shell note ("bottom nav not shown on this pushed screen"),
@@ -588,8 +631,10 @@ private fun titleFor(destination: NavDestination?): String = when {
     destination.hasRoute<Destination.CourseDetails>() -> "Course Details"
     destination.hasRoute<Destination.LearningPathDetails>() -> "Learning Path Details"
     destination.hasRoute<Destination.CoursePlayer>() -> "Course Player"
-    destination.hasRoute<Destination.Quiz>() -> "Quiz"
-    destination.hasRoute<Destination.QuizResults>() -> "Quiz Results"
+    // Task 14: localized, real string resources — same reasoning as `DemoCheckout`/`PurchaseSuccess`
+    // below (T11 fix-up note): both destinations move from placeholder to real screens in this task.
+    destination.hasRoute<Destination.Quiz>() -> stringResource(R.string.quiz_nav_title)
+    destination.hasRoute<Destination.QuizResults>() -> stringResource(R.string.quiz_results_nav_title)
     destination.hasRoute<Destination.Certificates>() -> "Certificates"
     destination.hasRoute<Destination.CertificateDetail>() -> "Certificate"
     destination.hasRoute<Destination.Settings>() -> "Settings"

@@ -113,6 +113,16 @@ fun CoursePlayerScreen(
     )
     val uiState by viewModel.uiState.collectAsState()
 
+    // Task 14 — closes the gap `quizNotYetPassed`'s own kdoc below discloses: this re-fires on EVERY
+    // (re-)entry into this composable's composition, including a return from a pushed Quiz destination
+    // via back (Navigation-Compose disposes the covered destination's composition while another is
+    // pushed on top, the same "leaving composition on a push" assumption `onScreenLeaving`'s own
+    // `DisposableEffect(Unit)` above already relies on — verified against this exact file's own
+    // established convention, not a new assumption). Firing on the very first composition too is
+    // harmless — `CoursePlayerViewModel.refreshQuizStatus` just re-fetches the same progress/quiz
+    // `load()` already fetched moments earlier.
+    LaunchedEffect(Unit) { viewModel.refreshQuizStatus() }
+
     CoursePlayerLifecycleEffects(onScreenLeaving = viewModel::onScreenLeaving)
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -481,15 +491,19 @@ private fun CoursePlayerCompletedContent(
     // D85 Decision 9: "CourseFinished routing to Quiz ... or, when there is no quiz, to the inline
     // completion state" — the routing decision itself is C3's to make from this state's own data.
     //
-    // Round-6 review finding (INFO, not reachable in THIS commit): `state.quizPassed` is captured at
-    // course-load time (`CoursePlayerViewModel`'s own `load()`/`rebuildReadyState` path) and nothing
-    // re-fetches it when this composable re-enters composition after a Quiz round trip — so a user
-    // who actually PASSES the quiz and pops back would still see this "quiz pending" branch (stale
-    // `quizPassed = false`) instead of "View Certificate". Unreachable today because `Destination
-    // .Quiz` still resolves to `PlaceholderScreens.kt`'s placeholder (`quizPassed` can never flip
-    // in-app yet) — but whichever task builds the real Quiz screen (`ux/NAVIGATION_SPEC.md`'s Quiz
-    // Results row) MUST make popping back from a passed quiz re-fetch/refresh course progress (e.g.
-    // `onResume`-style reload, or the pop itself carrying a result), or this branch will render wrong.
+    // Round-6 review finding (INFO) — CLOSED by Task 14. `state.quizPassed` used to be captured at
+    // course-load time only (`CoursePlayerViewModel`'s own `load()`/`rebuildReadyState` path), with
+    // nothing re-fetching it when this composable re-entered composition after a Quiz round trip — a
+    // user who actually PASSED the quiz and popped back would have still seen this "quiz pending"
+    // branch (stale `quizPassed = false`) instead of "View Certificate". Task 14 closes this: the real
+    // `CoursePlayerScreen` composable now calls `viewModel.refreshQuizStatus()` from a
+    // `LaunchedEffect(Unit)` at its own top level, which re-fires on every (re-)entry into this
+    // composable's composition — including a return from Quiz via back — and re-fetches
+    // `progress`/`quiz` so `state.quizPassed` here is current, not stale. Was previously unreachable
+    // in practice anyway because `Destination.Quiz` still resolved to `PlaceholderScreens.kt`'s
+    // placeholder (`quizPassed` could never flip in-app) — Task 14 replaces that placeholder with the
+    // real `QuizScreen`/`QuizResultsScreen`, making this branch reachable for the first time, with the
+    // refresh mechanism above already in place to render it correctly.
     val quizNotYetPassed = state.quizRow != null && state.quizPassed != true
     // Review finding (round 5, HIGH): a first draft's `LaunchedEffect` re-fired on EVERY
     // recomposition reaching this branch, including a return from Quiz via system back — Quiz is a

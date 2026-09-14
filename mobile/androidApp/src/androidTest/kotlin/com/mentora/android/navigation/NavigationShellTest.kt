@@ -23,6 +23,7 @@ import com.mentora.android.ui.checkout.PurchaseSuccessBackToMyLearningButtonTest
 import com.mentora.android.ui.checkout.PurchaseSuccessContentTestTag
 import com.mentora.android.ui.coursedetails.CourseDetailsCtaButtonTestTag
 import com.mentora.android.ui.courseplayer.CoursePlayerScreenTestTag
+import com.mentora.android.ui.quiz.QuizScreenTestTag
 import com.mentora.android.ui.explore.ExploreCourseCardTestTag
 import com.mentora.android.ui.home.HomeCertificatesStatCardTestTag
 import com.mentora.android.ui.home.HomeContinueLearningCardTestTag
@@ -305,7 +306,11 @@ class NavigationShellTest {
         composeTestRule.onNodeWithTag(MobileBottomNavigationTestTag).assertDoesNotExist()
 
         composeTestRule.runOnUiThread { navController.navigate(Destination.Quiz(courseId)) }
-        composeTestRule.onNodeWithText("Quiz (placeholder): $courseId").assertExists()
+        // T14 fix-up: Quiz's placeholder was retired for the real QuizScreen (same pattern as T10/T13's
+        // own placeholder-retirement fix-ups) — this harness's fake auth has no real enrollment, so the
+        // real screen renders an Error content state; QuizScreenTestTag is on the outer Scaffold (an
+        // ancestor of every content state), same "present regardless of async load state" convention.
+        composeTestRule.onNodeWithTag(QuizScreenTestTag).assertExists()
         composeTestRule.onNodeWithTag(MobileBottomNavigationTestTag).assertDoesNotExist()
 
         // Back out of Quiz, then Course Player — the bottom nav reappears once neither is current.

@@ -1525,4 +1525,172 @@ class CoursePlayerViewModelTest {
         val ready = (viewModel.uiState.value.content as CoursePlayerContentState.Ready).state
         assertEquals(7, ready.sheet.quizRow?.questionCount)
     }
+
+    // ---- Task 14 — refreshQuizStatus (narrow, additive quiz-status refresh) -----------------------
+
+    @Test
+    fun refreshQuizStatus_readyState_reReadsProgressAndQuiz_andRederivesTheFooterAction() = runTest(testDispatcher) {
+        // Initial load: last lesson complete, a quiz exists, not yet passed -> TakeQuiz.
+        var quizPassedNow = false
+        val viewModel = buildViewModel(
+            lessonId = "lesson-2",
+            progress = progress(completedLessonIds = listOf("lesson-1", "lesson-2"), quizPassed = false),
+            quiz = QuizLookupResult.Found(quizWithQuestions(3)),
+            getCourseProgress = {
+                ApiResult.Success(
+                    progress(completedLessonIds = listOf("lesson-1", "lesson-2"), quizPassed = quizPassedNow),
+                )
+            },
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+        val initialReady = (viewModel.uiState.value.content as CoursePlayerContentState.Ready).state
+        assertEquals(CoursePlayerFooterAction.TakeQuiz, initialReady.footerAction)
+
+        // Simulate "the student took the quiz and passed it" — the next `getCourseProgress` call
+        // (this is what `refreshQuizStatus` calls) now reports `quizPassed = true`.
+        quizPassedNow = true
+        viewModel.refreshQuizStatus()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val refreshedReady = (viewModel.uiState.value.content as CoursePlayerContentState.Ready).state
+        assertEquals(CoursePlayerFooterAction.FinishCourse, refreshedReady.footerAction)
+        // The current lesson/video-source fields are untouched — carried over from the prior state,
+        // never re-derived from a lesson-resolution pass.
+        assertEquals(initialReady.currentLessonId, refreshedReady.currentLessonId)
+        assertEquals(initialReady.hasVideoSource, refreshedReady.hasVideoSource)
+    }
+
+    @Test
+    fun refreshQuizStatus_neverTouchesPlayback_noNewControllerCallsOfAnyKind() = runTest(testDispatcher) {
+        val controller = FakePlaybackController()
+        var quizPassedNow = false
+        val viewModel = buildViewModel(
+            lessonId = "lesson-2",
+            controller = controller,
+            progress = progress(completedLessonIds = listOf("lesson-1", "lesson-2"), quizPassed = false),
+            quiz = QuizLookupResult.Found(quizWithQuestions(3)),
+            getCourseProgress = {
+                ApiResult.Success(
+                    progress(completedLessonIds = listOf("lesson-1", "lesson-2"), quizPassed = quizPassedNow),
+                )
+            },
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+        val prepareCallsBefore = controller.prepareLessonCalls.size
+        val playCallsBefore = controller.playCalls
+        val pauseCallsBefore = controller.pauseCalls
+        val stopCallsBefore = controller.stopCalls
+        val seekCallsBefore = controller.seekCalls.size
+
+        quizPassedNow = true
+        viewModel.refreshQuizStatus()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(prepareCallsBefore, controller.prepareLessonCalls.size)
+        assertEquals(playCallsBefore, controller.playCalls)
+        assertEquals(pauseCallsBefore, controller.pauseCalls)
+        assertEquals(stopCallsBefore, controller.stopCalls)
+        assertEquals(seekCallsBefore, controller.seekCalls.size)
+        assertFalse(controller.released)
+    }
+
+    @Test
+    fun refreshQuizStatus_courseCompletedState_rederivesQuizRowAndQuizPassed_withoutStoppingPlaybackAgain() = runTest(testDispatcher) {
+        val controller = FakePlaybackController()
+        var quizPassedNow = false
+        val viewModel = buildViewModel(
+            lessonId = null,
+            controller = controller,
+            quiz = QuizLookupResult.Found(quizWithQuestions(2)),
+            resumeCourse = { ApiResult.Success(LessonProgressTarget.CourseFinished) },
+            getCourseProgress = { ApiResult.Success(progress(quizPassed = quizPassedNow)) },
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+        val initialCompleted = (viewModel.uiState.value.content as CoursePlayerContentState.CourseCompleted).state
+        assertEquals(false, initialCompleted.quizPassed)
+        val stopCallsAfterInitialLoad = controller.stopCalls
+
+        quizPassedNow = true
+        viewModel.refreshQuizStatus()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val refreshedCompleted = (viewModel.uiState.value.content as CoursePlayerContentState.CourseCompleted).state
+        assertEquals(true, refreshedCompleted.quizPassed)
+        assertEquals(2, refreshedCompleted.quizRow?.questionCount)
+        // `refreshQuizStatus` must not call `controller.stop()` again — that side effect only belongs
+        // to the FIRST transition into CourseCompleted, never a same-state refresh of it.
+        assertEquals(stopCallsAfterInitialLoad, controller.stopCalls)
+    }
+
+    @Test
+    fun refreshQuizStatus_failedGetCourseProgress_leavesThePriorReadyStateUntouched() = runTest(testDispatcher) {
+        // Succeeds for the initial `load()` (called from `init`), then fails for every subsequent
+        // call — i.e. exactly the call `refreshQuizStatus` itself makes.
+        var callCount = 0
+        val viewModel = buildViewModel(
+            lessonId = "lesson-2",
+            progress = progress(completedLessonIds = listOf("lesson-1", "lesson-2"), quizPassed = false),
+            quiz = QuizLookupResult.Found(quizWithQuestions(3)),
+            getCourseProgress = {
+                callCount++
+                if (callCount == 1) {
+                    ApiResult.Success(progress(completedLessonIds = listOf("lesson-1", "lesson-2"), quizPassed = false))
+                } else {
+                    ApiResult.Failure(ApiErrorCode.Unknown("BOOM"), "boom", null, 500)
+                }
+            },
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+        val before = (viewModel.uiState.value.content as CoursePlayerContentState.Ready).state
+
+        viewModel.refreshQuizStatus()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val after = (viewModel.uiState.value.content as CoursePlayerContentState.Ready).state
+        assertEquals(before.footerAction, after.footerAction)
+        assertEquals(CoursePlayerFooterAction.TakeQuiz, after.footerAction)
+        assertEquals(2, callCount)
+    }
+
+    @Test
+    fun refreshQuizStatus_failedGetQuiz_leavesThePriorReadyStateUntouched() = runTest(testDispatcher) {
+        // Succeeds for the initial `load()`, then fails for the `refreshQuizStatus` call — same
+        // "succeed once, then fail" shape as the `getCourseProgress` counterpart above.
+        var callCount = 0
+        val viewModel = buildViewModel(
+            lessonId = "lesson-2",
+            progress = progress(completedLessonIds = listOf("lesson-1", "lesson-2"), quizPassed = false),
+            quiz = QuizLookupResult.Found(quizWithQuestions(3)),
+            getQuiz = {
+                callCount++
+                if (callCount == 1) {
+                    ApiResult.Success(QuizLookupResult.Found(quizWithQuestions(3)))
+                } else {
+                    ApiResult.Failure(ApiErrorCode.Unknown("BOOM"), "boom", null, 500)
+                }
+            },
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+        val before = (viewModel.uiState.value.content as CoursePlayerContentState.Ready).state
+
+        viewModel.refreshQuizStatus()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val after = (viewModel.uiState.value.content as CoursePlayerContentState.Ready).state
+        assertEquals(before.footerAction, after.footerAction)
+        assertEquals(2, callCount)
+    }
+
+    @Test
+    fun refreshQuizStatus_calledBeforeInitialLoadCompletes_isANoOp_doesNotCrash() = runTest(testDispatcher) {
+        val viewModel = buildViewModel(lessonId = "lesson-1")
+
+        // The initial `load()` launched from `init` hasn't run yet (nothing has advanced the test
+        // dispatcher) — `course` is still null, so this must return synchronously without crashing or
+        // launching a coroutine that later throws.
+        viewModel.refreshQuizStatus()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.content is CoursePlayerContentState.Ready)
+    }
 }

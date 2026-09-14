@@ -211,4 +211,43 @@
     <string name="course_player_time_label">%1$s / %2$s</string>
     <string name="course_player_scrubber_content_description">Seek video position</string>
     <string name="course_player_scrubber_state_description">%1$s of %2$s</string>
+
+    <!-- Task 14 — Quiz + Quiz Results, ux/SCREEN_UX_SPECS.md §§ 11-12 (no exact-showcase mockup exists
+         for either screen — design-derived). Numeral placeholders are %1$s/`Int.toString()`, never
+         %1$d, per design-system/LOCALIZATION.md § 8, same rule Task 13 was reviewed for compliance
+         with. -->
+    <string name="quiz_nav_title">Quiz</string>
+    <string name="quiz_loading_content_description">Loading quiz</string>
+    <string name="quiz_error_title">This quiz couldn\'t be loaded</string>
+    <string name="quiz_retry_action">Try again</string>
+    <string name="quiz_no_quiz_title">No quiz available</string>
+    <string name="quiz_no_quiz_description">This course doesn\'t have a quiz to take.</string>
+    <string name="quiz_progress_label">Question %1$s of %2$s</string>
+    <string name="quiz_next_action">Next</string>
+    <string name="quiz_submit_action">Submit Quiz</string>
+    <string name="quiz_next_disabled_reason">Select an answer to continue</string>
+    <string name="quiz_answer_correct_label">Correct</string>
+    <string name="quiz_answer_incorrect_label">Incorrect</string>
+
+    <string name="quiz_results_nav_title">Quiz Results</string>
+    <string name="quiz_results_loading_content_description">Loading quiz results</string>
+    <string name="quiz_results_error_title">This quiz result couldn\'t be loaded</string>
+    <string name="quiz_results_retry_action">Try again</string>
+    <string name="quiz_results_score_label">Score</string>
+    <string name="quiz_results_score_value">%1$s/%2$s</string>
+    <string name="quiz_results_badge_passed">Passed</string>
+    <string name="quiz_results_badge_failed">Failed</string>
+    <string name="quiz_results_score_content_description_passed">%1$s out of %2$s, passed</string>
+    <string name="quiz_results_score_content_description_failed">%1$s out of %2$s, failed</string>
+    <string name="quiz_results_breakdown_heading">Question breakdown</string>
+    <string name="quiz_results_question_fallback">Question %1$s</string>
+    <string name="quiz_results_correct_label">Correct</string>
+    <string name="quiz_results_incorrect_label">Incorrect</string>
+    <string name="quiz_results_row_correct_content_description">%1$s — Correct</string>
+    <string name="quiz_results_row_incorrect_content_description">%1$s — Incorrect</string>
+    <string name="quiz_results_completion_banner_title">🎉 Course Completed!</string>
+    <string name="quiz_results_completion_banner_description">You\'ve finished every lesson and passed the quiz. Your certificate is ready.</string>
+    <string name="quiz_results_view_certificate_action">View Certificate</string>
+    <string name="quiz_results_continue_action">Continue</string>
+    <string name="quiz_results_retry_quiz_action">Retry Quiz</string>
 </resources>
