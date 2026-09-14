@@ -221,4 +221,30 @@
     <string name="quiz_results_view_certificate_action">عرض الشهادة</string>
     <string name="quiz_results_continue_action">متابعة</string>
     <string name="quiz_results_retry_quiz_action">إعادة الاختبار</string>
+
+    <!-- Task 15 — Certificates List + Certificate Detail. Copy for the keys with a direct
+         web/messages/ar.json `certificates.*` equivalent reuses that exact string. -->
+    <string name="certificates_nav_title">الشهادات</string>
+    <string name="certificate_detail_nav_title">الشهادة</string>
+    <string name="certificates_heading">الشهادات</string>
+    <string name="certificates_empty_title">لا توجد شهادات بعد</string>
+    <string name="certificates_empty_description">أكمل دورة لتحصل على شهادتك الأولى.</string>
+    <string name="certificates_go_to_my_learning">الانتقال إلى مساحة التعلّم</string>
+    <string name="certificates_error_title">تعذّر تحميل شهاداتك</string>
+    <string name="certificates_retry_action">أعد المحاولة</string>
+    <string name="certificates_view_action">عرض</string>
+    <string name="certificates_share_action">مشاركة</string>
+    <string name="certificates_issued_on">صدرت في %1$s</string>
+    <string name="certificates_share_text">حصلت على شهادة إتمام %1$s على Mentora! معرّف الشهادة: %2$s</string>
+
+    <string name="certificate_detail_loading_content_description">جارٍ تحميل الشهادة</string>
+    <string name="certificate_detail_error_title">تعذّر تحميل هذه الشهادة</string>
+    <string name="certificate_detail_retry_action">أعد المحاولة</string>
+    <string name="certificate_detail_kicker">شهادة إتمام</string>
+    <string name="certificate_detail_awarded_to">مُقدّمة إلى</string>
+    <string name="certificate_detail_completion_statement">لإتمام الدورة بنجاح</string>
+    <string name="certificate_detail_instructor">المدرّب: %1$s</string>
+    <string name="certificate_detail_completed_on">اكتملت في %1$s</string>
+    <string name="certificate_detail_issued_on">صدرت في %1$s</string>
+    <string name="certificate_detail_certificate_id">معرّف الشهادة: %1$s</string>
 </resources>

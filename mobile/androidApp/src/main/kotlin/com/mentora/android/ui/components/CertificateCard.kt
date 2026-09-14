@@ -16,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import com.mentora.android.theme.MentoraDimens
 
@@ -28,6 +29,12 @@ import com.mentora.android.theme.MentoraDimens
  * as web's D42/G9). [CertificatePreviewPlaceholder] is a token-driven placeholder (`surface.variant`
  * background + the existing [MentoraIconName.Certificates] icon, `radius.medium` on the preview
  * itself per the spec), not a fabricated image.
+ *
+ * T15: [CertificatePreviewPlaceholder] is `internal` (not `private`) specifically so
+ * `com.mentora.android.ui.certificates.CertificateDetailScreen` can reuse the exact same placeholder
+ * graphic for its own certificate-document header rather than duplicating a slightly-different one —
+ * see that file's own kdoc for how it's reused there (a smaller, circular badge treatment, not this
+ * card's own 16:9 banner).
  */
 @Composable
 fun CertificateCard(
@@ -55,18 +62,28 @@ fun CertificateCard(
                     .aspectRatio(16f / 9f)
                     .clip(MaterialTheme.shapes.small), // radius.medium on the preview itself.
             )
-            Text(
-                text = courseTitle,
-                style = MaterialTheme.typography.titleLarge, // heading.h4.
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                text = metaLabel,
-                style = MaterialTheme.typography.labelSmall, // typography.caption.
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            // T15 review finding (round 1, LOW-4): `ux/SCREEN_UX_SPECS.md § 13`'s own accessibility
+            // rule wants ONE composite accessible name covering title+date — scoping
+            // `mergeDescendants` to just this title+meta pair (not the whole card) produces exactly
+            // that single announcement, without swallowing the View/Share buttons below into it (they
+            // stay outside this merged group, so each keeps its own independent accessible name/action).
+            Column(
+                modifier = Modifier.semantics(mergeDescendants = true) {},
+                verticalArrangement = Arrangement.spacedBy(MentoraDimens.spacing.space1),
+            ) {
+                Text(
+                    text = courseTitle,
+                    style = MaterialTheme.typography.titleLarge, // heading.h4.
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = metaLabel,
+                    style = MaterialTheme.typography.labelSmall, // typography.caption.
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(MentoraDimens.spacing.space2)) {
                 TonalButton(text = viewLabel, onClick = onViewClick)
                 MentoraTextButton(text = shareLabel, onClick = onShareClick)
@@ -76,7 +93,7 @@ fun CertificateCard(
 }
 
 @Composable
-private fun CertificatePreviewPlaceholder(modifier: Modifier = Modifier) {
+internal fun CertificatePreviewPlaceholder(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier.background(MaterialTheme.colorScheme.surfaceVariant),
         contentAlignment = Alignment.Center,

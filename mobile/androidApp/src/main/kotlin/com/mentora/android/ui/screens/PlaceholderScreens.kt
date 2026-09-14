@@ -53,6 +53,10 @@ import com.mentora.android.ui.components.PrimaryButton
  *
  * T14 note: `QuizScreen`/`QuizResultsScreen` are no longer placeholders here — Task 14 replaced them
  * with real screens in `com.mentora.android.ui.quiz` (`QuizScreen.kt`/`QuizResultsScreen.kt`).
+ *
+ * T15 note: `CertificatesScreen`/`CertificateDetailScreen` are no longer placeholders here — Task 15
+ * replaced them with real screens in `com.mentora.android.ui.certificates`
+ * (`CertificatesScreen.kt`/`CertificateDetailScreen.kt`).
  */
 @Composable
 fun AiTutorScreen(modifier: Modifier = Modifier) = PlaceholderScreen("AI Tutor (placeholder)", modifier)
@@ -71,13 +75,6 @@ fun SettingsScreen(modifier: Modifier = Modifier) = PlaceholderScreen("Settings 
 @Composable
 fun LearningPathDetailsScreen(pathId: String, modifier: Modifier = Modifier) =
     PlaceholderScreen("Learning Path Details (placeholder): $pathId", modifier)
-
-@Composable
-fun CertificatesScreen(modifier: Modifier = Modifier) = PlaceholderScreen("Certificates (placeholder)", modifier)
-
-@Composable
-fun CertificateDetailScreen(certificateId: String, modifier: Modifier = Modifier) =
-    PlaceholderScreen("Certificate Detail (placeholder): $certificateId", modifier)
 
 @Composable
 private fun PlaceholderScreen(text: String, modifier: Modifier = Modifier) {

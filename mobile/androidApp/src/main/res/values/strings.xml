@@ -250,4 +250,35 @@
     <string name="quiz_results_view_certificate_action">View Certificate</string>
     <string name="quiz_results_continue_action">Continue</string>
     <string name="quiz_results_retry_quiz_action">Retry Quiz</string>
+
+    <!-- Task 15 — Certificates List + Certificate Detail, ux/SCREEN_UX_SPECS.md §§ 13-14 (both
+         "ux-only" — no exact-showcase mockup exists for either). Copy for the keys with a direct
+         web/messages/en.json `certificates.*` equivalent reuses that exact string (D45/D51
+         cross-platform-consistency precedent, same as Tasks 12/14's own copy reuse). Numeral
+         placeholders (none needed here beyond formatted dates, which are already Western-numeral by
+         construction — see ui/certificates/CertificateFormatting.kt) follow design-system/
+         LOCALIZATION.md § 8 regardless. -->
+    <string name="certificates_nav_title">Certificates</string>
+    <string name="certificate_detail_nav_title">Certificate</string>
+    <string name="certificates_heading">Certificates</string>
+    <string name="certificates_empty_title">No certificates yet</string>
+    <string name="certificates_empty_description">Complete a course to earn your first certificate.</string>
+    <string name="certificates_go_to_my_learning">Go to My Learning</string>
+    <string name="certificates_error_title">Your certificates couldn\'t be loaded</string>
+    <string name="certificates_retry_action">Try again</string>
+    <string name="certificates_view_action">View</string>
+    <string name="certificates_share_action">Share</string>
+    <string name="certificates_issued_on">Issued %1$s</string>
+    <string name="certificates_share_text">I earned a certificate for %1$s on Mentora! Certificate ID: %2$s</string>
+
+    <string name="certificate_detail_loading_content_description">Loading certificate</string>
+    <string name="certificate_detail_error_title">This certificate couldn\'t be loaded</string>
+    <string name="certificate_detail_retry_action">Try again</string>
+    <string name="certificate_detail_kicker">Certificate of Completion</string>
+    <string name="certificate_detail_awarded_to">Awarded to</string>
+    <string name="certificate_detail_completion_statement">for successfully completing</string>
+    <string name="certificate_detail_instructor">Instructor: %1$s</string>
+    <string name="certificate_detail_completed_on">Completed %1$s</string>
+    <string name="certificate_detail_issued_on">Issued %1$s</string>
+    <string name="certificate_detail_certificate_id">Certificate ID: %1$s</string>
 </resources>

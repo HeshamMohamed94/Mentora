@@ -28,8 +28,8 @@ import androidx.navigation.*
 import androidx.compose.ui.res.stringResource
 import com.mentora.android.R
 import com.mentora.android.ui.screens.AiTutorScreen
-import com.mentora.android.ui.screens.CertificateDetailScreen
-import com.mentora.android.ui.screens.CertificatesScreen
+import com.mentora.android.ui.certificates.CertificateDetailScreen
+import com.mentora.android.ui.certificates.CertificatesScreen
 import com.mentora.android.ui.coursedetails.CourseDetailsScreen
 import com.mentora.android.ui.courseplayer.CoursePlayerScreen
 import com.mentora.android.ui.checkout.DemoCheckoutScreen
@@ -272,11 +272,24 @@ fun MentoraNavHost(
     // registration the push would still succeed (see [Destinations]'s own kdoc for why an
     // unregistered destination resolves via the PARENT graph rather than erroring) but would
     // mis-anchor under MyLearningGraph instead of Home.
+    // T15: real screens, replacing the T6-era placeholders. `onOpenMyLearning` (the Empty state's own
+    // CTA) is the same explicit tab-switch mechanism `onBackToMyLearning`/`onContinue` above already
+    // use, not `popBackStack()` — Certificates is reachable from Home/Explore/MyLearning alike, so a
+    // plain pop cannot be guaranteed to land on My Learning.
     val certificatesContent: @Composable AnimatedContentScope.(androidx.navigation.NavBackStackEntry) -> Unit = {
-        CertificatesScreen()
+        CertificatesScreen(
+            sdk = sdk,
+            onOpenCertificateDetail = { certificateId -> navController.navigate(Destination.CertificateDetail(certificateId)) },
+            onOpenMyLearning = {
+                onTabTapped(navController, TabGraph.MyLearningGraph, isCurrentTab = false, anchorTab = anchorTab)
+            },
+        )
     }
     val certificateDetailContent: @Composable AnimatedContentScope.(androidx.navigation.NavBackStackEntry) -> Unit = { entry ->
-        CertificateDetailScreen(certificateId = entry.toRoute<Destination.CertificateDetail>().certificateId)
+        CertificateDetailScreen(
+            certificateId = entry.toRoute<Destination.CertificateDetail>().certificateId,
+            sdk = sdk,
+        )
     }
     // T12 fix-up: [courseDetailsContent]'s own `onEnrollRequiringAuth` pushes `Destination.DemoCheckout`
     // by `navigate()`, and Course Details is now reachable from Home too — registered under BOTH
@@ -362,6 +375,14 @@ fun MentoraNavHost(
     // above — unchanged, [isCoursePlayer] only controls the top bar.
     val isCoursePlayer = currentDestination?.hasRoute<Destination.CoursePlayer>() == true
     val isChromeless = isAuthRoute || isPurchaseSuccess || isCoursePlayer
+    // T15: `ux/SCREEN_UX_SPECS.md § 13`'s own header structure — "page title 'Certificates'," no back
+    // affordance, even though this is technically a pushed (non-tab-root) destination reachable from
+    // 3 different tabs (Home/Explore/My Learning) — unlike every other pushed screen, whose back
+    // button target is unambiguous. System back (the device gesture/button) still works regardless,
+    // same precedent as every other suppressed-affordance case in this file. Certificate DETAIL is
+    // unaffected — it keeps the standard back button via the plain `!isTabRoot` rule below (its own
+    // spec explicitly calls for "minimal chrome, back affordance").
+    val isCertificatesList = currentDestination?.hasRoute<Destination.Certificates>() == true
 
     Scaffold(
         modifier = modifier,
@@ -369,7 +390,7 @@ fun MentoraNavHost(
             if (!isChromeless) {
                 MentoraTopBar(
                     title = titleFor(currentDestination),
-                    showBackButton = !isTabRoot,
+                    showBackButton = !isTabRoot && !isCertificatesList,
                     onBackClick = { navController.popBackStack() },
                 )
             }
@@ -449,6 +470,16 @@ fun MentoraNavHost(
                 // [courseDetailsContent]/[demoCheckoutContent] (see [Destinations]'s own kdoc for why an
                 // unregistered destination would otherwise fail to resolve under this tab).
                 composable<Destination.Certificates>(content = certificatesContent)
+                // Task 15 review finding (round 1, HIGH): `certificatesContent` (registered immediately
+                // above) pushes `Destination.CertificateDetail` on a card tap — omitting ITS OWN
+                // registration here left that push resolving under the WRONG tab (comprehensive-match
+                // falls through to `HomeGraph`, the first tab in `AllTabGraphs` that has it), silently
+                // mis-anchoring the bottom-nav highlight to Home and letting a Home tap's
+                // `isCurrentTab = true` branch pop this whole Explore sub-stack with no `saveState`.
+                // Exactly the same class of bug [Destinations]'s own kdoc already warns about — every
+                // destination reachable from a shared, multi-graph-registered content lambda must be
+                // registered under every one of those graphs, not just the lambda's own top-level route.
+                composable<Destination.CertificateDetail>(content = certificateDetailContent)
             }
 
             navigation<TabGraph.MyLearningGraph>(startDestination = Destination.MyLearning) {
@@ -635,8 +666,10 @@ private fun titleFor(destination: NavDestination?): String = when {
     // below (T11 fix-up note): both destinations move from placeholder to real screens in this task.
     destination.hasRoute<Destination.Quiz>() -> stringResource(R.string.quiz_nav_title)
     destination.hasRoute<Destination.QuizResults>() -> stringResource(R.string.quiz_results_nav_title)
-    destination.hasRoute<Destination.Certificates>() -> "Certificates"
-    destination.hasRoute<Destination.CertificateDetail>() -> "Certificate"
+    // T15: localized, real string resources — same reasoning as `Quiz`/`QuizResults` above (both
+    // destinations move from placeholder to real screens in this task).
+    destination.hasRoute<Destination.Certificates>() -> stringResource(R.string.certificates_nav_title)
+    destination.hasRoute<Destination.CertificateDetail>() -> stringResource(R.string.certificate_detail_nav_title)
     destination.hasRoute<Destination.Settings>() -> "Settings"
     destination.hasRoute<Destination.DemoCheckout>() -> stringResource(R.string.demo_checkout_nav_title)
     destination.hasRoute<Destination.PurchaseSuccess>() -> stringResource(R.string.purchase_success_nav_title)

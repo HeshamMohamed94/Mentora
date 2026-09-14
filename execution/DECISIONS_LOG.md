@@ -2341,3 +2341,96 @@ refresh hook), `PlaceholderScreens.kt` (Quiz/QuizResults placeholders removed), 
 **DONE** — see `CURRENT_STATUS.md`'s Phase 4 task table. Next: Task 15 (Certificates List +
 Certificate Detail).
 
+### D90 — 2026-09-14 — PHASE 4 Task 15 complete: Certificates List + Certificate Detail, one review
+round, a real navigation-registration bug caught before it ever shipped
+
+**Context.** No exact-showcase mockup exists for either screen (`design-to-code/screens/certificates
+.json`/`certificate-detail.json` are both `"referenceType": "ux-only"`, not real captured mockups) —
+built directly from `ux/SCREEN_UX_SPECS.md` §§ 13-14, same footing as Course Details (Task 10) and
+Quiz (Task 14). Delegated to an implementer sub-agent, then reviewed by the primary Opus reviewer per
+the standing routing policy. `CertificateSummary`/`CertificateDetail` carry no `courseId` field (a
+real, pre-existing, structural backend/`shared` gap already disclosed by Task 13/14's own
+`onOpenCertificates` call sites, confirmed again here, NOT this task's to fix) — this task's own job
+was only to build the two real screens; `MyLearningScreen`'s already-correct
+`onOpenCertificateDetail(certificateId)` call site (Task 12) needed zero changes and started working
+the moment `CertificateDetailScreen` stopped being a placeholder.
+
+**Review round 1 — 1 HIGH + 1 MEDIUM + 4 LOW found, all fixed same-session:**
+
+1. **HIGH — `Destination.CertificateDetail` was never registered under `TabGraph.ExploreGraph`, so a
+   card tap from the Explore-reached Certificates list silently mis-anchored the whole app.**
+   `Destination.Certificates` (the general list) has long been registered under Home/Explore/My
+   Learning graphs (Task 13's own D85-era addition put it under Explore specifically because Course
+   Player's `onOpenCertificates` is reachable from there). This task's own new `certificatesContent`
+   pushes `Destination.CertificateDetail` on a card tap — the SAME shared lambda mounted under all
+   three graphs — but `CertificateDetail` itself was only ever registered under Home and My Learning,
+   never Explore. Concrete path: Explore → a course → Course Player → "View Certificate" →
+   `Destination.Certificates` resolves correctly under ExploreGraph → tap "View" on any card →
+   `Destination.CertificateDetail` has no ExploreGraph registration, so Navigation-Compose 2.8.3's
+   comprehensive match falls through to whichever tab graph registers it FIRST in `AllTabGraphs`
+   (`HomeGraph`) — exactly the "still resolves, just under the WRONG tab" hazard `Destinations.kt`'s
+   own kdoc already warns about, and the same class of bug D81 (Task 6, round 1) first found and fixed.
+   Consequence: the bottom nav silently highlights Home while the user is still visually on the Explore
+   back stack; tapping Home then takes the `isCurrentTab = true` branch and pops the ENTIRE Explore
+   sub-stack with no `saveState`, silently destroying it. Fixed with the one missing registration line
+   — every destination reachable from a shared, multi-graph lambda must be registered under every one
+   of those graphs, not just the lambda's own top-level route; this is now the second time that exact
+   omission has been the root cause (first: D85/Task 13's own Certificates-under-Explore addition,
+   which fixed the SAME hazard one level up the call chain but didn't carry through to the new child
+   destination this task added underneath it).
+2. **MEDIUM — `ErrorState`'s retry button rendered untranslated English on both new screens.** Neither
+   screen's `ErrorState` call passed `retryLabel` (that param's own default is a hardcoded English
+   literal, not a string resource) — every other string on both screens was correctly localized, this
+   was the one visible hole. Fixed with two new real EN/AR string pairs
+   (`certificates_retry_action`/`certificate_detail_retry_action`), matching the convention every
+   other screen already follows (`course_player_retry_action`, `quiz_retry_action`, ...).
+3. **LOW (4, all fixed)**: a kdoc/test pair overstated what `.withDecimalStyle(DecimalStyle.STANDARD)`
+   actually does — verified empirically that `java.time` never derives `DecimalStyle` from locale at
+   all (it's a genuine no-op on the current JDK, kept anyway as defensive, intent-documenting code
+   against a future JDK/AGP change), and a related kdoc claim about losing a translated Arabic month
+   name was factually wrong for `FormatStyle.MEDIUM` specifically (CLDR's `ar` MEDIUM pattern is
+   all-numeric, no month name exists at that style to lose) — both corrected, plus a new control test
+   (`DecimalStyle.of(Locale("ar")).zeroDigit != '0'`) that actually proves what the pin guards against,
+   rather than a test that would pass identically with the pin removed. A kdoc overstated
+   `TextDirection.Content`'s independence from `LocalLayoutDirection` (it's the tiebreak only when a
+   string contains no strong directional character — functionally irrelevant for real names/titles,
+   still worth stating precisely) — corrected. The Certificates List card's accessible name (course
+   title + completion date, per the spec's own explicit requirement) relied on two separately-announced
+   `Text` nodes rather than one composite name — `CertificateCard.kt` (Task 8 kit) now scopes
+   `Modifier.semantics(mergeDescendants = true)` to just the title+meta pair (not the whole card),
+   producing the single composite name the spec wants without swallowing the View/Share buttons'
+   own independent accessibility, the same targeted-merge pattern this review round itself suggested
+   over either "merge everything" or "layer a redundant third `contentDescription`."
+
+**Disclosed, deliberately not fixed**: Certificate Detail's Loading state uses a plain spinner
+(`FullScreenLoadingState`) rather than a dedicated skeleton matching the spec's literal "Loading —
+skeleton" wording (List correctly uses a real skeleton) — a genuine, minor, literal deviation the
+reviewer flagged as LOW/safe-to-defer; building a bespoke detail-shaped skeleton (matching the
+kicker/name/course/instructor/date/id layout) was judged not worth the effort for a cosmetic-only gap
+on a screen with no exact-showcase mockup to match pixel-for-pixel anyway. `CertificateCard`'s own
+`courseTitle`/`metaLabel` (List) do not get `TextDirection.Content` the way Detail's fields do — not a
+spec violation (§13 only requires normal logical-property mirroring; §14 is where the content-direction
+exception actually lives) but a disclosed internal inconsistency, left as a deliberate choice rather
+than pursued further. No dedicated instrumented regression test was added for HIGH-1's specific
+navigation-registration fix — the JVM unit suite cannot exercise Navigation-Compose's real route
+resolution, and a full instrumented reproduction (Explore → Course Player → Certificates →
+CertificateDetail → verify `currentTab`) was judged lower-value than the fix's own low risk (a single,
+mechanically-obvious registration line matching an established, already-proven pattern used in 10+
+other places in this same file) given the effort already spent this session — flagged here rather than
+silently omitted.
+
+**Verified:** `:shared:testDebugUnitTest` 249/249 (zero diff in `mobile/shared`);
+`:androidApp:testDebugUnitTest` 183/183 (182 pre-fix + 1 new control test for LOW-1's fix);
+`:androidApp:assembleDebug` clean; `:androidApp:connectedDebugAndroidTest` 87/87 on the real
+`Chatting_Pixel_8_API_36` emulator, zero failures.
+
+**Impact:** new directory `mobile/androidApp/src/main/kotlin/com/mentora/android/ui/certificates
+/{CertificatesScreen.kt,CertificatesViewModel.kt,CertificateDetailScreen.kt,
+CertificateDetailViewModel.kt,CertificateFormatting.kt,CertificateShare.kt}` + matching JVM tests;
+modified `MentoraNavHost.kt` (real screen wiring + the missing `CertificateDetail`/ExploreGraph
+registration), `ui/components/CertificateCard.kt` (`CertificatePreviewPlaceholder` widened to
+`internal` for Detail's own reuse; the title+meta `mergeDescendants` scoping), `PlaceholderScreens.kt`
+(placeholders removed), `values/strings.xml` + `values-ar/strings.xml` (23 new pairs, real
+translations). No `mobile/shared/` change. Task 15 is now **DONE** — see `CURRENT_STATUS.md`'s Phase 4
+task table. Next: Task 16 (Learning Path Details — follow/unfollow).
+
