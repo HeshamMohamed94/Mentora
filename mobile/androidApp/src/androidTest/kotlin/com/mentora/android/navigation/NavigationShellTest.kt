@@ -18,6 +18,7 @@ import androidx.navigation.toRoute
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.mentora.android.theme.MentoraTheme
+import com.mentora.android.theme.ThemeController
 import com.mentora.android.ui.checkout.DemoCheckoutConfirmButtonTestTag
 import com.mentora.android.ui.checkout.PurchaseSuccessBackToMyLearningButtonTestTag
 import com.mentora.android.ui.checkout.PurchaseSuccessContentTestTag
@@ -29,6 +30,7 @@ import com.mentora.android.ui.home.HomeCertificatesStatCardTestTag
 import com.mentora.android.ui.home.HomeContinueLearningCardTestTag
 import com.mentora.android.ui.home.HomeScreenTestTag
 import com.mentora.android.ui.mylearning.MyLearningScreenTestTag
+import com.mentora.android.ui.profile.SettingsScreenTestTag
 import com.mentora.android.ui.shell.MobileBottomNavigationTestTag
 import com.mentora.shared.MentoraSdk
 import com.mentora.shared.auth.AndroidTokenStorage
@@ -96,6 +98,16 @@ class NavigationShellTest {
 
     private lateinit var sdk: MentoraSdk
 
+    /** T18 review fix: `MentoraNavHost` now requires a real [ThemeController] (threaded from
+     *  `MainActivity`'s own `app.themeController` in production — see that parameter's own kdoc on
+     *  `MentoraNavHost` for why this test can no longer let `SettingsScreen` resolve one via
+     *  `LocalContext.current.applicationContext as MentoraApplication`, which this class's own
+     *  `NoOpApplicationTestRunner` makes impossible). Built from the SAME [sharedPreferenceStore]
+     *  instance [sharedSdk]'s own Koin module uses — not a second, independent one — mirroring
+     *  `MentoraApplication`'s real "one `AndroidPreferenceStore` instance, handed to both Koin and
+     *  this controller" contract. */
+    private lateinit var themeController: ThemeController
+
     /** Captured by every `setContent` call below (including [setContentWithAuthState]) so
      *  [openFirstCourseFromExplore]/[assertOnCourseDetailsFor] can read the REAL back-stack
      *  destination/args directly, instead of parsing screen text — see those functions' own kdoc for
@@ -105,9 +117,16 @@ class NavigationShellTest {
     @Before
     fun setUp() {
         sdk = sharedSdk
+        themeController = sharedThemeController
     }
 
     companion object {
+        /** See [sharedSdk]'s own kdoc — the single [AndroidPreferenceStore] both it and
+         *  [sharedThemeController] are built from. */
+        private val sharedPreferenceStore: AndroidPreferenceStore by lazy {
+            AndroidPreferenceStore(ApplicationProvider.getApplicationContext())
+        }
+
         /** See this class's own kdoc ("ONE `MentoraSdk` for the whole class run"). `by lazy`'s
          *  default `SYNCHRONIZED` mode makes the one-time construction safe regardless of which
          *  thread the JUnit runner first calls [setUp] from. */
@@ -115,7 +134,7 @@ class NavigationShellTest {
             val context = ApplicationProvider.getApplicationContext<Context>()
             val platformModule = module {
                 single<TokenStorage> { AndroidTokenStorage(context) }
-                single<PreferenceStore> { AndroidPreferenceStore(context) }
+                single<PreferenceStore> { sharedPreferenceStore }
                 single<HttpClientEngine> { defaultHttpClientEngine() }
             }
             MentoraSdk.create(
@@ -124,6 +143,8 @@ class NavigationShellTest {
                 enableNetworkLogging = false,
             )
         }
+
+        private val sharedThemeController: ThemeController by lazy { ThemeController(sharedPreferenceStore, sharedSdk) }
     }
 
     private val authenticatedStudent = AuthState.Authenticated(
@@ -169,7 +190,7 @@ class NavigationShellTest {
             val nc = rememberNavController()
             navController = nc
             MentoraTheme {
-                MentoraNavHost(authState = authState, sdk = sdk, navController = nc)
+                MentoraNavHost(authState = authState, sdk = sdk, themeController = themeController, navController = nc)
             }
         }
     }
@@ -345,7 +366,7 @@ class NavigationShellTest {
             val nc = rememberNavController()
             navController = nc
             MentoraTheme {
-                MentoraNavHost(authState = authState, sdk = sdk, navController = nc)
+                MentoraNavHost(authState = authState, sdk = sdk, themeController = themeController, navController = nc)
             }
         }
 
@@ -390,7 +411,7 @@ class NavigationShellTest {
             val nc = rememberNavController()
             navController = nc
             MentoraTheme {
-                MentoraNavHost(authState = authenticatedStudent, sdk = sdk, navController = nc)
+                MentoraNavHost(authState = authenticatedStudent, sdk = sdk, themeController = themeController, navController = nc)
             }
         }
 
@@ -462,7 +483,7 @@ class NavigationShellTest {
             val nc = rememberNavController()
             navController = nc
             MentoraTheme {
-                MentoraNavHost(authState = authenticatedStudent, sdk = sdk, navController = nc)
+                MentoraNavHost(authState = authenticatedStudent, sdk = sdk, themeController = themeController, navController = nc)
             }
         }
 
@@ -518,7 +539,10 @@ class NavigationShellTest {
 
         composeTestRule.onNodeWithTag("bottom_nav_profile").performClick()
         composeTestRule.onNodeWithText("Settings").performClick()
-        composeTestRule.onNodeWithText("Settings (placeholder)").assertExists()
+        // T18 fix-up: Settings is now the real screen (`ui/profile/SettingsScreen.kt`), which no
+        // longer renders a literal "Settings (placeholder)" text node — same real-screen test-tag
+        // treatment as every other placeholder-text assertion this phase has retired.
+        composeTestRule.onNodeWithTag(SettingsScreenTestTag).assertExists()
 
         // Repeatedly switch among all 5 tabs, more than once. Note: `currentBackStack.value` only
         // ever reflects the CURRENTLY active tab's own resident subtree — every other tab's subtree
@@ -545,7 +569,7 @@ class NavigationShellTest {
 
             composeTestRule.onNodeWithTag("bottom_nav_profile").performClick()
             // Profile's pushed Settings must still be on top too.
-            composeTestRule.onNodeWithText("Settings (placeholder)").assertExists()
+            composeTestRule.onNodeWithTag(SettingsScreenTestTag).assertExists()
             val afterProfile = navController.currentBackStack.value
             settingsCount = afterProfile.count { it.destination.hasRoute<Destination.Settings>() }
         }
@@ -585,7 +609,7 @@ class NavigationShellTest {
             val nc = rememberNavController()
             navController = nc
             MentoraTheme {
-                MentoraNavHost(authState = authenticatedStudent, sdk = sdk, navController = nc)
+                MentoraNavHost(authState = authenticatedStudent, sdk = sdk, themeController = themeController, navController = nc)
             }
         }
 
@@ -625,7 +649,7 @@ class NavigationShellTest {
             val nc = rememberNavController()
             navController = nc
             MentoraTheme {
-                MentoraNavHost(authState = authenticatedStudent, sdk = sdk, navController = nc)
+                MentoraNavHost(authState = authenticatedStudent, sdk = sdk, themeController = themeController, navController = nc)
             }
         }
 

@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import com.mentora.android.locale.WithCurrentAppLocale
 import com.mentora.android.theme.MentoraDimens
 import com.mentora.android.theme.MentoraRadiusTokens
 
@@ -85,7 +86,15 @@ fun MentoraBottomSheet(
                 .testTag(MentoraBottomSheetSurfaceTestTag)
                 .padding(MentoraDimens.spacing.space5),
         ) {
-            content()
+            // T18 fix — see `com.mentora.android.locale.LocalizedContent`'s own kdoc, "The Dialog/
+            // Popup/BottomSheet gap": `ModalBottomSheet` (built on `Popup`) resets `LocalContext`/
+            // `LocalConfiguration` for its own sub-composition, so a `stringResource` call inside
+            // [content] (real call sites exist, e.g. `CurriculumBottomSheet`) would otherwise silently
+            // fall back to the device's OS locale after a language switch, independent of what the
+            // rest of the app correctly shows.
+            WithCurrentAppLocale {
+                content()
+            }
         }
     }
 }

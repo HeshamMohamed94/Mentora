@@ -331,4 +331,29 @@
     <string name="ai_tutor_quick_action_quiz_me_prompt">Quiz me on what I\'ve learned so far.</string>
     <string name="ai_tutor_quick_action_learn_next_label">What should I learn next?</string>
     <string name="ai_tutor_quick_action_learn_next_prompt">What should I learn next?</string>
+
+    <!-- T18: Profile + Settings -->
+    <string name="profile_loading_content_description">Loading profile</string>
+    <string name="profile_error_title">Couldn\'t load your profile</string>
+    <string name="profile_retry_action">Try again</string>
+    <string name="profile_stat_courses_completed_label">Courses completed</string>
+    <string name="profile_stat_certificates_earned_label">Certificates earned</string>
+    <string name="profile_edit_profile_action">Edit Profile</string>
+    <string name="profile_name_field_label">Name</string>
+    <string name="profile_cancel_edit_action">Cancel</string>
+    <string name="profile_save_name_action">Save</string>
+    <string name="profile_settings_action">Settings</string>
+    <string name="profile_logout_action">Logout</string>
+    <string name="settings_nav_title">Settings</string>
+    <string name="settings_language_field_label">Language</string>
+    <string name="settings_language_option_english">English</string>
+    <string name="settings_language_option_arabic">العربية</string>
+    <string name="settings_theme_field_label">Theme</string>
+    <string name="settings_theme_option_light">Light</string>
+    <string name="settings_theme_option_dark">Dark</string>
+    <string name="settings_theme_option_system">System</string>
+    <string name="course_details_nav_title">Course Details</string>
+    <string name="profile_avatar_content_description">%1$s\'s profile photo</string>
+    <string name="profile_name_error_required">Name is required.</string>
+    <string name="profile_name_error_too_long">Name is too long — 120 characters maximum.</string>
 </resources>

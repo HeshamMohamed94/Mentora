@@ -2643,3 +2643,150 @@ EN/AR parity for every new key, verified programmatically). No `mobile/shared/` 
 **DONE** — see `CURRENT_STATUS.md`'s Phase 4 task table. Next: Task 18 (Profile + Settings — language
 selector, theme, logout).
 
+### D93 — 2026-09-14 — PHASE 4 Task 18 complete: Profile + Settings, and the first genuinely functional
+in-app language switch this phase has ever shipped
+
+**Context.** No exact-showcase mockup covers Profile or Settings — Task 3's extraction only captured
+8 other screens — so both were built from `ux/SCREEN_UX_SPECS.md §§ 16-17` / `ux/MOBILE_UX.md § 13`
+directly. Two deliberate, disclosed scope resolutions, both verified against the actual source docs
+during review, not just asserted in kdoc: (1) no account/password-change fields anywhere — no backend
+endpoint for password change exists at all (`backend/.../users/routes/UserRoutes.kt` exposes only
+`GET`/`PATCH /users/me`), same D44 precedent Web's own Phase 2 Task 10 already disclosed for this exact
+gap; "Edit Profile" is name-only, via the real `sdk.user.updateProfile(name)`. (2) Logout lives ONLY on
+Profile, not duplicated on Settings — `ux/MOBILE_UX.md § 13`'s own literal text ("Logout lives in
+Settings or directly on Profile (single, consistent placement — Profile...)") is a mobile-specific
+resolution that overrides `SCREEN_UX_SPECS.md § 17`'s generic cross-platform "3. Logout" bullet.
+
+**The central technical decision.** Before this task, `sdk.user.setLocale()` only ever persisted a
+preference (read back for the `?language=` query param) and drove `MentoraTheme`'s typography
+adjustment — it never changed what `stringResource(...)` actually resolved to anywhere in the app,
+which stayed governed entirely by the DEVICE's own OS-level locale. This was a genuine,
+previously-undocumented-as-such architectural gap for a screen (§ 17) whose Language selector is an
+explicit LOCKED MVP requirement: "never hidden, never a Coming Soon placeholder... applies
+immediately... flips layout direction... no app restart." New `locale/LocalizedContent.kt` closes it
+for real via a pure-Compose technique — wraps the real base `Context` in a private `ContextWrapper`
+subclass overriding only `getResources()`/`getAssets()` (backed by a `Configuration`-adjusted
+`Context`), and provides that wrapper as `LocalContext` alongside `LocalConfiguration`/
+`LocalLayoutDirection`, wrapping the whole app's content from `MainActivity` down. Deliberately NOT
+`AppCompatDelegate.setApplicationLocales()` (the standard AndroidX per-app-language mechanism):
+`minSdk = 26` and `MainActivity` extends plain `ComponentActivity`, and that API's own documented
+correctness below API 33 requires `AppCompatActivity` (or equivalent manual `attachBaseContext`
+wiring) — a disproportionate footprint change for one screen in a codebase with no AppCompat
+dependency anywhere else. A `ContextWrapper`, not a raw `createConfigurationContext(...)` result, is
+what actually gets provided — the two are NOT interchangeable: `createConfigurationContext` returns a
+fresh `ContextImpl` rooted at the Application, not a wrapper around the real base `Context`, which
+silently breaks the `ContextWrapper.baseContext` walk every "find the host Activity from
+`LocalContext`" helper depends on AND breaks `Context.startActivity()` from the wrapped subtree — both
+consequences are real in this exact codebase (`CertificatesScreen`/`CertificateDetailScreen`'s
+`ShareCompat`-based certificate sharing; `CoursePlayerScreen`'s `findActivity()`-based
+`isChangingConfigurations` flush guard, a round-5 Task-13 review fix). This specific mistake was made
+and caught during this task's own implementation (via a since-deleted instrumented spike whose two
+load-bearing findings are folded into `LocalizedContentTest.kt`) before it ever reached review.
+
+**The Dialog/Popup/BottomSheet gap.** `Dialog`/`Popup`/`ModalBottomSheet` (Compose's own machinery, not
+this app's) reset `LocalContext`/`LocalConfiguration` for their own sub-composition — NOT inherited
+from whatever `LocalizedContent` provided further up the tree — while `LocalLayoutDirection` and an
+ordinary custom `CompositionLocal` DO cross that boundary. A new `LocalAppLocale`
+(`staticCompositionLocalOf<AppLocale>`) plus a `WithCurrentAppLocale { }` re-apply wrapper close this
+for the one real, live-affected consumer: `MentoraBottomSheet.kt`'s `content` slot is invoked inside
+`ModalBottomSheet`'s own sub-composition, and a real call site (`CurriculumBottomSheet`, Task 13) calls
+`stringResource` from inside it. `AppDialog.kt` and `MentoraSelect.kt`'s `ExposedDropdownMenu` were
+both read in full (independently, twice — once during implementation, once during review) and
+confirmed to render ONLY already-resolved `String` parameters inside their own `Dialog`/`Popup`
+bodies, never `stringResource` itself — genuinely unaffected, deliberately left unwrapped. A
+module-wide grep for every `Dialog(`/`Popup(`/`ModalBottomSheet(`/`ExposedDropdownMenu(`/`DropdownMenu(`
+consumer (independently re-run during review) found exactly these three and no other — no missed
+call site.
+
+**A same-session architect handoff caught two things this task's own implementation missed before its
+own review pass started**: a teammate's independently-dispatched architect subagent inspected this
+task's in-progress code and found (1) the exact `ContextWrapper`-vs-raw-`createConfigurationContext`
+distinction above — already independently found and fixed by this point via the deleted spike, cross-
+confirmed by the architect's own separate empirical pass; and (2) a genuine regression this task was
+about to introduce into Task 17's already-committed `AiTutorViewModel`: its quick-action prompt text
+resolved via a `Factory`-captured `Application.getString(...)` — `Application` is never part of the
+Compose composition tree, so the new `LocalizedContent` override could never reach it. After a language
+switch, the visible chip LABEL (resolved via `stringResource` inside the Screen's own composition,
+correctly under the override) would show Arabic while the PROMPT TEXT actually sent to the model
+(resolved off the stale `Application` context) would silently stay English. Fixed same-session: prompt-
+text resolution moved to `AiTutorScreen`'s own call site (`LocalContext.current.getString(...)`,
+re-evaluated on every tap), `AiTutorViewModel.onQuickActionTapped` simplified to take the already-
+resolved `String` directly (no longer `AiQuickAction`, no longer needs the `quickActionPrompt`
+constructor lambda or an `Application` in its `Factory`), `AiTutorViewModelTest.kt` updated to match.
+
+**One Opus review round** (after a first dispatch stalled/timed out with no progress and was retried)
+found 4 MEDIUM + 4 LOW, all fixed same-session:
+1. **MEDIUM**: 4 top-bar titles (`Home`/`Explore`/`My Learning`/`Course Details`) were hardcoded English
+   literals ever since Task 6 — invisible debt before this task (the device's OS locale governed every
+   `stringResource` regardless, so "Home" was simply correct on every device that could ever reach it),
+   a genuine visible defect now that a language switch is real (the bottom-nav label directly below
+   would correctly read "الرئيسية" while the title above kept reading "Home"). Fixed with the
+   already-existing `nav_home`/`nav_explore`/`nav_my_learning` resources (reused verbatim from
+   `MobileBottomNavigation`) plus one new `course_details_nav_title` string (EN+AR).
+2. **MEDIUM, disclosed rather than fixed**: server-provided content (Explore's course list, etc.) does
+   not refresh on a language switch — `ExploreViewModel`/`MyLearningViewModel`/etc. don't observe
+   `sdk.user.observeLocale()`, and `MentoraNavHost`'s `popUpTo{saveState=true}` tab-switch mechanism
+   means an already-loaded screen's ViewModel survives a locale change untouched, so its stale-locale
+   payload keeps rendering until that screen is left and re-entered (or the process restarts). Real,
+   but a substantial, cross-cutting fix touching many already-completed tasks' ViewModels — explicitly
+   deferred to Task 19 (`Localization/RTL/theme/font-scale QA sweep`, the phase's own already-planned
+   home for exactly this class of gap, matching Phase 2's identical Task 13 precedent), not silently
+   left undocumented.
+3. **MEDIUM**: `Avatar` applies no semantics at all, so TalkBack on Profile's header announced raw
+   initials letters instead of a real name — `§ 16`'s own accessibility line names this exact
+   requirement by example ("Sarah's profile photo"). Fixed with `Modifier.clearAndSetSemantics` at the
+   `ProfileScreen` call site only (not a change to the shared `Avatar` component) + one new string.
+4. **MEDIUM**: `onRetryTapped` only re-ran the primary profile load, never the stats load — since a
+   stats failure almost always co-occurs with a primary-content failure (the same network outage),
+   `ProfileUiState.stats` stayed permanently `null` even after connectivity returned and "Try again"
+   succeeded, until the student left and re-entered the tab. Fixed: `onRetryTapped` now retries both.
+5. **LOW**: name-save validation errors (`fields["name"] == "REQUIRED"`/`"TOO_LONG"`) collapsed to a
+   generic "check the highlighted fields" message instead of routing to their own inline copy — fixed
+   with a new `NameFieldError` enum + `mapUpdateProfileFailure`, mirroring `AuthViewModel`'s identical
+   D51-established `fields[...]`-routing pattern for Register.
+6. **LOW, disclosed, not fixed**: `MentoraSelect`'s `loadingOptionsLabel` default is a raw English
+   literal — pre-existing since Task 5, unreachable from any current call site (every Select in the app
+   is static today), worth sweeping in Task 19 at the latest.
+7. **LOW**: the T18 AiTutor regression fix (above) had no test locking `quickActionPromptStringRes`'s
+   own mapping — added a plain JVM test asserting all 5 actions map to distinct, non-zero resource ids.
+8. **LOW**: the new `StringsParityTest` (key-parity guard) didn't compare format-specifier parity
+   between an EN string and its AR translation — a dropped/retyped `%1$s` would pass key-parity but
+   throw `MissingFormatArgumentException` at runtime. Added a specifier-set comparison per shared key.
+
+**One real bug found only by actually running the instrumented suite, not by review** —
+`SettingsScreen`'s original `LocalContext.current.applicationContext as MentoraApplication` cast threw
+a genuine `ClassCastException` under EVERY instrumented test, since this module's
+`testInstrumentationRunner` is globally `NoOpApplicationTestRunner` (Task 11's own `NoOpApplicationTestRunner.kt`, whose own kdoc explicitly documents "no instrumented test in this module
+launches `MainActivity`... substituting the plain base `Application`... is therefore safe module-wide"
+— an assumption this task's first draft violated). Confirmed by a genuine `NavigationShellTest`
+failure. Fixed by threading `ThemeController` explicitly through `MentoraNavHost`'s own parameters
+(mirroring how `sdk` already is) rather than resolving it via an `Application` cast inside the leaf
+screen — `NavigationShellTest`'s own 6 `MentoraNavHost(...)` call sites updated to build and pass a
+`ThemeController` from the same shared `AndroidPreferenceStore`/`MentoraSdk` instances the class
+already retains. A second, unrelated stale assertion (`"Settings (placeholder)"`, from before this task
+replaced the placeholder) was also found and fixed the same way every prior task's identical class of
+bug has been — same real-screen test-tag treatment.
+
+**Verified:** `:shared:testDebugUnitTest` 249/249 (zero diff in `mobile/shared`);
+`:androidApp:testDebugUnitTest` 233/233 (up from 208 pre-task); `:androidApp:assembleDebug` clean;
+`:androidApp:connectedDebugAndroidTest` 91/91 on the real `Chatting_Pixel_8_API_36` emulator, zero
+failures — one full run first surfaced the `SettingsScreen`/`ClassCastException` bug above plus 4
+unrelated screenshot/pixel-capture flakes in Task 8's own `CourseArtworkTest`/`CourseCardColorTest`
+(this task never touches either file), confirmed as the same documented emulator-load-degradation
+pattern this phase has hit repeatedly by killing and relaunching the AVD fresh and re-running clean.
+
+**Impact:** new `mobile/androidApp/src/main/kotlin/com/mentora/android/locale/LocalizedContent.kt`;
+new directory `.../ui/profile/{ProfileScreen.kt,ProfileViewModel.kt,SettingsScreen.kt,
+SettingsViewModel.kt}` + matching JVM tests; new `locale/StringsParityTest.kt` (JVM) and
+`locale/LocalizedContentTest.kt` (instrumented); modified `MainActivity.kt` (wraps content in
+`LocalizedContent`), `MentoraNavHost.kt` (real Profile/Settings wiring, `themeController` parameter,
+4 hardcoded titles localized), `MentoraBottomSheet.kt` (`WithCurrentAppLocale` wrap), `ui/aitutor/
+{AiTutorScreen.kt,AiTutorViewModel.kt}` + its test file (the regression fix above),
+`NavigationShellTest.kt` (6 call sites + 1 stale assertion), `values/strings.xml` +
+`values-ar/strings.xml`. `PlaceholderScreens.kt` deleted entirely — every one of Phase 4's 18 in-scope
+screens now has a real implementation, confirmed via grep that nothing else referenced it. No
+`mobile/shared/` change. Task 18 is now **DONE** — see `CURRENT_STATUS.md`'s Phase 4 task table. Next:
+Task 19 (Localization/RTL/theme/font-scale QA sweep + Compose UI test suite completion) — which now
+also owns the disclosed stale-locale-content gap (finding 2 above) and the `MentoraSelect` hardcoded
+default (finding 6 above), in addition to its already-planned scope.
+

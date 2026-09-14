@@ -1,6 +1,5 @@
 package com.mentora.android.ui.aitutor
 
-import android.app.Application
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -155,15 +154,21 @@ import com.mentora.shared.domain.model.AiQuickAction
  */
 @Composable
 fun AiTutorScreen(sdk: MentoraSdk, modifier: Modifier = Modifier) {
-    val application = LocalContext.current.applicationContext as Application
-    val viewModel: AiTutorViewModel = viewModel(factory = AiTutorViewModel.Factory(sdk, application))
+    // T18 fix: resolved HERE, at tap time, from `LocalContext.current` — not captured once inside a
+    // `Factory`-held `Application` reference (see `AiTutorViewModel`'s own kdoc, T18 fix note, for the
+    // regression that shape had once a real in-app language switch existed to expose it). This
+    // Composable re-runs on every recomposition, so `context` always reflects whatever
+    // `com.mentora.android.locale.LocalizedContent` currently has active — a remembered ViewModel/
+    // Factory could not.
+    val context = LocalContext.current
+    val viewModel: AiTutorViewModel = viewModel(factory = AiTutorViewModel.Factory(sdk))
     val uiState by viewModel.uiState.collectAsState()
 
     AiTutorContent(
         uiState = uiState,
         onInputChanged = viewModel::onInputChanged,
         onSendTapped = viewModel::onSendTapped,
-        onQuickActionTapped = viewModel::onQuickActionTapped,
+        onQuickActionTapped = { action -> viewModel.onQuickActionTapped(context.getString(quickActionPromptStringRes(action))) },
         onRetryTapped = viewModel::onRetryTapped,
         modifier = modifier,
     )

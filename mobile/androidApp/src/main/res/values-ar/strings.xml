@@ -280,4 +280,29 @@
     <string name="ai_tutor_quick_action_quiz_me_prompt">اختبرني فيما تعلمته حتى الآن.</string>
     <string name="ai_tutor_quick_action_learn_next_label">ماذا يجب أن أتعلم بعد ذلك؟</string>
     <string name="ai_tutor_quick_action_learn_next_prompt">ماذا يجب أن أتعلم بعد ذلك؟</string>
+
+    <!-- T18: الملف الشخصي والإعدادات -->
+    <string name="profile_loading_content_description">جارٍ تحميل الملف الشخصي</string>
+    <string name="profile_error_title">تعذّر تحميل ملفك الشخصي</string>
+    <string name="profile_retry_action">إعادة المحاولة</string>
+    <string name="profile_stat_courses_completed_label">الدورات المكتملة</string>
+    <string name="profile_stat_certificates_earned_label">الشهادات المكتسبة</string>
+    <string name="profile_edit_profile_action">تعديل الملف الشخصي</string>
+    <string name="profile_name_field_label">الاسم</string>
+    <string name="profile_cancel_edit_action">إلغاء</string>
+    <string name="profile_save_name_action">حفظ</string>
+    <string name="profile_settings_action">الإعدادات</string>
+    <string name="profile_logout_action">تسجيل الخروج</string>
+    <string name="settings_nav_title">الإعدادات</string>
+    <string name="settings_language_field_label">اللغة</string>
+    <string name="settings_language_option_english">English</string>
+    <string name="settings_language_option_arabic">العربية</string>
+    <string name="settings_theme_field_label">المظهر</string>
+    <string name="settings_theme_option_light">فاتح</string>
+    <string name="settings_theme_option_dark">داكن</string>
+    <string name="settings_theme_option_system">تلقائي حسب النظام</string>
+    <string name="course_details_nav_title">تفاصيل الدورة</string>
+    <string name="profile_avatar_content_description">الصورة الشخصية لـ %1$s</string>
+    <string name="profile_name_error_required">الاسم مطلوب.</string>
+    <string name="profile_name_error_too_long">الاسم طويل جدًا — 120 حرفًا كحد أقصى.</string>
 </resources>

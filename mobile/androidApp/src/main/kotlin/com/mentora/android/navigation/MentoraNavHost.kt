@@ -39,12 +39,13 @@ import com.mentora.android.ui.auth.LoginScreen
 import com.mentora.android.ui.auth.RegisterScreen
 import com.mentora.android.ui.learningpathdetails.LearningPathDetailsScreen
 import com.mentora.android.ui.mylearning.MyLearningScreen
-import com.mentora.android.ui.screens.ProfileScreen
+import com.mentora.android.ui.profile.ProfileScreen
 import com.mentora.android.ui.checkout.PurchaseSuccessScreen
 import com.mentora.android.ui.quiz.QuizAttemptDraftStore
 import com.mentora.android.ui.quiz.QuizResultsScreen
 import com.mentora.android.ui.quiz.QuizScreen
-import com.mentora.android.ui.screens.SettingsScreen
+import com.mentora.android.ui.profile.SettingsScreen
+import com.mentora.android.theme.ThemeController
 import com.mentora.android.ui.shell.MentoraTopBar
 import com.mentora.android.ui.shell.MobileBottomNavigation
 import com.mentora.shared.MentoraSdk
@@ -100,6 +101,19 @@ import com.mentora.shared.auth.AuthState
 fun MentoraNavHost(
     authState: AuthState,
     sdk: MentoraSdk,
+    // T18 review fix (HIGH — a real instrumented-test crash, not just a style preference): threaded
+    // explicitly from `MainActivity`'s own `app.themeController`, the same way `sdk` already is,
+    // rather than `SettingsScreen` resolving it itself via `LocalContext.current.applicationContext
+    // as MentoraApplication`. This module's `testInstrumentationRunner` is globally
+    // `NoOpApplicationTestRunner` (`NoOpApplicationTestRunner.kt`'s own kdoc: "No instrumented test in
+    // this module launches MainActivity or otherwise depends on MentoraApplication's real bootstrap
+    // sequence... substituting the plain base Application for the whole instrumentation process is
+    // therefore safe module-wide") — that cast throws `ClassCastException` under EVERY instrumented
+    // test that ever composes `SettingsScreen`, confirmed by a real `NavigationShellTest` failure this
+    // exact way before this fix. `AiTutorViewModel`'s own T18 fix (this task, see that file's kdoc)
+    // hit the identical class of mistake for a different reason (a stale, non-reactive Context) —
+    // this is the same lesson applied preemptively to the one remaining `Application`-cast call site.
+    themeController: ThemeController,
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController(),
 ) {
@@ -572,11 +586,15 @@ fun MentoraNavHost(
                 composable<Destination.AiTutor> { AiTutorScreen(sdk = sdk) }
             }
 
+            // T18: ProfileGraph is the only graph either destination is reachable from — Profile is
+            // this graph's own tab root (never pushed from elsewhere) and Settings is pushed
+            // exclusively from Profile, so its transitive closure never crosses into another graph.
+            // Confirmed via the same navigation-registration checklist D90/D91/T17 already applied.
             navigation<TabGraph.ProfileGraph>(startDestination = Destination.Profile) {
                 composable<Destination.Profile> {
-                    ProfileScreen(onOpenSettings = { navController.navigate(Destination.Settings) })
+                    ProfileScreen(sdk = sdk, onOpenSettings = { navController.navigate(Destination.Settings) })
                 }
-                composable<Destination.Settings> { SettingsScreen() }
+                composable<Destination.Settings> { SettingsScreen(sdk = sdk, themeController = themeController) }
             }
 
             // Outside the tab bar entirely (ux/NAVIGATION_SPEC.md § 3) — top-level siblings of the
@@ -682,18 +700,29 @@ private fun NavDestination?.isInTab(tab: TabGraph): Boolean {
 @Composable
 private fun titleFor(destination: NavDestination?): String = when {
     destination == null -> ""
-    destination.hasRoute<Destination.Home>() -> "Home"
-    destination.hasRoute<Destination.Explore>() -> "Explore"
-    destination.hasRoute<Destination.MyLearning>() -> "My Learning"
+    // T18 review fix (MEDIUM): these 3 were hardcoded English literals ever since Task 6 — invisible
+    // debt before this task (the device's own OS locale governed every `stringResource` in the app
+    // regardless, so "Home" was simply correct on every device that could ever reach it), a genuine
+    // visible defect now that `com.mentora.android.locale.LocalizedContent` makes a language switch
+    // real: the bottom-nav label directly below would correctly read "الرئيسية" while this title kept
+    // reading "Home". All 3 string resources already existed (reused verbatim from
+    // `MobileBottomNavigation`'s own tab labels) — same reasoning as `AiTutor`/`Profile` below.
+    destination.hasRoute<Destination.Home>() -> stringResource(R.string.nav_home)
+    destination.hasRoute<Destination.Explore>() -> stringResource(R.string.nav_explore)
+    destination.hasRoute<Destination.MyLearning>() -> stringResource(R.string.nav_my_learning)
     // T17: localized, real string resource (already existed for `MobileBottomNavigation`'s own tab
     // label — reused verbatim here, same "AI Tutor" title text) — same reasoning as
     // `LearningPathDetails`/`Quiz`/`Certificates` above (this destination moves from placeholder to a
     // real screen in this task).
     destination.hasRoute<Destination.AiTutor>() -> stringResource(R.string.nav_ai_tutor)
-    destination.hasRoute<Destination.Profile>() -> "Profile"
+    // T18: localized, real string resource — same "already existed for `MobileBottomNavigation`'s own
+    // tab label, reused verbatim" reasoning as `AiTutor` above.
+    destination.hasRoute<Destination.Profile>() -> stringResource(R.string.nav_profile)
     destination.hasRoute<Destination.Login>() -> "Login"
     destination.hasRoute<Destination.Register>() -> "Register"
-    destination.hasRoute<Destination.CourseDetails>() -> "Course Details"
+    // T18 review fix (MEDIUM), same reasoning as `Home`/`Explore`/`MyLearning` above — a new string
+    // resource, since no prior task needed one for this destination's own title specifically.
+    destination.hasRoute<Destination.CourseDetails>() -> stringResource(R.string.course_details_nav_title)
     // T16: localized, real string resource — same reasoning as `Quiz`/`QuizResults`/`Certificates`
     // above (this destination moves from placeholder to a real screen in this task).
     destination.hasRoute<Destination.LearningPathDetails>() -> stringResource(R.string.learning_path_details_nav_title)
@@ -706,7 +735,9 @@ private fun titleFor(destination: NavDestination?): String = when {
     // destinations move from placeholder to real screens in this task).
     destination.hasRoute<Destination.Certificates>() -> stringResource(R.string.certificates_nav_title)
     destination.hasRoute<Destination.CertificateDetail>() -> stringResource(R.string.certificate_detail_nav_title)
-    destination.hasRoute<Destination.Settings>() -> "Settings"
+    // T18: localized, real string resource — this destination moves from placeholder to a real
+    // screen in this task, same reasoning as `Certificates`/`CertificateDetail` above.
+    destination.hasRoute<Destination.Settings>() -> stringResource(R.string.settings_nav_title)
     destination.hasRoute<Destination.DemoCheckout>() -> stringResource(R.string.demo_checkout_nav_title)
     destination.hasRoute<Destination.PurchaseSuccess>() -> stringResource(R.string.purchase_success_nav_title)
     else -> ""

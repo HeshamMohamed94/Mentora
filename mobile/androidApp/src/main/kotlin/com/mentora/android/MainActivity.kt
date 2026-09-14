@@ -15,6 +15,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.mentora.android.locale.LocalizedContent
 import com.mentora.android.navigation.MentoraNavHost
 import com.mentora.android.session.AppSessionViewModel
 import com.mentora.android.theme.MentoraTheme
@@ -60,17 +61,23 @@ private fun MentoraRootScreen(app: MentoraApplication) {
         darkTheme = themePreference.resolveDarkTheme(),
         arabicScript = currentLocale == AppLocale.Arabic,
     ) {
-        val resolvedState = sessionState
-        if (resolvedState is AuthState.Unknown) {
-            Surface(modifier = Modifier.fillMaxSize()) {
-                Text(
-                    text = "Loading…",
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.windowInsetsPadding(WindowInsets.safeDrawing),
-                )
+        // T18 — see LocalizedContent's own kdoc for why this wraps every screen (not just Settings)
+        // from here down: it's the one place `currentLocale` is already collected, and every
+        // `stringResource`/date-formatting call site anywhere below this point needs the same
+        // resolved-locale Context to stay consistent with whatever Settings' Language Select last set.
+        LocalizedContent(locale = currentLocale) {
+            val resolvedState = sessionState
+            if (resolvedState is AuthState.Unknown) {
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    Text(
+                        text = "Loading…",
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.windowInsetsPadding(WindowInsets.safeDrawing),
+                    )
+                }
+            } else {
+                MentoraNavHost(authState = resolvedState, sdk = app.sdk, themeController = app.themeController)
             }
-        } else {
-            MentoraNavHost(authState = resolvedState, sdk = app.sdk)
         }
     }
 }

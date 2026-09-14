@@ -37,9 +37,13 @@ private fun message(id: String, role: AiMessageRole, content: String) = AiMessag
 /**
  * T17 — [AiTutorViewModel]'s conversation-load/send/retry/quick-action logic, as a plain JVM unit
  * test. Mirrors `QuizViewModelTest`/`LearningPathDetailsViewModelTest`'s exact style (hand-built fakes
- * wired to the ViewModel's own constructor lambdas, no mocking framework, no Android resources —
- * `quickActionPrompt` is faked directly rather than resolved from `R.string`, matching this
- * ViewModel's own lambda-constructor-seam rationale for that param).
+ * wired to the ViewModel's own constructor lambdas, no mocking framework, no Android resources).
+ *
+ * T18 fix: [AiTutorViewModel.onQuickActionTapped] used to take an [AiQuickAction] and resolve its
+ * prompt text internally via a constructor-injected `quickActionPrompt` lambda — that param is gone;
+ * resolution now happens at [com.mentora.android.ui.aitutor.AiTutorScreen]'s own call site (see that
+ * ViewModel's own kdoc, T18 fix note, for why). [onQuickActionTapped] now just takes the already-
+ * resolved prompt text directly, same as [AiTutorViewModel.onSendTapped]'s composer path.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class AiTutorViewModelTest {
@@ -60,8 +64,7 @@ class AiTutorViewModelTest {
         getConversation: suspend (String?, Int?) -> ApiResult<AiConversation> =
             { _, _ -> ApiResult.Success(AiConversation("conversation-1", emptyList(), null)) },
         sendMessage: (String, String?, String?) -> Flow<AiStreamResult> = { _, _, _ -> flow {} },
-        quickActionPrompt: (AiQuickAction) -> String = { it.name },
-    ) = AiTutorViewModel(getConversation = getConversation, sendMessage = sendMessage, quickActionPrompt = quickActionPrompt)
+    ) = AiTutorViewModel(getConversation = getConversation, sendMessage = sendMessage)
 
     // ---- Conversation load ----------------------------------------------------------------------
 
@@ -351,7 +354,10 @@ class AiTutorViewModelTest {
     // ---- Quick actions ---------------------------------------------------------------------------
 
     @Test
-    fun quickActionTapped_sendsTheResolvedPromptText_forExplainThisLessonAndQuizMe() = runTest(testDispatcher) {
+    fun onQuickActionTapped_sendsTheGivenPromptTextVerbatim_asThatTurnsMessage() = runTest(testDispatcher) {
+        // T18: prompt-text resolution moved to `AiTutorScreen`'s own call site — this ViewModel just
+        // forwards whatever it's given, same as `onSendTapped`'s composer path. Resolution-per-action
+        // is `quickActionPromptStringRes`'s own concern now (a pure function, not this class's).
         val sentContents = mutableListOf<String>()
         val viewModel = buildViewModel(
             sendMessage = { content, courseId, lessonContextId ->
@@ -360,26 +366,19 @@ class AiTutorViewModelTest {
                 assertNull(lessonContextId)
                 flow { emit(AiStreamResult.Chunk("ok")) }
             },
-            quickActionPrompt = { action ->
-                when (action) {
-                    AiQuickAction.ExplainThisLesson -> "Explain this lesson to me."
-                    AiQuickAction.QuizMe -> "Quiz me on what I've learned so far."
-                    else -> "unused"
-                }
-            },
         )
         testDispatcher.scheduler.advanceUntilIdle()
 
-        viewModel.onQuickActionTapped(AiQuickAction.ExplainThisLesson)
+        viewModel.onQuickActionTapped("Explain this lesson to me.")
         testDispatcher.scheduler.advanceUntilIdle()
-        viewModel.onQuickActionTapped(AiQuickAction.QuizMe)
+        viewModel.onQuickActionTapped("Quiz me on what I've learned so far.")
         testDispatcher.scheduler.advanceUntilIdle()
 
         assertEquals(listOf("Explain this lesson to me.", "Quiz me on what I've learned so far."), sentContents)
     }
 
     @Test
-    fun quickActionTapped_alwaysPassesNullCourseAndLessonContext_evenForLessonScopedActions() = runTest(testDispatcher) {
+    fun onQuickActionTapped_alwaysPassesNullCourseAndLessonContext() = runTest(testDispatcher) {
         var capturedCourseId: String? = "not-yet-captured"
         var capturedLessonContextId: String? = "not-yet-captured"
         val viewModel = buildViewModel(
@@ -388,14 +387,13 @@ class AiTutorViewModelTest {
                 capturedLessonContextId = lessonContextId
                 flow { emit(AiStreamResult.Chunk("ok")) }
             },
-            quickActionPrompt = { "Summarize this lesson for me." },
         )
         testDispatcher.scheduler.advanceUntilIdle()
 
         // Summarize/ExplainThisLesson/GiveMeAnExample all carry `requiresLessonContext = true`, but
         // this screen never has lesson context to thread through (`AiTutorViewModel`'s own kdoc) —
         // both must still be `null`, never a client-side gate/error.
-        viewModel.onQuickActionTapped(AiQuickAction.Summarize)
+        viewModel.onQuickActionTapped("Summarize this lesson for me.")
         testDispatcher.scheduler.advanceUntilIdle()
 
         assertNull(capturedCourseId)
@@ -412,5 +410,19 @@ class AiTutorViewModelTest {
         viewModel.onInputChanged("a".repeat(5_000))
 
         assertEquals(4_000, viewModel.uiState.value.inputText.length)
+    }
+
+    // ---- quickActionPromptStringRes (T18 review fix, LOW) ------------------------------------------
+
+    /** T18 review fix (LOW): the T18 regression (prompt-text resolution moved out of this ViewModel
+     *  entirely — see this class's own kdoc, T18 fix note) left `quickActionPromptStringRes` itself
+     *  with no test locking its mapping. A plain resource-id equality check — no Android resources
+     *  needed, `R.string.*` are compile-time `Int` constants. */
+    @Test
+    fun quickActionPromptStringRes_mapsEveryActionToADistinctNonZeroResourceId() {
+        val resourceIds = AiQuickAction.entries.map { quickActionPromptStringRes(it) }
+
+        assertEquals(AiQuickAction.entries.size, resourceIds.toSet().size)
+        assertTrue(resourceIds.all { it != 0 })
     }
 }

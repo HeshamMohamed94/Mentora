@@ -1,6 +1,5 @@
 package com.mentora.android.ui.aitutor
 
-import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -122,18 +121,6 @@ data class AiTutorUiState(
 class AiTutorViewModel(
     private val getConversation: suspend (String?, Int?) -> ApiResult<AiConversation>,
     private val sendMessage: (String, String?, String?) -> Flow<AiStreamResult>,
-    /** [AiQuickAction] -> the actual, localized prompt TEXT sent as that turn's message content —
-     *  [AiQuickAction] itself deliberately carries none (that enum's own kdoc). A lambda-constructor
-     *  seam, same convention as [com.mentora.android.ui.mylearning.MyLearningViewModel
-     *  .resolveThumbnailUrl]: production ([Factory]) wires it to `Application.getString` (a real
-     *  Android string resource resolves correctly there); a JVM test wires a plain, literal fake —
-     *  letting [onQuickActionTapped] itself stay fully unit-testable without Android resources.
-     *  Disclosed latent trap (review LOW): this resolves from the device's OS locale, same as the
-     *  Screen's own `stringResource` calls for chip LABELS — both agree today only because this app
-     *  never calls `setApplicationLocales`/`createConfigurationContext` (`LocaleController` only seeds
-     *  `sdk.user.setLocale`, never the Android resource configuration itself). If per-app locale
-     *  override is ever wired up, this specific pairing would need revisiting together. */
-    private val quickActionPrompt: (AiQuickAction) -> String,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AiTutorUiState())
@@ -207,8 +194,11 @@ class AiTutorViewModel(
         sendTurn(content)
     }
 
-    fun onQuickActionTapped(action: AiQuickAction) {
-        sendTurn(quickActionPrompt(action))
+    /** Takes the already-resolved prompt TEXT, not an [AiQuickAction] — see this class's own kdoc,
+     *  T18 fix note, for why resolution now happens at [com.mentora.android.ui.aitutor.AiTutorScreen]'s
+     *  own call site instead of inside this class. */
+    fun onQuickActionTapped(promptText: String) {
+        sendTurn(promptText)
     }
 
     /** Retry for either an [AiTutorThreadItem.PreStreamError] row or a partial-text
@@ -348,15 +338,14 @@ class AiTutorViewModel(
         const val MaxContentLength = 4_000
     }
 
-    /** Plain [ViewModelProvider.Factory] — mirrors `CoursePlayerViewModel.Factory`'s exact idiom for
-     *  needing an [Application] (here: to resolve [quickActionPrompt]'s localized string resources via
-     *  `Application.getString`, the one thing this ViewModel needs beyond `sdk.aiTutor` itself). */
-    class Factory(private val sdk: MentoraSdk, private val application: Application) : ViewModelProvider.Factory {
+    /** Plain [ViewModelProvider.Factory]. T18 fix: no longer needs an [android.app.Application] — the prompt-text
+     *  resolution that used to require one lives at [AiTutorScreen]'s own call site now (this class's
+     *  own kdoc, T18 fix note). */
+    class Factory(private val sdk: MentoraSdk) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T = AiTutorViewModel(
             getConversation = sdk.aiTutor.getConversation::invoke,
             sendMessage = sdk.aiTutor.sendMessage::invoke,
-            quickActionPrompt = { action -> application.getString(quickActionPromptStringRes(action)) },
         ) as T
     }
 }
