@@ -65,13 +65,20 @@ private fun ImageVector.Builder.filledPath(vararg pathData: String) {
     }
 }
 
-private fun buildIcon(name: String, block: ImageVector.Builder.() -> Unit): ImageVector =
+/** [autoMirror] — Task 13 C3 review finding (MEDIUM): directional glyphs (a plain left/right arrow,
+ *  as opposed to e.g. play/pause, which carry no inherent direction) must flip under RTL layout or
+ *  they read backwards even though the `Row` containing them correctly mirrors its own position —
+ *  `androidx.compose.ui.graphics.vector.ImageVector`'s own `autoMirror` flag is exactly Compose's
+ *  built-in mechanism for this (the same one `Icons.AutoMirrored.Filled.ArrowBack` uses), default
+ *  `false` so every existing non-directional icon call site is unaffected. */
+private fun buildIcon(name: String, autoMirror: Boolean = false, block: ImageVector.Builder.() -> Unit): ImageVector =
     ImageVector.Builder(
         name = name,
         defaultWidth = 24.dp,
         defaultHeight = 24.dp,
         viewportWidth = 24f,
         viewportHeight = 24f,
+        autoMirror = autoMirror,
     ).apply(block).build()
 
 /** SVG `<rect x y width height rx>` (ry == rx) as an equivalent rounded-rect path-data string. */
@@ -302,12 +309,16 @@ object MentoraIcons {
         }
     }
 
+    // Task 13 C3 review finding (MEDIUM): `autoMirror = true` — a plain directional arrow (unlike
+    // play/pause/expandMore/etc.) must flip under RTL, or Course Player's footer Previous/Next
+    // buttons (and every pre-existing `MentoraTopBar` back arrow) mirror POSITION but keep pointing
+    // the wrong way.
     val arrowForward: ImageVector by lazy {
-        buildIcon("arrowForward") { strokePath("M5 12h14M13 6l6 6-6 6") }
+        buildIcon("arrowForward", autoMirror = true) { strokePath("M5 12h14M13 6l6 6-6 6") }
     }
 
     val arrowBack: ImageVector by lazy {
-        buildIcon("arrowBack") { strokePath("M19 12H5M11 6l-6 6 6 6") }
+        buildIcon("arrowBack", autoMirror = true) { strokePath("M19 12H5M11 6l-6 6 6 6") }
     }
 
     val darkMode: ImageVector by lazy {

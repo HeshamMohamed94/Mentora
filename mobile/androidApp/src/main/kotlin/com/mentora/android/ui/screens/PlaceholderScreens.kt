@@ -46,6 +46,10 @@ import com.mentora.android.ui.components.PrimaryButton
  * T12 note: `HomeScreen`/`MyLearningScreen` are no longer placeholders here — Task 12 replaced them
  * with real screens in `com.mentora.android.ui.home` (`HomeScreen.kt`) and
  * `com.mentora.android.ui.mylearning` (`MyLearningScreen.kt`).
+ *
+ * T13 note: `CoursePlayerScreen` is no longer a placeholder here — Task 13 replaced it with a real
+ * screen in `com.mentora.android.ui.courseplayer` (`CoursePlayerScreen.kt`, plus `PlayerSurface.kt`/
+ * `PlayerControls.kt`/`CurriculumBottomSheet.kt`).
  */
 @Composable
 fun AiTutorScreen(modifier: Modifier = Modifier) = PlaceholderScreen("AI Tutor (placeholder)", modifier)
@@ -64,25 +68,6 @@ fun SettingsScreen(modifier: Modifier = Modifier) = PlaceholderScreen("Settings 
 @Composable
 fun LearningPathDetailsScreen(pathId: String, modifier: Modifier = Modifier) =
     PlaceholderScreen("Learning Path Details (placeholder): $pathId", modifier)
-
-@Composable
-fun CoursePlayerScreen(
-    courseId: String,
-    lessonId: String?,
-    onTakeQuiz: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(modifier = modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text(
-            "Course Player (placeholder): $courseId" + (lessonId?.let { " / lesson $it" } ?: ""),
-            style = MaterialTheme.typography.bodyLarge,
-        )
-        // Real T6 mechanism: Course Player's automatic-after-last-lesson push into Quiz
-        // (ux/NAVIGATION_SPEC.md § 3) — the trigger this task's nav-hidden-on-Quiz instrumented
-        // test needs to actually reach that route.
-        PrimaryButton(text = "Take Quiz", onClick = onTakeQuiz)
-    }
-}
 
 @Composable
 fun QuizScreen(courseId: String, modifier: Modifier = Modifier) =

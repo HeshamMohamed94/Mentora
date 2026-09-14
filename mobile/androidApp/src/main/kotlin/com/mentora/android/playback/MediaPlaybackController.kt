@@ -4,6 +4,7 @@ package com.mentora.android.playback
 
 import android.content.Context
 import android.os.Looper
+import android.view.SurfaceView
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -89,6 +90,19 @@ class MediaPlaybackController(
             if (events.containsAny(Player.EVENT_IS_PLAYING_CHANGED, Player.EVENT_PLAYBACK_STATE_CHANGED)) {
                 restartOrStopTicker()
             }
+            // Task 13 C3 addition — D85 Decision 3's letterbox-not-stretch rule needs the real video
+            // size once media3 has actually decoded it (unknown at `prepareLesson` time). Read directly
+            // off `player.videoSize` here (the same "read straight off the player inside onEvents"
+            // idiom this listener already uses for `_duration` above) rather than overriding the
+            // separate `Player.Listener.onVideoSizeChanged` callback.
+            if (events.contains(Player.EVENT_VIDEO_SIZE_CHANGED)) {
+                val size = player.videoSize
+                _videoAspectRatio.value = if (size.width > 0 && size.height > 0) {
+                    (size.width.toFloat() * size.pixelWidthHeightRatio) / size.height.toFloat()
+                } else {
+                    null
+                }
+            }
         }
     }
 
@@ -133,6 +147,10 @@ class MediaPlaybackController(
 
     private val _duration = MutableStateFlow<Duration?>(null)
     override val duration: StateFlow<Duration?> = _duration.asStateFlow()
+
+    // Task 13 C3 addition — see `PlaybackController.videoAspectRatio`'s own kdoc.
+    private val _videoAspectRatio = MutableStateFlow<Float?>(null)
+    override val videoAspectRatio: StateFlow<Float?> = _videoAspectRatio.asStateFlow()
 
     private val _state = MutableStateFlow<PlaybackState>(PlaybackState.Idle)
     override val state: StateFlow<PlaybackState> = _state.asStateFlow()
@@ -227,6 +245,7 @@ class MediaPlaybackController(
         player.clearMediaItems()
         _currentPosition.value = Duration.ZERO
         _duration.value = null
+        _videoAspectRatio.value = null
     }
 
     /**
@@ -275,5 +294,21 @@ class MediaPlaybackController(
         player.removeListener(playerListener)
         player.release()
         scope.cancel()
+    }
+
+    /** Task 13 C3 addition — see `PlaybackController.attachVideoSurface`'s own kdoc. ExoPlayer
+     *  registers its own `SurfaceHolder.Callback` on the view (D85 Decision 3: "create/destroy is the
+     *  library's job, not ours") — this call is the entire attach. */
+    override fun attachVideoSurface(surfaceView: SurfaceView) {
+        if (released) return
+        player.setVideoSurfaceView(surfaceView)
+    }
+
+    /** Task 13 C3 addition — D85 Decision 3's own "`clearVideoSurface()` in `onDispose`" instruction,
+     *  verbatim. */
+    override fun detachVideoSurface() {
+        if (released) return
+        player.clearVideoSurface()
+        _videoAspectRatio.value = null
     }
 }

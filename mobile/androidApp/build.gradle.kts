@@ -71,6 +71,9 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     // Task 4: AppSessionViewModel + its Compose collection at the MainActivity smoke-test call site.
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+    // Task 13 C3 review finding (round 6): CoursePlayerViewModel.Factory wires ProcessLifecycleOwner
+    // for whole-process background detection — see libs.versions.toml's own comment on this entry.
+    implementation(libs.androidx.lifecycle.process)
     // Task 4: MentoraApplication.onCreate builds its own platform Module (see the class's kdoc,
     // G1) — it references Ktor's HttpClientEngine type directly for that binding's declared type,
     // same as shared/di/PlatformModule.android.kt does. Same Ktor version as :shared's catalog

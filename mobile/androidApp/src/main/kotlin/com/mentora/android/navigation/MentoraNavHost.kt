@@ -31,7 +31,7 @@ import com.mentora.android.ui.screens.AiTutorScreen
 import com.mentora.android.ui.screens.CertificateDetailScreen
 import com.mentora.android.ui.screens.CertificatesScreen
 import com.mentora.android.ui.coursedetails.CourseDetailsScreen
-import com.mentora.android.ui.screens.CoursePlayerScreen
+import com.mentora.android.ui.courseplayer.CoursePlayerScreen
 import com.mentora.android.ui.checkout.DemoCheckoutScreen
 import com.mentora.android.ui.explore.ExploreScreen
 import com.mentora.android.ui.home.HomeScreen
@@ -161,12 +161,32 @@ fun MentoraNavHost(
     // MyLearning, per ux/NAVIGATION_SPEC.md § 3 — "pushed from either" Explore or My Learning, plus
     // Home's own "Continue" affordance) — one content lambda, passed to composable<T>() 3 times
     // rather than 3 copy-pasted bodies.
+    // Task 13 C3: Course Player now owns its own top bar (D85 Decision 10) and needs several nav
+    // callbacks the T6-era placeholder never wired — `onBack` (its own top bar's back affordance,
+    // `navController.popBackStack()`, per D85 Decision 10's own "pop to whichever tab/screen pushed
+    // it" reading of `ux/NAVIGATION_SPEC.md:70` — the WEB-only "always back to My Learning" rule does
+    // NOT apply to this top-bar back button), `onOpenAiTutor` (a real tab switch to AiTutorGraph,
+    // reusing HomeScreen's own `onOpenExplore` pattern — T13->T17 handoff for the AI Tutor screen's own
+    // context-passing params, per D85 Decision 10), `onBackToMyLearning` (the CourseCompleted state's
+    // own secondary action — an explicit tab switch to MyLearningGraph, NOT `popBackStack()`, since
+    // unlike PurchaseSuccess this screen can be reached from Home/Explore too, so popping the back
+    // stack cannot be guaranteed to land on My Learning), and `onOpenCertificates` (the CourseCompleted
+    // state's "View Certificate" primary action — the general Certificates list, D85 Decision 10's own
+    // optional wiring; no courseId->certificateId join exists anywhere in this app, same disclosed gap
+    // `MyLearningScreen.kt`'s own kdoc records).
     val coursePlayerContent: @Composable AnimatedContentScope.(androidx.navigation.NavBackStackEntry) -> Unit = { entry ->
         val args = entry.toRoute<Destination.CoursePlayer>()
         CoursePlayerScreen(
             courseId = args.courseId,
             lessonId = args.lessonId,
+            sdk = sdk,
+            onBack = { navController.popBackStack() },
+            onOpenAiTutor = { onTabTapped(navController, TabGraph.AiTutorGraph, isCurrentTab = false, anchorTab = anchorTab) },
             onTakeQuiz = { navController.navigate(Destination.Quiz(args.courseId)) },
+            onBackToMyLearning = {
+                onTabTapped(navController, TabGraph.MyLearningGraph, isCurrentTab = false, anchorTab = anchorTab)
+            },
+            onOpenCertificates = { navController.navigate(Destination.Certificates) },
         )
     }
     val quizContent: @Composable AnimatedContentScope.(androidx.navigation.NavBackStackEntry) -> Unit = { entry ->
@@ -292,7 +312,13 @@ fun MentoraNavHost(
     // DemoCheckout (which keeps its top bar, only loses the bottom nav, above). Folded into the same
     // "suppress MentoraTopBar" check as [isAuthRoute] (mirrors that exact established pattern) rather
     // than a parallel boolean of its own.
-    val isChromeless = isAuthRoute || isPurchaseSuccess
+    // Task 13 (D85 Decision 10): Course Player is chromeless at THIS shell level too — it renders its
+    // own top bar (back + course title + "Lesson N of M · X%" + Ask-AI), which `MentoraTopBar`'s
+    // generic shape cannot carry (T10 already declined to add an actions slot to that shared bar for
+    // exactly this reason). The bottom nav is already hidden for it via [isFocusedLearningScreen]
+    // above — unchanged, [isCoursePlayer] only controls the top bar.
+    val isCoursePlayer = currentDestination?.hasRoute<Destination.CoursePlayer>() == true
+    val isChromeless = isAuthRoute || isPurchaseSuccess || isCoursePlayer
 
     Scaffold(
         modifier = modifier,
@@ -373,6 +399,13 @@ fun MentoraNavHost(
                 composable<Destination.CoursePlayer>(content = coursePlayerContent)
                 composable<Destination.Quiz>(content = quizContent)
                 composable<Destination.QuizResults>(content = quizResultsContent)
+                // Task 13: Course Player's own CourseCompleted state offers a "View Certificate" action
+                // (`onOpenCertificates`, D85 Decision 10) — Course Player is reachable from Explore too
+                // (`coursePlayerContent` registered above), so Certificates needs its own registration
+                // here as well, same shared-lambda-across-multiple-graphs pattern already used for
+                // [courseDetailsContent]/[demoCheckoutContent] (see [Destinations]'s own kdoc for why an
+                // unregistered destination would otherwise fail to resolve under this tab).
+                composable<Destination.Certificates>(content = certificatesContent)
             }
 
             navigation<TabGraph.MyLearningGraph>(startDestination = Destination.MyLearning) {

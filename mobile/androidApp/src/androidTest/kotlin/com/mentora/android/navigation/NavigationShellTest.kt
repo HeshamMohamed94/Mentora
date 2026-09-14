@@ -22,6 +22,7 @@ import com.mentora.android.ui.checkout.DemoCheckoutConfirmButtonTestTag
 import com.mentora.android.ui.checkout.PurchaseSuccessBackToMyLearningButtonTestTag
 import com.mentora.android.ui.checkout.PurchaseSuccessContentTestTag
 import com.mentora.android.ui.coursedetails.CourseDetailsCtaButtonTestTag
+import com.mentora.android.ui.courseplayer.CoursePlayerScreenTestTag
 import com.mentora.android.ui.explore.ExploreCourseCardTestTag
 import com.mentora.android.ui.home.HomeCertificatesStatCardTestTag
 import com.mentora.android.ui.home.HomeContinueLearningCardTestTag
@@ -276,6 +277,17 @@ class NavigationShellTest {
      * now reaches [Destination.CoursePlayer] by navigating directly via [navController], the same
      * technique tests 5/6 already use for back-stack-shape assertions, sidestepping a CTA state this
      * fake-auth harness cannot legitimately produce.
+     *
+     * T13 fix-up: Course Player is now the real screen (`ui/courseplayer/CoursePlayerScreen.kt`),
+     * which no longer renders a literal "Course Player (placeholder): $courseId" text node — asserts
+     * on the real screen's own root test tag instead ([CoursePlayerScreenTestTag], present regardless
+     * of async load state — this harness's fake auth means `getCourseProgress` genuinely fails with
+     * `ForbiddenNotEnrolled` here, landing on the real screen's Error state, which still renders that
+     * tag; same T10-established pattern as every other placeholder-text assertion this phase has
+     * retired). Reaching Quiz now navigates directly via [navController] too, instead of tapping a
+     * "Take Quiz" button — the real screen's footer never reaches a "Take Quiz" state in this
+     * un-enrolled harness (D85's own "Tests that must change" note: this harness can never legitimately
+     * reach a real 100%-complete "Take Quiz" state).
      */
     @Test
     fun bottomNavIsFullyHiddenOnCoursePlayerAndQuiz_andReappearsOnBack() {
@@ -287,18 +299,18 @@ class NavigationShellTest {
         assertOnCourseDetailsFor(courseId)
 
         composeTestRule.runOnUiThread { navController.navigate(Destination.CoursePlayer(courseId)) }
-        composeTestRule.onNodeWithText("Course Player (placeholder): $courseId").assertExists()
+        composeTestRule.onNodeWithTag(CoursePlayerScreenTestTag).assertExists()
 
         // Fully removed from the tree, not just invisible.
         composeTestRule.onNodeWithTag(MobileBottomNavigationTestTag).assertDoesNotExist()
 
-        composeTestRule.onNodeWithText("Take Quiz").performClick()
+        composeTestRule.runOnUiThread { navController.navigate(Destination.Quiz(courseId)) }
         composeTestRule.onNodeWithText("Quiz (placeholder): $courseId").assertExists()
         composeTestRule.onNodeWithTag(MobileBottomNavigationTestTag).assertDoesNotExist()
 
         // Back out of Quiz, then Course Player — the bottom nav reappears once neither is current.
         composeTestRule.runOnUiThread { composeTestRule.activity.onBackPressedDispatcher.onBackPressed() }
-        composeTestRule.onNodeWithText("Course Player (placeholder): $courseId").assertExists()
+        composeTestRule.onNodeWithTag(CoursePlayerScreenTestTag).assertExists()
         composeTestRule.onNodeWithTag(MobileBottomNavigationTestTag).assertDoesNotExist()
 
         composeTestRule.runOnUiThread { composeTestRule.activity.onBackPressedDispatcher.onBackPressed() }

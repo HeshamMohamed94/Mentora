@@ -2066,3 +2066,142 @@ five review rounds' findings), `:androidApp:assembleDebug` clean.
 the time of this entry; recorded now because the review process is what surfaced the amendment, and
 this entry should exist before the commit that depends on it, not be reconstructed after the fact.
 
+### D88 — 2026-09-14 — PHASE 4 Task 13 complete: C3 (Course Player Compose UI) built, reviewed, fixed
+across two rounds; C4 (fullscreen) deliberately omitted; task closed
+
+**Context.** With C2 (`CoursePlayerViewModel`, D87) already 5-times-reviewed and committed, C3 built
+the Compose UI on top of it: `CoursePlayerScreen.kt` (root composable, top bar, ready/completed
+content, lifecycle wiring), `PlayerControls.kt` (D85 Decision 4's LTR-locked scrubber + play/pause +
+time label), `PlayerSurface.kt` (the `SurfaceView`/`AndroidView` video surface), `CurriculumBottomSheet
+.kt` (D85 Decision 8), `MentoraPlayerChrome.kt` (D85 Decision 5's theme-invariant chrome colors), plus
+`MentoraNavHost.kt` wiring (chromeless registration, new nav callbacks, `Certificates` registered under
+`ExploreGraph` too) and an `arrowForward`/`arrowBack` `autoMirror` fix in `MentoraIcons.kt` (also fixes
+a pre-existing `MentoraTopBar` back-arrow RTL bug). Built by an implementer sub-agent from a D85-
+grounded brief, then reviewed by the primary Opus reviewer per the standing routing policy (substantial
+completed feature).
+
+**Round 5 (Opus, full C3 review) — confirmed correct:** RTL scrubber scoping (exactly the `Slider` +
+time label, nothing wider), `isChangingConfigurations` guards, video-surface release-race safety
+(`attachVideoSurface`/`detachVideoSurface` both open with the same `if (released) return` `stop()`
+already used), bounded `LazyColumn` height in the curriculum sheet, footer in-flight gating, root test
+tag present in every `CoursePlayerContentState` including `Error`, and full compliance with the locked
+numerals rule (`design-system/LOCALIZATION.md § 8`) across all 31 new strings (`%1$s` + `Int.toString()`
+throughout, `Locale.US`-pinned time formatting).
+
+**Round 5 — 2 HIGH + 6 MEDIUM found and fixed:**
+
+1. **HIGH — inescapable back-loop.** `CoursePlayerCompletedContent`'s `LaunchedEffect` auto-navigated
+   to Quiz on every recomposition reaching that branch, including a return via system back (Quiz is a
+   separately-pushed destination — this composable leaves and re-enters composition across that
+   push/pop, and the retained ViewModel still reports the identical `quizRow`/`quizPassed`, re-firing
+   the effect). Fixed with `var hasAutoNavigatedToQuiz by rememberSaveable(state.courseId) {
+   mutableStateOf(false) }` — `rememberSaveable` survives exactly a push/pop round trip (backed by this
+   `NavBackStackEntry`'s own saved-state registry, not plain composition memory) while still resetting
+   for a genuinely different course. A new render branch (`SuccessState` + a new
+   `course_player_quiz_pending_description`/`course_player_take_quiz_action` pair, both EN/AR) now
+   handles "quiz unpassed, already auto-navigated once" — previously unreachable, now reached by a
+   system-back return.
+2. **HIGH — wrong `LifecycleOwner`.** `LocalLifecycleOwner.current` inside a `NavHost` destination
+   resolves to the **`NavBackStackEntry`'s own** `Lifecycle` (navigation-compose's
+   `LocalOwnersProvider`), which drops to `CREATED` (dispatching `ON_STOP`) on ANY forward navigation
+   including a same-app bottom-nav tab switch — collapsing D85 Decision 6's two deliberately different
+   hooks (`onScreenStopped` for whole-app backgrounding, `onScreenLeaving` for a tab switch that should
+   keep playback running) onto the same trigger. First fix: resolve the real host `Activity` via a new
+   `Context.findActivity()` `ContextWrapper`-unwrapping extension, observe ITS `Lifecycle` for
+   `ON_STOP` instead. Round 6 found this first fix incomplete (below).
+3. **MEDIUM — icon RTL mirroring.** `arrowForward`/`arrowBack` had no `autoMirror`, so their glyphs
+   didn't flip under RTL even though `ImageVector.Builder` supports it natively — fixed in
+   `MentoraIcons.kt` (`buildIcon`'s own `autoMirror` param, `false` default preserved for every other
+   icon), which incidentally also fixes a pre-existing `MentoraTopBar` back-arrow bug.
+4. **MEDIUM — double/triple window-insets.** `MentoraNavHost`'s outer `Scaffold` already applies
+   `contentPadding` (including the top status-bar inset, via its empty `topBar` slot's
+   `contentWindowInsets` fallback when `isChromeless`) to the whole `NavHost`; this screen's own inner
+   `Scaffold` defaulting `contentWindowInsets` AND `CoursePlayerTopBar`'s manual
+   `windowInsetsPadding(WindowInsets.statusBars)` both applied it again on top. Fixed: inner `Scaffold`
+   now sets `contentWindowInsets = WindowInsets(0)`; the top bar's manual inset padding removed
+   entirely. Round-6 review independently re-verified this reasoning against the real
+   `MentoraNavHost.kt`/`MainActivity.kt` code and confirmed no under-application resulted (chromeless on
+   all 3 graphs, both `topBar`/`bottomBar` slots empty for this route).
+5. **MEDIUM — missing lesson description.** `Lesson.description` (present on the shared domain model
+   since Phase 3) had no C3 render path at all. Fixed additively: `currentLessonDescription: String`
+   added to `CoursePlayerReadyState`, populated from `lesson.description` in `rebuildReadyState`
+   (`CoursePlayerViewModel.kt` — confirmed purely additive, zero touch to `writeQueue`/
+   `switchGeneration`/`preparedLessonId`/`activateLesson`'s atomic commit block or any other
+   concurrency-critical D87 machinery), rendered conditionally in `CoursePlayerReadyContent`.
+6. **MEDIUM — scrubber had no accessible label.** The M3 `Slider` ships built-in
+   `ProgressBarRangeInfo` semantics but no content/state description, so a screen reader announced only
+   a bare percentage. Fixed with an explicit `Modifier.semantics { contentDescription = ...;
+   stateDescription = ... }` (two new strings, EN/AR) — round-6 review confirmed no collision with the
+   Slider's own built-in semantics (which never sets `ContentDescription`/`StateDescription` itself).
+
+Deliberately deferred, disclosed rather than fixed: MEDIUM (ErrorState overflow inside the 16:9 video
+frame), MEDIUM (no new Compose UI/instrumented tests for the new screen — `NavigationShellTest` only
+reaches the player in the `ForbiddenNotEnrolled` `Error` state), and several LOW items (bottom-sheet
+dismiss-animation snap, quiz-question-count plural grammar, hardcoded `"--:--"` placeholder, scrubber
+seek snap-back, missing `Role.Button` semantics on a couple of rows).
+
+**Round 6 (Opus, targeted re-verification of the round-5 fixes) — 1 more MEDIUM found and fixed:**
+
+Finding 1's `rememberSaveable` fix and finding 4's inset fix were both independently re-verified
+correct against the real navigation-compose/M3 `Scaffold` mechanics (see above). Finding 2's fix,
+however, had a real remaining gap: registering the `ON_STOP` observer from a `DisposableEffect` scoped
+to `CoursePlayerScreen`'s OWN composition means the observer is removed the moment this composable
+leaves composition — a same-app tab switch or a footer-driven push to Quiz — even though
+`CoursePlayerViewModel`/`MediaPlaybackController` stay alive (`saveState`-preserved back-stack entry).
+Backgrounding the whole app AFTER that point then reached no observer at all: `controller.pause()`
+never ran, leaving audio playing behind the home screen (or behind Quiz) indefinitely — exactly the
+failure D85 Decision 1's audio-attributes note says must not happen.
+
+**Fix:** whole-app-background detection moved entirely into `CoursePlayerViewModel` itself, observing
+`ProcessLifecycleOwner` — a lifetime that matches the ViewModel/controller, not any one composable's
+composition. New lambda-constructor-seam param `registerProcessBackgroundListener: (onBackgrounded: ()
+-> Unit) -> AutoCloseable`, defaulting to a no-op stable singleton (JVM-test-safe, same convention as
+every other platform dependency in this class); `Factory` wires the real
+`ProcessLifecycleOwner.get().lifecycle.addObserver(...)` implementation, returning an `AutoCloseable`
+that `onCleared()` now calls BEFORE `controller.release()` (the real `ProcessLifecycleOwner` singleton
+outlives this ViewModel, so leaving it registered past `onCleared()` would call `onScreenStopped()`
+against an already-released controller on the next background/foreground cycle for the rest of the
+process). `CoursePlayerScreen.kt`'s `CoursePlayerLifecycleEffects` no longer registers or calls
+`onScreenStopped` at all — it now does exactly one thing, the composition-scoped `onScreenLeaving`
+flush-on-dispose, which genuinely does belong to composition lifetime (D85 write-schedule item (5)).
+Required one new dependency, `androidx.lifecycle:lifecycle-process` (pinned to the same
+`androidxLifecycle = "2.9.0"` already used for every other directly-used lifecycle artifact in this
+catalog — not previously resolved transitively).
+
+Round 6 also flagged one INFO-level, not-yet-reachable gap: `state.quizPassed` (finding 1's new render
+branch) is captured at course-load time and not re-fetched on a Quiz round trip, so a user who actually
+PASSES the quiz and pops back would still see the "quiz pending" branch. Unreachable in this commit
+(`Destination.Quiz` still resolves to `PlaceholderScreens.kt`'s placeholder — `quizPassed` can never
+flip in-app yet); disclosed via a kdoc comment at the exact call site as a requirement for whichever
+task builds the real Quiz screen (Task 14), not fixed here.
+
+**C4 (fullscreen) — deliberately omitted, not a partial C3.** D85's own Open Question 1 recommended
+deferring fullscreen to a conditional C4 sub-commit; the C3 implementer was explicitly instructed to
+build the control row WITHOUT a fullscreen control at all (D85's own "no fullscreen control... omitted
+entirely, not shipped as a no-op icon" — the same "never ship a no-op icon" precedent Task 10 already
+established for the omitted bookmark/share icons). No captions/volume/speed-control/buffered-progress
+controls either, all per D85's own disclosed content/scope gaps. Task 13 is closed without C4; a
+fullscreen player is not part of this task's locked scope.
+
+**Verified (final, post-round-6-fix state):** `:shared:testDebugUnitTest` 249/249 (zero diff in
+`mobile/shared`); `:androidApp:testDebugUnitTest` 142/142; `:androidApp:assembleDebug` clean;
+`:androidApp:connectedDebugAndroidTest` 87/87 on the real `Chatting_Pixel_8_API_36` emulator (one
+earlier run aborted mid-suite at 7/87 with `INSTRUMENTATION_ABORTED: System has crashed` — confirmed
+via logcat to be a genuine emulator `system_server`/zygote restart, not an app-level crash; a clean
+rerun after the emulator stabilized passed all 87, and a second full clean rerun after the round-6 fix
+also passed all 87).
+
+**Impact:** new files `mobile/androidApp/src/main/kotlin/com/mentora/android/ui/courseplayer
+/{CoursePlayerScreen.kt,PlayerControls.kt,PlayerSurface.kt,CurriculumBottomSheet.kt}`,
+`mobile/androidApp/src/main/kotlin/com/mentora/android/theme/MentoraPlayerChrome.kt`; modified
+`CoursePlayerViewModel.kt` (additive: `currentLessonDescription` field,
+`registerProcessBackgroundListener` seam), `playback/{PlaybackController.kt,MediaPlaybackController.kt}`
+(additive: `attachVideoSurface`/`detachVideoSurface`/`videoAspectRatio`), `ui/components/MentoraIcons.kt`
+(`autoMirror`), `navigation/MentoraNavHost.kt`, `ui/screens/PlaceholderScreens.kt` (placeholder
+removed), `values/strings.xml` + `values-ar/strings.xml` (all new strings paired EN/AR at time of
+commit — no backfill needed, per the standing requirement Task 10's entry established),
+`androidTest/.../NavigationShellTest.kt` (tag-based assertions per D85's own instruction),
+`gradle/libs.versions.toml` + `androidApp/build.gradle.kts` (new `androidx-lifecycle-process`
+dependency). No `mobile/shared/` change anywhere in Task 13 (C2 or C3). Task 13 is now **DONE** — see
+`CURRENT_STATUS.md`'s Phase 4 task table. Next: Task 14 (Quiz + Quiz Results).
+

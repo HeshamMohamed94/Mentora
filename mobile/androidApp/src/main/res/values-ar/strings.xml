@@ -149,4 +149,40 @@
     <string name="my_learning_paths_heading">مسارات تعلّم قيد التقدم</string>
     <string name="my_learning_path_view_action">عرض المسار</string>
     <string name="my_learning_certificate_ready_subtitle">مكتملة · الشهادة جاهزة</string>
+
+    <!-- Task 13 "C3" — Course Player, see values/strings.xml for sourcing notes. Reuses web's
+         coursePlayer.* namespace (web/messages/ar.json) where an equivalent concept exists. -->
+    <string name="course_player_nav_title_fallback">مشغّل الدورة</string>
+    <string name="course_player_top_bar_meta">الدرس %1$s من %2$s · %3$s٪</string>
+    <string name="course_player_back_content_description">رجوع</string>
+    <string name="course_player_ask_ai_tutor_content_description">اسأل المعلّم الذكي</string>
+    <string name="course_player_loading_content_description">جارٍ تحميل مشغّل الدورة</string>
+    <string name="course_player_error_title">تعذّر تحميل مشغّل الدورة</string>
+    <string name="course_player_video_error_title">يتعذّر تشغيل هذا الفيديو</string>
+    <string name="course_player_retry_action">أعد المحاولة</string>
+    <string name="course_player_mark_complete_action">تحديد كمكتمل</string>
+    <string name="course_player_next_lesson_action">الدرس التالي</string>
+    <string name="course_player_take_quiz_action">ابدأ الاختبار</string>
+    <string name="course_player_finish_course_action">إنهاء الدورة</string>
+    <string name="course_player_previous_lesson_content_description">السابق</string>
+    <string name="course_player_curriculum_trigger">محتوى الدورة · %1$s / %2$s</string>
+    <string name="course_player_curriculum_sheet_title">محتوى الدورة</string>
+    <string name="course_player_curriculum_sheet_close_content_description">إغلاق</string>
+    <string name="course_player_sheet_section_header">القسم %1$s · %2$s</string>
+    <string name="course_player_sheet_lesson_row">%1$s · %2$s</string>
+    <string name="course_player_sheet_lesson_completed_content_description">مكتمل</string>
+    <string name="course_player_sheet_lesson_current_content_description">الدرس الحالي</string>
+    <string name="course_player_sheet_quiz_row_title">اختبار الدورة</string>
+    <string name="course_player_sheet_quiz_row_question_count">%1$s أسئلة</string>
+    <string name="course_player_completion_title">أكملت الدورة!</string>
+    <string name="course_player_completion_description">شهادتك جاهزة.</string>
+    <string name="course_player_quiz_pending_description">أجرِ الاختبار للحصول على شهادتك.</string>
+    <string name="course_player_view_certificate_action">عرض الشهادة</string>
+    <string name="course_player_back_to_my_learning_action">العودة إلى تعلّمي</string>
+    <string name="course_player_progress_content_description">اكتمل %1$s٪</string>
+    <string name="course_player_play_content_description">تشغيل</string>
+    <string name="course_player_pause_content_description">إيقاف مؤقت</string>
+    <string name="course_player_time_label">%1$s / %2$s</string>
+    <string name="course_player_scrubber_content_description">تحديد موضع الفيديو</string>
+    <string name="course_player_scrubber_state_description">%1$s من %2$s</string>
 </resources>

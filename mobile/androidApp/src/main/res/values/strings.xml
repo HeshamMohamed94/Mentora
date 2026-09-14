@@ -172,4 +172,43 @@
     <string name="my_learning_paths_heading">Learning Paths in progress</string>
     <string name="my_learning_path_view_action">View Path</string>
     <string name="my_learning_certificate_ready_subtitle">Completed · certificate ready</string>
+
+    <!-- Task 13 "C3" — Course Player, design-to-code/screens/mobile-course-player.json (exact-showcase).
+         Numeral placeholders are %1$s/`Int.toString()`, never %1$d, per design-system/LOCALIZATION.md
+         § 8 (D85 Open Question 2) — Western Arabic numerals in every locale including ar. Copy for the
+         keys that have a direct web/messages/en.json `coursePlayer.*` equivalent reuses that exact
+         string (D45/D51 cross-platform-consistency precedent, same as T12's Home/My Learning copy). -->
+    <string name="course_player_nav_title_fallback">Course Player</string>
+    <string name="course_player_top_bar_meta">Lesson %1$s of %2$s · %3$s%%</string>
+    <string name="course_player_back_content_description">Back</string>
+    <string name="course_player_ask_ai_tutor_content_description">Ask AI Tutor</string>
+    <string name="course_player_loading_content_description">Loading course player</string>
+    <string name="course_player_error_title">This course player couldn\'t be loaded</string>
+    <string name="course_player_video_error_title">This video can\'t be played</string>
+    <string name="course_player_retry_action">Try again</string>
+    <string name="course_player_mark_complete_action">Mark Complete</string>
+    <string name="course_player_next_lesson_action">Next lesson</string>
+    <string name="course_player_take_quiz_action">Take Quiz</string>
+    <string name="course_player_finish_course_action">Finish course</string>
+    <string name="course_player_previous_lesson_content_description">Previous</string>
+    <string name="course_player_curriculum_trigger">Course content · %1$s / %2$s</string>
+    <string name="course_player_curriculum_sheet_title">Course content</string>
+    <string name="course_player_curriculum_sheet_close_content_description">Close</string>
+    <string name="course_player_sheet_section_header">SECTION %1$s · %2$s</string>
+    <string name="course_player_sheet_lesson_row">%1$s · %2$s</string>
+    <string name="course_player_sheet_lesson_completed_content_description">Completed</string>
+    <string name="course_player_sheet_lesson_current_content_description">Current lesson</string>
+    <string name="course_player_sheet_quiz_row_title">Course quiz</string>
+    <string name="course_player_sheet_quiz_row_question_count">%1$s questions</string>
+    <string name="course_player_completion_title">Course completed!</string>
+    <string name="course_player_completion_description">Your certificate is ready.</string>
+    <string name="course_player_quiz_pending_description">Take the quiz to earn your certificate.</string>
+    <string name="course_player_view_certificate_action">View Certificate</string>
+    <string name="course_player_back_to_my_learning_action">Back to My Learning</string>
+    <string name="course_player_progress_content_description">%1$s%% complete</string>
+    <string name="course_player_play_content_description">Play</string>
+    <string name="course_player_pause_content_description">Pause</string>
+    <string name="course_player_time_label">%1$s / %2$s</string>
+    <string name="course_player_scrubber_content_description">Seek video position</string>
+    <string name="course_player_scrubber_state_description">%1$s of %2$s</string>
 </resources>

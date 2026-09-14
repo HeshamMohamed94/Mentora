@@ -103,6 +103,10 @@ data class CoursePlayerReadyState(
     val courseTitle: String,
     val currentLessonId: String,
     val currentLessonTitle: String,
+    /** Task 13 C3 review finding (round 5, MEDIUM): `Lesson.description` (`Lesson.kt`, present on
+     *  every lesson the backend returns) had no C3 render path at all — added here, additively,
+     *  rather than reworking the already 5-times-reviewed C2 state shape beyond this one field. */
+    val currentLessonDescription: String,
     val lessonNumber: Int,
     val totalLessons: Int,
     val completionPercent: Int,
@@ -202,6 +206,26 @@ class CoursePlayerViewModel(
      *  production's [Dispatchers.Default]) exactly so a JVM test can inject one driven by its own
      *  `TestDispatcher`, per this class's own testing convention. */
     private val writeScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+    /** Task 13 C3 review finding (round 6, MEDIUM on the HIGH 2 fix): C3's `ON_STOP` hook used to be
+     *  registered on the real host [android.app.Activity]'s own `Lifecycle` from a `DisposableEffect`
+     *  — but that effect's lifetime is bounded by THIS COMPOSABLE'S OWN composition, not by this
+     *  ViewModel's. Leaving the screen (a tab switch, or pushing Quiz from the footer) disposes that
+     *  effect and removes the observer entirely, even though this ViewModel/[controller] stay alive
+     *  (`saveState`-preserved back stack entry) — backgrounding the WHOLE APP after that point never
+     *  reaches [onScreenStopped] at all, so [controller] keeps playing audio behind the home screen or
+     *  behind Quiz indefinitely, exactly what D85 Decision 1's audio-attributes note (see
+     *  [onScreenStopped]'s own kdoc) says must not happen.
+     *
+     *  The fix: this ViewModel observes whole-process backgrounding itself, so its lifetime matches
+     *  [controller]'s — not the composition's. Lambda-constructor seam, same convention as every other
+     *  platform dependency here: production ([Factory]) wires `ProcessLifecycleOwner` (needs a real
+     *  Android process/Application, unavailable on this module's plain-JVM test classpath); a JVM test
+     *  passes the default no-op, or a hand-built [AutoCloseable] stub that never actually invokes the
+     *  callback. Returns an [AutoCloseable] specifically so [onCleared] can unregister — the real
+     *  `ProcessLifecycleOwner` singleton outlives this ViewModel, so leaving the observer registered
+     *  past [onCleared] would call [onScreenStopped] against an already-[PlaybackController.release]d
+     *  [controller] on every future app background/foreground cycle for the rest of the process. */
+    registerProcessBackgroundListener: (onBackgrounded: () -> Unit) -> AutoCloseable = { NoOpProcessBackgroundListenerHandle },
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CoursePlayerUiState())
@@ -214,6 +238,21 @@ class CoursePlayerViewModel(
     val playbackState: StateFlow<PlaybackState> get() = controller.state
     val playbackPosition: StateFlow<Duration> get() = controller.currentPosition
     val playbackDuration: StateFlow<Duration?> get() = controller.duration
+
+    /** Task 13 "C3" addition — the SAME raw-pass-through rationale as the three flows immediately
+     *  above, narrowly extended to the video-surface attach hook D85 left for C3 to close (see
+     *  `PlaybackController.attachVideoSurface`/`detachVideoSurface`/`videoAspectRatio`'s own kdoc, all
+     *  additive, default-no-op interface members — [com.mentora.android.playback.MediaPlaybackController]
+     *  is the only real implementation). [com.mentora.android.ui.courseplayer.PlayerSurface] is the
+     *  one and only caller — never [controller] itself, which stays exclusively owned by this class
+     *  (this class's own kdoc, "Lambda-constructor seam" section). These three one-line delegates
+     *  expose only the video-SURFACE plumbing, deliberately not the whole [controller]:
+     *  `play`/`pause`/`seekTo`/`prepareLesson`/`stop`/`release` stay reachable exclusively through
+     *  this class's own actions ([onPlayPauseToggle], [onSeek], etc.), never bypassed by C3 calling
+     *  the controller directly. */
+    fun attachVideoSurface(surfaceView: android.view.SurfaceView) = controller.attachVideoSurface(surfaceView)
+    fun detachVideoSurface() = controller.detachVideoSurface()
+    val videoAspectRatio: StateFlow<Float?> get() = controller.videoAspectRatio
 
     // Review finding F7: these fields are written from BOTH `viewModelScope` (Main) and
     // `writeScope` (Dispatchers.Default, via the auto-advance path inside `completeLessonAndAdvance`
@@ -317,6 +356,12 @@ class CoursePlayerViewModel(
             }
         }
     }
+
+    /** See the [registerProcessBackgroundListener] constructor param's own kdoc — registered here
+     *  (once, for this ViewModel's whole lifetime) rather than from C3, and unregistered in
+     *  [onCleared]. */
+    private val processBackgroundListenerHandle: AutoCloseable =
+        registerProcessBackgroundListener { onScreenStopped() }
 
     init {
         observeController()
@@ -565,6 +610,7 @@ class CoursePlayerViewModel(
                         courseTitle = course.title,
                         currentLessonId = lessonId,
                         currentLessonTitle = lesson.title,
+                        currentLessonDescription = lesson.description,
                         lessonNumber = lessonIndex + 1,
                         totalLessons = orderedLessons.size,
                         completionPercent = currentProgress.completionPercent,
@@ -1009,6 +1055,11 @@ class CoursePlayerViewModel(
      *  not callable from a JVM test in this module; making this override `public` lets
      *  `CoursePlayerViewModelTest` invoke it directly instead. */
     public override fun onCleared() {
+        // Must run before `controller.release()` below — see `registerProcessBackgroundListener`'s
+        // own kdoc: the real `ProcessLifecycleOwner` singleton outlives this ViewModel, so leaving
+        // this registered would call `onScreenStopped()` (and so `controller.pause()`) against an
+        // already-released controller on the next app background/foreground cycle.
+        processBackgroundListenerHandle.close()
         val lessonId = activeLessonId
         if (lessonId != null) {
             currentControllerPositionSecondsFor(lessonId)?.let { flushProgress(lessonId, it) }
@@ -1039,6 +1090,12 @@ class CoursePlayerViewModel(
         /** See [flushLessonLoad]'s own kdoc — padded slightly past `ReportPlaybackPositionUseCase`'s
          *  confirmed `throttleWindow = 5.seconds`. */
         const val MUST_LAND_RETRY_DELAY_MILLIS = 5_100L
+
+        /** [registerProcessBackgroundListener]'s default for callers that never override it (i.e. a
+         *  JVM test that doesn't care about this hook at all) — a stable singleton `AutoCloseable`
+         *  whose `close()` is a genuine no-op, mirroring `PlaybackController.NoVideoAspectRatio`'s own
+         *  "stable singleton default, not a fresh allocation per call" precedent. */
+        val NoOpProcessBackgroundListenerHandle = AutoCloseable {}
     }
 
     /** Plain [ViewModelProvider.Factory] — mirrors `CourseDetailsViewModel.Factory`'s exact idiom.
@@ -1067,6 +1124,20 @@ class CoursePlayerViewModel(
             getLessonPlaybackSource = sdk.media.getLessonPlaybackSource::invoke,
             reportPlaybackPosition = sdk.progress.reportPlaybackPosition::invoke,
             completeLesson = sdk.progress.completeLesson::invoke,
+            registerProcessBackgroundListener = { onBackgrounded ->
+                // See `CoursePlayerViewModel`'s own `registerProcessBackgroundListener` constructor
+                // param kdoc. `ProcessLifecycleOwner` (unlike a per-`Activity` `Lifecycle`) dispatches
+                // `ON_STOP` only once every activity has stopped AND none is about to be recreated for
+                // a configuration change (its own internal delayed-dispatch handles that distinction) —
+                // so, unlike C3's own Activity-`Lifecycle` `onScreenLeaving` hook, this needs no
+                // separate `isChangingConfigurations` guard.
+                val owner = androidx.lifecycle.ProcessLifecycleOwner.get()
+                val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+                    if (event == androidx.lifecycle.Lifecycle.Event.ON_STOP) onBackgrounded()
+                }
+                owner.lifecycle.addObserver(observer)
+                AutoCloseable { owner.lifecycle.removeObserver(observer) }
+            },
         ) as T
     }
 }

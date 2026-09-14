@@ -141,6 +141,12 @@ androidx-activity-compose = { module = "androidx.activity:activity-compose", ver
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "androidxCoreKtx" }
 # Task 4: see androidxLifecycle's version comment above.
 androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "androidxLifecycle" }
+# Task 13 C3 review finding (round 6): CoursePlayerViewModel.Factory needs ProcessLifecycleOwner
+# (whole-process foreground/background detection, decoupled from any one Activity/composition's own
+# lifetime — see CoursePlayerViewModel's `registerProcessBackgroundListener` kdoc) — not resolved
+# transitively by anything else in this catalog, so pinned explicitly at the same androidxLifecycle
+# version as the other directly-used lifecycle artifacts, per this catalog's own convention.
+androidx-lifecycle-process = { module = "androidx.lifecycle:lifecycle-process", version.ref = "androidxLifecycle" }
 # Task 5 (component kit A): Compose UI instrumented tests (Button/TextField/PasswordField/Select/
 # Tabs) — no Robolectric/Compose-testing setup existed before this task (verified: Tasks 1-4 only
 # ever added plain JUnit4 `testDebugUnitTest` + real-device `connectedDebugAndroidTest` for
