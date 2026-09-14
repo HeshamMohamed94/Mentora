@@ -1991,3 +1991,78 @@ clean.
 4 Kotlin files (6 call sites). No `mobile/shared/` change. Not bundled into Task 13's own commits —
 a standalone fix to already-shipped work, landed just ahead of Task 13 implementation.
 
+### D87 — 2026-09-14 — PHASE 4 Task 13 C2 (`CoursePlayerViewModel`): two amendments to locked D85
+decisions, found necessary during implementation review, recorded here rather than only in kdoc
+
+**Context.** Task 13 C2 went through five rounds of review before landing: three independent Opus
+passes, one independent Codex pass (the standing routing policy's required additional second opinion
+for concurrency-sensitive code touching a critical production-like flow), and a final, narrower Opus
+re-check of the last fix specifically. Round 1 found 3 HIGH bugs (wrong lesson falsely marked
+complete on a switch; a heartbeat position fabricated against the wrong lesson mid-switch; stale
+in-memory progress causing both a wrong local resume AND a possible server-side position regression)
+plus several MEDIUM/LOW findings. Round 2 found round 1's fixes real but incomplete (a probe against
+the live ViewModel still reproduced "falsely marked complete" via one extra tap on the unguarded
+transport controls), plus new findings in the fix mechanisms themselves. Round 3 found round 2's own
+fixes had reintroduced a HIGH regression (`pendingLessonId` stuck forever on certain exit paths) plus
+more MEDIUM issues. Round 4 (Codex) found round 3's multi-check design still had a HIGH race — a
+check-then-act split across a suspension point let an independent, later-started switch's commit get
+silently overwritten by a stale one — plus a one-sided completion/navigation race, a retry that could
+land after a newer write and regress the server, and an unbounded write-scope lifetime. Round 5
+(Opus, targeted) found round 4's own completion-generation guard was still one-sided (it only caught
+a switch that started AFTER a completion did, not one that started before but hadn't committed yet)
+plus one remaining non-atomic commit. All of this is fully fixed as of this entry — `CoursePlayerViewModel
+.kt`'s own kdoc documents every mechanism and every round's finding in detail: `preparedLessonId` +
+`PlaybackController.stop()` + `currentControllerPositionSecondsFor` close the F1/F2 class of bug
+structurally; `switchGeneration` + a single non-suspending `Main.immediate` commit block in
+`activateLesson` make "last tap wins" atomic and deterministic; `pendingLessonId == null` (not just
+generation equality) is what makes the completion-vs-navigation guard actually two-sided; the
+must-land retry's delay runs off the write queue but its actual network call is re-enqueued onto it,
+preserving ordering; `onCleared` now bounds `writeScope`'s lifetime via a tracked consumer `Job`. Full
+detail lives in the code; this entry exists only to record the two DECISION-level amendments that
+detail work surfaced, since a kdoc alone should not be the only record of a locked decision changing.
+
+1. **D85 Decision 6 amendment — the per-lesson-load flush ("write-schedule item (1)") gets a single,
+   delayed retry against `shared`'s 5-second throttle; every OTHER progress write still does not.**
+   D85 Decision 6 said the throttle "stays the only throttle" and that a dropped flush leaving the
+   resume position ~5s stale is "Accepted, not worked around." That acceptance was written with
+   *position* staleness in mind. Item (1) is different in kind: it is what sets the server's
+   `currentLessonId` pointer itself — if the switch-away flush (write-schedule item (4)) lands inside
+   the same 5s window, item (1) silently no-ops and the server's resume pointer keeps pointing at the
+   lesson the student just left, not merely a stale position on the lesson they're actually on. A
+   single retry, delayed past the confirmed `throttleWindow = 5.seconds`
+   (`ReportPlaybackPositionUseCase`), closes that specific gap without touching the throttle itself or
+   any other write. Only the DELAY runs detached from the write queue (so it cannot block a later,
+   unrelated write); the retry's actual network call is re-enqueued back onto the same single-consumer
+   queue once the delay elapses (round 4 correction — an earlier draft fired it directly off-queue,
+   which a Codex probe showed could still let a genuinely slow original request, or the retry itself,
+   land AFTER a newer lesson's own successful write and regress the server's `currentLessonId` back to
+   an abandoned lesson). Guarded by `activeLessonId == lessonId` checked twice — once before the delay
+   elapses, once again right before the re-enqueued network call actually fires — best-effort, not an
+   absolute guarantee: a switch away that happens WHILE the retry's own request is already in flight
+   can still leave a brief window, self-healing within one more throttle window via the new lesson's
+   own load-flush. "Must land" means one extra, staleness-guarded attempt, not a retry loop.
+2. **D85 Decision 9 amendment — a 4th footer state, `FinishCourse`, for "last lesson, complete, no
+   quiz."** Decision 9's literal 3-way rule (`MarkComplete` / `NextLesson` / `TakeQuiz`) has no case
+   for this combination — not because it decided against one, but because it wasn't considered.
+   Falling through to `NextLesson` for it (a first draft's actual behavior) is a mislabeled control:
+   there is no next lesson. `FinishCourse` gets its own state, its own footer copy (C3's concern), and
+   its own `onFinishCourseTapped()` entry point — which, unlike `onMarkCompleteTapped`/
+   `onNextLessonTapped`, makes no further `completeLesson` call (the lesson is already complete) and
+   transitions straight to `CoursePlayerContentState.CourseCompleted`.
+
+**Not amendments, left as originally decided:** the 5s throttle itself is untouched for every write
+except item (1); D85 Decision 1's `pause()`-based teardown assumption is superseded by `stop()`
+in-code but was never a numbered "decision" in the locked sense, just an implementation choice this
+review corrected.
+
+**Verified:** `:shared:testDebugUnitTest` 249/249 (zero diff in `mobile/shared`),
+`:androidApp:testDebugUnitTest` all green (`CoursePlayerViewModelTest` alone: 51 tests, covering all
+five review rounds' findings), `:androidApp:assembleDebug` clean.
+
+**Impact:** `mobile/androidApp/src/main/kotlin/com/mentora/android/ui/courseplayer
+/CoursePlayerViewModel.kt`, `mobile/androidApp/src/main/kotlin/com/mentora/android/playback
+/{PlaybackController.kt,MediaPlaybackController.kt}` (added `stop()`), and
+`CoursePlayerViewModelTest.kt`. No `mobile/shared/` change. Part of Task 13 C2 — not yet committed at
+the time of this entry; recorded now because the review process is what surfaced the amendment, and
+this entry should exist before the commit that depends on it, not be reconstructed after the fact.
+

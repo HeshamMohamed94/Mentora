@@ -66,7 +66,7 @@ import kotlin.time.Duration.Companion.milliseconds
 class MediaPlaybackController(
     context: Context,
     private val refreshPlaybackUrl: suspend (mediaId: String, current: PlaybackSource) -> ApiResult<PlaybackSource>?,
-) : LessonPlaybackController {
+) : LessonPlaybackController, PlaybackController {
 
     private val appContext = context.applicationContext
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -129,7 +129,7 @@ class MediaPlaybackController(
 
     /** The exact current position, read directly from the player — use this for a one-shot read
      *  (e.g. a final position snapshot before [release]); [currentPosition] is for observing. */
-    fun currentPositionNow(): Duration = player.currentPosition.milliseconds
+    override fun currentPositionNow(): Duration = player.currentPosition.milliseconds
 
     private val _duration = MutableStateFlow<Duration?>(null)
     override val duration: StateFlow<Duration?> = _duration.asStateFlow()
@@ -213,6 +213,22 @@ class MediaPlaybackController(
         player.seekTo(position.inWholeMilliseconds)
     }
 
+    /** Task 13 C2 review finding F1 (round 2) — genuinely unloads whatever media is currently
+     *  loaded, rather than merely [pause]ing it. A lesson switch to a lesson with no video (or whose
+     *  source fetch fails) needs this: [pause] alone leaves the OUTGOING lesson's media still loaded
+     *  and playable — a later, unguarded [play] (e.g. from [androidx.lifecycle.ViewModel] callers
+     *  reachable from C3's transport controls) would resume it, and it can still reach
+     *  [PlaybackState.Ended] on its own. `player.stop()` moves the player to [Player.STATE_IDLE]
+     *  with nothing to play; `clearMediaItems()` drops the timeline entirely so a stray [play] call
+     *  genuinely has nothing to resume. */
+    override fun stop() {
+        if (released) return
+        player.stop()
+        player.clearMediaItems()
+        _currentPosition.value = Duration.ZERO
+        _duration.value = null
+    }
+
     /**
      * Android-only addition (Decision 1's "API shape" / Open Question 3) — load-bearing, not
      * convenience: [prepare] structurally cannot support Decision 2's TTL refresh, since `url` alone
@@ -225,7 +241,7 @@ class MediaPlaybackController(
      * opens (a seek outside the buffer, a re-buffer, a resume after a pause), not just the very first
      * one, is preceded by a URL-freshness check.
      */
-    fun prepareLesson(mediaId: String, source: PlaybackSource, startPosition: Duration) {
+    override fun prepareLesson(mediaId: String, source: PlaybackSource, startPosition: Duration) {
         if (released) return
         // Reviewer finding (Task 13 C1 review): no EVENT_POSITION_DISCONTINUITY fires on a FIRST
         // prepare (the player's timeline is empty, so media3's own discontinuity check never trips —
@@ -252,7 +268,7 @@ class MediaPlaybackController(
      *  provides its own rather than relying on one). Every other method on this class no-ops once
      *  [released], rather than risking an `IllegalStateException`/use-after-release crash from a
      *  straggling call on a teardown race. */
-    fun release() {
+    override fun release() {
         if (released) return
         released = true
         tickerJob?.cancel()
