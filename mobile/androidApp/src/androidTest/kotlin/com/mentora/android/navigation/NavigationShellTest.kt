@@ -17,6 +17,9 @@ import androidx.navigation.toRoute
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.mentora.android.theme.MentoraTheme
+import com.mentora.android.ui.checkout.DemoCheckoutConfirmButtonTestTag
+import com.mentora.android.ui.checkout.PurchaseSuccessBackToMyLearningButtonTestTag
+import com.mentora.android.ui.checkout.PurchaseSuccessContentTestTag
 import com.mentora.android.ui.coursedetails.CourseDetailsCtaButtonTestTag
 import com.mentora.android.ui.explore.ExploreCourseCardTestTag
 import com.mentora.android.ui.shell.MobileBottomNavigationTestTag
@@ -27,10 +30,12 @@ import com.mentora.shared.auth.Role
 import com.mentora.shared.auth.SessionUser
 import com.mentora.shared.auth.TokenStorage
 import com.mentora.shared.config.ApiEnvironment
+import com.mentora.shared.data.network.ApiResult
 import com.mentora.shared.data.network.defaultHttpClientEngine
 import com.mentora.shared.settings.AndroidPreferenceStore
 import com.mentora.shared.settings.PreferenceStore
 import io.ktor.client.engine.HttpClientEngine
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -48,13 +53,33 @@ import org.koin.dsl.module
  * network round trip.
  *
  * T7 fix-up: [MentoraNavHost] now takes a required `sdk: MentoraSdk` (Login/Register's real
- * credential-form screens need one to construct their `AuthViewModel`). [buildTestSdk] below
+ * credential-form screens need one to construct their `AuthViewModel`). [sharedSdk] below
  * constructs one via the public `MentoraSdk.create(...)` factory — the same one
  * `MentoraApplication.onCreate()` calls — rather than a "fake" (that class's own kdoc: `MentoraSdk`'s
  * constructor is `internal`, so `:androidApp` cannot construct a mock/fake, only a real instance).
  * This is safe here because `initKoin` builds a non-global `KoinApplication` (see that function's own
- * kdoc) and none of the tests below ever tap Login/Register's submit button, so this real `sdk`'s
- * `auth.login`/`auth.register` never actually fire a network call.
+ * kdoc) and every test except [registerFreshRealStudent]'s two callers never taps a real
+ * login/register network call at all.
+ *
+ * **T11 fix-up — ONE [MentoraSdk] for the whole class run, not one per test method.** Originally
+ * `@Before` built a fresh `sdk` per test (`buildTestSdk()`, now removed). That looked safe — each
+ * `MentoraSdk.create(...)` builds its own non-global Koin graph, its own `HttpClient`, and its own
+ * `SessionManager` — but `AndroidTokenStorage` delegates to `by preferencesDataStore(name =
+ * "mentora_secure_tokens")`, a SINGLE process-wide file, and nothing ever closes a test's Koin graph
+ * afterward. So N still-alive per-test SDKs ended up sharing that one token file: once
+ * [purchaseSuccess_backLandsOnMyLearningRoot_neverBackIntoDemoCheckout] and
+ * [purchaseThenRepeatedTabSwitches_preservesEachTabsSubStack_neverResetsNeverAccumulates] (the first
+ * two tests in this class needing a genuinely completed real purchase — `GET/POST .../checkout` have
+ * no `listEnrollments`-style fail-safe, per `execution/INTEGRATION_CONTRACT.md`'s Enrollment section:
+ * "Student role required on all three routes") both existed, whichever ran SECOND could observe a
+ * real enrollment that actually belonged to the FIRST one's still-live `SessionManager` racing a
+ * write to that shared file — never a false "enrolled" from bad production logic, always a real
+ * completed purchase, just attributed to the wrong test (confirmed via direct backend JWT/DB
+ * inspection). A single shared `sdk` for the whole class removes the second `SessionManager`
+ * entirely, which is the actual fix — not a disclosed, unfixable quirk (contrast Task 6's genuinely
+ * navigation-runtime "first tap after a full-stack reset" quirk, which stays disclosed).
+ * [registerFreshRealStudent]'s own `logout()` remains: with one shared `sdk`, an EARLIER test in the
+ * same run can still leave a real session logged in when [registerFreshRealStudent] needs a clean one.
  */
 @RunWith(AndroidJUnit4::class)
 class NavigationShellTest {
@@ -72,26 +97,61 @@ class NavigationShellTest {
 
     @Before
     fun setUp() {
-        sdk = buildTestSdk()
+        sdk = sharedSdk
     }
 
-    private fun buildTestSdk(): MentoraSdk {
-        val context = ApplicationProvider.getApplicationContext<Context>()
-        val platformModule = module {
-            single<TokenStorage> { AndroidTokenStorage(context) }
-            single<PreferenceStore> { AndroidPreferenceStore(context) }
-            single<HttpClientEngine> { defaultHttpClientEngine() }
+    companion object {
+        /** See this class's own kdoc ("ONE `MentoraSdk` for the whole class run"). `by lazy`'s
+         *  default `SYNCHRONIZED` mode makes the one-time construction safe regardless of which
+         *  thread the JUnit runner first calls [setUp] from. */
+        private val sharedSdk: MentoraSdk by lazy {
+            val context = ApplicationProvider.getApplicationContext<Context>()
+            val platformModule = module {
+                single<TokenStorage> { AndroidTokenStorage(context) }
+                single<PreferenceStore> { AndroidPreferenceStore(context) }
+                single<HttpClientEngine> { defaultHttpClientEngine() }
+            }
+            MentoraSdk.create(
+                environment = ApiEnvironment.androidEmulator(),
+                platformModule = platformModule,
+                enableNetworkLogging = false,
+            )
         }
-        return MentoraSdk.create(
-            environment = ApiEnvironment.androidEmulator(),
-            platformModule = platformModule,
-            enableNetworkLogging = false,
-        )
     }
 
     private val authenticatedStudent = AuthState.Authenticated(
         SessionUser(id = "u1", email = "ada@example.com", name = "Ada", role = Role.Student, preferredLocale = "en"),
     )
+
+    /**
+     * T11 fix-up: `GET .../checkout` + `POST .../checkout/complete` are both real, Student-role-gated
+     * endpoints with no fail-safe fallback (unlike `listEnrollments`'s deliberate "no token -> not
+     * enrolled" degradation — `execution/INTEGRATION_CONTRACT.md`'s Enrollment section: "Student role
+     * required on all three routes"). Reaching PurchaseSuccess for real (tests 5/6's actual subject:
+     * the real `navigateToPurchaseSuccess` full-stack-reset mechanism) needs a real access token
+     * backing [sdk]'s own HTTP client, which this class's fake-`authState`-only harness (see this
+     * class's own kdoc) never provides on its own. Registers a brand-new, unique throwaway account per
+     * test run — same disposable-account precedent as Task 7's own live-backend verification — rather
+     * than reusing a seeded demo account, so the CTA is guaranteed to read "Enroll" (never "Continue
+     * Learning" from a stale prior run's real enrollment) every time this runs. Neither account is
+     * deleted afterward (no delete-account/unenroll endpoint exists to call from an instrumented test,
+     * unlike Task 7's one-time manual `mongosh` cleanup) — repeated real runs of this class add
+     * throwaway `t11-navshelltest-*@example.com` accounts/enrollments to the shared local dev
+     * database; sweep them out manually before using that database for a demo.
+     *
+     * **Logs out first.** With [sdk] now shared for the whole class run (see this class's own kdoc),
+     * an EARLIER test can leave a real session logged in — [purchaseSuccess_backLandsOnMyLearningRoot_neverBackIntoDemoCheckout]/
+     * [purchaseThenRepeatedTabSwitches_preservesEachTabsSubStack_neverResetsNeverAccumulates] both
+     * need their OWN clean session before registering, not a leftover one.
+     */
+    private fun registerFreshRealStudent() {
+        runBlocking { runCatching { sdk.auth.logout() } }
+        val email = "t11-navshelltest-${System.currentTimeMillis()}@example.com"
+        val result = runBlocking {
+            sdk.auth.register(email = email, password = "MentoraTest1", name = "T11 Test Student")
+        }
+        check(result is ApiResult.Success) { "real register failed in test setup: $result" }
+    }
 
     private fun setContentWithAuthState(initial: AuthState) {
         composeTestRule.setContent {
@@ -286,12 +346,20 @@ class NavigationShellTest {
 
         // Lands on the ORIGINALLY intended route (Demo Checkout for the same course), never a
         // generic Home.
-        composeTestRule.onNodeWithText("Demo Checkout (placeholder): $courseId").assertExists()
+        // T11 fix-up: DemoCheckout is now the real screen (`ui/checkout/DemoCheckoutScreen.kt`), which
+        // no longer renders a literal "Demo Checkout (placeholder): $courseId" text node — this reads
+        // the id straight off the real back-stack entry/args instead, same T10-established pattern as
+        // `assertOnCourseDetailsFor`.
+        composeTestRule.waitUntil(timeoutMillis = 15_000) {
+            navController.currentBackStackEntry?.destination?.hasRoute<Destination.DemoCheckout>() == true
+        }
+        assertEquals(courseId, navController.currentBackStackEntry!!.toRoute<Destination.DemoCheckout>().courseId)
     }
 
     // ---- Test 5: Purchase Success back-stack shape ----
     @Test
     fun purchaseSuccess_backLandsOnMyLearningRoot_neverBackIntoDemoCheckout() {
+        registerFreshRealStudent()
         composeTestRule.setContent {
             val nc = rememberNavController()
             navController = nc
@@ -301,19 +369,35 @@ class NavigationShellTest {
         }
 
         val courseId = openFirstCourseFromExplore()
-        // The fake `authenticatedStudent` AuthState carries no real backend session (this class's own
-        // kdoc) — `listEnrollments()` therefore fails-safe to "not enrolled" and the real CTA reads
-        // "Enroll" (`CourseDetailsCtaState.Enroll`), never "Continue Learning".
+        // T11: [registerFreshRealStudent] just established a real, brand-new session — the real CTA
+        // reads "Enroll" (`CourseDetailsCtaState.Enroll`) because this account genuinely has zero
+        // enrollments yet, not because of any fail-safe (contrast the fake-`authState`-only tests
+        // above, which never reach a real `listEnrollments()` call at all).
+        // T11 fix-up: DemoCheckout/PurchaseSuccess are now the real screens (`ui/checkout/*.kt`),
+        // which no longer render literal "... (placeholder): $courseId" text nodes — these reads go
+        // straight off the real back-stack entry/args instead (same T10-established pattern as
+        // `assertOnCourseDetailsFor`), and the confirm tap now waits for the real screen's async
+        // checkout-preview fetch to resolve (the old placeholder rendered its button unconditionally,
+        // with no loading state) before performing it, via the real screen's own test tag.
         composeTestRule.onNodeWithText("Enroll").performClick()
-        composeTestRule.onNodeWithText("Demo Checkout (placeholder): $courseId").assertExists()
+        composeTestRule.waitUntil(timeoutMillis = 15_000) {
+            navController.currentBackStackEntry?.destination?.hasRoute<Destination.DemoCheckout>() == true
+        }
+        assertEquals(courseId, navController.currentBackStackEntry!!.toRoute<Destination.DemoCheckout>().courseId)
 
-        composeTestRule.onNodeWithText("Complete Demo Purchase").performClick()
-        composeTestRule.onNodeWithText("Purchase Success (placeholder): $courseId").assertExists()
+        composeTestRule.waitUntil(timeoutMillis = 15_000) {
+            composeTestRule.onAllNodesWithTag(DemoCheckoutConfirmButtonTestTag).fetchSemanticsNodes().isNotEmpty()
+        }
+        composeTestRule.onNodeWithTag(DemoCheckoutConfirmButtonTestTag).performClick()
+        composeTestRule.waitUntil(timeoutMillis = 15_000) {
+            navController.currentBackStackEntry?.destination?.hasRoute<Destination.PurchaseSuccess>() == true
+        }
+        composeTestRule.onNodeWithTag(PurchaseSuccessContentTestTag).assertExists()
 
         composeTestRule.runOnUiThread { composeTestRule.activity.onBackPressedDispatcher.onBackPressed() }
 
         composeTestRule.onNodeWithText("My Learning (placeholder)").assertExists()
-        composeTestRule.onNodeWithText("Demo Checkout (placeholder): $courseId").assertDoesNotExist()
+        composeTestRule.onNodeWithTag(PurchaseSuccessContentTestTag).assertDoesNotExist()
         composeTestRule.onNodeWithTag("bottom_nav_my_learning").assertExists()
 
         // Real back-stack shape (not just surface text) — Finding 1's fix-up: DemoCheckout/
@@ -346,6 +430,7 @@ class NavigationShellTest {
     // root, never accumulating duplicate entries from the repeated switches. ----
     @Test
     fun purchaseThenRepeatedTabSwitches_preservesEachTabsSubStack_neverResetsNeverAccumulates() {
+        registerFreshRealStudent()
         composeTestRule.setContent {
             val nc = rememberNavController()
             navController = nc
@@ -355,10 +440,34 @@ class NavigationShellTest {
         }
 
         // Complete a purchase — the full-stack reset in navigateToPurchaseSuccess.
+        // T11 fix-up: same real-screen wait/tag treatment as test 5 above — see that test's own
+        // comment for the full rationale.
         val firstCourseId = openFirstCourseFromExplore()
         composeTestRule.onNodeWithText("Enroll").performClick()
-        composeTestRule.onNodeWithText("Complete Demo Purchase").performClick()
-        composeTestRule.onNodeWithText("Purchase Success (placeholder): $firstCourseId").assertExists()
+        composeTestRule.waitUntil(timeoutMillis = 15_000) {
+            composeTestRule.onAllNodesWithTag(DemoCheckoutConfirmButtonTestTag).fetchSemanticsNodes().isNotEmpty()
+        }
+        composeTestRule.onNodeWithTag(DemoCheckoutConfirmButtonTestTag).performClick()
+        composeTestRule.waitUntil(timeoutMillis = 15_000) {
+            navController.currentBackStackEntry?.destination?.hasRoute<Destination.PurchaseSuccess>() == true
+        }
+        assertEquals(firstCourseId, navController.currentBackStackEntry!!.toRoute<Destination.PurchaseSuccess>().courseId)
+
+        // T11 fix-up: Purchase Success is now the real, `shell: "none"` screen (`ui/checkout/
+        // PurchaseSuccessScreen.kt`) — it genuinely hides the bottom nav (see `MentoraNavHost.kt`'s
+        // `isPurchaseSuccess` flag), unlike the T6-era placeholder this test originally exercised,
+        // which never hid it. This test's own subject (repeated tab switches after the full-stack
+        // reset) needs to be ON one of the 5 tabs first — tapping the real "Back to My Learning"
+        // action lands on the SAME already-reset My Learning root test 5 verifies (that button's own
+        // callback is a plain `popBackStack()`, per `MentoraNavHost.kt`), which is exactly where the
+        // bottom nav becomes visible again.
+        composeTestRule.waitUntil(timeoutMillis = 15_000) {
+            composeTestRule.onAllNodesWithTag(PurchaseSuccessBackToMyLearningButtonTestTag).fetchSemanticsNodes().isNotEmpty()
+        }
+        composeTestRule.onNodeWithTag(PurchaseSuccessBackToMyLearningButtonTestTag).performClick()
+        composeTestRule.waitUntil(timeoutMillis = 15_000) {
+            navController.currentBackStackEntry?.destination?.hasRoute<Destination.MyLearning>() == true
+        }
 
         // T6 fix-up (Finding 1) disclosed, NOT-in-scope-to-eliminate quirk: the very FIRST tab tap
         // immediately after a full-stack reset can be a dead no-op (navigation-compose's own

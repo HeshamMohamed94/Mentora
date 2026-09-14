@@ -28,7 +28,10 @@ android {
 
         // Task 4 (Part D): the real-Keystore instrumented test needs the AndroidJUnitRunner to
         // run as connectedDebugAndroidTest.
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        // T11 fix-up: `NoOpApplicationTestRunner` (androidTest source set) substitutes a plain
+        // `Application` for `.MentoraApplication` in the instrumented-test process — see that
+        // class's own kdoc for the real cross-session bug this closes.
+        testInstrumentationRunner = "com.mentora.android.NoOpApplicationTestRunner"
     }
 
     buildTypes {

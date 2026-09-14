@@ -71,7 +71,7 @@ fun HttpClient.installAuthInterception(sessionManager: SessionManager): HttpClie
         }
 
         val attachedToken = sessionManager.currentAccessToken()
-        attachedToken?.let { request.headers.set(HttpHeaders.Authorization, "Bearer $it") }
+        attachedToken.accessToken?.let { request.headers.set(HttpHeaders.Authorization, "Bearer $it") }
 
         var call = execute(request)
         if (call.response.status == HttpStatusCode.Unauthorized) {

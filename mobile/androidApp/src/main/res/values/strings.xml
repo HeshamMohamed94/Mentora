@@ -93,4 +93,37 @@
     <string name="course_details_curriculum_lesson_count">%1$d lessons</string>
     <string name="course_details_about_instructor_heading">About the instructor</string>
     <string name="course_details_rating_content_description">Rated %1$.1f out of 5 (demo rating)</string>
+
+    <!-- T11 — Demo Checkout + Purchase Success, design-to-code/screens/mobile-demo-checkout.json /
+         mobile-purchase-success.json. Nav-title casing/copy mirrors each spec's own exact-showcase
+         quote where one exists (demo_checkout_nav_title's lowercase "checkout" per the showcase's
+         mobile frame; demo_checkout_cancel_action's "Back to course" is the mobile mockup's own
+         wording, a disclosed divergence from Web's plain "Cancel" — see the spec's knownGaps).
+         demo_checkout_notice_title/body split the mobile mockup's separate title+body lines (Web's
+         "demoNotice" combines both into one sentence). purchase_success_description is personalized
+         per-course (%1$s); purchase_success_description_fallback covers the rare case the course
+         title fetch fails (see PurchaseSuccessViewModel's own kdoc) — neither has a Web equivalent,
+         both newly authored from the showcase's literal copy. purchase_success_nav_title is
+         unreachable in practice (PurchaseSuccess is fully chromeless, MentoraTopBar never renders
+         for it) but kept accurate per titleFor()'s own kdoc. -->
+    <string name="demo_checkout_nav_title">Demo checkout</string>
+    <string name="purchase_success_nav_title">Purchase Success</string>
+    <string name="demo_checkout_preview_error_title">This checkout couldn\'t be loaded</string>
+    <string name="demo_checkout_loading_content_description">Loading checkout</string>
+    <string name="demo_checkout_error_message">Demo checkout could not be completed. Try again.</string>
+    <string name="demo_checkout_order_summary_eyebrow">ORDER SUMMARY</string>
+    <string name="demo_checkout_course_row_label">Course</string>
+    <string name="demo_checkout_total_row_label">Total</string>
+    <string name="demo_checkout_notice_title">Demo Payment</string>
+    <string name="demo_checkout_notice_body">No real charges or payment information required.</string>
+    <string name="demo_checkout_try_again_action">Try Again</string>
+    <string name="demo_checkout_confirm_action">Complete Demo Purchase</string>
+    <string name="demo_checkout_cancel_action">Back to course</string>
+    <string name="purchase_success_title">Payment Successful</string>
+    <string name="purchase_success_subtitle">You\'re now enrolled!</string>
+    <string name="purchase_success_description">%1$s is in My Learning. Lesson 1 is ready when you are.</string>
+    <string name="purchase_success_description_fallback">You\'re enrolled. Lesson 1 is ready when you are.</string>
+    <string name="purchase_success_disclosure">Demo purchase · no real charge was made</string>
+    <string name="purchase_success_start_learning">Start Learning</string>
+    <string name="purchase_success_back_to_my_learning">Back to My Learning</string>
 </resources>

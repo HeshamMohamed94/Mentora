@@ -25,12 +25,14 @@ import androidx.navigation.compose.rememberNavController
 // declaring file inside androidx.navigation isn't part of its own stable public-API surface to
 // name precisely — importing the whole package is the robust way to pull them in.
 import androidx.navigation.*
+import androidx.compose.ui.res.stringResource
+import com.mentora.android.R
 import com.mentora.android.ui.screens.AiTutorScreen
 import com.mentora.android.ui.screens.CertificateDetailScreen
 import com.mentora.android.ui.screens.CertificatesScreen
 import com.mentora.android.ui.coursedetails.CourseDetailsScreen
 import com.mentora.android.ui.screens.CoursePlayerScreen
-import com.mentora.android.ui.screens.DemoCheckoutScreen
+import com.mentora.android.ui.checkout.DemoCheckoutScreen
 import com.mentora.android.ui.explore.ExploreScreen
 import com.mentora.android.ui.screens.HomeScreen
 import com.mentora.android.ui.auth.LoginScreen
@@ -38,7 +40,7 @@ import com.mentora.android.ui.auth.RegisterScreen
 import com.mentora.android.ui.screens.LearningPathDetailsScreen
 import com.mentora.android.ui.screens.MyLearningScreen
 import com.mentora.android.ui.screens.ProfileScreen
-import com.mentora.android.ui.screens.PurchaseSuccessScreen
+import com.mentora.android.ui.checkout.PurchaseSuccessScreen
 import com.mentora.android.ui.screens.QuizResultsScreen
 import com.mentora.android.ui.screens.QuizScreen
 import com.mentora.android.ui.screens.SettingsScreen
@@ -200,9 +202,17 @@ fun MentoraNavHost(
     val isFocusedLearningScreen = currentDestination?.hierarchy?.any {
         it.hasRoute<Destination.CoursePlayer>() || it.hasRoute<Destination.Quiz>()
     } ?: false
-    // Bottom nav hidden on Course Player/Quiz (fully removed, never just dimmed — ux/MOBILE_UX.md
-    // § 1) AND while a guest (the bottom nav only ever shows once authenticated).
-    val showBottomNav = authState is AuthState.Authenticated && !isFocusedLearningScreen
+    // T11: DemoCheckout/PurchaseSuccess also hide the bottom nav — DemoCheckout per
+    // `mobile-demo-checkout.json`'s shell note ("bottom nav not shown on this pushed screen"),
+    // PurchaseSuccess per its own `shell: "none"` (which additionally drops the top bar too, see
+    // `isChromeless` below). Kept as its own flag, distinct from [isFocusedLearningScreen] (a
+    // Course-Player/Quiz-specific concept per that val's own name/kdoc), rather than folded into it.
+    val isDemoCheckout = currentDestination?.hasRoute<Destination.DemoCheckout>() == true
+    val isPurchaseSuccess = currentDestination?.hasRoute<Destination.PurchaseSuccess>() == true
+    // Bottom nav hidden on Course Player/Quiz/Demo Checkout/Purchase Success (fully removed, never
+    // just dimmed — ux/MOBILE_UX.md § 1) AND while a guest (the bottom nav only ever shows once
+    // authenticated).
+    val showBottomNav = authState is AuthState.Authenticated && !isFocusedLearningScreen && !isDemoCheckout && !isPurchaseSuccess
     val isTabRoot = currentDestination?.let { destination ->
         destination.hasRoute<Destination.Home>() ||
             destination.hasRoute<Destination.Explore>() ||
@@ -219,11 +229,16 @@ fun MentoraNavHost(
     val isAuthRoute = currentDestination?.let { destination ->
         destination.hasRoute<Destination.Login>() || destination.hasRoute<Destination.Register>()
     } ?: false
+    // T11: Purchase Success is `shell: "none"` — genuinely NO app chrome at all, a step further than
+    // DemoCheckout (which keeps its top bar, only loses the bottom nav, above). Folded into the same
+    // "suppress MentoraTopBar" check as [isAuthRoute] (mirrors that exact established pattern) rather
+    // than a parallel boolean of its own.
+    val isChromeless = isAuthRoute || isPurchaseSuccess
 
     Scaffold(
         modifier = modifier,
         topBar = {
-            if (!isAuthRoute) {
+            if (!isChromeless) {
                 MentoraTopBar(
                     title = titleFor(currentDestination),
                     showBackButton = !isTabRoot,
@@ -292,9 +307,11 @@ fun MentoraNavHost(
                     val courseId = entry.toRoute<Destination.DemoCheckout>().courseId
                     DemoCheckoutScreen(
                         courseId = courseId,
+                        sdk = sdk,
                         onCompletePurchase = {
                             navigateToPurchaseSuccess(navController, courseId) { anchorTab = it }
                         },
+                        onBackToCourse = { navController.popBackStack() },
                     )
                 }
                 composable<Destination.CoursePlayer>(content = coursePlayerContent)
@@ -315,7 +332,32 @@ fun MentoraNavHost(
                     CertificateDetailScreen(certificateId = entry.toRoute<Destination.CertificateDetail>().certificateId)
                 }
                 composable<Destination.PurchaseSuccess> { entry ->
-                    PurchaseSuccessScreen(courseId = entry.toRoute<Destination.PurchaseSuccess>().courseId)
+                    val courseId = entry.toRoute<Destination.PurchaseSuccess>().courseId
+                    PurchaseSuccessScreen(
+                        courseId = courseId,
+                        sdk = sdk,
+                        // `ux/NAVIGATION_SPEC.md`'s per-screen table: Course Player's back target is
+                        // ALWAYS My Learning, "not Course Details, once enrolled" — regardless of
+                        // entry point (Purchase Success/My Learning/Dashboard/Course Details all name
+                        // My Learning as the single back target, § "Why Course Player backs to My
+                        // Learning, not Course Details"). Popping [Destination.PurchaseSuccess] off
+                        // (inclusive) before pushing Course Player is what makes that true here too —
+                        // a plain `navigate(...)` would leave Purchase Success underneath, so system
+                        // back from the player would return to the just-completed celebratory screen
+                        // instead.
+                        onStartLearning = {
+                            navController.navigate(Destination.CoursePlayer(courseId, lessonId = null)) {
+                                popUpTo<Destination.PurchaseSuccess> { inclusive = true }
+                            }
+                        },
+                        // Same target as system back (`navigateToPurchaseSuccess`'s own kdoc: Purchase
+                        // Success sits directly on top of My Learning's own FRESH root) — a plain
+                        // `popBackStack()` lands there identically, verified by
+                        // `NavigationShellTest.purchaseSuccess_backLandsOnMyLearningRoot...`. Deliberately
+                        // NOT a fresh `navigate(Destination.MyLearning)`, so the button-tap and
+                        // system-back paths are byte-identical, per this task's own instruction.
+                        onBackToMyLearning = { navController.popBackStack() },
+                    )
                 }
             }
 
@@ -421,6 +463,16 @@ private fun NavDestination?.isInTab(tab: TabGraph): Boolean {
     }
 }
 
+/**
+ * T11 fix-up: [Destination.DemoCheckout]/[Destination.PurchaseSuccess]'s titles are now real,
+ * localized `stringResource`-driven text (the placeholder era's raw English literals, per this
+ * task's own instruction) — this function had to become `@Composable` to do that. Every other
+ * branch below is untouched, pre-existing T6-era hardcoded English literal — out of this task's
+ * scope to localize (T11 only owns the two new destinations it introduces); PurchaseSuccess's own
+ * branch is unreachable in practice today ([isChromeless] above suppresses `MentoraTopBar` entirely
+ * for it) but is still kept accurate here rather than left stale, in case that ever changes.
+ */
+@Composable
 private fun titleFor(destination: NavDestination?): String = when {
     destination == null -> ""
     destination.hasRoute<Destination.Home>() -> "Home"
@@ -438,7 +490,7 @@ private fun titleFor(destination: NavDestination?): String = when {
     destination.hasRoute<Destination.Certificates>() -> "Certificates"
     destination.hasRoute<Destination.CertificateDetail>() -> "Certificate"
     destination.hasRoute<Destination.Settings>() -> "Settings"
-    destination.hasRoute<Destination.DemoCheckout>() -> "Demo Checkout"
-    destination.hasRoute<Destination.PurchaseSuccess>() -> "Purchase Success"
+    destination.hasRoute<Destination.DemoCheckout>() -> stringResource(R.string.demo_checkout_nav_title)
+    destination.hasRoute<Destination.PurchaseSuccess>() -> stringResource(R.string.purchase_success_nav_title)
     else -> ""
 }

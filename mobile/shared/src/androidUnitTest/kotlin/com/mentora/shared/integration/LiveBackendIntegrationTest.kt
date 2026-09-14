@@ -345,7 +345,7 @@ class LiveBackendIntegrationTest {
         assertEquals(1, refreshCallsMade, "expected EXACTLY one /auth/refresh call for the single corrupted request")
         assertEquals(2, usersMeCallsMade, "expected exactly 2 calls to /users/me: the original 401 attempt + one retry")
 
-        val accessTokenAfterRefresh = sessionManager.currentAccessToken()
+        val accessTokenAfterRefresh = sessionManager.currentAccessToken().accessToken
         assertNotEquals("corrupted-invalid-access-token", accessTokenAfterRefresh)
         // NOT asserting the ACCESS token itself differs from before: verified against the real
         // backend source (`TokenIssuer.accessToken()`) that its JWT `iat`/`exp` claims are

@@ -17,7 +17,6 @@ import com.mentora.android.ui.components.PrimaryButton
  * screen below is `Text("... (placeholder)")`-level, nothing more, EXCEPT the handful the task
  * explicitly calls out as needing a real, testable mechanism wired through them (still not real
  * content/design — no styling, no real course data, no credential form):
- * - [DemoCheckoutScreen]: a minimal trigger for the Purchase-Success back-stack mechanism.
  * - [ProfileScreen]: one trigger into `Settings`, since Settings is a real registered destination
  *   this task's manual smoke test needs to be able to reach.
  *
@@ -39,6 +38,10 @@ import com.mentora.android.ui.components.PrimaryButton
  *
  * T10 note: `CourseDetailsScreen` is no longer a placeholder here — Task 10 replaced it with a real
  * screen in `com.mentora.android.ui.coursedetails` (`CourseDetailsScreen.kt`).
+ *
+ * T11 note: `DemoCheckoutScreen`/`PurchaseSuccessScreen` are no longer placeholders here — Task 11
+ * replaced them with real screens in `com.mentora.android.ui.checkout`
+ * (`DemoCheckoutScreen.kt`/`PurchaseSuccessScreen.kt`).
  */
 @Composable
 fun HomeScreen(modifier: Modifier = Modifier) = PlaceholderScreen("Home (placeholder)", modifier)
@@ -63,18 +66,6 @@ fun SettingsScreen(modifier: Modifier = Modifier) = PlaceholderScreen("Settings 
 @Composable
 fun LearningPathDetailsScreen(pathId: String, modifier: Modifier = Modifier) =
     PlaceholderScreen("Learning Path Details (placeholder): $pathId", modifier)
-
-@Composable
-fun DemoCheckoutScreen(courseId: String, onCompletePurchase: () -> Unit, modifier: Modifier = Modifier) {
-    Column(modifier = modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text("Demo Checkout (placeholder): $courseId", style = MaterialTheme.typography.bodyLarge)
-        PrimaryButton(text = "Complete Demo Purchase", onClick = onCompletePurchase)
-    }
-}
-
-@Composable
-fun PurchaseSuccessScreen(courseId: String, modifier: Modifier = Modifier) =
-    PlaceholderScreen("Purchase Success (placeholder): $courseId", modifier)
 
 @Composable
 fun CoursePlayerScreen(

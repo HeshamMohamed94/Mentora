@@ -1396,3 +1396,88 @@ still 249/249. `:androidApp:connectedDebugAndroidTest` 65/65 on the real emulato
 (Explore + Learning Paths segment) — reuse `SearchField`/`ApiErrorCopy`/`CourseCard`/`CourseArtwork`/
 `CategoryChip`/state-pattern components, do not rebuild any of them.
 
+### D83 — 2026-09-14 — PHASE 4 Task 11: real Demo Checkout + Purchase Success screens; a genuine
+cross-session identity bug in the instrumented test process, chased through three fix attempts before
+the actual root cause was found
+
+**Decision — this session was recovered mid-interruption** (an unexpected shutdown), with Task 11's
+screens (`ui/checkout/DemoCheckoutScreen.kt`, `PurchaseSuccessScreen.kt`, their ViewModels) already
+written by the interrupted prior session but its localization, navigation wiring, and test coverage
+still incomplete. Recovery completed that work rather than redoing it: added the ~19 missing
+`strings.xml`/`values-ar/strings.xml` entries the build was failing on, wired both real screens into
+`MentoraNavHost.kt` (`sdk`, `onBackToCourse`, `onStartLearning`, `onBackToMyLearning`), added two new
+JVM `ViewModelTest` files (`CheckoutViewModelTest`, `PurchaseSuccessViewModelTest`, 13 tests) matching
+the T9/T10 convention, and fixed 3 stale `NavigationShellTest` assertions still checking for text the
+new real screens no longer render.
+
+**Decision — an Opus review's two findings (fixed) plus an independent Codex second-opinion review's
+own two findings (one of which was the ACTUAL root cause) were all needed before this task was
+genuinely done; an interim self-report claiming "not a production bug, fully investigated" was wrong
+and had to be retracted.** In order:
+1. Opus found an unguarded read-then-write race in `SessionManager.currentAccessToken()`'s
+   disk-fallback path (a caller resuming from a slow Keystore read could overwrite a fresher token
+   another caller had already rotated in). Fixed with a `sessionMutex` guarding every write to
+   `cachedAccessToken`, double-checked locking on the read path. A first draft of this fix nearly
+   introduced a **reentrant-`Mutex` deadlock** (`performRefresh()` calling the public `onSignedOut()`
+   from inside its own lock hold) — caught before shipping by re-reading the diff, fixed by splitting
+   into a private `performRefreshLocked()` that never acquires the lock itself.
+2. Opus also found that `NavigationShellTest` built a fresh `MentoraSdk` per test method, and since
+   `AndroidTokenStorage` is backed by one process-wide DataStore file with nothing to close a test's
+   Koin graph afterward, N still-alive per-test SDKs shared that one file — whichever of tests 5/6 ran
+   second could observe the first one's real enrollment. Fixed with one `by lazy` shared `sdk` for the
+   whole test class.
+3. Neither fix eliminated the flake. A concrete piece of evidence (a `GET /enrollments` request inside
+   test 5's own network log, captured via a temporary `enableNetworkLogging = true` + `printToLog`
+   debug pass, carrying a DIFFERENT account's JWT than the one test 5 had just registered) proved a
+   third, unidentified mechanism was still live. Rather than keep guessing, this was handed to an
+   independent Codex review (per the routing policy's "concurrency-sensitive code" + "milestone
+   completion" criteria) with the concrete evidence attached. **Codex found the actual root cause**:
+   `MentoraApplication.onCreate()` (`MentoraApplication.kt`) still runs in every instrumented test's
+   process regardless of what the test itself constructs, bootstrapping its OWN
+   `MentoraSdk`/`SessionManager` (`sdk.auth.restoreSession()`) against the SAME process-wide token
+   file the test's own SDK uses — a SECOND, always-present, never-considered session the two earlier
+   fixes never addressed. A first fix attempt (an `androidTest/AndroidManifest.xml` `android:name`
+   override) was verified against the merged manifest and found to be a no-op — the `androidTest` APK
+   is a separate package (`com.mentora.android.test`) whose own `<application>` tag has zero effect on
+   the TARGET app's process. The actual fix is `NoOpApplicationTestRunner`, a custom
+   `AndroidJUnitRunner` overriding `newApplication()` to substitute a plain `Application` for
+   `.MentoraApplication`, wired via `testInstrumentationRunner` in `androidApp/build.gradle.kts` — this
+   is the officially documented mechanism for this exact problem, and was verified to actually work
+   (re-running `NavigationShellTest` alone went from 2 failures to 1, with test 5 — the one the
+   evidence was captured from — passing outright).
+4. Codex's second finding (independent of the test flake, a real if narrow production-correctness gap)
+   was that `refreshAccessToken()`'s "already rotated by another caller" short-circuit compared tokens
+   alone, which can't distinguish a sibling refresh of the SAME session from an entirely different
+   account having logged in while a request was in flight — the old code could hand a stale request
+   that OTHER account's tokens to retry with. Fixed with a `sessionGeneration` counter (bumped only by
+   `onAuthenticated`/`onSignedOut`, never by an in-place refresh rotation) carried alongside the token
+   in a new `SessionManager.SessionSnapshot`, threaded through `currentAccessToken()`/
+   `refreshAccessToken()`; a generation mismatch now fails the stale request outright instead of ever
+   adopting a different identity's tokens. Re-verified against the real backend
+   (`shared:liveBackendIntegrationTest`) and all 249 `shared` unit tests, including the
+   dedicated N-concurrent-401s single-flight-refresh test that specifically exercises the "same
+   session, legitimate short-circuit" path this change had to preserve.
+
+**Also fixed while finalizing**: one remaining `NavigationShellTest` test (`purchaseThenRepeated
+TabSwitches...`) tried to tap a bottom-nav tab immediately after landing on the new real, `shell:
+"none"` Purchase Success screen — which correctly hides the bottom nav (a T11 behavior change the
+T6-era test predates and never accounted for, since the old placeholder never hid it). Fixed by
+tapping the real "Back to My Learning" action first, landing on the same already-reset My Learning
+root test 5 independently verifies, before the test's own tab-switch assertions begin.
+
+**Why accepted:** every fix was re-verified against the real backend and real emulator, not re-read
+code alone — `:shared:testDebugUnitTest` 249/249, `:androidApp:testDebugUnitTest` 60/60 (13 new),
+`shared:liveBackendIntegrationTest` green against the live backend, and a full
+`:androidApp:connectedDebugAndroidTest` 84/84 with zero failures (`NavigationShellTest` itself 7/7,
+including both previously-flaky tests). The interim "not a production bug" self-report was wrong and
+is explicitly retracted here rather than left standing — the actual defect was real, reproducible, and
+now closed at its true root cause, with a second, independently-found production-correctness gap
+closed alongside it.
+
+**Impact:** `mobile/androidApp/**` (`ui/checkout/*` screens/ViewModels + 2 new test files,
+`navigation/MentoraNavHost.kt`, `navigation/NavigationShellTest.kt`, `ui/components/SuccessState.kt`,
+`ui/screens/PlaceholderScreens.kt`, `strings.xml`/`values-ar/strings.xml`, `build.gradle.kts`'s
+`testInstrumentationRunner`, new `NoOpApplicationTestRunner.kt`) and `mobile/shared/` (`auth/
+SessionManager.kt`, `auth/AuthPlugin.kt`'s call site, `LiveBackendIntegrationTest.kt`'s call site).
+Next: Task 12 (Home + My Learning + Certificates entry).
+

@@ -84,4 +84,26 @@
     <string name="course_details_curriculum_lesson_count">%1$d درس</string>
     <string name="course_details_about_instructor_heading">عن المدرّب</string>
     <string name="course_details_rating_content_description">التقييم %1$.1f من 5 (تقييم تجريبي)</string>
+
+    <!-- T11 — Demo Checkout + Purchase Success, see values/strings.xml for sourcing notes. -->
+    <string name="demo_checkout_nav_title">الدفع التجريبي</string>
+    <string name="purchase_success_nav_title">تم الشراء بنجاح</string>
+    <string name="demo_checkout_preview_error_title">تعذّر تحميل صفحة الدفع</string>
+    <string name="demo_checkout_loading_content_description">جارٍ تحميل صفحة الدفع</string>
+    <string name="demo_checkout_error_message">تعذّر إتمام الدفع التجريبي. حاول مرة أخرى.</string>
+    <string name="demo_checkout_order_summary_eyebrow">ملخص الطلب</string>
+    <string name="demo_checkout_course_row_label">الدورة</string>
+    <string name="demo_checkout_total_row_label">الإجمالي</string>
+    <string name="demo_checkout_notice_title">دفع تجريبي</string>
+    <string name="demo_checkout_notice_body">لا توجد رسوم حقيقية أو حاجة لبيانات دفع.</string>
+    <string name="demo_checkout_try_again_action">إعادة المحاولة</string>
+    <string name="demo_checkout_confirm_action">إتمام الشراء التجريبي</string>
+    <string name="demo_checkout_cancel_action">العودة إلى الدورة</string>
+    <string name="purchase_success_title">تم الدفع بنجاح</string>
+    <string name="purchase_success_subtitle">تم تسجيلك في الدورة الآن!</string>
+    <string name="purchase_success_description">الدورة «%1$s» متاحة الآن في مساحة التعلّم. الدرس الأول جاهز لك.</string>
+    <string name="purchase_success_description_fallback">أنت مسجَّل الآن. الدرس الأول جاهز لك.</string>
+    <string name="purchase_success_disclosure">شراء تجريبي · لم يتم خصم أي رسوم حقيقية</string>
+    <string name="purchase_success_start_learning">ابدأ التعلّم</string>
+    <string name="purchase_success_back_to_my_learning">العودة إلى مساحة التعلّم</string>
 </resources>

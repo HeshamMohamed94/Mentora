@@ -53,7 +53,7 @@ import com.mentora.android.theme.extendedColors
  * [SuccessState] instance sitting on screen for a settings toggle to invalidate mid-display.
  */
 @Composable
-private fun rememberReducedMotionEnabled(): Boolean {
+internal fun rememberReducedMotionEnabled(): Boolean {
     val context = LocalContext.current
     return remember {
         Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
