@@ -2921,3 +2921,60 @@ emulator verification, `androidApp/README.md`, Phase 4 → Phase 5 handoff) — 
 the phase's own standing hard boundary, Phase 5 (iOS) still requires explicit user approval after Phase
 4 completes, regardless of how Task 20 goes.
 
+### D95 — 2026-09-15 — PHASE 4 Task 20 complete: live emulator verification, `androidApp/README.md`,
+Phase 4 → Phase 5 handoff — **Phase 4 is now COMPLETE**
+
+**What this task did.** The final Phase 4 task, per `PHASE_4_ANDROID_PLAN.md § 5`'s own definition:
+(1) a live-device verification pass beyond Task 19's already-completed RTL/theme/font-scale spot-check,
+(2) `mobile/androidApp/README.md` (new — mirrors `backend/README.md`/`web/README.md`'s established
+structure per this project's standing documentation convention), (3) this `PHASE_HANDOFF.md` write-up.
+
+**Live emulator verification.** Continued directly from Task 19's own live session (same
+`Chatting_Pixel_8_API_36` emulator, same real local backend, same seeded `student1@mentora.dev`
+account, session and Arabic+Dark preference still intact) to cover the screens Task 19's own spot-check
+explicitly disclosed as not yet re-checked: **Course Player** (real ExoPlayer surface, scrubber,
+mark-complete, curriculum bottom sheet — all correctly RTL-mirrored and dark-themed, "الدرس 1 من 12"/
+"محتوى الدورة · 1 / 12" render with Western numerals per `LOCALIZATION.md § 8`), **AI Tutor** (quick-
+action chips and composer correctly localized; prior-session English message history correctly stays
+untranslated, since chat history is a record not live content — confirmed not a locale-reload gap),
+**Explore's Learning Paths segment** and **Learning Path Details** (course count/"الحالية" current-step
+badge/progress all correct), and **Certificates List → Certificate Detail** (the full certificate
+document view — "شهادة إتمام"/"مُقدَّمة إلى"/instructor/dates/public id — renders correctly, Western-
+numeral dates). Combined with Task 19's own 9-screen spot-check, this brings live-verified-this-session
+coverage to **16 of the phase's 18 in-scope screens** across guest/authenticated, English/Arabic, and
+Light/Dark states. **Quiz and Quiz Results were NOT re-verified this session** — reaching them requires
+completing all 12 lessons of a seeded course, which this session judged not worth the time cost given
+both screens already went through their own dedicated Task 14 review round (D89, 2 HIGH + 4 MEDIUM + 3
+LOW found and fixed) and are covered by the same `:androidApp:connectedDebugAndroidTest` 105/105 run
+Task 19 already confirmed green against this exact commit. Disclosed here rather than silently assumed
+verified — a real, if low-probability (no code in either screen changed since Task 14's own review),
+residual gap.
+
+**`androidApp/README.md` (new).** Mirrors `backend/README.md`/`web/README.md`'s structure: Prerequisites
+(JDK 11+, Android SDK compileSdk/targetSdk 36/minSdk 26, the `Chatting_Pixel_8_API_36` AVD this entire
+phase was built and verified against), Install/Run (Gradle wrapper + emulator + backend startup
+sequence, `10.0.2.2` emulator-to-host alias explained), Quality gates (unit + instrumented, with current
+pass counts), Project layout (one paragraph per major `androidApp/` package, cross-referenced to the
+task that built it), and a **Known limitations** section consolidating every disclosed Phase-4-wide gap
+that was previously scattered across 19 individual task entries in `CURRENT_STATUS.md`/
+`DECISIONS_LOG.md` (no password-change endpoint, no real certificate asset, the hand-drawn icon-set
+placeholder, the `FontFamily.SansSerif` Arabic-typography placeholder, the hardcoded `10.0.2.2` base
+URL, the AI-Tutor docked-panel gap) — collecting these in one place for whoever next opens this module,
+rather than requiring a full `DECISIONS_LOG.md` read to reassemble the list.
+
+**Verified (final state):** `:shared:testDebugUnitTest` 249/249, `:androidApp:testDebugUnitTest`
+241/241, `:androidApp:connectedDebugAndroidTest` 105/105 — all unchanged from Task 19's own final gate
+run (Task 20 added no production code, so no gate needed re-running; confirmed by `git diff --stat`
+showing zero changes under `mobile/androidApp/src/{main,test,androidTest}` for this task, only the new
+`README.md` plus the `execution/` continuity docs). `git status` scope: new
+`mobile/androidApp/README.md`; modified `execution/CURRENT_STATUS.md` (Task 20 row DONE, Phase 4 status
+→ COMPLETE), `execution/DECISIONS_LOG.md` (this entry), `execution/PHASE_HANDOFF.md` (new Phase 4
+entry, this file's own required fixed structure).
+
+**Phase 4 is now COMPLETE** — all 20 tasks done, gates green, working tree clean, pushed to `origin/main`.
+Per the phase's own standing hard boundary (recorded at Phase 4 kickoff and reaffirmed in every
+`CURRENT_STATUS.md` update since), **Phase 5 (iOS) requires explicit user approval before any work
+begins** — this session does not start it. See `PHASE_HANDOFF.md`'s new Phase 4 entry for the complete,
+fixed-structure write-up (status, implementation summary, files/modules, tests/verification, known
+limitations, decisions, what Phase 5 depends on, what Phase 5 must not redo, git reference).
+
