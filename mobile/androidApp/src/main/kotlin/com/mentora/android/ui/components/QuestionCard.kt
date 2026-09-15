@@ -9,6 +9,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import com.mentora.android.R
 import com.mentora.android.theme.MentoraDimens
 
 /**
@@ -26,7 +28,13 @@ fun QuestionCard(
     totalQuestions: Int,
     questionText: String,
     modifier: Modifier = Modifier,
-    progressLabel: String = "Question $questionNumber of $totalQuestions",
+    // T19 review fix (LOW-1, D94): generalizing ErrorState.retryLabel's own HIGH fix — see that
+    // component's kdoc. `.toString()` (not raw `%d`) keeps numerals Western per LOCALIZATION.md § 8.
+    progressLabel: String = stringResource(
+        R.string.question_card_progress_label,
+        questionNumber.toString(),
+        totalQuestions.toString(),
+    ),
 ) {
     Surface(
         modifier = modifier,

@@ -128,6 +128,8 @@ class LearningPathDetailsViewModel(
         // Skipping the reload entirely for that one window is enough: `onFollowToggleClicked`'s own
         // completion re-renders correctly regardless of which locale's copy briefly showed, and the
         // student's next real re-entry/retry naturally reloads in the new locale anyway.
+        // Audited — see D94: `loadPath` (`getLearningPathDetail`) is locale-sensitive; nothing else
+        // in this reload block to trim.
         viewModelScope.reloadOnLocaleChange(observeLocale) {
             val current = _uiState.value.path as? LearningPathLoadState.Success
             if (current?.followInFlight != true) loadPath()

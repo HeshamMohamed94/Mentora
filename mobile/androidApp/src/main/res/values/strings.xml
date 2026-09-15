@@ -371,4 +371,18 @@
     <!-- T19 review fix (HIGH): ErrorState's own retryLabel default — see ErrorState.kt's own kdoc.
          Live/reachable at 7 call sites that never overrode it. -->
     <string name="error_state_retry_label">Try again</string>
+
+    <!-- T19 review fix (MEDIUM-1): MentoraRootScreen's own AuthState.Unknown loading placeholder —
+         renders on every cold start until session restore resolves, was a raw English literal. -->
+    <string name="root_loading_label">Loading…</string>
+
+    <!-- T19 review fix (LOW-1): generalizing ErrorState.retryLabel's own fix — these are each
+         component's own default parameter value, closing the same latent-bug class at 4 more
+         components (every real call site already overrides these explicitly). -->
+    <string name="answer_option_correct_label">Correct</string>
+    <string name="answer_option_incorrect_label">Incorrect</string>
+    <string name="certificate_card_view_label">View</string>
+    <string name="certificate_card_share_label">Share</string>
+    <string name="course_progress_card_resume_label">Resume</string>
+    <string name="question_card_progress_label">Question %1$s of %2$s</string>
 </resources>

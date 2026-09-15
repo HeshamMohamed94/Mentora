@@ -16,10 +16,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
+import com.mentora.android.R
 import com.mentora.android.theme.MentoraDimens
 import com.mentora.android.theme.extendedColors
 import com.mentora.android.theme.stateOpacities
@@ -72,8 +74,11 @@ fun AnswerOption(
     isCorrectAnswer: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    correctLabel: String = "Correct",
-    incorrectLabel: String = "Incorrect",
+    // T19 review fix (LOW-1, D94): generalizing ErrorState.retryLabel's own HIGH fix — see that
+    // component's kdoc. Every real call site already overrides these explicitly, so this closes a
+    // latent (not currently reachable) instance of the same raw-English-default bug class.
+    correctLabel: String = stringResource(R.string.answer_option_correct_label),
+    incorrectLabel: String = stringResource(R.string.answer_option_incorrect_label),
 ) {
     val state = answerOptionStateFor(isSelected, isSubmitted, isCorrectAnswer)
     val colorScheme = MaterialTheme.colorScheme

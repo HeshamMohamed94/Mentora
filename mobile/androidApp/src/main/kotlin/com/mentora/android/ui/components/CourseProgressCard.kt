@@ -2,6 +2,8 @@ package com.mentora.android.ui.components
 
 import androidx.compose.ui.Modifier
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
+import com.mentora.android.R
 import kotlin.math.roundToInt
 
 /**
@@ -24,7 +26,11 @@ fun CourseProgressCard(
     mediaId: String? = null,
     thumbnailUrl: String? = null,
     onClick: (() -> Unit)? = null,
-    resumeLabel: String = "Resume",
+    // T19 review fix (LOW-1, D94): generalizing ErrorState.retryLabel's own HIGH fix — see that
+    // component's kdoc. `progressLabelFormatter`'s own English literal is untouched here — it's a
+    // pre-existing, already-disclosed gap (every real call site overrides it; no localized formatter
+    // exists yet), not part of this fix's scope.
+    resumeLabel: String = stringResource(R.string.course_progress_card_resume_label),
     progressLabelFormatter: (Float) -> String = { p -> "${(p * 100).roundToInt()}% complete" },
 ) {
     BaseCourseCard(

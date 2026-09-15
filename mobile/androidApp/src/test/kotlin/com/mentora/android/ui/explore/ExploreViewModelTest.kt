@@ -94,8 +94,11 @@ class ExploreViewModelTest {
 
     // ---- T19 — locale-reload sweep (execution/DECISIONS_LOG.md D94) -----------------------------
 
+    // T19 review fix (D94): `listCategories`/`listLearningPaths` never send `?language=` (locale-
+    // invariant reads), so a locale change deliberately does NOT re-trigger them — only `loadCourses`
+    // (`search`) is actually locale-sensitive. See `ExploreViewModel.kt`'s own init-block comment.
     @Test
-    fun localeChange_reloadsCoursesCategoriesAndLearningPaths_butOnlyAfterTheInitialLoad() = runTest(testDispatcher) {
+    fun localeChange_reloadsCoursesOnly_categoriesAndLearningPathsStayLocaleInvariant() = runTest(testDispatcher) {
         var categoriesCallCount = 0
         var learningPathsCallCount = 0
         val locale = MutableStateFlow(AppLocale.English)
@@ -113,8 +116,8 @@ class ExploreViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         assertEquals(2, search.callCount)
-        assertEquals(2, categoriesCallCount)
-        assertEquals(2, learningPathsCallCount)
+        assertEquals(1, categoriesCallCount)
+        assertEquals(1, learningPathsCallCount)
     }
 
     @Test

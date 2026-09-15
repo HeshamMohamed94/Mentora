@@ -77,10 +77,32 @@ class StringsParityTest {
         assertTrue("Format-specifier mismatches between values/ and values-ar/: $mismatches", mismatches.isEmpty())
     }
 
-    private val formatSpecifierPattern = Regex("""%(\d+)\$([sd])""")
+    /** design-system/LOCALIZATION.md § 8 — Western numerals in every locale. `Resources.getString(id, args)`
+     *  formats with the CONFIGURATION's locale (genuinely Arabic since LocalizedContent.kt), so a `%d`/`%f`
+     *  argument renders Arabic-Indic digits. Every numeral must therefore arrive pre-formatted as `%N$s`
+     *  (`Int.toString()`, or `String.format(Locale.US, …)`), never as a raw numeric conversion. */
+    @Test
+    fun everyFormatSpecifier_isAPositionalStringConversion_inBothLocales() {
+        val offenders = listOf("values", "values-ar").flatMap { dir ->
+            stringValuesIn(File(repoRoot, "mobile/androidApp/src/main/res/$dir/strings.xml"))
+                .flatMap { (name, text) -> formatSpecifiersIn(text).map { "$dir/$name: $it" } }
+                .filterNot { Regex("""%\d+\${'$'}s$""").containsMatchIn(it) }
+        }
+        assertTrue("Non-`%N\$s` format specifiers (see LOCALIZATION.md § 8): $offenders", offenders.isEmpty())
+    }
+
+    /** Matches a full Java format specifier: an optional positional `N$`, optional flags, optional
+     *  width, optional precision, then the conversion character. The leading `%%` alternative is
+     *  matched FIRST so a literal percent-escape is consumed here rather than letting the character
+     *  after it be misread as a conversion — it is then dropped below, since `values-ar` legitimately
+     *  writes the Arabic percent sign `٪` (U+066A) where `values` writes `%%`. */
+    private val formatSpecifierPattern = Regex("""%(?:%|(?:\d+\$)?[-#+ 0,(]*\d*(?:\.\d+)?[a-zA-Z])""")
 
     private fun formatSpecifiersIn(text: String): Set<String> =
-        formatSpecifierPattern.findAll(text).map { it.value }.toSet()
+        formatSpecifierPattern.findAll(text)
+            .map { it.value }
+            .filterNot { it == "%%" }
+            .toSet()
 
     private fun assertEmptyValues(file: File) {
         val blanks = mutableListOf<String>()

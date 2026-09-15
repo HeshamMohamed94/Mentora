@@ -90,10 +90,13 @@ class MyLearningViewModel(
         loadCertificates()
         loadCategories()
         viewModelScope.reloadOnLocaleChange(observeLocale) {
+            // loadCertificates()/loadCategories() locale-invariant reads intentionally excluded —
+            // see D94 (`listCertificates`/`listCategories` never send `?language=`). `loadItems`
+            // (`getMyLearningWithProgress`) and `loadFollowedPaths` (`getLearningPathDetail`) both
+            // transitively hit a locale-sensitive read (`getCourseDetails`/`getLearningPath`
+            // respectively), so both stay.
             loadItems()
             loadFollowedPaths()
-            loadCertificates()
-            loadCategories()
         }
     }
 

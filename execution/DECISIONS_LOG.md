@@ -2790,3 +2790,134 @@ Task 19 (Localization/RTL/theme/font-scale QA sweep + Compose UI test suite comp
 also owns the disclosed stale-locale-content gap (finding 2 above) and the `MentoraSelect` hardcoded
 default (finding 6 above), in addition to its already-planned scope.
 
+### D94 — 2026-09-15 — PHASE 4 Task 19 complete: locale-reload sweep, `retryLabel`-class hardcoded-default
+sweep finished, full instrumented suite green, RTL/theme/font-scale spot-check
+
+**Context — a mid-task recovery, not a fresh start.** Task 19 was paused mid-work for a planned user
+shutdown at commit `1fc9fae` ("Task 19 WIP checkpoint"), with the exact remaining scope documented in
+`CURRENT_STATUS.md`'s "EXACT RESUME POINT" section. The user resumed the session and told it to
+continue automatically; that session made further real progress (documented below) but the terminal
+closed before anything after `1fc9fae` was committed — this entry covers both what that resumed
+session did and what this recovery session found and finished on top of it, working entirely from
+uncommitted tracked changes plus a `git log`/`git status` audit (no work was redone or discarded).
+
+**What the resumed (interrupted) session actually did, recovered from the uncommitted working tree:**
+1. Widened `StringsParityTest.kt`'s format-specifier regex (`%(\d+)\$([sd])` →
+   `%(?:%|(?:\d+\$)?[-#+ 0,(]*\d*(?:\.\d+)?[a-zA-Z])`, `%%` filtered post-match) and added a new
+   `everyFormatSpecifier_isAPositionalStringConversion_inBothLocales` test asserting every specifier in
+   both `values/strings.xml` and `values-ar/strings.xml` is a `%N$s` positional-string conversion, per
+   `design-system/LOCALIZATION.md § 8`'s Western-numerals rule — the checkpoint's own item 1, done
+   correctly, needing no rework.
+2. Wired `MainActivity.kt`'s `MentoraRootScreen` `"Loading…"` literal (the `AuthState.Unknown`
+   placeholder, live on every cold start) to a new `root_loading_label` string resource, EN+AR.
+3. Audited all 5 ViewModels using `reloadOnLocaleChange` (the D93-disclosed stale-server-content gap)
+   and correctly trimmed 3 of them to stop reloading locale-INVARIANT endpoints on a locale change:
+   `CourseDetailsViewModel` (drops `loadCategories()` from the reload — `listCategories` never sends
+   `?language=`), `ExploreViewModel` (drops `loadCategories()`/`loadLearningPaths()`, same reasoning),
+   `MyLearningViewModel` (drops `loadCertificates()`/`loadCategories()`). `HomeViewModel` and
+   `LearningPathDetailsViewModel` were correctly left unchanged — both audited and confirmed to
+   transitively hit only locale-SENSITIVE reads (`getCourseDetails`/`getLearningPathDetail`). This is
+   the right fix, not merely a plausible one: a locale switch now re-fetches only what actually changes
+   language server-side, instead of re-fetching everything indiscriminately.
+4. Started, but did not finish, the "LOW-1" fix generalizing `ErrorState.retryLabel`'s own HIGH fix
+   (D93/finding above — a component's raw-English-literal default parameter value, reachable if any
+   real call site fails to override it) to 4 more components: added 6 new string resources
+   (`answer_option_correct_label`/`incorrect_label`, `certificate_card_view_label`/`share_label`,
+   `course_progress_card_resume_label`, `question_card_progress_label`) to both `strings.xml` files —
+   but never updated `AnswerOption.kt`/`QuestionCard.kt`/`CertificateCard.kt`/`CourseProgressCard.kt`
+   themselves to consume them. This is exactly where the terminal closed: 6 dead, unreferenced string
+   resources sitting in both locale files, the 4 components still hardcoding `"Correct"`/`"Incorrect"`/
+   `"View"`/`"Share"`/`"Resume"`/`"Question $n of $m"` as literal Kotlin default parameter values —
+   confirmed via grep before touching anything, not assumed from the checkpoint doc alone.
+
+**What this recovery session did.** All of the above was still sitting as *uncommitted tracked changes*
+against `1fc9fae` (`git log` confirmed zero commits landed after the checkpoint) — recovered and
+finished in place rather than redone:
+1. Finished the LOW-1 wiring left incomplete above: each of the 4 components' default parameter now
+   reads `stringResource(R.string.<key>)`, following the exact `ErrorState.retryLabel` precedent
+   (import `androidx.compose.ui.res.stringResource` + `com.mentora.android.R`, one-line kdoc comment
+   citing this entry). `QuestionCard`'s `progressLabel` passes `questionNumber.toString()`/
+   `totalQuestions.toString()` as the format args (not raw `%d`), matching the `.toString()`-not-`%d`
+   precedent `CourseDetailsScreen.kt`/`CoursePlayerScreen.kt` already established for positional-int
+   format args. `CourseProgressCard.kt`'s sibling `progressLabelFormatter` parameter (a still-hardcoded
+   `"$percent% complete"` lambda) was deliberately left alone and the reason recorded inline — it's a
+   separate, pre-existing, still-disclosed gap (no localized formatter exists yet), and its one real
+   call site (`MyLearningScreen.kt`) already overrides it unconditionally, confirmed via grep of every
+   `CourseProgressCard(`/`progressLabelFormatter` call site before writing that comment.
+2. `:androidApp:testDebugUnitTest` initially failed one test after the ViewModel locale-reload trim
+   above: `ExploreViewModelTest.localeChange_reloadsCoursesCategoriesAndLearningPaths_...` still
+   asserted the OLD (pre-trim) behavior — that a locale change re-calls `listCategories`/
+   `listLearningPaths`. This was the resumed session's own work going uncovered by its own test suite,
+   not a regression this session introduced. Renamed to
+   `localeChange_reloadsCoursesOnly_categoriesAndLearningPathsStayLocaleInvariant` and updated its
+   assertions to match the now-correct, intentional behavior (`categoriesCallCount`/
+   `learningPathsCallCount` stay at 1 after a locale switch; only `search.callCount` advances to 2).
+3. The RTL-mirroring spot-check, Light/Dark theme sweep, and font-scale sweep the checkpoint listed as
+   entirely not-started were done as a live, real-device spot-check (not an exhaustive re-walk of all
+   18 screens — see Limitations below), on the real `Chatting_Pixel_8_API_36` emulator against a freshly
+   started local backend (`./gradlew run`, MongoDB already running as a Windows service) and a freshly
+   seeded-by-login account (`student1@mentora.dev`). Screens covered live: guest Explore → Course
+   Details → auth-gated Login (English/Light, guest); Login/Register (confirmed the
+   pending-nav-intent-survives-login flow still works, matching Task 6's own behavior); Demo Checkout →
+   Purchase Success (a real, harmless demo enrollment created on the seeded account, no synthetic data
+   fabricated — the existing "no real charge" demo-payment flow); My Learning, Home, Profile, Settings,
+   Certificates — the last 5 specifically re-checked in **Arabic + Dark** together (not separately),
+   since that is the state most likely to expose either an RTL bug or a color-token bug going unnoticed
+   behind the other. Concretely confirmed live, not merely inferred from source: Dark theme reflows
+   correctly with no light-surface leakage; Arabic applies instantly with correct RTL mirroring (back
+   arrow direction, bottom-nav item order, dropdown chevron side, right-aligned card content); the
+   Certificates screen's "عرض"/"مشاركة" buttons are the exact strings this task's own `CertificateCard`
+   fix (item 1 above) added — direct, live, on-device proof the fix actually took effect, not just that
+   it compiled; `My Learning`'s "استئناف" (Resume) button and "اكتمل ٪0" progress label render correctly
+   (that screen's own call site overrides both `resumeLabel`/`progressLabelFormatter` explicitly, so
+   this exercises the override path, not `CourseProgressCard`'s new default — the default itself was
+   verified only by compilation + the grep-confirmed absence of any other call site). Font scale: set to
+   130% via `adb shell settings put system font_scale 1.3` + a full app restart (config-change picked up
+   correctly on restart); no clipping, overflow, or squeezed-button text observed on the screens above —
+   see Limitations for what this check does and does not prove. Font scale reset to 1.0 before finishing.
+4. Ran the full automated gate, fresh (not cached from before this session's changes):
+   `:androidApp:compileDebugKotlin`/`compileDebugUnitTestKotlin`/`compileDebugAndroidTestKotlin` clean;
+   `:androidApp:testDebugUnitTest` **241/241** (240 + the new format-specifier test from item 1 above,
+   zero failures after the `ExploreViewModelTest` fix); `:shared:testDebugUnitTest` **249/249** (zero
+   diff in `mobile/shared` — the Phase 3 regression guard, unchanged this entire phase); the full
+   **`:androidApp:connectedDebugAndroidTest` — 105/105**, on the real `Chatting_Pixel_8_API_36` emulator
+   against the real local backend, the one gate the checkpoint explicitly said had never been run
+   against this commit. (A first attempt without the backend running showed exactly the 10 failures
+   consistent with `NETWORK_ERROR`/`10.0.2.2:8080` unreachable — correctly diagnosed as an environment
+   gap, not a code defect, confirmed by re-running clean once the backend was started.)
+
+**Limitations, honestly disclosed, not silently smoothed over:**
+- The RTL/theme/font-scale check above is a **representative spot-check across 9 of the phase's 18
+  screens** (guest Explore, Course Details, Login, Register, Demo Checkout, Purchase Success, My
+  Learning, Home, Profile, Settings, Certificates — several bundled together above), not the
+  screen-by-screen walk of the full 18-screen inventory the original Task 19 scope described. The
+  highest-risk surfaces for this specific class of bug were prioritized (the two screens just fixed in
+  item 1 above, the Settings screen where the Language/Theme controls themselves live, and the two
+  screens — My Learning/Home — most likely to show a locale-reload regression from item 2 above) over
+  exhaustive breadth. Course Player, Quiz/Quiz Results, and AI Tutor were NOT re-verified in
+  Arabic+Dark+font-scale in this session (they were verified in their own Task 13/14/17 review rounds
+  at the time, in English/Light only for the RTL/theme dimension).
+- Font-scale verification is a **no-clipping-observed spot-check, not a rigorous scaled-text
+  measurement** — no pixel/dp comparison was taken between 100% and 130%, so a subtle (non-clipping)
+  scaling defect would not have been caught by this pass.
+- `AnswerOption`/`QuestionCard`'s new string-resource defaults (item 1 above) were verified by
+  compilation and by the grep-confirmed fact that every current real call site overrides them
+  explicitly — neither component's *default* value was exercised live on-device this session, since
+  reaching them requires an in-progress quiz attempt, which this session's spot-check did not set up.
+  This mirrors the exact same disclosed-verification-gap pattern `ErrorState.retryLabel`'s own kdoc
+  already documents for its non-overriding call sites — a real, if lower-probability, residual gap.
+
+**Verified (final state, this session):** `:shared:testDebugUnitTest` 249/249 (zero diff in
+`mobile/shared`); `:androidApp:testDebugUnitTest` 241/241 (240 + 1 new); `:androidApp:assembleDebug`/
+compile gates clean; `:androidApp:connectedDebugAndroidTest` 105/105 on the real emulator against a
+real local backend. `git status` scope for this session's own changes: `MainActivity.kt`,
+`CourseDetailsViewModel.kt`/`ExploreViewModel.kt`/`HomeViewModel.kt`/
+`LearningPathDetailsViewModel.kt`/`MyLearningViewModel.kt` (all pre-existing from the resumed session,
+recovered as-is), `AnswerOption.kt`/`QuestionCard.kt`/`CertificateCard.kt`/`CourseProgressCard.kt` (this
+session's own wiring fix), `ExploreViewModelTest.kt` (this session's own stale-assertion fix),
+`values/strings.xml`/`values-ar/strings.xml` (pre-existing from the resumed session). No `mobile/shared`
+change. **Task 19 is now DONE** — see `CURRENT_STATUS.md`'s Phase 4 task table. Next: Task 20 (Live
+emulator verification, `androidApp/README.md`, Phase 4 → Phase 5 handoff) — the final Phase 4 task; per
+the phase's own standing hard boundary, Phase 5 (iOS) still requires explicit user approval after Phase
+4 completes, regardless of how Task 20 goes.
+

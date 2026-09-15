@@ -101,8 +101,10 @@ class CourseDetailsViewModel(
         loadCourse()
         loadCategories()
         viewModelScope.reloadOnLocaleChange(observeLocale) {
+            // loadCategories() locale-invariant read intentionally excluded — see D94
+            // (`listCategories` never sends `?language=`). Only `loadCourse` (`getCourseDetails`) is
+            // actually locale-sensitive.
             loadCourse()
-            loadCategories()
         }
     }
 

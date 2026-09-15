@@ -316,4 +316,15 @@
 
     <!-- T19 review fix (HIGH): ErrorState's own retryLabel default. -->
     <string name="error_state_retry_label">أعد المحاولة</string>
+
+    <!-- T19 review fix (MEDIUM-1): MentoraRootScreen's own AuthState.Unknown loading placeholder. -->
+    <string name="root_loading_label">جارٍ التحميل…</string>
+
+    <!-- T19 review fix (LOW-1): generalizing ErrorState.retryLabel's own fix. -->
+    <string name="answer_option_correct_label">صحيح</string>
+    <string name="answer_option_incorrect_label">غير صحيح</string>
+    <string name="certificate_card_view_label">عرض</string>
+    <string name="certificate_card_share_label">مشاركة</string>
+    <string name="course_progress_card_resume_label">استئناف</string>
+    <string name="question_card_progress_label">السؤال %1$s من %2$s</string>
 </resources>

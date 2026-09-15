@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mentora.android.locale.LocalizedContent
 import com.mentora.android.navigation.MentoraNavHost
@@ -70,7 +71,7 @@ private fun MentoraRootScreen(app: MentoraApplication) {
             if (resolvedState is AuthState.Unknown) {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     Text(
-                        text = "Loading…",
+                        text = stringResource(R.string.root_loading_label),
                         style = MaterialTheme.typography.bodyLarge,
                         modifier = Modifier.windowInsetsPadding(WindowInsets.safeDrawing),
                     )

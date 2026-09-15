@@ -96,6 +96,9 @@ class HomeViewModel(
 
     init {
         loadMyLearningThenRecommended()
+        // Audited — see D94: `loadMyLearningThenRecommended` transitively hits `getCourseDetails`
+        // (via `getMyLearningWithProgress`) AND directly hits `searchCourses` for Recommended, both
+        // locale-sensitive — nothing here to trim.
         viewModelScope.reloadOnLocaleChange(observeLocale) { loadMyLearningThenRecommended() }
     }
 

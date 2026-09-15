@@ -100,9 +100,10 @@ class ExploreViewModel(
         loadCourses(resetting = true)
         loadLearningPaths()
         viewModelScope.reloadOnLocaleChange(observeLocale) {
-            loadCategories()
+            // loadCategories()/loadLearningPaths() locale-invariant reads intentionally excluded —
+            // see D94 (`listCategories`/`listLearningPaths` never send `?language=`). Only
+            // `loadCourses` (`searchCourses`) is actually locale-sensitive.
             loadCourses(resetting = true)
-            loadLearningPaths()
         }
     }
 

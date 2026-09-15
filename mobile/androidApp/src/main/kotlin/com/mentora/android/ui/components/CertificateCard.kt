@@ -16,8 +16,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
+import com.mentora.android.R
 import com.mentora.android.theme.MentoraDimens
 
 /**
@@ -43,8 +45,10 @@ fun CertificateCard(
     onViewClick: () -> Unit,
     onShareClick: () -> Unit,
     modifier: Modifier = Modifier,
-    viewLabel: String = "View",
-    shareLabel: String = "Share",
+    // T19 review fix (LOW-1, D94): generalizing ErrorState.retryLabel's own HIGH fix — see that
+    // component's kdoc.
+    viewLabel: String = stringResource(R.string.certificate_card_view_label),
+    shareLabel: String = stringResource(R.string.certificate_card_share_label),
 ) {
     Surface(
         modifier = modifier,
