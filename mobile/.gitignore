@@ -20,3 +20,8 @@ xcuserdata/
 # OS
 .DS_Store
 Thumbs.db
+
+# Ad-hoc local debug artifacts (screenshots/logs from manual repro work) — `.local-runtime/` above
+# only matches the directory, not loose files like `.local-runtime-launch.png`.
+.local-runtime-*
+.shots/

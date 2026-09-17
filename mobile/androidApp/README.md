@@ -77,12 +77,19 @@ cd mobile
 ./gradlew.bat :androidApp:connectedDebugAndroidTest
 ```
 
-105/105 passing as of Task 19, run against the real `Chatting_Pixel_8_API_36` emulator **with the real
-local backend already running** — a large fraction of these tests hit real network calls (register/
-login/enroll/etc. against the live backend, never mocked, matching this project's testing philosophy
-throughout every phase). Running this suite with no backend reachable fails ~10 tests with
-`NETWORK_ERROR`/`Failed to connect to /10.0.2.2:8080` — that is an environment gap, not a code defect;
-start the backend first (see Run, above) and re-run.
+106/106 passing as of the Phase 4 final acceptance review, run against the real
+`Chatting_Pixel_8_API_36` emulator **with the real local backend already running** — a large fraction
+of these tests hit real network calls (register/login/enroll/etc. against the live backend, never
+mocked, matching this project's testing philosophy throughout every phase). Running this suite with no
+backend reachable fails ~10 tests with `NETWORK_ERROR`/`Failed to connect to /10.0.2.2:8080` — that is
+an environment gap, not a code defect; start the backend first (see Run, above) and re-run.
+
+Also note the backend's `auth` route group is rate-limited to 10 requests/minute per
+(`backend/.../plugins/RateLimiting.kt`). Since a large share of this suite registers a fresh real
+account per test, running it back-to-back multiple times in quick succession (e.g. repeated manual
+re-runs during debugging) can trip `RateLimitedAuth` (HTTP 429) on whichever test happens to register
+next — this is backend rate-limiting working as designed, not a code defect. If you see a single
+isolated `RateLimitedAuth` failure, wait ~1 minute for the limiter to refill and re-run.
 
 Known, disclosed flake pattern (recorded repeatedly across Tasks 12-19, e.g. `DECISIONS_LOG.md`
 D84/D89/D92): a handful of screenshot/pixel-capture-based component tests can flake under host-resource

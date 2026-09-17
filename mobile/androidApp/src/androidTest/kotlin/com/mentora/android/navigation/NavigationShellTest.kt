@@ -5,6 +5,10 @@ import androidx.activity.ComponentActivity
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
@@ -22,9 +26,13 @@ import com.mentora.android.theme.ThemeController
 import com.mentora.android.ui.checkout.DemoCheckoutConfirmButtonTestTag
 import com.mentora.android.ui.checkout.PurchaseSuccessBackToMyLearningButtonTestTag
 import com.mentora.android.ui.checkout.PurchaseSuccessContentTestTag
+import com.mentora.android.ui.checkout.PurchaseSuccessStartLearningButtonTestTag
 import com.mentora.android.ui.coursedetails.CourseDetailsCtaButtonTestTag
+import com.mentora.android.ui.courseplayer.CoursePlayerPrimaryActionTestTag
 import com.mentora.android.ui.courseplayer.CoursePlayerScreenTestTag
+import com.mentora.android.ui.quiz.QuizPrimaryActionTestTag
 import com.mentora.android.ui.quiz.QuizScreenTestTag
+import com.mentora.android.ui.quiz.QuizResultsPrimaryActionTestTag
 import com.mentora.android.ui.explore.ExploreCourseCardTestTag
 import com.mentora.android.ui.home.HomeCertificatesStatCardTestTag
 import com.mentora.android.ui.home.HomeContinueLearningCardTestTag
@@ -681,5 +689,130 @@ class NavigationShellTest {
         composeTestRule.waitUntil(timeoutMillis = 15_000) {
             navController.currentBackStackEntry?.destination?.hasRoute<Destination.Certificates>() == true
         }
+    }
+
+    // ---- Test 9 (Phase 4 final acceptance, Bug 1): Quiz Results' "Continue" reached via the FULL
+    // guest-style real chain — purchase → Course Player → Quiz → Quiz Results (not a direct
+    // `navController.navigate(Destination.QuizResults(...))` push, which would never reproduce this
+    // bug: the whole point is that a REAL completed purchase, via [navigateToPurchaseSuccess]'s own
+    // full-stack reset, anchors Course Player/Quiz/Quiz Results under [TabGraph.MyLearningGraph]
+    // (`anchorTab` is set to that graph there), so by the time "Continue" fires, `tab` and the
+    // CURRENT tab are the SAME [TabGraph.MyLearningGraph] — exactly the shape that used to make
+    // `onTabTapped`'s hardcoded `isCurrentTab = false` at that call site route through the
+    // switch-tab `navigate(){ popUpTo{saveState=true}; restoreState=true }` branch and silently
+    // no-op (see that function's own "Bug 1 fix-up" kdoc for the full, live-confirmed mechanism).
+    // Reaches a real "passed" Quiz Results (not "failed") via this seeded course's own real quiz
+    // (`SeedData.kt`'s `QUIZ_COURSE`, always [openFirstCourseFromExplore]'s first result — the only
+    // seeded course a real quiz exists for): every question's FIRST rendered answer option is always
+    // the seeded-correct one (`SeedData.kt`'s own `question(prompt, correct, incorrect, order)`
+    // helper always lists the correct option first, and the backend never shuffles), so selecting it
+    // 3 times deterministically passes. Before this bug's fix, the final `waitUntil` below would
+    // time out (the tap was a genuine, deterministic no-op, not a flaky race) and this test would
+    // fail. ----
+    // This test's own `waitUntil` calls previously used a non-standard 30s budget (every other test
+    // in this class uses the file-wide 15s convention) — originally attributed to a disclosed,
+    // NOT-in-scope-to-eliminate AVD-level `ActivityManager` cached-process freeze (same category as
+    // test 6/8's own disclosed "first tap after reset" quirk above). That diagnosis turned out to be
+    // wrong for THIS test: a Phase 4 final-acceptance review traced the actual hang to a real race in
+    // the lesson-completion loop below (`navController.currentBackStackEntry` read directly, with no
+    // `Espresso.onIdle()` barrier, right after `performClick()` — see that loop's own comment) —
+    // confirmed via logcat that `com.mentora.android`/`com.mentora.android.test` were NEVER in the
+    // freezer's process list during a failing run, ruling out the freeze theory for this specific
+    // failure. With the race fixed, this test now uses the file's normal 15s budget throughout,
+    // verified reliable across 8 consecutive real-emulator runs (3 at the old 30s budget, 5 at 15s)
+    // during that review. The AVD-freezer flake pattern itself remains real and disclosed elsewhere
+    // (README's "Known, disclosed flake pattern" note) for the screenshot/pixel-capture tests it
+    // actually affects — if this test starts flaking again, check that pattern before assuming a
+    // regression, and re-run it alone
+    // (`-Pandroid.testInstrumentationRunnerArguments.class=...`) to confirm.
+
+    @Test
+    fun quizResults_continueReachedViaFullPurchaseChain_navigatesToMyLearning() {
+        registerFreshRealStudent(prefix = "t20-navshelltest")
+        composeTestRule.setContent {
+            val nc = rememberNavController()
+            navController = nc
+            MentoraTheme {
+                MentoraNavHost(authState = authenticatedStudent, sdk = sdk, themeController = themeController, navController = nc)
+            }
+        }
+
+        openFirstCourseFromExplore()
+        composeTestRule.onNodeWithText("Enroll").performClick()
+        composeTestRule.waitUntil(timeoutMillis = 15_000) {
+            composeTestRule.onAllNodesWithTag(DemoCheckoutConfirmButtonTestTag).fetchSemanticsNodes().isNotEmpty()
+        }
+        composeTestRule.onNodeWithTag(DemoCheckoutConfirmButtonTestTag).performClick()
+        composeTestRule.waitUntil(timeoutMillis = 15_000) {
+            navController.currentBackStackEntry?.destination?.hasRoute<Destination.PurchaseSuccess>() == true
+        }
+        composeTestRule.waitUntil(timeoutMillis = 15_000) {
+            composeTestRule.onAllNodesWithTag(PurchaseSuccessStartLearningButtonTestTag).fetchSemanticsNodes().isNotEmpty()
+        }
+        composeTestRule.onNodeWithTag(PurchaseSuccessStartLearningButtonTestTag).performClick()
+        composeTestRule.waitUntil(timeoutMillis = 15_000) {
+            navController.currentBackStackEntry?.destination?.hasRoute<Destination.CoursePlayer>() == true
+        }
+
+        // Mark every lesson complete — the SAME footer test tag throughout (`Mark Complete` auto-
+        // advances after each real progress-update call, then the same button reads `Take Quiz` on
+        // the last lesson, see `CoursePlayerScreen.kt`'s own `CoursePlayerFooter`) — until the real
+        // Quiz destination is reached. `assertIsEnabled` before each tap waits out the real network
+        // round trip each `Mark Complete` tap triggers (`isCompletionInFlight` disables the button
+        // mid-flight), rather than racing it.
+        // Race fix: the `while` condition below reads `navController.currentBackStackEntry` directly
+        // on the instrumentation thread with no idle barrier, unlike every other navController read in
+        // this file (wrapped in `composeTestRule.waitUntil`, which gets an `Espresso.onIdle()` between
+        // polls). `performClick()` returns before Compose's click coroutine actually fires `onClick`,
+        // so after the FINAL "Take Quiz" tap the loop's condition can still read `CoursePlayer`,
+        // entering one extra iteration that then hangs waiting on `CoursePlayerPrimaryActionTestTag`,
+        // which no longer exists once Quiz is current (confirmed via logcat: not the AVD-freezer
+        // flakiness disclosed above this test's own `@Test` — this app's own process is never in the
+        // freeze list on a failing run). The `waitUntil` inside the loop body now waits for EITHER the
+        // real navigation to Quiz OR the button re-enabling (the normal between-lessons case) —
+        // genuinely idle-checked, so if an extra iteration is entered right after the final tap, this
+        // wait correctly observes Quiz having already arrived and the `if` below breaks out instead of
+        // clicking a button that no longer exists.
+        var lessonTaps = 0
+        while (navController.currentBackStackEntry?.destination?.hasRoute<Destination.Quiz>() != true) {
+            check(++lessonTaps <= 20) { "Course Player never reached the Quiz after $lessonTaps primary-action taps" }
+            composeTestRule.waitUntil(timeoutMillis = 15_000) {
+                navController.currentBackStackEntry?.destination?.hasRoute<Destination.Quiz>() == true ||
+                    runCatching { composeTestRule.onNodeWithTag(CoursePlayerPrimaryActionTestTag).assertIsEnabled() }.isSuccess
+            }
+            if (navController.currentBackStackEntry?.destination?.hasRoute<Destination.Quiz>() == true) break
+            composeTestRule.onNodeWithTag(CoursePlayerPrimaryActionTestTag).performClick()
+        }
+
+        // Answer all 3 questions with the first rendered option (always the seeded-correct one, see
+        // this test's own kdoc) and advance/submit via the same primary-action tag throughout.
+        val firstAnswerOptionMatcher = SemanticsMatcher("first quiz answer option") { node ->
+            node.config.getOrNull(SemanticsProperties.TestTag)?.startsWith("quiz-answer-option-") == true
+        }
+        repeat(3) {
+            composeTestRule.waitUntil(timeoutMillis = 15_000) {
+                composeTestRule.onAllNodes(firstAnswerOptionMatcher).fetchSemanticsNodes().isNotEmpty()
+            }
+            composeTestRule.onAllNodes(firstAnswerOptionMatcher)[0].performClick()
+            composeTestRule.waitUntil(timeoutMillis = 15_000) {
+                runCatching { composeTestRule.onNodeWithTag(QuizPrimaryActionTestTag).assertIsEnabled() }.isSuccess
+            }
+            composeTestRule.onNodeWithTag(QuizPrimaryActionTestTag).performClick()
+        }
+        composeTestRule.waitUntil(timeoutMillis = 15_000) {
+            navController.currentBackStackEntry?.destination?.hasRoute<Destination.QuizResults>() == true
+        }
+
+        // The actual regression: before the fix, this exact tap was a deterministic no-op (confirmed
+        // live via `adb logcat` around `onTabTapped` — see that function's own kdoc) — the
+        // `waitUntil` below would time out and fail this test, not flake.
+        composeTestRule.waitUntil(timeoutMillis = 15_000) {
+            composeTestRule.onAllNodesWithTag(QuizResultsPrimaryActionTestTag).fetchSemanticsNodes().isNotEmpty()
+        }
+        composeTestRule.onNodeWithTag(QuizResultsPrimaryActionTestTag).performClick()
+        composeTestRule.waitUntil(timeoutMillis = 15_000) {
+            navController.currentBackStackEntry?.destination?.hasRoute<Destination.MyLearning>() == true
+        }
+        composeTestRule.onNodeWithTag(MyLearningScreenTestTag).assertExists()
     }
 }

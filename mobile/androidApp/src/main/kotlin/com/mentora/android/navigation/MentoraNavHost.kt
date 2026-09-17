@@ -196,10 +196,10 @@ fun MentoraNavHost(
             lessonId = args.lessonId,
             sdk = sdk,
             onBack = { navController.popBackStack() },
-            onOpenAiTutor = { onTabTapped(navController, TabGraph.AiTutorGraph, isCurrentTab = false, anchorTab = anchorTab) },
+            onOpenAiTutor = { onTabTapped(navController, TabGraph.AiTutorGraph, anchorTab = anchorTab) },
             onTakeQuiz = { navController.navigate(Destination.Quiz(args.courseId)) },
             onBackToMyLearning = {
-                onTabTapped(navController, TabGraph.MyLearningGraph, isCurrentTab = false, anchorTab = anchorTab)
+                onTabTapped(navController, TabGraph.MyLearningGraph, anchorTab = anchorTab)
             },
             onOpenCertificates = { navController.navigate(Destination.Certificates) },
         )
@@ -226,8 +226,10 @@ fun MentoraNavHost(
             // Course Player. Same tab-switch mechanism as `coursePlayerContent`'s own
             // `onBackToMyLearning` (Quiz Results is reachable from Home/Explore/My Learning's own
             // Course Player push, so a plain `popBackStack()` cannot be guaranteed to land there).
+            // [onTabTapped] itself now decides same-tab-vs-switch-tab (see that function's own kdoc,
+            // "Bug 1" fix-up) — this call site no longer has to (and must NOT) assert that.
             onContinue = {
-                onTabTapped(navController, TabGraph.MyLearningGraph, isCurrentTab = false, anchorTab = anchorTab)
+                onTabTapped(navController, TabGraph.MyLearningGraph, anchorTab = anchorTab)
             },
             // failed: "Retry Quiz" pops BOTH Quiz and Quiz Results off (back to the Course Player entry
             // directly underneath Quiz — always present, since Quiz's own only entry point is Course
@@ -314,7 +316,7 @@ fun MentoraNavHost(
             sdk = sdk,
             onOpenCertificateDetail = { certificateId -> navController.navigate(Destination.CertificateDetail(certificateId)) },
             onOpenMyLearning = {
-                onTabTapped(navController, TabGraph.MyLearningGraph, isCurrentTab = false, anchorTab = anchorTab)
+                onTabTapped(navController, TabGraph.MyLearningGraph, anchorTab = anchorTab)
             },
         )
     }
@@ -433,9 +435,7 @@ fun MentoraNavHost(
             if (showBottomNav && tab != null) {
                 MobileBottomNavigation(
                     selectedTab = tab,
-                    onTabSelected = { tapped ->
-                        onTabTapped(navController, tapped, isCurrentTab = tapped == tab, anchorTab = anchorTab)
-                    },
+                    onTabSelected = { tapped -> onTabTapped(navController, tapped, anchorTab = anchorTab) },
                 )
             }
         },
@@ -462,9 +462,9 @@ fun MentoraNavHost(
                         // the `saveState`/`restoreState` dance that preserves Explore's own back stack
                         // (it WOULD still resolve, just under the wrong tab context — see
                         // `Destinations.kt`'s own kdoc). Reuses the exact same `onTabTapped` the bottom
-                        // nav itself calls — `isCurrentTab = false` always holds here since Home and
-                        // Explore are different tabs.
-                        onOpenExplore = { onTabTapped(navController, TabGraph.ExploreGraph, isCurrentTab = false, anchorTab = anchorTab) },
+                        // nav itself calls — its own internally-computed `isCurrentTab` always resolves
+                        // false here since Home and Explore are different tabs.
+                        onOpenExplore = { onTabTapped(navController, TabGraph.ExploreGraph, anchorTab = anchorTab) },
                         onOpenCertificates = { navController.navigate(Destination.Certificates) },
                         onContinueLearning = { courseId, lessonId ->
                             navController.navigate(Destination.CoursePlayer(courseId, lessonId))
@@ -528,7 +528,7 @@ fun MentoraNavHost(
                         // rationale as Home's identical `onOpenExplore` (see that composable's own
                         // comment) — a bare `navigate(Destination.Explore)` would skip the
                         // `saveState`/`restoreState` dance (`Destinations.kt`'s own kdoc).
-                        onOpenExplore = { onTabTapped(navController, TabGraph.ExploreGraph, isCurrentTab = false, anchorTab = anchorTab) },
+                        onOpenExplore = { onTabTapped(navController, TabGraph.ExploreGraph, anchorTab = anchorTab) },
                     )
                 }
                 composable<Destination.CoursePlayer>(content = coursePlayerContent)
@@ -625,8 +625,32 @@ fun MentoraNavHost(
  * [anchorTab] is [MentoraNavHost]'s own explicitly-tracked "which tab is actually at the bottom of
  * the stack right now" — always kept in sync with reality at every reset site — so popping to ITS
  * own leaf route (type-safe, same `popUpTo<T>()` API the same-tab branch above already uses) is
- * always a currently-valid anchor. See [MentoraNavHost]'s own kdoc for the full rationale. */
-private fun onTabTapped(navController: NavHostController, tab: TabGraph, isCurrentTab: Boolean, anchorTab: TabGraph) {
+ * always a currently-valid anchor. See [MentoraNavHost]'s own kdoc for the full rationale.
+ *
+ * **Bug 1 fix-up (Phase 4 final acceptance): `isCurrentTab` is now computed HERE, from the live
+ * [NavHostController.currentDestination], never trusted from the caller.** Several call sites
+ * (`onContinue` from Quiz Results, `onBackToMyLearning`/`onOpenAiTutor` from Course Player,
+ * `onOpenMyLearning` from Certificates) used to hardcode `isCurrentTab = false` on the theory that
+ * those destinations are reachable from more than one tab, so "am I already on `tab`" could never be
+ * assumed true — true in general, but WRONG on exactly the path this bug's repro takes (guest enroll
+ * → login → purchase → Course Player → Quiz → Quiz Results, all pushed UNDER `MyLearningGraph` by
+ * [navigateToPurchaseSuccess]'s own reset): there, `tab == anchorTab == MyLearningGraph` AND the
+ * current destination (Quiz Results) genuinely IS already inside `MyLearningGraph`'s own hierarchy,
+ * yet the hardcoded `false` still routed through the switch-tab branch below —
+ * `navController.navigate(MyLearningGraph) { popUpTo<Destination.MyLearning>{saveState=true};
+ * launchSingleTop=true; restoreState=true }` — asking Navigation Compose to pop up to AND restore-
+ * navigate to the SAME graph it's already sitting inside, in one call. Confirmed live (instrumented
+ * `Log.d` around this function, `adb logcat`): that exact self-referential shape is a deterministic,
+ * repeatable no-op — `currentBackStack.value` byte-identical before/after, current destination
+ * unchanged, no exception thrown — not a one-off timing/transition-in-flight race (reproduced twice,
+ * a minute apart); a genuinely DIFFERENT cross-tab switch called immediately after, in the same
+ * session, succeeded normally. Computing `isCurrentTab` from the real back stack here (via
+ * [isInTab], the same helper [MentoraNavHost]'s own `currentTab` already uses) routes this exact
+ * scenario through the plain `popBackStack<Destination.MyLearning>(inclusive = false)` branch instead
+ * — the same operation system back already performs successfully from this exact screen — avoiding
+ * the broken self-referential shape entirely, rather than retrying/delaying it. */
+private fun onTabTapped(navController: NavHostController, tab: TabGraph, anchorTab: TabGraph) {
+    val isCurrentTab = navController.currentDestination.isInTab(tab)
     if (isCurrentTab) {
         when (tab) {
             TabGraph.HomeGraph -> navController.popBackStack<Destination.Home>(inclusive = false)

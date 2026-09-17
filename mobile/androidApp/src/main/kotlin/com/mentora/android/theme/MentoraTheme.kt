@@ -1,5 +1,8 @@
 package com.mentora.android.theme
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
@@ -11,12 +14,16 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.sp
+import androidx.core.view.WindowCompat
 
 /*
  * Hand-authored theme setup — NOT generated (mirrors Web's split between generated tokens.css and
@@ -292,6 +299,28 @@ fun MentoraTheme(
         arabicScript = arabicScript,
     )
 
+    // Phase 4 final acceptance review, Bug 2 (MEDIUM — status bar icons illegible on every screen):
+    // `compileSdk`/`targetSdk` = 36 enforces edge-to-edge at the platform level, and nothing in this
+    // app ever called `WindowCompat.getInsetsController(...).isAppearanceLightStatusBars` — the
+    // status bar silently defaulted to light (white-on-white) icons, invisible on this app's
+    // light-theme top bars and barely legible on tinted ones. Hooked HERE (not `MainActivity`)
+    // because [darkTheme] is already this composable's own resolved single source of truth for
+    // "which theme is active right now" — both a system-theme change AND the in-app Settings
+    // override (`ThemePreference.resolveDarkTheme()`, `MainActivity.kt`'s own call site) already
+    // funnel into this one parameter before reaching here, so one `SideEffect` keyed on it reacts to
+    // either source without a second observer anywhere else. [findActivity] mirrors the same
+    // ContextWrapper-unwrapping precedent `CoursePlayerScreen.kt`'s own `Context.findActivity()`
+    // already establishes ([LocalContext.current] is not guaranteed to BE the Activity directly).
+    val context = LocalContext.current
+    val activity = remember(context) { context.findActivity() }
+    SideEffect {
+        val window = activity?.window ?: return@SideEffect
+        val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+        // Dark icons on a light theme, light icons on a dark theme — the inverse of `darkTheme`.
+        insetsController.isAppearanceLightStatusBars = !darkTheme
+        insetsController.isAppearanceLightNavigationBars = !darkTheme
+    }
+
     CompositionLocalProvider(
         LocalMentoraExtendedColors provides extendedColors,
         LocalMentoraStateOpacities provides stateOpacities,
@@ -303,4 +332,20 @@ fun MentoraTheme(
             content = content,
         )
     }
+}
+
+/** Unwraps a possible `ContextWrapper` chain (e.g. a Compose `ViewTreeLifecycleOwner`/theme wrapper)
+ *  to find the real host [Activity] — same precedent/rationale as `CoursePlayerScreen.kt`'s own
+ *  private `Context.findActivity()` (not shared from there: that one is `private` to that file, and
+ *  this is a small enough utility that duplicating it here is simpler than extracting a new shared
+ *  file for a single second call site). Returns `null` (a silent no-op for the status/nav-bar
+ *  appearance `SideEffect` above) rather than throwing when no Activity is found — e.g. a `@Preview`
+ *  or a test harness composing [MentoraTheme] under a non-Activity host. */
+private fun Context.findActivity(): Activity? {
+    var current: Context = this
+    while (current is ContextWrapper) {
+        if (current is Activity) return current
+        current = current.baseContext
+    }
+    return null
 }
