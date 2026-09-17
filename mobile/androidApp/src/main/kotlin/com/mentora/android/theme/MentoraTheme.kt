@@ -64,7 +64,28 @@ import androidx.core.view.WindowCompat
  *    mapped to `ColorScheme.scrim`).
  *  - `onSurfaceInverse`: Snackbar's action `TextButton` (`COMPONENTS.md` § Snackbar) uses
  *    `color.brand.onSurfaceInverse`, "a token defined specifically for a brand-colored action on
- *    surface.inverse" per that section's own note. */
+ *    surface.inverse" per that section's own note.
+ *  - `onChipScrim` (Phase 4 polish follow-up — dark-theme badge-contrast fix): `overlay.chipScrim`
+ *    is generated IDENTICALLY for light and dark theme (`design-tokens.json`'s `overlay.chipScrim`
+ *    is the same `rgba(17,18,23,0.72)` in both `theme-light.json` and `theme-dark.json` — verified
+ *    against `MentoraColorsLight.overlayChipScrim`/`MentoraColorsDark.overlayChipScrim`, byte-equal)
+ *    — CategoryChip's on-image scrim is always dark, regardless of the app's active theme, because
+ *    it sits over a course-thumbnail image, not a theme-following surface. `COMPONENTS.md`'s own
+ *    CategoryChip table pairs that background with `color.text.inverse`
+ *    (`design-tokens.json`'s `component.chip.text.onImage`), which the rest of this file correctly
+ *    maps to `ColorScheme.inverseOnSurface` for the Snackbar case above — but `text.inverse`/
+ *    `inverseOnSurface` is ITSELF theme-flipping BY DESIGN (paired with `inverseSurface`, which
+ *    also flips, for the legitimate "opposite of current theme" cases like Snackbar). Pairing a
+ *    theme-invariant background with a theme-flipping foreground is the actual defect: light theme
+ *    gets `MentoraColorsLight.textInverse` (white, correct), dark theme gets
+ *    `MentoraColorsDark.textInverse` (near-black, `#1A1B20`) painted onto the SAME always-dark
+ *    scrim — illegible. `onChipScrim` is pinned to `MentoraColorsLight.textInverse` (white) in BOTH
+ *    [LightExtendedColors] and [DarkExtendedColors] below, mirroring `chipScrim` itself (also
+ *    pinned to the same value across both) — the only existing, already-generated token that is
+ *    both correct for this specific always-dark surface and genuinely theme-invariant, rather than
+ *    inventing a new raw color. [CategoryChip]'s `OnImageOverlay` state now reads this instead of
+ *    `colorScheme.inverseOnSurface`; every other `inverseOnSurface` use (Snackbar) is untouched and
+ *    still correctly theme-flipping. */
 data class MentoraExtendedColors(
     val success: Color,
     val successContainer: Color,
@@ -80,6 +101,7 @@ data class MentoraExtendedColors(
     val onInfoContainer: Color,
     val primaryPressed: Color,
     val chipScrim: Color,
+    val onChipScrim: Color,
     val onSurfaceInverse: Color,
 )
 
@@ -98,6 +120,7 @@ private val LightExtendedColors = MentoraExtendedColors(
     onInfoContainer = MentoraColorsLight.infoOnInfoContainer,
     primaryPressed = MentoraColorsLight.brandPrimaryPressed,
     chipScrim = MentoraColorsLight.overlayChipScrim,
+    onChipScrim = MentoraColorsLight.textInverse,
     onSurfaceInverse = MentoraColorsLight.brandOnSurfaceInverse,
 )
 
@@ -116,6 +139,9 @@ private val DarkExtendedColors = MentoraExtendedColors(
     onInfoContainer = MentoraColorsDark.infoOnInfoContainer,
     primaryPressed = MentoraColorsDark.brandPrimaryPressed,
     chipScrim = MentoraColorsDark.overlayChipScrim,
+    // Deliberately MentoraColorsLight.textInverse (white), NOT MentoraColorsDark.textInverse — see
+    // MentoraExtendedColors' own kdoc "onChipScrim" entry above for why.
+    onChipScrim = MentoraColorsLight.textInverse,
     onSurfaceInverse = MentoraColorsDark.brandOnSurfaceInverse,
 )
 

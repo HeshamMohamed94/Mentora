@@ -298,6 +298,15 @@ private fun LearningPathDetailsStatusRow(sequenceNumber: Int, status: CourseSequ
     // `Int.toString()` — and read 1→2→3 logically regardless of layout direction
     // (`ux/SCREEN_UX_SPECS.md § 5`'s own RTL note: "numbering is never reversed"); this Row's default
     // start-alignment already mirrors its own child order under RTL without any extra handling.
+    //
+    // Phase 4 polish follow-up: the "1." Text itself still needs `⁦`/`⁩` (LTR isolate) around
+    // it, wrapping it as a single opaque LTR run — without this, the plain digit+period string sits
+    // directly inside an RTL-direction Composable/paragraph in Arabic, and the Unicode Bidi Algorithm
+    // (UAX #9) reorders the trailing neutral "." to the visual START of that run (rendering ".1"
+    // instead of "1.") since a lone digit+neutral run with no explicit embedding takes its resolved
+    // direction from the surrounding RTL context. The isolate marks force this exact run to resolve as
+    // its own independent LTR unit regardless of the ambient LayoutDirection, matching what the
+    // "numbering is never reversed" contract above already assumed was happening.
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -307,7 +316,7 @@ private fun LearningPathDetailsStatusRow(sequenceNumber: Int, status: CourseSequ
         horizontalArrangement = Arrangement.spacedBy(MentoraDimens.spacing.space2),
     ) {
         Text(
-            text = "$sequenceNumber.",
+            text = "⁦$sequenceNumber.⁩",
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurface,
         )

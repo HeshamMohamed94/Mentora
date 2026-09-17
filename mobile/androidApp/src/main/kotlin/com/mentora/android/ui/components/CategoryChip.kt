@@ -30,8 +30,10 @@ import com.mentora.android.theme.stateOpacities
  * radius `radius.full` -> [CircleShape], paddingX `space.3`, typography `label.medium`.
  *
  * [MentoraCategoryChipVariant.OnImageOverlay] is the "on image overlay (course thumbnail)" state —
- * `color.overlay.chipScrim` background / `color.text.inverse` text — built now per the task brief
- * for later course-thumbnail overlay usage (T8/T9), not wired into any screen yet.
+ * `color.overlay.chipScrim` background / `color.text.inverse` text per the spec table, realized here
+ * as `extended.chipScrim` / `extended.onChipScrim` (NOT `colorScheme.inverseOnSurface` — see
+ * `MentoraExtendedColors`' own kdoc "onChipScrim" entry for why that would be illegible in dark
+ * theme: the scrim never changes with the app theme, but `inverseOnSurface` does).
  */
 enum class MentoraCategoryChipState { Default, Selected, OnImageOverlay, Disabled }
 
@@ -58,7 +60,7 @@ fun CategoryChip(
     val (background, text) = when (state) {
         MentoraCategoryChipState.Default -> colorScheme.surfaceVariant to colorScheme.onSurfaceVariant
         MentoraCategoryChipState.Selected -> colorScheme.primaryContainer to colorScheme.onPrimaryContainer
-        MentoraCategoryChipState.OnImageOverlay -> extended.chipScrim to colorScheme.inverseOnSurface
+        MentoraCategoryChipState.OnImageOverlay -> extended.chipScrim to extended.onChipScrim
         MentoraCategoryChipState.Disabled -> colorScheme.surfaceVariant to disabledText
     }
 
