@@ -5,11 +5,13 @@ import kotlinx.cinterop.alloc
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.ptr
 import kotlinx.cinterop.value
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import platform.CoreFoundation.CFDictionaryRef
 import platform.CoreFoundation.CFTypeRefVar
+import platform.Foundation.CFBridgingRelease
 import platform.Foundation.NSData
 import platform.Foundation.NSMutableDictionary
 import platform.Foundation.NSString
@@ -20,6 +22,7 @@ import platform.Security.SecItemAdd
 import platform.Security.SecItemCopyMatching
 import platform.Security.SecItemDelete
 import platform.Security.SecItemUpdate
+import platform.Security.errSecParam
 import platform.Security.errSecSuccess
 import platform.Security.kSecAttrAccessible
 import platform.Security.kSecAttrAccessibleWhenUnlockedThisDeviceOnly
@@ -41,6 +44,23 @@ import platform.Security.kSecValueData
 // [IosTokenStorage] actually talks to, [SecurityFrameworkKeychain] is the only code in this module
 // that calls `platform.Security` directly, and `iosTest`'s `FakeKeychain` is the other
 // implementation (failure-injectable, no real Keychain involved).
+//
+// Review round 2 (Opus code review of the T1b commit) found bugs in this file too; the fixes:
+//   Fix 2 -- KeychainStatus.failures was a MutableStateFlow, which drops a publish() that is
+//            structurally equal to the currently-held value and never resets after a failure.
+//            Switched to a MutableSharedFlow (see KeychainStatus below for the full reasoning).
+//   Fix 3 -- added the exists() probe method below, a lighter-weight existence-only query (no
+//            kSecReturnData) than copyMatching(), so IosTokenStorage's add-vs-update decision in
+//            saveTokens no longer materializes and decrypts the previous token pair into memory
+//            just to answer a yes/no question.
+//   Fix 5 -- toKeychainData() used to call error(...) (an uncaught IllegalStateException) when
+//            UTF-8 encoding failed, violating K3 (never throw across the Swift boundary). Now
+//            returns null and add()/update() turn that into an errSecParam OSStatus instead.
+//   Fix 6 -- copyMatching() used to cast the SecItemCopyMatching out-parameter with a plain
+//            `as? NSData`, which neither balances the +1 Core Foundation "Create Rule" retain
+//            (leaking the object every read) nor reports anything if the bridge silently fails.
+//            Now uses CFBridgingRelease. This one is an inherited Phase 3 bug, not something T1b
+//            introduced -- see DECISIONS_LOG.md.
 
 /** Same (service, account) shape Phase 3 shipped for the single Keychain item this module owns —
  * preserved verbatim per T1b's "same Keychain class and service" constraint. K1: the access/
@@ -61,10 +81,9 @@ internal data class KeychainReadResult(val status: Int, val value: String?)
 /**
  * The Keychain seam [IosTokenStorage] talks to instead of calling `platform.Security` itself
  * (§ 9.1 K6). `internal`, so it never appears in the generated Swift API surface — only
- * [IosTokenStorage]'s defaulted public constructor parameter does, and SKIE only sees that
- * default, not this type. All four operations act on the single fixed (service, account) item K1
- * stores the whole [AuthTokens] pair under; there is deliberately no per-account parameter, unlike
- * the two-item Phase 3 shape this replaces.
+ * [IosTokenStorage]'s zero-parameter public constructor does. All five operations act on the
+ * single fixed (service, account) item K1 stores the whole [AuthTokens] pair under; there is
+ * deliberately no per-account parameter, unlike the two-item Phase 3 shape this replaces.
  */
 internal interface KeychainStore {
     /** `SecItemAdd` for a brand-new item holding [value]. Returns the raw `OSStatus`. */
@@ -80,6 +99,15 @@ internal interface KeychainStore {
 
     /** `SecItemCopyMatching` for the item's value. See [KeychainReadResult]. */
     fun copyMatching(): KeychainReadResult
+
+    /** A lightweight existence probe (Fix 3, review round 2): `SecItemCopyMatching` with no
+     * `kSecReturnData` at all, so it can answer "does the item exist" purely from the returned
+     * `OSStatus` (`errSecSuccess` vs `errSecItemNotFound`) without ever materializing the item's
+     * value into memory. `saveTokens` uses this only to decide add-vs-update; it is inherently
+     * racy against a concurrent writer no matter which query shape it uses, so `saveTokens` never
+     * trusts this alone -- `add()`'s own `errSecDuplicateItem` response is what actually settles
+     * add-vs-update when this probe and reality disagree. */
+    fun exists(): Int
 }
 
 /**
@@ -111,23 +139,37 @@ internal class SecurityFrameworkKeychain(
         return query
     }
 
-    private fun String.toKeychainData(): NSData =
+    /** Fix 5: returns `null` instead of throwing when UTF-8 encoding fails -- a raw Kotlin
+     * exception here would propagate out of a non-`@Throws` suspend function and terminate the
+     * process on the Kotlin/Native side (K3). Callers turn a `null` into an `errSecParam`
+     * `OSStatus`, routing the failure through the same channel as every other Keychain error. */
+    private fun String.toKeychainData(): NSData? =
         (this as NSString).dataUsingEncoding(NSUTF8StringEncoding)
-            ?: error("Failed to UTF-8 encode a Keychain value")
 
     override fun add(value: String): Int {
+        val data = value.toKeychainData() ?: return errSecParam
         val newItem = baseQuery()
-        newItem.setObject(value.toKeychainData(), forKey = kSecValueData as NSString)
+        newItem.setObject(data, forKey = kSecValueData as NSString)
         return SecItemAdd(newItem as CFDictionaryRef, null)
     }
 
     override fun update(value: String): Int {
+        val data = value.toKeychainData() ?: return errSecParam
         val attributesToUpdate = NSMutableDictionary()
-        attributesToUpdate.setObject(value.toKeychainData(), forKey = kSecValueData as NSString)
+        attributesToUpdate.setObject(data, forKey = kSecValueData as NSString)
         return SecItemUpdate(baseQuery() as CFDictionaryRef, attributesToUpdate as CFDictionaryRef)
     }
 
     override fun delete(): Int = SecItemDelete(baseQuery() as CFDictionaryRef)
+
+    override fun exists(): Int {
+        val query = baseQuery()
+        query.setObject(kSecMatchLimitOne, forKey = kSecMatchLimit as NSString)
+        // No kSecReturnData (or kSecReturnAttributes) at all: the OSStatus alone
+        // (errSecSuccess vs errSecItemNotFound) fully answers "does the item exist", so the
+        // out-parameter is left null rather than materializing anything (Fix 3).
+        return SecItemCopyMatching(query as CFDictionaryRef, null)
+    }
 
     override fun copyMatching(): KeychainReadResult {
         val query = baseQuery()
@@ -139,8 +181,15 @@ internal class SecurityFrameworkKeychain(
             val status = SecItemCopyMatching(query as CFDictionaryRef, resultRef.ptr)
             if (status != errSecSuccess) return@memScoped KeychainReadResult(status, null)
 
+            // Fix 6 (inherited from Phase 3, found during this review): SecItemCopyMatching hands
+            // back a +1-owned CFTypeRef per the Core Foundation "Create Rule" -- CFBridgingRelease
+            // is what both correctly bridges it into a Kotlin/Native-managed NSData AND balances
+            // that retain count. A plain `as? NSData` cast on the raw pointer neither balances the
+            // retain (leaking the object on every read) nor reports anything if the bridge
+            // silently fails to produce an NSData -- exactly the kind of silent failure this whole
+            // task exists to eliminate.
             @Suppress("UNCHECKED_CAST")
-            val data = resultRef.value as? NSData
+            val data = CFBridgingRelease(resultRef.value) as? NSData
             val value = data?.let { NSString.create(it, NSUTF8StringEncoding) as String? }
             KeychainReadResult(status, value)
         }
@@ -172,19 +221,40 @@ data class KeychainFailure(
  * `@Throws` would itself be a `commonMain` public-API change A6 forbids for this phase (§ 9.1 K3).
  * `SessionController` (T4b, iOS-side) is expected to subscribe to [failures] exactly once at app
  * launch: this repo's sixth sanctioned non-façade entry point (A2).
+ *
+ * Fix 2 (review round 2): this used to be a `MutableStateFlow<KeychainFailure?>`. A `StateFlow`
+ * drops a `publish()` call whose value is structurally equal to the value it already holds, so
+ * two failed logouts in a row with the same `OSStatus` would have produced only ONE emission to a
+ * live collector -- the second, semantically distinct failure would have shown nothing. Nothing
+ * ever reset the value after a failure either, so a stale failure could appear to persist forever
+ * across later successful operations. A [MutableSharedFlow] with `replay = 1` and
+ * `onBufferOverflow = DROP_OLDEST` fixes both: every [publish] is a real, distinct event to every
+ * currently-subscribed collector regardless of value equality (`SharedFlow` never conflates by
+ * equality the way `StateFlow` does), and [lastFailure] exists purely as a `StateFlow.value`-
+ * shaped convenience for synchronous, non-collecting checks (this module's tests) -- a real
+ * consumer should collect [failures] directly rather than poll it.
  */
 object KeychainStatus {
-    private val _failures = MutableStateFlow<KeychainFailure?>(null)
+    private val _failures = MutableSharedFlow<KeychainFailure>(
+        replay = 1,
+        extraBufferCapacity = 8,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
 
-    val failures: StateFlow<KeychainFailure?> = _failures.asStateFlow()
+    val failures: SharedFlow<KeychainFailure> = _failures.asSharedFlow()
+
+    /** The most recently published failure, if any. See the [KeychainStatus] kdoc for why this
+     * exists alongside [failures]. */
+    val lastFailure: KeychainFailure?
+        get() = _failures.replayCache.lastOrNull()
 
     internal fun publish(failure: KeychainFailure) {
-        _failures.value = failure
+        _failures.tryEmit(failure)
     }
 
     /** Test-only reset — [KeychainStatus] is a process-wide singleton, so `iosTest` needs a way to
      * clear the last-published failure between tests instead of leaking state across them. */
     internal fun resetForTest() {
-        _failures.value = null
+        _failures.resetReplayCache()
     }
 }

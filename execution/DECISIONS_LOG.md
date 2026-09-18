@@ -3143,3 +3143,96 @@ W-auth / M-verify, and it is never reported as PASS on Windows evidence. **PARTI
 relaunch stays logged out) and the live forced-failure logout path (does not present as a completed
 logout). Recorded in `CURRENT_STATUS.md`'s Task Breakdown table as PARTIAL, matching this entry.
 
+---
+
+### D98 — 2026-09-18 — Task T1b review round 2: Opus-found compile blocker and logic/security fixes, authored on Windows, still unverified until MC-1/MC-2
+
+**Context.** An Opus code review of D97/commit `0ae3302` found one compile-blocking error and several real
+logic/security bugs across the same four files. All are fixed in this follow-up commit. This is a Category
+2 (review-found) fix per F3 — same disclosure rules as D97, not a new task.
+
+**The compile blocker (verified against `kotlin-compiler-embeddable-2.0.21`, this project's pinned
+version).** `IosTokenStorage`'s public primary constructor defaulted its `keychain` parameter to
+`SecurityFrameworkKeychain()`, but the parameter's declared type, `KeychainStore`, is `internal` —
+`EXPOSED_PARAMETER_TYPE`, a real Kotlin compile error, not a style nit. Fixed by moving the seam onto an
+`internal constructor` and adding a zero-parameter public `constructor()` that delegates to it. An
+`internal` constructor's parameter types only need to be at least as visible as `internal` (which
+`KeychainStore` already is), and the public secondary constructor exposes nothing since it takes no
+parameters — so the seam still never reaches the generated Swift API, exactly as K6 required. Call sites
+(`PlatformModule.ios.kt`'s `IosTokenStorage()`, `iosTest`'s `IosTokenStorage(fakeKeychain)`) both resolve
+unchanged.
+
+**Three logic/security bugs, all in the failure-recovery paths D97 added:**
+
+- **`saveTokens`'s existence-check race.** The old code probed via `copyMatching()`, decided add-vs-update
+  from a bare boolean, and on any add/update failure unconditionally called `delete()`. Two real bugs
+  followed: a concurrent writer (e.g. login racing a token refresh) could add the item between the probe
+  and this call's own `add()`, and the old code's `delete()` would then destroy that other write; and a
+  probe that failed for a genuine reason (device locked) while a valid item already existed also fell into
+  the same unconditional purge. Fixed: `add()` returning `errSecDuplicateItem` now falls through to
+  `update()` instead of being treated as a hard failure, and `delete()` is only called after a genuine
+  `add()` failure (never after any `update()` failure, direct or duplicate-fallthrough, since an item
+  `update()` failed to overwrite necessarily predates this call and purging it would destroy a working
+  session). The existence probe itself moved off `copyMatching()` onto a new `KeychainStore.exists()`
+  method that omits `kSecReturnData` entirely, so a plain existence check no longer decrypts and
+  materializes the previous token pair into memory.
+- **`clearTokens`'s tombstone misclassification.** `errSecItemNotFound` on the final tombstone
+  `SecItemUpdate` was being treated as a hard CLEAR failure, contradicting K2 (which already treated the
+  same status as "already gone, not a failure" everywhere else). Fixed to self-heal identically. A CLEAR
+  failure that does still survive now carries the *first* delete's `OSStatus` rather than the tombstone
+  step's, since that's the more diagnostically useful one for whoever consumes `KeychainStatus.failures`
+  later (T4b).
+- **Two K3 ("never throw across the Swift boundary") violations.** `Keychain.kt`'s UTF-8-encoding helper
+  called `error(...)` (an uncaught `IllegalStateException`) on a nil encoding result; it now returns `null`
+  and `add()`/`update()` turn that into an `errSecParam` `OSStatus` instead, routed through the same
+  failure-publishing path as any other Keychain error. `IosTokenStorage.saveTokens`'s `encodeToString` call
+  was unguarded; wrapped in `runCatching`, same treatment.
+
+**`KeychainStatus.failures` (Fix 2).** Was `MutableStateFlow<KeychainFailure?>`, which drops a `publish()`
+whose value is structurally equal to the one it already holds — two failed logouts in a row with the same
+`OSStatus` would have produced only one emission to a live collector — and never reset after a failure.
+Switched to `MutableSharedFlow<KeychainFailure>(replay = 1, extraBufferCapacity = 8, onBufferOverflow =
+DROP_OLDEST)`: `SharedFlow` never conflates by equality, so every `publish()` is a distinct event to every
+subscriber regardless of value equality. `KeychainStatus.lastFailure` (backed by the replay cache) replaces
+`.failures.value` as a `StateFlow`-shaped convenience for synchronous, non-collecting checks (this module's
+tests); a real consumer is still expected to collect `failures` directly. Chose this over adding a sequence
+number to `KeychainFailure` because it fixes the dedup bug structurally (no equality check to work around
+at all) rather than by widening the data class, and it composes better with T4b's "subscribe once at app
+launch" consumption pattern than a manual reset/acknowledge API would.
+
+**Inherited Phase 3 cinterop bug, fixed here because this task already touches the file (Fix 6).**
+`Keychain.kt`'s `copyMatching()` cast the `SecItemCopyMatching` out-parameter with a plain `as? NSData`.
+Under Kotlin/Native's Core Foundation "Create Rule", the caller owns a +1 reference to that result; the
+correct pattern is `CFBridgingRelease(resultRef.value) as? NSData`, which both bridges the CF object
+correctly and balances the retain. The old cast leaked the object on every successful read and, if the
+bridge ever silently failed to produce an `NSData`, reported nothing — exactly the class of silent failure
+this whole task exists to eliminate. Predates T1b (shipped in Phase 3); fixed here as a review-found,
+Mac-unverified change, same F3 category-2 precedent as the rest of this entry, not a new out-of-scope task.
+
+**Test suite strengthened (Fix 7).** `FakeKeychain` was rewritten from a purely script-driven `OSStatus`
+queue (oblivious to what was actually "written") into a small in-memory, single-item-backed fake that
+genuinely tracks whether the item exists and derives realistic `OSStatus` results from that state (an
+`add` on an existing item really does return `errSecDuplicateItem`; `update`/`delete` on an absent item
+really does return `errSecItemNotFound`), while still letting a test inject an arbitrary failure status for
+a specific call via override queues. New tests cover: the `add`-duplicate-falls-through-to-`update` path;
+the probe-fails-while-a-valid-item-exists path (confirming the item survives); the tombstone-not-found
+self-heal; a full save → clear → save round trip; and two consecutive structurally-identical failures both
+reaching a live `KeychainStatus.failures` collector. The pre-existing "update failing" test's expectation
+changed (it no longer expects a purge) since that was the exact behavior Fix 3 corrects. All other existing
+coverage (no-token-leaked assertions across every failure type, not-found-is-not-a-failure, the malformed-
+payload case) was kept.
+
+**Files.** Same four as D97, no others: `mobile/shared/src/iosMain/kotlin/com/mentora/shared/auth/{IosTokenStorage.kt,Keychain.kt}`,
+`mobile/shared/src/iosTest/kotlin/com/mentora/shared/auth/{FakeKeychain.kt,IosTokenStorageTest.kt}`.
+
+**Verification — Windows only, and explicitly partial, same limits as D97.** `:shared:testDebugUnitTest`
+249/249, confirmed unaffected (the compile/test tasks for this target report `UP-TO-DATE`/unchanged input
+hashes across the `iosMain`/`iosTest` edits, since Android's unit-test source set never compiles those
+source sets); `:shared:assembleDebug` clean; `git diff --stat` confirms only the four files above changed.
+No Kotlin/Native compiler on this host, so Fix 1's `EXPOSED_PARAMETER_TYPE` resolution is reasoned through
+Kotlin visibility rules, not compiler-confirmed.
+
+**Status: authored and reviewed, still not verified.** Same PARTIAL status as D97 — this round of fixes
+does not change that, it only reduces what MC-1 is expected to find. `CURRENT_STATUS.md`'s T1b row updated
+to note the round-2 fixes were applied, still Mac-unverified.
+
