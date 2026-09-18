@@ -3475,3 +3475,73 @@ after the `build.gradle.kts` change; the workflow YAML still parses under `js-ya
 (no `shared`/`MentoraSdk` reference, no string literal, no `@State`/`@StateObject`/`.task`, 16
 lines). Nothing here changes T4c's scope or the D100 decision itself — this is a correctness pass on
 its implementation and its documentation before the pipeline's first real run.
+
+### D102 — 2026-09-18 — First real iOS CI run failed with a Koin/Kotlin klib ABI mismatch; fixed by pinning koin-core to 4.0.4
+
+**Context.** D100/D101's `.github/workflows/ios-ci.yml` got its first real macOS run (GitHub Actions
+run [35380548270](https://github.com/HeshamMohamed94/Mentora/actions/runs/35380548270/job/105715420558)).
+It failed at `:shared:compileKotlinIosSimulatorArm64`:
+
+```
+w: KLIB resolver: Skipping '.../koin-core-iossimulatorarm64/4.1.0/.../koin-core-iosSimulatorArm64Main-4.1.0.klib'.
+Incompatible ABI version. The current default is '1.8.0', found '1.201.0'.
+The library was produced by '2.1.20' compiler.
+e: KLIB resolver: Could not find "...koin-core-iosSimulatorArm64Main-4.1.0.klib" in [...]
+> Task :shared:compileKotlinIosSimulatorArm64 FAILED
+```
+
+This is exactly the kind of fact only a first real Kotlin/Native compile on a macOS host could
+surface — nothing on the Windows dev machine used for every prior Phase 3/4/5 task can invoke the
+Kotlin/Native compiler at all, so this klib had never actually been resolved before.
+
+**Root cause.** `mobile/gradle/libs.versions.toml` pins `kotlin = "2.0.21"`, whose klib reader
+defaults to ABI format `1.8.0`. `koin = "4.1.0"`'s `iosSimulatorArm64`/`iosArm64` artifacts, however,
+were compiled by Kotlin compiler `2.1.20`, which emits the newer `1.201.0` klib ABI — a format
+`2.0.21`'s resolver cannot read at all (not a warning-level skew; a hard "could not find" failure
+once the incompatible klib is skipped).
+
+**Investigation (empirical, not memory-based).** Fetched the real `koin-core-iossimulatorarm64`
+version list from Maven Central (`maven-metadata.xml`), then downloaded each candidate version's
+`.klib` (a plain zip) going backward from `4.1.0` and read its `default/manifest` entry directly
+(`unzip -p koin-core-iossimulatorarm64-<v>.klib default/manifest`) for the `compiler_version`/
+`abi_version` fields:
+
+| koin-core version | iOS klib `compiler_version` | `abi_version` |
+|---|---|---|
+| 4.1.0 | 2.1.20 | 1.201.0 (incompatible) |
+| 4.0.4 | **2.0.21** | **1.8.0 (matches project's own Kotlin exactly)** |
+| 4.0.3 | 2.0.21 | 1.8.0 |
+| 4.0.2 | 2.0.21 | 1.8.0 |
+| 4.0.1 | 2.0.21 | 1.8.0 |
+| 4.0.0 | 2.0.20 | 1.8.0 |
+| 3.5.6 / 3.5.5 | 1.9.22 | 1.8.0 |
+
+`4.0.4` is the newest release whose iOS klibs are ABI-compatible — in fact compiled by the *exact
+same* Kotlin compiler version (`2.0.21`) this catalog already pins, not merely "compatible." Also
+verified `koin-core-iosarm64-4.0.4` (the other iOS target, not just the simulator one) independently
+reports the same `compiler_version=2.0.21`/`abi_version=1.8.0`, and that `koin-android`/
+`koin-androidx-compose`/`koin-test` (the other Koin artifacts this catalog's `koin` version powers,
+per `libs.versions.toml`'s own comment that they're deliberately kept on one shared version) all
+have a real `4.0.4` release on Maven Central, so a single version-catalog bump covers every consumer.
+
+**API-compatibility check.** `mobile/shared/src/commonMain/kotlin/.../di/` (`InitKoin.kt`,
+`NetworkModule.kt`, and the other `*Module.kt` files) only use `koinApplication {}`, `module {}`,
+`single { ... }`, and `get<...>()` — Koin's oldest, most stable DSL surface. The GitHub release notes
+diff for `4.0.4...4.1.0` (`api.github.com/repos/InsertKoinIO/koin/releases/tags/4.1.0`) lists only
+Ktor3-DI, scope-archetype, ViewModel-scope, and Compose-preview additions — nothing touching the
+basic module/single/`get` API this project actually calls. No functional downgrade risk.
+
+**Fix.** `mobile/gradle/libs.versions.toml`: `koin = "4.1.0"` → `koin = "4.0.4"` (with a version
+comment recording this investigation), plus an updated comment on `koin-android`'s catalog entry
+(previously hardcoded "4.1.0" in prose). Scoped to that one file — no `mobile/shared/src/**`,
+`mobile/androidApp/`, or `mobile/iosApp/` source touched, per this being a build-configuration fix
+only. **Not** considered: bumping Kotlin to 2.1.20+ instead — already flagged elsewhere in this log
+and in `PHASE_5_IOS_IMPLEMENTATION_PLAN.md` as a "not now" risk (ripples into `:androidApp`'s
+241-test and `:shared`'s 249-test baselines, forces a SKIE version bump too) — a one-dependency
+downgrade is the minimal, contained fix and a working older Koin version was easy to find.
+
+**Verification (Windows-side).** `:shared:testDebugUnitTest` → **249/249**, `:shared:assembleDebug`
+→ clean, `:androidApp:testDebugUnitTest` → **241/241**. All three unchanged from their pre-fix
+baselines, confirming the older Koin version doesn't regress the JVM/Android-side DI wiring or
+either test suite. The actual iOS-simulator-target compile itself can only be re-verified by
+re-running CI on macOS (the whole reason this bug was invisible until now).

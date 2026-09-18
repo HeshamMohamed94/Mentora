@@ -9,7 +9,19 @@ ktor = "3.0.1"
 kotlinxSerialization = "1.7.3"
 kotlinxDatetime = "0.6.1"
 kotlinxCoroutines = "1.9.0"
-koin = "4.1.0"
+# Pinned to 4.0.4, NOT the newer 4.1.0, because of a real klib ABI mismatch found by the first
+# actual iOS CI compile (GitHub Actions run 35380548270, :shared:compileKotlinIosSimulatorArm64):
+# koin-core 4.1.0's iosArm64/iosSimulatorArm64 klibs are produced by Kotlin compiler 2.1.20
+# (klib abi_version=1.201.0), which this project's Kotlin 2.0.21 (klib abi_version=1.8.0) cannot
+# resolve ("Incompatible ABI version"). Verified empirically by downloading each candidate
+# koin-core-iossimulatorarm64/-iosarm64 .klib from Maven Central and inspecting its
+# default/manifest entry: 4.0.4 is the newest koin-core release whose iOS klibs report
+# compiler_version=2.0.21/abi_version=1.8.0 — an exact match for this catalog's own Kotlin
+# version (4.0.0-4.0.4 all do; 4.1.0+ all use compiler_version=2.1.20). The 4.0.4->4.1.0 diff
+# (GitHub compare 4.0.4...4.1.0) is Ktor3/scope-archetype/ViewModel-scope/Compose-only additions —
+# nothing touching the basic module/single/factory/koinApplication/get API this project's `di/`
+# package actually uses. See DECISIONS_LOG.md for the full writeup.
+koin = "4.0.4"
 
 multiplatformSettings = "1.3.0"
 
@@ -109,8 +121,9 @@ ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" }
 
 koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin" }
 koin-test = { module = "io.insert-koin:koin-test", version.ref = "koin" }
-# Task 1 (:androidApp): pinned to the SAME koin = "4.1.0" already used by :shared's koin-core —
-# deliberately not a second Koin version.
+# Task 1 (:androidApp): pinned to the SAME koin version already used by :shared's koin-core —
+# deliberately not a second Koin version. (Was "4.1.0"; see koin's version comment above for why
+# this catalog now pins 4.0.4 instead.)
 koin-android = { module = "io.insert-koin:koin-android", version.ref = "koin" }
 koin-androidx-compose = { module = "io.insert-koin:koin-androidx-compose", version.ref = "koin" }
 
