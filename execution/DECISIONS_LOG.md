@@ -3545,3 +3545,120 @@ downgrade is the minimal, contained fix and a working older Koin version was eas
 baselines, confirming the older Koin version doesn't regress the JVM/Android-side DI wiring or
 either test suite. The actual iOS-simulator-target compile itself can only be re-verified by
 re-running CI on macOS (the whole reason this bug was invisible until now).
+
+### D103 — 2026-09-18 — Second real iOS CI run: two new, unrelated real compile failures — a latent commonMain `@Volatile` portability bug, and a `sourceSets.findByName("iosMain")` lifecycle-timing bug from Task T1
+
+**Context.** With D102's Koin ABI fix in place, `.github/workflows/ios-ci.yml` got its second real
+macOS run (GitHub Actions run
+[35381766852](https://github.com/HeshamMohamed94/Mentora/actions/runs/35381766852/job/105719347401)).
+No more ABI errors, but `:shared:compileKotlinIosSimulatorArm64` failed with two distinct, unrelated
+"Unresolved reference" error groups — again, facts only a real Kotlin/Native compile can surface,
+since nothing on the Windows dev machine used for every prior task can invoke that compiler.
+
+#### Issue A — `SessionManager.kt`'s `@Volatile` resolved only via Kotlin's JVM-only default import
+
+```
+e: .../auth/SessionManager.kt:30:6 Unresolved reference 'Volatile'.
+e: .../auth/SessionManager.kt:43:6 Unresolved reference 'Volatile'.
+```
+
+**Root cause.** `SessionManager.kt` (Phase 3, Task 5/11) uses `@Volatile` on two `private var`
+properties but has **no explicit import for it at all** — verified by reading the file's full import
+list. It compiled cleanly on `androidUnitTest`/`testDebugUnitTest` (JVM) only because Kotlin
+automatically default-imports `kotlin.jvm.*` on JVM targets, which is where `kotlin.jvm.Volatile`
+lives — an implicit, platform-specific default import that does **not** apply on Kotlin/Native. This
+is a genuine, pre-existing latent portability bug in already-shipped Phase 3 code: it was never
+actually exercised against a real Kotlin/Native target until this second CI run, so — same as D102's
+Koin bug — this is a real, necessary, minimal, disclosed `commonMain` fix found by the first real
+compile, not new Phase 5 scope creep, and is treated the same way T1b's Category-2
+(compile-found, not-yet-Mac-verified) fixes were treated.
+
+**Fix.** Added one explicit import: `import kotlin.concurrent.Volatile` to
+`mobile/shared/src/commonMain/kotlin/com/mentora/shared/auth/SessionManager.kt`.
+`kotlin.concurrent.Volatile` is the genuinely multiplatform-safe `@Volatile` (stable since Kotlin
+1.9.20; this project is on 2.0.21), expanding to the correct platform mechanism on every target (JVM
+`volatile` field modifier, Kotlin/Native's own visibility-safety mechanism) — so it also compiles
+correctly, unchanged in behavior, on the JVM/Android target. One-line change; no other line touched.
+
+#### Issue B — `sourceSets.findByName("iosMain")` (Task T1) returns `null` on EVERY host, not just Windows — a KGP lifecycle-timing bug, not a "targets disabled" problem
+
+```
+e: .../HttpClientEngineFactory.ios.kt:4:30 Unresolved reference 'darwin'.
+e: .../HttpClientEngineFactory.ios.kt:8:58 Unresolved reference 'Darwin'.
+e: .../settings/IosPreferenceStore.kt:3:12 Unresolved reference 'russhwolf'.
+... (multiplatform-settings symbols, same file)
+```
+
+"Unresolved reference" (not D102's "incompatible ABI") meant `ktor-client-darwin`/
+`multiplatform-settings` were never even on the iOS compile classpath — Task T1's
+`sourceSets.findByName("iosMain")?.dependencies { implementation(libs.ktor.client.darwin); ... }`
+silently never executed its body.
+
+**Investigation.** Read the full `kotlin {}` block in `mobile/shared/build.gradle.kts`: iOS targets
+are declared individually (`iosArm64()`, `iosSimulatorArm64()` via a `listOf(...).forEach {}`, not the
+`ios()` shortcut), `applyDefaultHierarchyTemplate()` is never called explicitly, and no source set
+anywhere in this module has a manual `.dependsOn(...)` edge (confirmed via a repo-wide grep — zero
+matches under `mobile/shared/`). Per Kotlin Gradle Plugin's own bundled sources
+(`org.jetbrains.kotlin.gradle.plugin.hierarchy.defaultKotlinHierarchySetup.kt`, decompiled from the
+project's own resolved `kotlin-gradle-plugin-2.0.21-sources.jar`), none of that file's fallback
+conditions (explicit user hierarchy, disabled-by-property, `ios()`-shortcut trace, manual `dependsOn`
+edges, illegal target names) apply here, so KGP *does* apply the default hierarchy template
+automatically — meaning `iosMain` is a real, intended source set, contrary to the original hypothesis
+that it might never be wired into the graph at all.
+
+The actual bug is more subtle: `setupDefaultKotlinHierarchy()` (the function that creates
+`iosMain`/`iosTest` and links them to `iosArm64Main`/`iosSimulatorArm64Main`) is gated behind
+`requiredStage(FinaliseRefinesEdges)` — a Kotlin-Gradle-Plugin-internal coroutine lifecycle stage that
+runs *after* Gradle's `afterEvaluate` phase begins, per `KotlinPluginLifecycle.kt`'s own stage
+ordering (`EvaluateBuildscript` → ... → `FinaliseDsl` → ... → `FinaliseRefinesEdges` → ...). The
+`build.gradle.kts` script body itself — including the `sourceSets { ... }` block containing Task T1's
+`findByName("iosMain")` call — executes synchronously during the earlier `EvaluateBuildscript` stage.
+So `iosMain` genuinely does not exist yet at the exact point in the script where `findByName("iosMain")`
+was called, **on any host** — not because of Windows's disabled targets (that was T1's stated reason
+and is real, but coincidental — it happens to produce the identical symptom for an entirely different
+reason), but because the hierarchy template that creates it hasn't run yet on macOS either. The
+`?.dependencies {}` block silently no-ops on `null` either way, which is exactly why this went
+undetected until a real compile actually needed those symbols resolved.
+
+By contrast, `iosArm64Main`/`iosSimulatorArm64Main` (each target's own default, concrete source set)
+are created synchronously the instant `iosArm64()`/`iosSimulatorArm64()` are called earlier in the
+same script — identical timing to `androidTarget()` creating `androidMain`, which is exactly why
+`androidMain by getting` immediately below it has always worked without issue.
+
+**Fix.** In `mobile/shared/build.gradle.kts`, replaced the two `findByName("iosMain")`/
+`findByName("iosTest")` blocks with the same null-safe `findByName(...)` pattern applied directly to
+each concrete leaf source set instead of the lazily-created intermediate one:
+
+```kotlin
+listOf("iosArm64Main", "iosSimulatorArm64Main").forEach { name ->
+    sourceSets.findByName(name)?.dependencies {
+        implementation(libs.ktor.client.darwin)
+        implementation(libs.multiplatform.settings)
+    }
+}
+listOf("iosArm64Test", "iosSimulatorArm64Test").forEach { name ->
+    sourceSets.findByName(name)?.dependencies {
+        implementation(kotlin("test"))
+    }
+}
+```
+
+This sidesteps the lifecycle-timing problem entirely (no intermediate source set is relied on), and
+keeps the null-safe pattern for Windows: with `kotlin.native.ignoreDisabledTargets=true`, these
+concrete per-target source sets still exist even when their targets are disabled, but no compile task
+ever runs for a disabled target, so declaring (not resolving) a dependency notation on them stays
+harmless, matching the reasoning already established for the original Windows-safety design.
+
+**Verification (Windows-side).** `:shared:testDebugUnitTest` → **249/249**,
+`:shared:assembleDebug` → clean, `:androidApp:testDebugUnitTest` → **241/241** — all three unchanged,
+confirming neither fix regresses the JVM/Android side. **Issue B's fix cannot be verified by an
+actual Kotlin/Native compile from this Windows machine** — no such toolchain exists here. Confidence
+is based on: (1) reading KGP's own bundled source for the exact lifecycle-stage ordering rather than
+guessing, and (2) `iosArm64Main`/`iosSimulatorArm64Main` being ordinary, always-eagerly-created
+per-target source sets with no dependency on any lazy hierarchy machinery — the same category of
+source set `androidMain`/`commonMain` already are, both of which have worked reliably via
+`by getting` since Task 1. The next real macOS CI run is what verifies this for real.
+
+**Scope.** Touched exactly two files: `mobile/shared/src/commonMain/kotlin/com/mentora/shared/auth/SessionManager.kt`
+(one import line) and `mobile/shared/build.gradle.kts` (the iOS source-set dependency wiring).
+Nothing else.

@@ -142,23 +142,44 @@ kotlin {
                 implementation(kotlin("test"))
             }
         }
-        // Phase 5 Task 1: on THIS Windows host, `iosArm64()`/`iosSimulatorArm64()` are still
-        // disabled (`kotlin.native.ignoreDisabledTargets=true`), so Kotlin still never creates the
-        // `iosMain`/`iosTest` source set objects at configuration time here — `val iosMain by
-        // getting {}` still fails configuration with "KotlinSourceSet with name 'iosMain' not
-        // found" (re-verified; same failure Task 1/3 of Phase 3 already found). `findByName(...)` is
-        // therefore used instead of `by getting`: it returns null (silently skipped) on this host
-        // and only resolves to a real source set on a macOS host where the iOS targets are actually
-        // enabled — which is exactly what lets this wiring exist now without breaking the Windows
-        // build.
-        sourceSets.findByName("iosMain")?.dependencies {
-            implementation(libs.ktor.client.darwin)
-            implementation(libs.multiplatform.settings)
+        // Phase 5 Task 1 originally wired these onto `sourceSets.findByName("iosMain")`/
+        // `findByName("iosTest")`, reasoning that `findByName` would safely no-op on Windows (iOS
+        // targets disabled) and only resolve to a real source set on macOS. The second real macOS CI
+        // run proved that reasoning wrong: it failed with "Unresolved reference" for
+        // ktor-client-darwin/multiplatform-settings, meaning the dependencies were never even added
+        // to the iOS compile classpath there either. Root cause (confirmed by reading KGP 2.0.21's
+        // own sources, `defaultKotlinHierarchySetup.kt`): the default hierarchy template — which is
+        // what creates the `iosMain`/`iosTest` intermediate source sets shared by
+        // `iosArm64Main`/`iosSimulatorArm64Main` (no `applyDefaultHierarchyTemplate()` call is needed
+        // for this; it's automatic since Kotlin 1.9.20 as long as nothing manually configures
+        // `dependsOn` edges, which this file doesn't) — only actually runs at KGP's own internal
+        // `FinaliseRefinesEdges` lifecycle stage. That stage happens well AFTER this build script's
+        // body finishes its synchronous, top-to-bottom evaluation (`EvaluateBuildscript` stage) — the
+        // exact point where this `sourceSets { ... }` block itself runs. So `iosMain`/`iosTest`
+        // literally do not exist yet the moment `findByName("iosMain")` was called here, on ANY host,
+        // not just Windows — `findByName` returned null and the dependency block silently never ran,
+        // even on macOS. `iosArm64Main`/`iosSimulatorArm64Main` (and their Test counterparts), by
+        // contrast, are each target's own default source set, created synchronously the instant
+        // `iosArm64()`/`iosSimulatorArm64()` are called above (identical timing to `androidTarget()`
+        // creating `androidMain` immediately, which is why `androidMain by getting` above has always
+        // worked) — wiring dependencies directly onto the two concrete targets instead of the lazily
+        // created intermediate source set sidesteps this lifecycle-timing bug entirely. Still using
+        // the null-safe `findByName` pattern for Windows: `kotlin.native.ignoreDisabledTargets=true`
+        // means these disabled targets' source sets exist but nothing ever resolves their
+        // configurations (no compile task runs for a disabled target), so declaring the dependency
+        // notation stays harmless there, exactly as before.
+        listOf("iosArm64Main", "iosSimulatorArm64Main").forEach { name ->
+            sourceSets.findByName(name)?.dependencies {
+                implementation(libs.ktor.client.darwin)
+                implementation(libs.multiplatform.settings)
+            }
         }
-        sourceSets.findByName("iosTest")?.dependencies {
-            // Phase 5 Task 1b's IosTokenStorageTest/FakeKeychain (iosTest source set) need plain
-            // kotlin.test assertions, same as every other source set's test dependency.
-            implementation(kotlin("test"))
+        listOf("iosArm64Test", "iosSimulatorArm64Test").forEach { name ->
+            sourceSets.findByName(name)?.dependencies {
+                // Phase 5 Task 1b's IosTokenStorageTest/FakeKeychain need plain kotlin.test
+                // assertions, same as every other source set's test dependency.
+                implementation(kotlin("test"))
+            }
         }
     }
 }
