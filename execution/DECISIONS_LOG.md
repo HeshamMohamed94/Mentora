@@ -3661,4 +3661,102 @@ source set `androidMain`/`commonMain` already are, both of which have worked rel
 
 **Scope.** Touched exactly two files: `mobile/shared/src/commonMain/kotlin/com/mentora/shared/auth/SessionManager.kt`
 (one import line) and `mobile/shared/build.gradle.kts` (the iOS source-set dependency wiring).
+
+### D104 — 2026-09-18 — Third real iOS CI run hit the same klib-ABI bug class on `multiplatform-settings`; fixed by pinning it to 1.2.0, plus a proactive full-catalog iOS-klib-compatibility audit
+
+**Context.** With D102 (Koin) and D103 (Volatile import + source-set wiring) fixed, `.github/workflows/ios-ci.yml`
+got its third real macOS run (GitHub Actions run
+[35383136829](https://github.com/HeshamMohamed94/Mentora/actions/runs/35383136829/job/105723779246)).
+`ktor-client-darwin` and the `Volatile`/wiring fixes from D103 both worked cleanly — but
+`:shared:compileKotlinIosSimulatorArm64` hit the exact same bug *class* as D102, this time on a
+different library:
+
+```
+w: KLIB resolver: Skipping '.../multiplatform-settings-iossimulatorarm64/1.3.0/.../multiplatform-settings-iosSimulatorArm64Main-1.3.0.klib'.
+Incompatible ABI version. The current default is '1.8.0', found '1.201.0'.
+The library was produced by '2.1.0' compiler.
+e: KLIB resolver: Could not find "...multiplatform-settings-iosSimulatorArm64Main-1.3.0.klib" in [...]
+> Task :shared:compileKotlinIosSimulatorArm64 FAILED
+```
+
+**Root cause.** Identical shape to D102: `com.russhwolf:multiplatform-settings` `1.3.0`'s
+`iosSimulatorArm64`/`iosArm64` klibs were produced by Kotlin compiler `2.1.0` (klib ABI `1.201.0`),
+which this project's Kotlin `2.0.21` (klib ABI resolver default `1.8.0`) cannot read at all.
+
+**Part 1 investigation (empirical, same method as D102).** Fetched the real
+`multiplatform-settings-iossimulatorarm64` version list from Maven Central (`maven-metadata.xml`),
+downloaded each candidate version's `.klib` going backward from `1.3.0`, and read its
+`default/manifest` entry directly:
+
+| multiplatform-settings version | iOS klib `compiler_version` | `abi_version` |
+|---|---|---|
+| 1.3.0 | 2.1.0 | 1.201.0 (incompatible) |
+| **1.2.0** | **2.0.0** | **1.8.0 (compatible)** |
+| 1.1.1 | 1.9.20 | 1.8.0 |
+| 1.1.0 | 1.9.10 | 1.8.0 |
+| 1.0.0 | 1.8.0 | 1.7.0 |
+
+Unlike D102's koin-core (which had an exact `compiler_version=2.0.21` match at `4.0.4`), no
+multiplatform-settings release in this list was compiled by exactly `2.0.21` — `1.2.0` is the newest
+release whose iOS klib ABI (`1.8.0`) is still compatible with this project's resolver, which is
+exactly the "otherwise the newest version with ABI 1.8.0 or lower" fallback the task's own
+instructions anticipated.
+
+**API-compatibility check.** `mobile/shared/src/iosMain/kotlin/com/mentora/shared/settings/IosPreferenceStore.kt`
+only uses `Settings`, `NSUserDefaultsSettings(NSUserDefaults.standardUserDefaults)`, `getString`, and
+`putString`. Fetched `1.2.0`'s published `multiplatform-settings.klib.api` from GitHub
+(`raw.githubusercontent.com/russhwolf/multiplatform-settings/v1.2.0/...`) and confirmed all four are
+present, unchanged. Diffed `v1.2.0...v1.3.0` on GitHub (`api.github.com/repos/russhwolf/
+multiplatform-settings/compare/v1.2.0...v1.3.0`): the changed files are CI/build-tooling churn
+(`gradle/libs.versions.toml`, convention plugins, sample apps, `yarn.lock`) plus additive API surface
+in unrelated modules (`multiplatform-settings-coroutines`, `-datastore`, `-serialization`,
+`-test`/`-no-arg`) — nothing touching the core `Settings`/`NSUserDefaultsSettings` API this project
+actually uses. (Also noted: `multiplatform-settings-coroutines` is declared in this catalog's
+`[libraries]` block but never actually referenced by an `implementation(...)` call anywhere in
+`mobile/shared/build.gradle.kts` — it's inert today, so it wasn't part of the compile failure and
+didn't need separate klib verification, but it will need the same treatment if it's ever wired in.)
+
+**Fix.** `mobile/gradle/libs.versions.toml`: `multiplatformSettings = "1.3.0"` →
+`multiplatformSettings = "1.2.0"`, with a version comment recording this investigation (mirroring
+`koin`'s D102 comment style).
+
+**Part 2 — proactive full-catalog audit, to avoid a 4th/5th round-trip of this same bug class.**
+Enumerated every dependency `commonMain`/`commonTest`/`iosMain`/`iosTest` actually declares in
+`mobile/shared/build.gradle.kts` that needs an `iosArm64`/`iosSimulatorArm64` klib to compile for iOS,
+and — for every one NOT already confirmed fine in D102/D103 (`koin-core`, `ktor-client-darwin`) —
+downloaded that library's actual `-iossimulatorarm64-<pinned-version>.klib` from Maven Central and
+read its `default/manifest`:
+
+| Library | Catalog version | iOS klib `compiler_version` | `abi_version` | Needed a change? |
+|---|---|---|---|---|
+| koin-core | 4.0.4 | 2.0.21 | 1.8.0 | No — fixed in D102, re-confirmed here |
+| ktor-client-darwin | 3.0.1 | 2.0.21 | 1.8.0 | No — confirmed fine in D103 CI run, re-confirmed here |
+| **multiplatform-settings** | ~~1.3.0~~ → **1.2.0** | ~~2.1.0~~ → **2.0.0** | ~~1.201.0~~ → **1.8.0** | **Yes — this decision** |
+| kotlinx-coroutines-core | 1.9.0 | 2.0.0 | 1.8.0 | No |
+| kotlinx-coroutines-test | 1.9.0 | 2.0.0 | 1.8.0 | No |
+| kotlinx-serialization-json | 1.7.3 | 2.0.20 | 1.8.0 | No |
+| kotlinx-serialization-core | 1.7.3 | 2.0.20 | 1.8.0 | No |
+| kotlinx-datetime | 0.6.1 | 1.9.21 | 1.8.0 | No |
+| ktor-client-core | 3.0.1 | 2.0.21 | 1.8.0 | No |
+| ktor-client-content-negotiation | 3.0.1 | 2.0.21 | 1.8.0 | No |
+| ktor-serialization-kotlinx-json | 3.0.1 | 2.0.21 | 1.8.0 | No |
+| ktor-serialization-kotlinx (transitive base of the json artifact above) | 3.0.1 | 2.0.21 | 1.8.0 | No |
+| ktor-client-logging | 3.0.1 | 2.0.21 | 1.8.0 | No |
+| ktor-client-mock (commonTest, needed on iosTest via hierarchy) | 3.0.1 | 2.0.21 | 1.8.0 | No |
+
+Every one of these reports `abi_version=1.8.0` — the exact format this project's Kotlin `2.0.21`
+resolver expects — so none needed a version change. This confirms the task's own working hypothesis:
+`kotlinx-coroutines`/`kotlinx-serialization`/`kotlinx-datetime` (official JetBrains libraries) and
+Ktor 3.0.1 (already the version this catalog's own comment says was chosen to align with
+`backend/build.gradle.kts`) are all comfortably ABI-compatible — verified empirically here, not
+assumed from reputation. The only two third-party libraries in this catalog that had bumped their own
+build's Kotlin compiler ahead of this project's pin are `koin-core` (D102) and `multiplatform-settings`
+(this decision) — both now fixed the same way.
+
+**Verification (Windows-side).** `:shared:testDebugUnitTest` → **249/249**, `:shared:assembleDebug` →
+clean, `:androidApp:testDebugUnitTest` → **241/241**. All three unchanged from their pre-fix
+baselines. Diff scoped to exactly one file: `mobile/gradle/libs.versions.toml` — no
+`mobile/shared/src/**`, `mobile/androidApp/`, or `mobile/iosApp/` source touched, and Part 2's audit
+found no other catalog entry needing a change. The actual iOS-simulator-target compile itself can
+only be re-verified by re-running CI on macOS.
 Nothing else.
