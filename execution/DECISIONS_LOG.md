@@ -3315,3 +3315,163 @@ fixes does not change that; it closes out two claims D98 overstated and one newl
 reducing what MC-1 is expected to find further still. `CURRENT_STATUS.md`'s T1b row parenthetical updated
 accordingly.
 
+
+---
+
+### D100 — 2026-09-18 — Phase 5 Task T4c: GitHub Actions macOS CI becomes the compile/verification authority for iOS
+
+**Context.** Phase 5's whole risk profile rested on one fact: the development host is Windows, so
+nothing in the repository could compile Kotlin/Native or Swift. T1, T1b, T2, T3 and T4a were all
+shipped on *structural* evidence (Gradle configuration, JSON/YAML/XML validity, greps, diff review)
+and T1b — genuinely security-sensitive Keychain code that went through three review rounds — has
+never been touched by a real compiler. The plan's answer was "wait for a Mac" (MC-1 through MC-4).
+The user has now decided to stand up real GitHub Actions macOS CI instead, as the actual compile
+mechanism going forward. The repository had **no CI of any kind** before this entry;
+`.github/` did not exist.
+
+**Decision.** Add `.github/workflows/ios-ci.yml` as Task **T4c** in
+`PHASE_5_IOS_IMPLEMENTATION_PLAN.md` (sequenced after T4a and **before** T4b, despite the letter
+order — T4b keeps its identifier because three reviewed documents already reference it by name), and
+introduce a third verification tier **`C`** alongside **W** and **M**.
+
+**Scope, decided deliberately and stated as a limit, not an aspiration.** CI is the **fast,
+automated, MC-1-equivalent compile/unit-test gate** and nothing more:
+
+- Runs: `:shared:compileKotlinIosSimulatorArm64`, `:shared:linkDebugFrameworkIosSimulatorArm64`,
+  `:shared:iosSimulatorArm64Test` (T1b's Keychain failure-injection tests — the evidence B10 has been
+  owed since D97), `:shared:assembleSharedDebugXCFramework`, `xcodegen generate`, `xcodebuild build`,
+  `xcodebuild test -only-testing:iosAppTests`.
+- Does **not** run: the local Ktor backend, MongoDB, XCUITests, or anything visual/RTL/Dynamic-Type/
+  VoiceOver/playback/session-persistence. MC-2, MC-3 and MC-4 survive unchanged and still require a
+  human on a real Mac with the real local backend.
+
+**Why the backend is deliberately out of scope for v1** (four reasons, in weight order): nothing
+consumes it yet — the XCUITest suite that would need it does not exist until T22; the criteria that
+need a live backend are overwhelmingly visual/behavioral and need a human observer regardless, so a
+green headless run would close none of them; it would require inventing a CI-side
+`JWT_SIGNING_SECRET` where the pipeline currently needs **no secrets at all**; and GitHub-hosted
+macOS runners have no Docker daemon, so the Linux MongoDB-service-container pattern does not
+transfer and the Homebrew + single-node-replica-set path is materially more fragile than the compile
+gate it would be bolted onto. Revisit at T22 as a *second* tier, not as a change to this one.
+
+**What this genuinely unblocks, stated precisely — not as a foregone conclusion.** Every run (capture
+steps run with `if: always()`, so this happens even if a later step failed) uploads a
+`kmp-swift-interface` artifact containing: the framework's generated Obj-C header; whatever SKIE
+Swift output genuinely exists (its exact location was never confirmed before the first real run, so
+the capture step searches broadly instead of asserting a layout); and a
+`swift-api-digester`-generated JSON dump of the framework's real Swift-visible API surface, added
+specifically because it does not depend on guessing SKIE's output location. A Windows host can
+download and read it. **Explicit gate: if the artifact does not actually contain a usable Swift API
+surface — via the digester JSON or genuine SKIE Swift files — Task T4b does not start until that gap
+is fixed, even if the rest of CI is green.** If that gate is met, this removes the one blocker that
+made T4b "Mac-only": SKIE-generated Swift symbol spellings being unknown. T4b onward is therefore
+retagged **W-auth / C-verify** — authored on Windows against a real captured interface, compiled for
+real by CI — with live behavior still **M**. The first real CI-1 run determines whether the gate is
+met; it is not assumed here. This decision does **not** unblock acceptance regardless: Phase 5 can
+now be *built* without a Mac, but not *accepted* without one, and criteria that end there are still
+**NOT TESTABLE (HOST)** per J10.
+
+**Cost.** `HeshamMohamed94/Mentora` is a **public** repository and GitHub Actions on standard hosted
+runners is free for public repositories, so this consumes no billed minutes today. The workflow is
+nonetheless written as if minutes were scarce, because macOS bills at a **10x multiplier** the
+moment a repository goes private: path-filtered triggers (`mobile/shared/**`, `mobile/iosApp/**`, the
+`mobile/` Gradle files, `tools/token-pipeline/generate.js`, the workflow itself, minus `**/*.md`),
+`workflow_dispatch` for deliberate manual runs, `concurrency` cancel-in-progress, a 60-minute hard
+timeout, `~/.konan` caching (the largest single saving — Kotlin/Native's toolchain download) and
+Gradle User Home caching written only from `main`. Rough expectation: **20-30 min wall clock cold,
+10-15 warm** today, trending to 15-20 warm once the full Swift app exists (i.e. 100-300 macOS
+minutes' worth *if* this were ever billed).
+
+**Runner image.** Pinned to **`macos-15`** (arm64), not `macos-latest`: `macos-latest` now resolves
+to macOS 26 / Xcode 26.x, two major Xcode releases newer than anything Kotlin 2.0.21 or SKIE 0.9.5
+were tested against, and `macos-14` is deprecated in `actions/runner-images`. The image ships Xcode
+16.4 as default, JDK 21 (matching `jvmToolchain(21)`), a preinstalled Android SDK at `$ANDROID_HOME`
+— required merely to *configure* `:shared`, which applies the Android Library plugin — Homebrew, and
+iOS 18.x simulator runtimes. There is no iOS 17.x runtime on any current image; the app's iOS 17.0
+deployment target runs correctly on a newer runtime, and the workflow selects a device that exists on
+the image **and** is not newer than the active Xcode's iphonesimulator SDK rather than hardcoding a
+destination string that image updates would silently break.
+
+**Files.** `.github/workflows/ios-ci.yml` (new — a new sanctioned A8 exception, infrastructure rather
+than app/product/backend code); `execution/PHASE_5_IOS_SYSTEM_DESIGN.md` (new § 20.1, the three-tier
+model and the exact MC-1 split); `execution/PHASE_5_IOS_IMPLEMENTATION_PLAN.md` (§ 1 rule 5 amended,
+§ 2 T4c row + host retags for T4b-T21, § 3 CI-1 checkpoint, § 4 T4c detail + T4b rewrite, § 5 risks
+1/2/10, § 6 exclusion corrected — it previously read "no CI pipeline for iOS");
+`execution/PHASE_5_ACCEPTANCE_CRITERIA.md` (§ 1 `C` tag + retags of F3, F5, F8, B10, G3, H2, I4, J1,
+J2, J3, J4, J10 and the new **J11**; A8 widened; § 4.1 answered in part); this file;
+`CURRENT_STATUS.md`. Two more files belong to T4c's *implementation* and are not written by this
+entry: the one-block `mobile/shared/build.gradle.kts` simulator-test-device pin (verified on this
+host to configure cleanly, with and without `-Pmentora.ios.testDevice`) and a minimal placeholder
+`mobile/iosApp/iosApp/MentoraApp.swift` — needed because the app target currently has **no entry
+point at all**, so `xcodebuild` could not link and the Xcode half of the pipeline could never go
+green.
+
+**Status: authored, never run.** Nothing has been pushed. The workflow's first execution is a
+shakedown, and a red first run is expected rather than alarming — the honest unknowns are listed in
+`PHASE_5_IOS_IMPLEMENTATION_PLAN.md` T4c and in the architect's handoff: AGP's on-demand download of
+`compileSdk 36` on the runner, SKIE 0.9.5 against Xcode 16.4's Swift, the SPM binary-target +
+**static** XCFramework combination (T4b already carries the documented fallbacks), the true location
+of SKIE's generated Swift output, and the Kotlin/Native simulator test device name. None of these is
+a design flaw; each is a fact that only a first real run can establish — which is precisely the point
+of building the pipeline.
+
+### D101 — 2026-09-18 — Pre-push review of the T4c CI design: 5 blocking/high findings and 10 lower-severity findings, all fixed before the first push
+
+**Context.** Before D100's `.github/workflows/ios-ci.yml` and its companion doc edits were ever
+pushed, an independent Opus review checked them against reality rather than against the documents'
+own claims — running real Gradle probes on this host, reading real SwiftPM/XcodeGen source, and
+checking the live GitHub API. It found concrete defects that would have made the pipeline's actual
+first run fail immediately or waste its diagnostic value, plus a set of doc-precision and
+consistency issues. All were fixed in this same pre-push pass; nothing was deferred.
+
+**Blocking/high findings (5), fixed:**
+1. `mobile/gradlew` and `mobile/iosApp/scripts/build-shared-xcframework.sh` were committed
+   non-executable (`git ls-files -s` showed `100644`) with `core.filemode=false`, so the mode would
+   never self-correct on this Windows host. Fixed via `git update-index --chmod=+x` on both — verified
+   `100755` afterward.
+2. `:shared:iosSimulatorArm64Test` had no default simulator device configured at all — verified by
+   directly probing the registered task on this host: querying `device`/`deviceId` throws "no value
+   available", not a graceful fallback. Added `iosSimulatorArm64 { testRuns["test"].deviceId = ... }`
+   to `mobile/shared/build.gradle.kts`, driven by `-Pmentora.ios.testDevice` (matching the workflow's
+   own property name) with an `"iPhone 16"` fallback. Also created the previously-nonexistent
+   `mobile/iosApp/iosApp/MentoraApp.swift` placeholder `@main` entry point (without it `xcodebuild`
+   has nothing to link) and corrected a wrong comment in the workflow that described a KGP fallback
+   device name that does not exist.
+3. The Swift-interface capture/upload steps had no `if:` guard, so a red Xcode step would discard the
+   one artifact most useful for debugging it. Added `if: always()` to both, `if-no-files-found: warn`
+   on the upload, and made the capture script skip gracefully if the XCFramework was never built.
+4. The capture step only reliably captured the Obj-C header (SKIE's Swift output location was never
+   confirmed, and `.swiftinterface` files do not exist for a static framework without library
+   evolution), while four planning documents overstated the artifact as already proving the real
+   Swift API surface. Broadened the capture to search `*.swift`/`*.swiftinterface`/`*.swiftmodule`/
+   any `skie`-named path and archive the whole relevant tree; added a `swift-api-digester --dump-sdk`
+   step as a second, stronger source of truth; and corrected the overstated claims in
+   `PHASE_5_IOS_IMPLEMENTATION_PLAN.md § 1`, `PHASE_5_IOS_SYSTEM_DESIGN.md § 20.1`, this file's D100
+   entry, and `CURRENT_STATUS.md` to state precisely what the artifact contains and add an explicit
+   gate: T4b does not start until the artifact is confirmed to contain a usable Swift API surface.
+5. The pinned-Xcode-version step fell back to the image default with only a `::warning::` if the
+   pinned bundle was missing, contradicting criterion J11(e) ("fails loudly — no step swallows a
+   non-zero exit"). Changed to `exit 1` on a missing pin, plus an explicit active-major-version
+   assertion.
+
+**Lower-severity findings (10), fixed:** F3/B10 prose in `PHASE_5_ACCEPTANCE_CRITERIA.md` still
+described the pre-D100 MC-1-only verification model despite already-updated Host columns — reworded
+to cite CI-1; T4c's manual-verification bullet referenced a nonexistent "§ 5 risk 12" — added real
+risks 12 (CI-specific first-run unknowns) and 13 (Kotlin/Native 2.0.21 x newer-Xcode-SDK
+compatibility, a JetBrains-tracked class of issue distinct from the SKIE/Kotlin risk already listed)
+to `PHASE_5_IOS_IMPLEMENTATION_PLAN.md § 5`; T4c's Criteria line claimed J3 coverage it does not
+provide — corrected to "test-running harness only, zero actual coverage, real coverage at T5+"; an
+unclosed quotation in § 5 risk 1 made superseded guidance read as current — delimited with an
+explicit OLD/CURRENT split; G3's evidence text over-claimed "Snapshot-" testing as CI-safe when only
+geometry assertions are — corrected; the `~/.konan` cache key lacked `runner.arch`/image
+specificity — added; the logs artifact omitted `mobile/shared/build/test-results/**` (the JUnit XML
+T1b's Keychain tests need) — added; A8 had a "four" vs "three" count mismatch — disambiguated as
+"all three of (a)-(c)"; and `mobile/iosApp/project.yml` carried a stale comment for
+`generateEmptyDependentSchemes`, which is not a real XcodeGen `options` key — removed.
+
+**Outcome.** `:shared:testDebugUnitTest` stayed **249/249** and `:shared:assembleDebug` stayed clean
+after the `build.gradle.kts` change; the workflow YAML still parses under `js-yaml` and every touched
+`run:` block still passes `bash -n`; `MentoraApp.swift` was verified to meet every stated constraint
+(no `shared`/`MentoraSdk` reference, no string literal, no `@State`/`@StateObject`/`.task`, 16
+lines). Nothing here changes T4c's scope or the D100 decision itself — this is a correctness pass on
+its implementation and its documentation before the pipeline's first real run.

@@ -10,9 +10,19 @@
 
 - **PHASE 5 (iOS) — READ THIS FIRST.** Phase 5 is `IN_PROGRESS`. Planning (Acceptance Criteria/System
   Design/Implementation Plan) is done and reviewed twice (Opus + Codex, D96). **This machine has no
-  macOS/Xcode/iOS Simulator; the user confirmed no Mac is available yet (will get access later).**
-  Executing only T1/T1b/T2/T3/T4a (Windows-completable) then stopping — T4b and T5-T23 are blocked on
-  Mac access, do not author them blind. See "PHASE 5 — iOS" section near the end of this file for the
+  macOS/Xcode/iOS Simulator.** **Changed by D100 (2026-09-18):** a real GitHub Actions macOS CI
+  pipeline (`.github/workflows/ios-ci.yml`, new Task **T4c**) is now the compile/verification
+  mechanism for all remaining iOS work. T1/T1b/T2/T3/T4a/T4c are the Windows-authored set; **from
+  T4b onward, author on Windows in small slices and let CI compile each slice** (never a large batch
+  authored ahead of feedback), using the `kmp-swift-interface` artifact (Obj-C header, whatever SKIE
+  Swift output actually exists, and a `swift-api-digester` JSON dump of the real Swift-visible API
+  surface) as the SKIE reference instead of guessing — **gated**: if that artifact does not actually
+  contain a usable Swift API surface, T4b does not start until that gap is fixed, even if the rest
+  of CI is green; the first real CI-1 run decides this, it is not assumed. **CI does not unblock
+  acceptance:** every live, visual,
+  RTL, Dynamic-Type, VoiceOver, playback and session-persistence criterion still needs a human on a
+  real Mac with the local backend running (MC-2/MC-3/MC-4). The workflow has **not been pushed or
+  run yet** — its first run is the shakedown. See "PHASE 5 — iOS" section near the end of this file for the
   exact resume point and task table, and `execution/PHASE_5_IOS_IMPLEMENTATION_PLAN.md` for full task
   detail. The Phase 4 history below (Task 19 recovery, etc.) is retained for context only — Phase 4 is
   COMPLETE, do not redo it.
@@ -136,7 +146,7 @@ Allowed phase states: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `COMPLETE`.
 | PHASE 2 — Website | **IN_PROGRESS** | Started 2026-09-06. See task breakdown below. |
 | PHASE 3 — KMP Shared Mobile Core | **COMPLETE** | Started 2026-09-12, completed 2026-09-12, pending explicit user approval before Phase 4 begins. See `PHASE_HANDOFF.md` for the full write-up and the task breakdown near the end of this file. |
 | PHASE 4 — Android | **COMPLETE** | Started 2026-09-13, completed 2026-09-15, pending explicit user approval before Phase 5 begins. See `PHASE_HANDOFF.md` for the full write-up and `execution/PHASE_4_ANDROID_PLAN.md` / the task breakdown near the end of this file for detail. |
-| PHASE 5 — iOS | **IN_PROGRESS** | Started 2026-09-18. Acceptance criteria, system design, and a 23-task implementation plan authored and reviewed twice (Opus + Codex) before any code — see `PHASE_5_ACCEPTANCE_CRITERIA.md`/`PHASE_5_IOS_SYSTEM_DESIGN.md`/`PHASE_5_IOS_IMPLEMENTATION_PLAN.md` and `DECISIONS_LOG.md` D96. No Mac/Xcode available yet (user confirmed); executing only T1/T1b/T2/T3/T4a (Windows-completable), then pausing before T4b/T5+ until Mac access is confirmed. See "PHASE 5 — Task Breakdown" near the end of this file. |
+| PHASE 5 — iOS | **IN_PROGRESS** | Started 2026-09-18. Acceptance criteria, system design, and a 23-task implementation plan authored and reviewed twice (Opus + Codex) before any code — see `PHASE_5_ACCEPTANCE_CRITERIA.md`/`PHASE_5_IOS_SYSTEM_DESIGN.md`/`PHASE_5_IOS_IMPLEMENTATION_PLAN.md` and `DECISIONS_LOG.md` D96. No Mac/Xcode on this machine; **D100 (2026-09-18) added Task T4c — a GitHub Actions `macos-15` CI pipeline (`.github/workflows/ios-ci.yml`) — as the compile/unit-test authority**, so T4b onward is authored on Windows in small slices and compiled by CI rather than blocked. Live/visual/accessibility acceptance still requires a real Mac (MC-2/MC-3/MC-4). See "PHASE 5 — Task Breakdown" near the end of this file. |
 | PHASE 6 — AI Tutor Integration | NOT_STARTED | Blocked on Phases 2, 4, 5 (client shells) + Phase 1 (aitutor scaffold). |
 | PHASE 7 — Full Integration | NOT_STARTED | Blocked on all prior phases. |
 | PHASE 8 — QA, Polish & Portfolio Demo | NOT_STARTED | Blocked on Phase 7. |
@@ -966,8 +976,9 @@ Swift at all).
 | T2 | Token pipeline iOS output target (`MentoraTokens.swift`, `MentoraColors.xcassets`) | **DONE** (Windows-verified: generator idempotent, 46 semantic colorsets + 5 shadow colorsets Any+Dark, `tools/ios-checks/assets-check.js` passing, Web/Android outputs byte-identical, `platform-contract.json`'s `ios` section refreshed; rendering confirmed at MC-2) |
 | T3 | Icon set (`MentoraIcons.xcassets`, 42 glyphs) + mirroring data | **DONE** (Windows-verified structurally: 42 imagesets, each `Contents.json` valid JSON with template-rendering intent, each SVG well-formed XML with a 24x24 viewBox, icon-name set exactly equal to Android's `MentoraIconName` (42, confirmed one-for-one), `MentoraIcon.swift` mirror set exactly `{arrowForward, arrowBack}` — all via `tools/ios-checks/assets-check.js`; rendering fidelity pending MC-2) |
 | T4a | Xcode project scaffold (`project.yml`, SPM wrapper, scripts, `Info.plist`, `.gitignore`) | **DONE** (Windows gates green — `project.yml` parses as valid YAML via `js-yaml`, declares the `iosApp`/`iosAppTests`/`iosAppUITests` targets + iOS 17.0 deployment target + local `MentoraShared` SPM dependency + debug-only ATS `NSAllowsLocalNetworking` exception (`INFOPLIST_PREPROCESS` + per-config `INFOPLIST_PREPROCESSOR_DEFINITIONS`) + Debug-only `SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG`; `Package.swift` wraps `shared.xcframework` as a `binaryTarget` at a best-effort, MC-2-to-confirm path; `git diff --stat` confirms no files touched outside T4a's list; `xcodegen generate` itself and an actual Xcode build remain an MC-2 item) |
-| T4b | Swift app bootstrap (SDK/session/locale/theme wiring) | **BLOCKED — Mac-only, needs MC-1** |
-| T5-T23 | `SharedBridge` through final acceptance audit | **BLOCKED — needs Mac access** |
+| T4c | **GitHub Actions macOS CI** (`.github/workflows/ios-ci.yml`) — KMP iOS compile/link/SKIE/`iosSimulatorArm64Test`/XCFramework + `xcodegen generate` + `xcodebuild build`/`test` + generated-Swift-interface artifact; plus a one-block `mobile/shared/build.gradle.kts` simulator-test-device pin and a minimal placeholder `MentoraApp.swift` so the app target links. Added by **D100** | **PARTIAL** (authored on Windows and statically checked — YAML parses under `js-yaml`, every `run:` block passes `bash -n`, the `-Pmentora.ios.testDevice` Gradle override was verified to configure cleanly here. **Never run** — not pushed. Becomes DONE on the first green run on `main`, which is also what converts **T1/T1b/T2/T3/T4a from structurally-checked to genuinely compiled**.) |
+| T4b | Swift app bootstrap (SDK/session/locale/theme wiring) | **NOT STARTED** — unblocked by D100 for *authoring*: starts after one green CI-1 run and after the `kmp-swift-interface` artifact has been downloaded and read. Live behavior still MC-2. |
+| T5-T23 | `SharedBridge` through final acceptance audit | **NOT STARTED** — authored on Windows, compiled by CI, one small slice per push; live/visual verification still needs a Mac (MC-3/MC-4). |
 
 Full per-task scope/files/criteria/tests/verification/completion-gate detail lives in
 `execution/PHASE_5_IOS_IMPLEMENTATION_PLAN.md § 4` — read it before starting any task, do not re-derive

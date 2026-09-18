@@ -21,10 +21,6 @@ options:
   deploymentTarget:
     iOS: "17.0"
   createIntermediateGroups: true
-  # `xcodegen generate` will delete files/groups from the .xcodeproj that no longer have a matching
-  # source on disk when regenerating — the standard, recommended XcodeGen setting so the project file
-  # never drifts from `sources:` below.
-  generateEmptyDependentSchemes: false
 
 # Local SPM package dependency (Task T4a file list): wraps the KMP-built `shared.xcframework` as a
 # binaryTarget — see `Packages/MentoraShared/Package.swift`. Declared once here, referenced by the app

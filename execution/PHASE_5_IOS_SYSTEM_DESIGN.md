@@ -1093,7 +1093,8 @@ Course Player chrome mirrors in RTL except the scrubber, which stays LTR (§ 13)
   user-facing literals.
 - Diff review of every Swift file against this design document.
 
-**Only on a Mac (no substitute exists):**
+**Only on macOS (no substitute exists) — and, since D100, split between the automated CI tier and a
+human Mac session; see § 20.1 for which is which):**
 
 - Any Swift compilation at all — including whether the SKIE-generated API actually has the shapes § 5
   assumes.
@@ -1113,7 +1114,88 @@ Windows-completable task — **T1, T2, T3 and T4a**, plus **T1b**, which is *aut
 (Kotlin, no generated-symbol dependency) and verified at MC-1 — and gates **everything from T4b
 onward** on the Mac, because T4b is the first task that binds to SKIE-generated Swift symbols whose
 spelling is unknown until MC-1. If no Mac is available, the honest outcome is that Phase 5 stops
-cleanly after **T4a** — see `PHASE_5_ACCEPTANCE_CRITERIA.md § 4.1`.
+cleanly after **T4a**.
+
+**Amended by D100 (§ 20.1):** that stopping point is now cleared by the GitHub Actions macOS
+pipeline (`.github/workflows/ios-ci.yml`, Task T4c) rather than only by a personal Mac — the first
+green CI run captures the generated Swift interface as a downloadable artifact, so T4b onward is
+authored on Windows against a real interface and compile-verified by CI instead of blind. What CI
+does **not** unblock is any live, visual or accessibility criterion; those still stop at
+MC-2/MC-3/MC-4 and still need a human on a Mac with the local backend running — see
+`PHASE_5_ACCEPTANCE_CRITERIA.md § 4.1`.
+
+### 20.1 The CI tier (Task T4c, decision **D100**) — an automated macOS compile gate
+
+**What changed.** The two-way Windows/Mac split above is now a **three-way** split. A real macOS
+toolchain is in the loop on every push that touches the iOS surface, via
+`.github/workflows/ios-ci.yml` (Task **T4c** in the Implementation Plan). CI does **not** replace the
+Mac checkpoints; it takes the mechanical, automatable part of **MC-1** away from them and runs it on
+every change instead of once.
+
+| Tier | Where it runs | What it genuinely proves | What it can never prove |
+|---|---|---|---|
+| **W** | this Windows host | unchanged: `:shared` JVM/Android Gradle surface, Node generators, JSON/XML/YAML structure checks, greps, diff review | anything needing a Kotlin/Native or Swift compiler (J1) |
+| **C** (new) | GitHub-hosted `macos-15` runner, unattended | Kotlin/Native compile + link of `iosMain`, SKIE actually applying, `:shared:iosSimulatorArm64Test` (T1b's Keychain failure-injection tests), `assembleSharedDebugXCFramework`, `xcodegen generate`, `xcodebuild build` for a Simulator destination, the `iosAppTests` XCTest target | anything requiring a human eye, a live backend, or an interactive app: visual/RTL/dark-mode fidelity, Dynamic Type at AX5, VoiceOver, playback, Keychain-survives-relaunch, offline behavior, XCUITests |
+| **M** | a real Mac, human at the keyboard, real local backend running | everything in the **C** column plus everything in its "never" column — MC-2, MC-3, MC-4 in full | — |
+
+**Exactly which MC-1 items CI closes, and which it does not.** MC-1's checklist
+(`PHASE_5_IOS_IMPLEMENTATION_PLAN.md § 3`) splits cleanly:
+
+- **Closed by a green CI run (tier C):** SKIE 0.9.5 resolving and applying under Kotlin 2.0.21 on
+  macOS; `:shared:compileKotlinIosSimulatorArm64`; `:shared:linkDebugFrameworkIosSimulatorArm64`;
+  `:shared:assembleSharedDebugXCFramework` producing a real `shared.xcframework`; `iosMain`
+  compiling at all (it never has); `:shared:iosSimulatorArm64Test` green, which is what converts
+  **T1b from authored to verified** (F3 Category 2, criterion B10's test half). CI additionally
+  closes two items MC-1 never owned because they were unreachable: `xcodegen generate` against
+  `project.yml`, and whether `Packages/MentoraShared/Package.swift`'s hardcoded relative
+  `binaryTarget` path is actually where Gradle writes the framework.
+- **Not closed by CI — still a human reading, though CI now supplies the evidence:** whether the
+  generated Swift API really exposes `async` methods, Swift enums for sealed types and
+  `AsyncSequence` for flows (§ 5's assumptions). CI cannot judge API *shape*; it can only produce
+  it. It therefore uploads the generated interface as a build artifact (below).
+- **Not closed by CI at all:** that the non-exported Koin `Module` bridges usably into Swift (proved
+  only by T4b actually calling `create(...)`), and § 9.1 K3's assumption that a non-`@Throws` Kotlin
+  exception crossing into Swift terminates the process (a runtime behavior, MC-2).
+
+**The artifact that changes how Windows authoring works — stated precisely, not as a foregone
+conclusion.** Every CI run (`if: always()` on the capture steps, so this happens even if a later
+step failed) uploads a `kmp-swift-interface` artifact containing: the framework's generated Obj-C
+header; whatever SKIE Swift output genuinely exists under `mobile/shared/build/` (its exact
+location has never been confirmed on a real run, so the capture step searches broadly —
+`*.swift`/`*.swiftinterface`/`*.swiftmodule`/any `skie`-named path — rather than asserting a
+layout); and a `swift-api-digester`-generated JSON dump of the framework's real Swift-visible API
+surface, which does not depend on guessing SKIE's intermediate output location at all. **A Windows
+host can download and read it.** **Explicit gate:** if the artifact does not actually contain a
+usable Swift API surface — via the digester JSON or genuine SKIE Swift files — Task T4b does not
+start until that gap is fixed, even if the rest of CI is green. The first real CI-1 run determines
+whether this gate is met; it is not assumed here. If it is met, this removes the specific blocker
+§ 20's "Consequence" paragraph and Implementation Plan risk § 5.2 named — "SKIE-generated Swift
+symbol names are literally unknown until MC-1" — without a Mac ever being touched, and Swift from
+T4b onward is authored against the real captured interface and compiled for real by CI in the same
+slice.
+
+**Why CI deliberately does not run the backend.** Phase 5's live criteria (E1, B3/B6, C3-C18, the
+whole of I) assume the real local Ktor + seeded MongoDB. Standing that up on a GitHub-hosted macOS
+runner is possible (Homebrew `mongodb-community`, a single-node replica-set init, a fabricated
+`.env`, a second Gradle build, `seedDemoData`) but is **out of scope for this pipeline's first
+version**, for four reasons, in order of weight: (1) nothing consumes it yet — the XCUITest suite
+that would exercise a live backend does not exist until T22; (2) the criteria that need a live
+backend are overwhelmingly *visual/behavioral* and need a human observer anyway, so a green headless
+run would close none of them; (3) it requires inventing CI-side secrets (a `JWT_SIGNING_SECRET`)
+where this pipeline currently needs **none at all**; (4) GitHub-hosted macOS runners have no Docker
+daemon, so the Linux-CI MongoDB-service-container pattern does not transfer, and the Homebrew
+replica-set path is materially more fragile than the compile gate it would be bolted onto. Revisit
+at T22, as a second CI tier, not as a change to this one.
+
+**Cost posture.** `HeshamMohamed94/Mentora` is a **public** repository and GitHub Actions on standard
+hosted runners is free for public repositories, so today this costs no billed minutes. The workflow
+is nonetheless written as if minutes were scarce — path-filtered triggers, `workflow_dispatch`,
+`concurrency` cancel-in-progress, a 60-minute hard timeout, `~/.konan` + Gradle User Home caching —
+because macOS minutes bill at a **10x multiplier** the moment a repository is private, and because
+a stuck macOS job is expensive in wall-clock feedback terms regardless of billing. Rough expectation:
+**20-30 minutes wall clock on a cold cache, 10-15 warm** for today's tiny app target, growing toward
+15-20 warm once the full Swift app exists.
+
 
 ---
 
