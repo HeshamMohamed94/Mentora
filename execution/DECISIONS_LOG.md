@@ -4643,3 +4643,46 @@ Kotlin/Native Apple-platform toolchain on Windows, same limitation as every othe
 **Status: authored, NOT compile-verified — CI run #12 is the only real verification, exactly as D109 already
 stated for its own fix.** Do not start T5 or any feature-UI work; T4b remains implemented/pending-CI per
 D108's own status, unaffected by this entry.
+
+**Third review pass (pre-push, on `baa8fa9`) — Core Foundation memory management confirmed correct; one
+real gap found and closed before push.** An Opus review specifically audited every `CFDictionaryCreateMutable`/
+`CFBridgingRetain` allocation on every exit path (including exceptions) across `baseQuery()`/`add()`/
+`update()`/`delete()`/`exists()`/`copyMatching()`, and confirmed: no leak, no double-release, no over-release;
+`baseQuery()`'s `built`-flag pattern is genuinely correct Kotlin `try`/`finally`/`return` interaction (the
+`built = true` assignment is visible to `finally` before the function returns); `update()`'s nested
+`try`/`finally` cannot leak either dictionary regardless of which one's construction throws first; releasing
+`dataRef`/`serviceRef`/`accountRef` immediately after `CFDictionaryAddValue` is safe because `CFDictionaryAddValue`
+performs its own retain synchronously via `kCFTypeDictionaryValueCallBacks`/`kCFTypeDictionaryKeyCallBacks`
+before returning; the remaining `as CFDictionaryRef` casts are provably safe no-ops (`CFDictionaryRef` and
+`CFMutableDictionaryRef` both erase to the same `CPointer<__CFDictionary>` Kotlin type — a fundamentally
+different, non-buggy cast direction than D109's `CPointer`-to-Objective-C-class cast); and
+`CFBridgingRetain(this as NSString) as CFStringRef` in the new `String.toCFStringRef()` extension is a
+genuinely supported Kotlin `String`↔`NSString` bridge, not the raw-un-bridged-constant mistake D109 fixed.
+
+**One real finding, applied before push:** `runCatching { }.getOrElse { errSecParam }` (and `copyMatching`'s
+`getOrElse { KeychainReadResult(errSecParam, null) }`) discarded the caught `Throwable` entirely. Traced
+end-to-end: a swallowed exception here → `IosTokenStorage.readTokens` sees `errSecParam` → publishes a
+`KeychainFailure` → `AppEnvironment.swift`'s `try? await restoreSession()` swallows again → `SessionController
+.keychainFailure` is set but nothing in the current Swift code reads it (T4b ships no UI surface for it yet,
+by design — that's later work) → CI's actual verification is `xcodebuild test -only-testing:iosAppTests`,
+whose test body is `ScaffoldPlaceholderTests.testScaffoldCompiles()`, a bare `XCTAssertTrue(true)`. Net effect
+without this fix: **a remaining interop bug in this file would make CI run #12 go green while `restoreSession()`
+silently fails on every real launch, forever** — exactly the opposite of what "CI is the source of truth"
+requires, and it would have destroyed the one mechanism (a crash with a named stack-trace line) that found both
+D109's and D110's bugs in the first place. **Fixed** by adding a `logInteropFailure(operation, cause)` helper
+(`println` — the same stdout stream CI's real log already captures, as proven by D109's own crash text
+appearing there) called from all five `getOrElse` sites before returning the fallback status. Logs only the
+exception's type/message (interop cast/call failures never carry Keychain data in their message, only Kotlin/CF
+type names — AUTH_SECURITY.md § 4's never-log-a-token rule is not implicated).
+
+Two cosmetic-only findings, left as-is (no behavior risk, explicitly confirmed harmless): the audit prose
+in this file and this log slightly overstated exception-path release coverage for `serviceRef`/`accountRef`/
+`dataRef` specifically (the only statement between each bridge and its release is a single external C call
+that cannot itself throw a Kotlin exception, so the gap is unreachable in practice, not a real leak); and the
+now-fully-erased `as CFDictionaryRef` casts / `@Suppress("UNCHECKED_CAST")` on line ~438 are harmless no-ops
+(no `-Werror`/`allWarningsAsErrors` anywhere in this Gradle build, confirmed by direct search).
+
+Re-verified `:shared:testDebugUnitTest` (249/249) and `:androidApp:testDebugUnitTest` (241/241) with
+`--rerun-tasks` after adding the logging fix (not merely UP-TO-DATE). **Status unchanged: CI run #12 is the
+real verification for D109, D110, and this review pass together.** The standing "no real `SecurityFrameworkKeychain`
+test coverage" gap (D109) remains open, explicitly not closed by this pass — noted again here so it isn't lost.

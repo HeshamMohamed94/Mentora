@@ -207,6 +207,22 @@ internal class SecurityFrameworkKeychain(
     private fun String.toCFStringRef(): CFStringRef = CFBridgingRetain(this as NSString) as CFStringRef
 
     /**
+     * Third review pass on this file (see DECISIONS_LOG.md, the entry appended after D110): every
+     * method below wraps its body in `runCatching { }.getOrElse { }` (K3 -- an interop mistake in
+     * this class must degrade to a reportable `OSStatus`, never crash the process), but a bare
+     * `getOrElse { errSecParam }` discards the caught [Throwable] entirely. That would have made
+     * CI run #12 incapable of falsifying this fix or D109's: a *remaining* cast/call bug would no
+     * longer crash with a stack trace naming the exact line (which is the only reason D109's bug was
+     * ever found) -- it would silently degrade to "no session", every launch, forever, with zero
+     * diagnostic. This logs the caught exception's type and message (never a token -- an interop
+     * cast/call failure's message never contains Keychain data, only Kotlin/CF type names) so a
+     * genuine remaining bug is still visible in the real CI log, exactly where D109's was found.
+     */
+    private fun logInteropFailure(operation: String, cause: Throwable) {
+        println("Mentora Keychain interop failure in SecurityFrameworkKeychain.$operation: $cause")
+    }
+
+    /**
      * Builds a fresh, `+1`-owned (`CFDictionaryCreateMutable`, Core Foundation "Create Rule")
      * `CFDictionary` for the shared search/update/delete query shape: identifies the item by
      * (class, service, account) only. Fix B (review round 3): deliberately does NOT include
@@ -291,7 +307,7 @@ internal class SecurityFrameworkKeychain(
         } finally {
             CFRelease(newItem)
         }
-    }.getOrElse { errSecParam }
+    }.getOrElse { logInteropFailure("add", it); errSecParam }
 
     override fun update(value: String): Int = runCatching {
         val data = value.toKeychainData() ?: return@runCatching errSecParam
@@ -314,7 +330,7 @@ internal class SecurityFrameworkKeychain(
         } finally {
             CFRelease(query)
         }
-    }.getOrElse { errSecParam }
+    }.getOrElse { logInteropFailure("update", it); errSecParam }
 
     override fun delete(): Int = runCatching {
         val query = baseQuery()
@@ -323,7 +339,7 @@ internal class SecurityFrameworkKeychain(
         } finally {
             CFRelease(query)
         }
-    }.getOrElse { errSecParam }
+    }.getOrElse { logInteropFailure("delete", it); errSecParam }
 
     override fun exists(): Int = runCatching {
         val query = baseQuery()
@@ -337,7 +353,7 @@ internal class SecurityFrameworkKeychain(
         } finally {
             CFRelease(query)
         }
-    }.getOrElse { errSecParam }
+    }.getOrElse { logInteropFailure("exists", it); errSecParam }
 
     override fun copyMatching(): KeychainReadResult = runCatching {
         val query = baseQuery()
@@ -376,7 +392,7 @@ internal class SecurityFrameworkKeychain(
         } finally {
             CFRelease(query)
         }
-    }.getOrElse { KeychainReadResult(errSecParam, null) }
+    }.getOrElse { logInteropFailure("copyMatching", it); KeychainReadResult(errSecParam, null) }
 }
 
 /** Which [IosTokenStorage] operation a [KeychainFailure] came from. Diagnostic only. */
