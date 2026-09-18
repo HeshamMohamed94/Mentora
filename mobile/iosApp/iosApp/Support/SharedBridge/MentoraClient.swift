@@ -35,7 +35,7 @@ struct MentoraClient {
     // MARK: - auth
 
     func register(email: String, password: String, name: String) async throws -> SessionUser {
-        try ApiResultBridge.unwrap(try await sdk.auth.register_.invoke(email: email, password: password, name: name))
+        try ApiResultBridge.unwrap(try await sdk.auth.register.invoke(email: email, password: password, name: name))
     }
 
     func login(email: String, password: String) async throws -> SessionUser {

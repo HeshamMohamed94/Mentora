@@ -4952,3 +4952,21 @@ possible on this Windows host; the next real `ios-ci.yml` run is the actual veri
 fixes, specifically: (a) grep `xcodebuild test`'s log for "is implemented in both" (Fix 1), (b)
 confirm the two `ApiResultBridgeTests.swift` type-error fixes actually resolve the compile errors
 (Fix 3), (c) confirm everything else compiles clean.
+
+#### D113 — 2026-09-19 — CI run #13 attempt 2 confirms real SKIE name is `.register`, not `.register_`; one-line fix
+
+**Context.** Real macOS CI (run #13, attempt 2,
+https://github.com/HeshamMohamed94/Mentora/actions/runs/35406268472/job/105797506989) failed with a
+genuine Swift compiler error on `MentoraClient.swift:38`: `'register_' has been renamed to 'register'`.
+The generated header shows `@property (readonly, getter=register) SharedRegisterUseCase *register_`
+— Kotlin's `register` collides with a Swift-2/3-era reserved word, so Obj-C exports the backing
+property as `register_`, but Swift's legacy-keyword-obsoletion rule requires callers to use the
+getter spelling, `.register`, instead. This is exactly the risk D112 flagged and pre-authorized a
+one-line fix for (see the "`register_` naming (confirmed from source, not re-derived)" note near line
+4822): the plan's `register_` guess was wrong; CI has now settled it for real.
+
+**Fix.** `MentoraClient.swift`'s `register(email:password:name:)` body:
+`sdk.auth.register_.invoke(...)` → `sdk.auth.register.invoke(...)`. One line, this file only.
+Grepped all of `mobile/iosApp/` for `register_` afterward — no other occurrence exists.
+
+**Status.** Not yet re-verified by CI — the next `ios-ci.yml` run is the real check for this fix.
