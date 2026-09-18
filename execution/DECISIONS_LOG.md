@@ -3858,3 +3858,66 @@ of the file is unchanged. `git diff` reviewed: the change is scoped to exactly o
 its explanatory comment) in `mobile/iosApp/project.yml` — no other file touched. The actual
 `xcodebuild build`/`actool` step itself can only be re-verified by re-running CI on macOS; that has
 not been done as part of this change. Nothing else.
+
+---
+
+### D107 — 2026-09-18 — CI-1 GREEN: first fully successful macOS CI run (run #6) — Tasks T1/T1b/T2/T3/T4a/T4c genuinely compiled for iOS for the first time
+
+**What happened.** After 5 consecutive real-CI failures (D102-D106), each found and fixed in a single
+targeted slice per the standing "small slice → CI → inspect → fix → rerun" discipline, run #6
+(`main`@`4c5c132`, https://github.com/HeshamMohamed94/Mentora/actions/runs/35386243611) completed
+**fully green** in 8m19s. Every real step succeeded: `:shared:compileKotlinIosSimulatorArm64`,
+`:shared:compileKotlinIosArm64`, `:shared:linkDebugFrameworkIosSimulatorArm64`,
+`:shared:linkDebugFrameworkIosArm64`, `:shared:iosSimulatorArm64Test` (T1b's 18 Keychain
+failure-injection tests — confirmed by inspecting the raw log: the task ran with zero reported
+failures, immediately followed by the next task with no `FAILED`/exception output),
+`:shared:assembleSharedDebugXCFramework`, `xcodegen generate` (T4a's `project.yml` → a real
+`iosApp.xcodeproj`), `xcodebuild build` (linked the app for the Simulator, including the T4c
+placeholder `MentoraApp.swift` and T2/T3's real asset catalogs), `xcodebuild test` (the placeholder
+XCTest target), and the `swift-api-digester` Swift-surface dump + interface-artifact upload.
+
+**Root causes fixed across runs #1-5 (full detail in D102-D106), summarized for anyone resuming:**
+1. **D102** — `koin-core` 4.1.0's iOS klibs were built by Kotlin 2.1.20 (ABI 1.201.0), incompatible
+   with this project's pinned Kotlin 2.0.21 (ABI 1.8.0). Fixed by downgrading to koin-core 4.0.4 — an
+   exact `compiler_version` match, found by inspecting the real klib manifest (klibs are plain zips).
+2. **D103** — Two unrelated bugs surfaced together: (a) `SessionManager.kt` (commonMain) used
+   `kotlin.jvm.Volatile`, JVM-only and never resolved on Kotlin/Native — fixed via
+   `kotlin.concurrent.Volatile` (the real multiplatform annotation). (b) Task T1's
+   `sourceSets.findByName("iosMain")?.dependencies {...}` silently found nothing, on any host, because
+   KGP only materializes `iosMain` at a Gradle lifecycle stage that runs after a build script's
+   synchronous body — confirmed by reading KGP 2.0.21's own bundled source. Fixed by wiring
+   dependencies directly onto the concrete `iosArm64Main`/`iosSimulatorArm64Main`/`*Test` source sets.
+3. **D104** — `multiplatform-settings` 1.3.0 hit the identical klib-ABI problem as #1. Downgraded to
+   1.2.0 (the newest version built by a compatible Kotlin, no exact match existed for this library).
+   Proactively audited every other `commonMain`/`iosMain` dependency for the same defect class — all
+   others already compatible.
+4. **D105** — Kotlin/Native rejects `(`, `)`, and `,` inside backtick-quoted test function names (they
+   get mangled into native symbols where those characters are illegal) — a constraint JVM/Android never
+   enforced. Affected 40 existing test names across 25 `commonTest`/`iosTest` files, latent since
+   Phase 3, invisible until the first real Kotlin/Native test compile. Renamed all 40 (display-name-only
+   changes, zero behavior/assertion changes), plus a repo-wide sweep confirming no others remained.
+5. **D106** — XcodeGen's built-in default preset for an iOS `application`-type target sets
+   `ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon`, which nothing in this repo ever requested. Fixed by
+   explicitly clearing it in `project.yml` rather than inventing placeholder app-icon artwork (no icon
+   has been designed anywhere in `design-system/` yet) — flagged for whenever a real app-icon task
+   happens.
+
+**Why this matters.** Every one of these 5 defects was **genuinely undiscoverable on this Windows
+host** — none could have been found by static review, and several (the klib ABI mismatches, the KGP
+lifecycle-timing bug, the Kotlin/Native test-name restriction) are platform-specific facts no amount of
+Windows-side reasoning could have surfaced. This is exactly why the user directed standing up real
+macOS CI now rather than continuing to plan blind: five real, load-bearing facts about this codebase's
+actual iOS buildability are now known and fixed, at the cost of 5 CI iterations (~25 total build
+minutes) rather than being discovered piecemeal during a future Mac session or, worse, silently
+miscompiling.
+
+**Status change.** Tasks T1, T1b (compile/unit-test half only — live Keychain round-trip still needs
+MC-2), T2, T3, T4a, and T4c all move from "Windows-checked/PARTIAL" to **DONE** — CI has now proven
+what Windows could only assert. See `CURRENT_STATUS.md`'s Phase 5 task table for the per-task detail.
+
+**Next.** Per the user's explicit direction, proceed to Task T4b (Swift app bootstrap) using the
+`kmp-swift-interface` artifact from this run as the real API-shape reference — never guessing at
+SKIE-generated Swift symbol names. Continue the small-slice → commit → push → CI → inspect → fix →
+review → rerun loop through as much of T4b-T23 as CI can genuinely verify; live/visual/accessibility
+verification (MC-2/MC-3/MC-4) remains a future Mac-session dependency, to be marked PARTIAL or NOT
+TESTABLE rather than fabricated.
