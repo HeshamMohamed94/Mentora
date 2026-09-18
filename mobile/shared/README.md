@@ -95,8 +95,19 @@ itself cannot construct (it has no `Context`, no Keychain API, no HTTP engine of
   and the OkHttp engine.
 - **iOS** — `iosMain`'s no-arg `platformModule(): Module` (`di/PlatformModule.ios.kt`) binds
   `IosTokenStorage()` (Keychain), `IosPreferenceStore()` (`NSUserDefaults.standardUserDefaults`), and
-  the Darwin engine. **Not wired into the build on this Windows host** — see `mobile/README.md`'s iOS
-  limitation section; a macOS host must re-add the `iosMain` source set before this can compile.
+  the Darwin engine. **Wired into the build as of Phase 5 Task T1** — `build.gradle.kts` now declares
+  `iosMain`'s `ktor-client-darwin`/`multiplatform-settings` dependencies and an `iosTest` source set
+  (`kotlin("test")`), using the null-safe `sourceSets.findByName("iosMain")?.dependencies { ... }`
+  form rather than `val iosMain by getting {}` (the latter is known to fail Gradle configuration on a
+  Windows host with `kotlin.native.ignoreDisabledTargets=true` — `findByName` degrades to a no-op
+  there instead). An `XCFramework("shared")` holder was also added, registering
+  `assembleXCFramework`/`assembleSharedDebugXCFramework`/`assembleSharedReleaseXCFramework`. All of
+  this is **Gradle-configuration-verified on this Windows host only** (`:shared:testDebugUnitTest`
+  stays 249/249, `:shared:assembleDebug` stays clean, the three XCFramework tasks are listed, zero
+  new configuration warnings) — nothing has actually been compiled or linked for iOS yet, since that
+  requires a macOS/Xcode toolchain this host doesn't have. Real `iosMain` compilation, linking, and a
+  produced `shared.xcframework` are still pending the Phase 5 **MC-1** Mac checkpoint
+  (`execution/PHASE_5_IOS_IMPLEMENTATION_PLAN.md` § 3).
 
 Never construct a repository, `ApiClient`, or `HttpClient` directly from Phase 4/5 code — everything
 needed is reachable through `MentoraSdk`'s 10 façade properties.

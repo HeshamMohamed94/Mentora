@@ -17,6 +17,15 @@ DerivedData/
 xcuserdata/
 *.xcuserstate
 
+# Phase 5 Task T1: explicit XCFramework output path, once `:shared:assembleSharedDebugXCFramework`/
+# `:shared:assembleSharedReleaseXCFramework` actually run on a macOS host (Kotlin Multiplatform's
+# documented XCFramework output convention: `<module>/build/XCFrameworks/<buildType>/`). Already
+# covered by the blanket `**/build/` above — listed here anyway for the same belt-and-suspenders
+# reason as the generic `*.xcframework`/`DerivedData/` entries above it, so the iOS build output is
+# never accidentally committed regardless of where it ends up.
+**/build/XCFrameworks/
+**/DerivedData/
+
 # OS
 .DS_Store
 Thumbs.db

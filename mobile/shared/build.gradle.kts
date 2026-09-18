@@ -2,6 +2,7 @@ import org.gradle.api.tasks.testing.Test
 import org.gradle.internal.os.OperatingSystem
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFramework
 
 // Task 1 scaffolded the module with no Ktor/Koin/multiplatform-settings dependencies wired up —
 // those land with the code that actually uses them in later tasks (see
@@ -43,6 +44,16 @@ kotlin {
     // this configuration itself is plain Gradle DSL evaluation (no Kotlin/Native compiler
     // invocation), so it stays reachable/buildable on Windows even though the framework it
     // describes is never actually linked here (disclosed limitation B1).
+    // Task 1 (Phase 5): the `XCFramework("shared")` holder registers the umbrella
+    // `assembleXCFramework` task plus per-configuration `assembleSharedDebugXCFramework`/
+    // `assembleSharedReleaseXCFramework` tasks that fat-package both iOS targets' frameworks into
+    // one `shared.xcframework` for Xcode to consume — this is Gradle DSL evaluation only (no
+    // Kotlin/Native compiler invocation), so like `binaries.framework {}` below it configures and
+    // stays reachable on Windows even though nothing is actually linked here (disclosed limitation
+    // B1). Verified by applying this exact change on this host: the registered task names are
+    // `assembleXCFramework`, `assembleSharedDebugXCFramework`, `assembleSharedReleaseXCFramework` —
+    // there is no `assembleSharedXCFramework`.
+    val xcf = XCFramework("shared")
     listOf(iosArm64(), iosSimulatorArm64()).forEach { target ->
         target.binaries.framework {
             baseName = "shared"
@@ -56,6 +67,7 @@ kotlin {
             // type (DTOs, `kotlinx.serialization.json.Json`) is part of the façade's public
             // surface at all (only domain/use-case types are — see MentoraSdk.kt).
             export(libs.kotlinx.datetime)
+            xcf.add(this)
         }
     }
 
@@ -115,22 +127,24 @@ kotlin {
                 implementation(kotlin("test"))
             }
         }
-        // iosMain is intentionally NOT referenced here: with `iosArm64()`/`iosSimulatorArm64()`
-        // disabled by `kotlin.native.ignoreDisabledTargets=true` on this Windows host, Kotlin
-        // never creates the iosMain source set object at configuration time (only its on-disk
-        // directory exists, per src/iosMain/). Re-verified empirically for Task 3: temporarily
-        // adding `val iosMain by getting { dependencies { implementation(libs.ktor.client.darwin) } }`
-        // fails configuration on this machine with "KotlinSourceSet with name 'iosMain' not found" —
-        // the same failure mode Task 1 already found. So `HttpClientEngineFactory.ios.kt` exists on
-        // disk (per the plan's disclosed limitation B1) with its Darwin-engine `actual`, but its
-        // `ktor-client-darwin` dependency is not wired into this build script. A macOS host picking
-        // this up will need to add the `iosMain`/`iosTest` source sets back (which requires the iOS
-        // targets to be enabled there) and add `implementation(libs.ktor.client.darwin)` to
-        // `iosMain`'s dependencies. Task 4 adds the same caveat for `IosTokenStorage`/
-        // `IosPreferenceStore`: they need `implementation(libs.multiplatform.settings)` added to
-        // `iosMain`'s dependencies on that future macOS host (`IosTokenStorage`'s Keychain code
-        // uses only `platform.Security`/`platform.Foundation`, already available to Kotlin/Native
-        // with no extra dependency).
+        // Phase 5 Task 1: on THIS Windows host, `iosArm64()`/`iosSimulatorArm64()` are still
+        // disabled (`kotlin.native.ignoreDisabledTargets=true`), so Kotlin still never creates the
+        // `iosMain`/`iosTest` source set objects at configuration time here — `val iosMain by
+        // getting {}` still fails configuration with "KotlinSourceSet with name 'iosMain' not
+        // found" (re-verified; same failure Task 1/3 of Phase 3 already found). `findByName(...)` is
+        // therefore used instead of `by getting`: it returns null (silently skipped) on this host
+        // and only resolves to a real source set on a macOS host where the iOS targets are actually
+        // enabled — which is exactly what lets this wiring exist now without breaking the Windows
+        // build.
+        sourceSets.findByName("iosMain")?.dependencies {
+            implementation(libs.ktor.client.darwin)
+            implementation(libs.multiplatform.settings)
+        }
+        sourceSets.findByName("iosTest")?.dependencies {
+            // Phase 5 Task 1b's IosTokenStorageTest/FakeKeychain (iosTest source set) need plain
+            // kotlin.test assertions, same as every other source set's test dependency.
+            implementation(kotlin("test"))
+        }
     }
 }
 
