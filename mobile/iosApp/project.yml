@@ -47,6 +47,19 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.mentora.ios
         PRODUCT_NAME: iosApp
+        # XcodeGen applies its own built-in default build-settings presets per platform+product-type
+        # combination (mirroring Xcode's own "New Project" template defaults) whenever a setting isn't
+        # explicitly given here. For an iOS `application` target, that preset includes
+        # `ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon` — which is exactly what caused `actool` to be
+        # invoked with `--app-icon AppIcon` and fail with "None of the input catalogs contained a
+        # matching ... app icon set named 'AppIcon'" on the fifth real CI run (no `AppIcon.appiconset`
+        # exists anywhere yet — nobody has designed one). Explicitly overriding it to an empty string
+        # here (explicit `settings:` values always win over XcodeGen's presets) tells `actool` this
+        # target has no app icon requirement yet, which is fine for an unsigned Debug Simulator build
+        # (`CODE_SIGNING_ALLOWED=NO` in `.github/workflows/ios-ci.yml`) — only App Store submission
+        # requires a real app icon. Revisit once an actual `AppIcon` asset is designed
+        # (`design-system/`) and added to `Theme/MentoraIcons.xcassets` (or a dedicated catalog).
+        ASSETCATALOG_COMPILER_APPICON_NAME: ""
         INFOPLIST_FILE: iosApp/Resources/Info.plist
         # Lets `iosApp/Resources/Info.plist` gate its `NSAppTransportSecurity` block behind a
         # `#ifdef MENTORA_DEBUG_ATS` C-preprocessor conditional — the real Xcode mechanism for making

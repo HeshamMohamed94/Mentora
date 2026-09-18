@@ -3813,3 +3813,48 @@ the `` fun `...`() `` declaration, nothing in any test body. A final post-fix sw
 across both source trees returned zero remaining matches. The actual iOS-simulator-target
 `compileTestKotlinIosSimulatorArm64` step itself can only be re-verified by re-running CI on macOS.
 Nothing else.
+
+### D106 — 2026-09-18 — Fifth real iOS CI run got all the way to compiling real Swift, then failed on `actool` demanding a non-existent "AppIcon" — fixed by disabling XcodeGen's default app-icon-name preset, not by inventing icon artwork
+
+**Context.** Fifth real macOS CI run (GitHub Actions run
+[35384928252](https://github.com/HeshamMohamed94/Mentora/actions/runs/35384928252/job/105729492670)).
+Milestone: the entire Gradle/KMP/XCFramework pipeline succeeded end-to-end for the first time —
+compile, link, T1b's real Keychain tests actually ran on Kotlin/Native, the XCFramework assembled,
+`xcodegen generate` produced `iosApp.xcodeproj`, and `xcodebuild build` got all the way to actually
+compiling real Swift files (`MentoraApp.swift`, `Color+Mentora.swift`) — the first real Swift compile
+of this project ever. It then failed at the `CompileAssetCatalogVariant` step:
+`error: None of the input catalogs contained a matching stickers icon set or app icon set named
+"AppIcon"`, because `actool` was invoked with `--app-icon AppIcon` against
+`Theme/MentoraColors.xcassets` and `Theme/MentoraIcons.xcassets` (the only two catalogs that exist,
+from T2/T3) — neither has ever contained an `AppIcon.appiconset`, since nobody has designed an app
+icon anywhere in `design-system/` yet.
+
+**Root cause.** `mobile/iosApp/project.yml` never sets `ASSETCATALOG_COMPILER_APPICON_NAME` anywhere.
+XcodeGen applies its own built-in default build-settings presets per platform+product-type combination
+(mirroring Xcode's own "New Project" template defaults) for any setting not explicitly given in
+`project.yml`. For an iOS `application`-type target, that preset includes
+`ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon` — which is what silently caused `actool` to be invoked
+with `--app-icon AppIcon` even though nothing in this repo's own `project.yml` ever asked for an app
+icon. This is a known XcodeGen behavior, not a bug in this repo's file, and not something visible from
+reading `project.yml` alone without knowing XcodeGen applies presets underneath whatever is written.
+
+**Fix.** Added `ASSETCATALOG_COMPILER_APPICON_NAME: ""` to `targets.iosApp.settings.base` in
+`mobile/iosApp/project.yml`. Explicit `settings:` values in `project.yml` always take precedence over
+XcodeGen's built-in presets, so this clears the preset's default and tells `actool` this target has no
+app-icon requirement — which is correct for the CI pipeline's unsigned, Simulator-only Debug build
+(`CODE_SIGNING_ALLOWED=NO` in `.github/workflows/ios-ci.yml`); only App Store submission genuinely
+requires a real app icon. Deliberately did **not** invent placeholder app-icon artwork: no app icon has
+been specified anywhere in `design-system/`, and fabricating one now would be exactly the kind of
+implementing-ahead-of-what's-grounded this project's process forbids. **Flag for later:** once the
+project reaches an app-branding/icon-design task, a real `AppIcon.appiconset` needs to be designed and
+added (likely to `Theme/MentoraIcons.xcassets` or a dedicated catalog) and this override removed at
+that point — no known-limitations list currently tracks iOS app icons, and none needs to be created
+now, but whoever picks up that future task should know this override exists and must be reverted.
+
+**Verification.** `project.yml` re-parsed successfully as YAML via `js-yaml`
+(`web/node_modules/js-yaml`) after the edit, confirming
+`targets.iosApp.settings.base.ASSETCATALOG_COMPILER_APPICON_NAME` is now the empty string and the rest
+of the file is unchanged. `git diff` reviewed: the change is scoped to exactly one added setting (plus
+its explanatory comment) in `mobile/iosApp/project.yml` — no other file touched. The actual
+`xcodebuild build`/`actool` step itself can only be re-verified by re-running CI on macOS; that has
+not been done as part of this change. Nothing else.
