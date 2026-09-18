@@ -15,17 +15,22 @@ import shared
 final class ThemeController {
     private(set) var theme: ThemePreference
 
-    private let sdk: MentoraSdk
+    private let client: MentoraClient
 
-    init(sdk: MentoraSdk, coldStartTheme: ThemePreference) {
-        self.sdk = sdk
+    init(client: MentoraClient, coldStartTheme: ThemePreference) {
+        self.client = client
         self.theme = coldStartTheme
     }
 
     /// Updates local `@Observable` state immediately, then writes through the façade — never through
     /// the cold-start reader's own `IosPreferenceStore` instance (G1).
+    ///
+    /// T5 (D112): routed through `MentoraClient.setTheme(_:)` instead of the raw
+    /// `sdk.user.setTheme.invoke(theme:)` call, so `.invoke` never appears outside
+    /// `Support/SharedBridge/` (System Design § 2) — a deliberate, approved refactor, not a
+    /// behavior change.
     func setTheme(_ theme: ThemePreference) {
         self.theme = theme
-        sdk.user.setTheme.invoke(theme: theme)
+        client.setTheme(theme)
     }
 }

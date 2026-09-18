@@ -11,6 +11,7 @@ import shared
 @MainActor
 final class AppEnvironment {
     let sdk: MentoraSdk
+    let client: MentoraClient
     let sessionController: SessionController
     let localeController: LocaleController
     let themeController: ThemeController
@@ -34,9 +35,12 @@ final class AppEnvironment {
         // 0.9.x's default-arguments feature can generate one for a Kotlin default parameter) that would
         // let this hardcoded block be deleted in favor of `ApiEnvironment.companion.iosSimulator()`. No
         // captured `shared.h`/SKIE-artifact exists on this Windows host to check against (this repo has
-        // never had a macOS build run), so this could not be verified either way. Kept as the disclosed,
-        // hardcoded fallback pending the next real CI compile confirming (or refuting) the zero-arg
-        // overload's existence — see D108's "needs CI to confirm" note.
+        // never had a macOS build run), so this could not be verified either way at the time.
+        //
+        // T5 (D112): CONFIRMED, not merely a fallback — real-artifact research for T5's `SharedBridge`
+        // work found SKIE 0.9.5 generated NO default-argument overloads anywhere in this framework, for
+        // any Kotlin default parameter. There is no zero-arg `iosSimulator()` overload to switch to; this
+        // hardcoded `ApiTimeouts` block is the permanent, correct shape, not a pending fallback.
         let timeouts = ApiTimeouts(
             connectTimeoutMillis: 15_000,
             requestTimeoutMillis: 30_000,
@@ -59,9 +63,11 @@ final class AppEnvironment {
         let coldStartTheme = IosPreferenceStore().getTheme()
 
         self.sdk = sdk
-        self.sessionController = SessionController(sdk: sdk)
-        self.localeController = LocaleController(sdk: sdk)
-        self.themeController = ThemeController(sdk: sdk, coldStartTheme: coldStartTheme)
+        let client = MentoraClient(sdk: sdk)
+        self.client = client
+        self.sessionController = SessionController(client: client)
+        self.localeController = LocaleController(client: client)
+        self.themeController = ThemeController(client: client, coldStartTheme: coldStartTheme)
 
         // System Design § 9 steps 1-2 — exactly one task, `restoreSession()` then
         // `seedInitialLocaleIfNeeded()`, in that order, never from a view's `.task`/`onAppear`.
@@ -73,9 +79,14 @@ final class AppEnvironment {
         // raced with it (two independent call paths could each trigger the `.authenticated(user: nil)`
         // profile backfill). `isAuthenticated` for the locale seed below is derived directly from
         // `restoreSession`'s own return value instead.
+        //
+        // T5 (D112): routed through `MentoraClient.restoreSession()` instead of the raw
+        // `sdk.auth.restoreSession.invoke()` call, so `.invoke` never appears outside
+        // `Support/SharedBridge/` (System Design § 2) — a deliberate, approved refactor of this
+        // already-CI-green line, not a behavior change.
         let localeController = self.localeController
         bootstrapTask = Task {
-            let restored = try? await sdk.auth.restoreSession.invoke()
+            let restored = try? await client.restoreSession()
             let isAuthenticated: Bool
             if let restored, case .authenticated = onEnum(of: restored) {
                 isAuthenticated = true

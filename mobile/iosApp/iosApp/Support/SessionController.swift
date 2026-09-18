@@ -28,7 +28,7 @@ final class SessionController {
         if case .authenticated = authState { true } else { false }
     }
 
-    private let sdk: MentoraSdk
+    private let client: MentoraClient
     private var authStateWatcher: Task<Void, Never>?
     private var keychainFailureWatcher: Task<Void, Never>?
 
@@ -47,8 +47,8 @@ final class SessionController {
     /// to `nil` if it still refers to that same generation (never clobbering a newer one).
     private var fetchingGeneration: Int?
 
-    init(sdk: MentoraSdk) {
-        self.sdk = sdk
+    init(client: MentoraClient) {
+        self.client = client
 
         // § 9 step 3. `observeAuthState.invoke()` returns a genuine `SkieSwiftStateFlow<any AuthState>`
         // (a real `AsyncSequence`, confirmed by CI run #8's compiler error — see `DECISIONS_LOG.md` D108
@@ -56,8 +56,13 @@ final class SessionController {
         // created from a `@MainActor` synchronous context (`init`), so Swift infers the task closure's
         // isolation from its enclosing context — every resumed iteration of `for await` already runs
         // back on the main actor, with no manual thread-hop needed.
+        //
+        // T5 (D112): routed through `MentoraClient.authStates()` (`FlowBridge.swift`) instead of the
+        // raw `sdk.auth.observeAuthState.invoke()` call, so `.invoke` never appears outside
+        // `Support/SharedBridge/` (System Design § 2) — a deliberate, approved refactor, not a
+        // behavior change.
         authStateWatcher = Task { [weak self] in
-            for await state in sdk.auth.observeAuthState.invoke() {
+            for await state in client.authStates() {
                 self?.apply(state)
             }
         }
@@ -108,6 +113,10 @@ final class SessionController {
     /// round #2 (Fix A) — see `authGeneration`'s doc comment. Do not remove it as a "simplification":
     /// without it, a slow fetch from a previous, already-logged-out session can resolve after a new
     /// session has started and silently overwrite that new session's profile with stale data.
+    ///
+    /// T5 (D112): routed through `MentoraClient.profile()` instead of the raw
+    /// `sdk.user.getProfile.invoke()` + `onEnum` unwrap, so `.invoke` never appears outside
+    /// `Support/SharedBridge/` (System Design § 2) — the generation-guard logic is unchanged.
     private func fetchProfileIfNeeded() {
         let generation = authGeneration
         guard fetchingGeneration != generation else { return }
@@ -120,13 +129,11 @@ final class SessionController {
                     self.fetchingGeneration = nil
                 }
             }
-            guard let result = try? await self.sdk.user.getProfile.invoke() else { return }
+            guard let user = try? await self.client.profile() else { return }
             // Discard silently if a newer session has since started — this is expected/normal, not
             // an error condition.
             guard generation == self.authGeneration else { return }
-            if case .success(let success) = onEnum(of: result) {
-                self.profile = success.data
-            }
+            self.profile = user
         }
     }
 }

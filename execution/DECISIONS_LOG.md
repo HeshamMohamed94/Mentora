@@ -4710,3 +4710,145 @@ test coverage" gap (D109) remains open, explicitly not closed by this pass — n
 **What this does NOT close:** MC-2 (live simulator behavior against a real backend — login round-trip, session persistence across relaunch, forced-logout-failure UI surfacing), MC-3 (visual/RTL/Dynamic-Type/VoiceOver), and MC-4 (independent acceptance audit) are all still Mac-gated and unstarted. The standing "no real `SecurityFrameworkKeychain` `iosTest` coverage" gap (D109/D110) is still open — this run proves the code works under this specific exercise (a fresh-install, no-stored-token `restoreSession()` call), not that every `add`/`update`/`delete`/`exists` path has been exercised for real. T5 has not been started.
 
 **Status:** T4b → **DONE** (compile/launch/unit-test scope). T1b → **DONE** (compile/unit-test scope, now including genuine real-Keychain execution, not just `FakeKeychain`-mediated tests). Per the user's standing instruction, continuing automatically from here through as much of T5–T23 as can be genuinely implemented and verified using real macOS CI, in small slices, never guessing an unconfirmed API shape. **Not starting Phase 6 under any circumstances without separate explicit approval.**
+
+### D112 — 2026-09-19 — Task T5, slice 1 of 2: `Support/SharedBridge/` infrastructure + `auth`/`user` façades; T4b refactored to route through it
+
+**Context.** `PHASE_5_IOS_IMPLEMENTATION_PLAN.md` T5 — the one boundary layer between SwiftUI and KMP
+(System Design § 2: "`.invoke` appears ONLY in `Support/SharedBridge/`"). Implemented from an
+architect-authored, implementation-ready plan grounded in the real Kotlin sources
+(`ApiErrorCode.kt`, `ApiResult.kt`, `CursorPage.kt`, `AuthFacade.kt`, `UserFacade.kt`,
+`AuthState.kt`, `AppLocale.kt`, `ThemePreference.kt`, `MentoraSdk.kt`, and every auth/user use-case
+file) and the ground truth already confirmed against the real captured SKIE artifact from T4b's
+CI runs — every use-case signature, the `register_` trailing-underscore rename, the 23+1
+`ApiErrorCode` case count, and the "no SKIE default-argument overloads" finding were verified
+directly against those sources before writing any Swift, not re-derived or guessed.
+
+**Scope decision (already confirmed, recorded here for the record).** `MentoraSdk` has 10 façades /
+37 use cases total. This slice implements the bridge infrastructure (`MentoraError`,
+`ApiResultBridge`, `ErrorCopy`) plus exactly 2 façades (`auth`: register/login/logout/
+refreshSession/restoreSession/observeAuthState; `user`: getProfile/updateProfile/observeLocale/
+setLocale/setTheme). The other 8 façades (catalog, enrollment, progress, quiz, certificates,
+learningPaths, media, aiTutor) are an explicit, separate follow-up slice (slice 2) — not started
+here. Acceptance criterion **F1** ("all 10 façade domains genuinely exercised") therefore stays
+**PARTIAL**, not PASS, until slice 2 lands and the full per-façade table exists at the T23 handoff —
+recorded in `CURRENT_STATUS.md` accordingly.
+
+**What was built (new files, all under `mobile/iosApp/iosApp/`):**
+- `Support/SharedBridge/MentoraError.swift` — the one error type crossing the bridge boundary;
+  carries `ApiResultFailure` verbatim (code/message/fields/httpStatus), no translation. Does NOT
+  conform to `LocalizedError` (copy comes from `ErrorCopy` only) and does NOT catch/wrap Kotlin
+  `CancellationException` anywhere (documented to propagate untouched).
+- `Support/SharedBridge/ApiResultBridge.swift` — `unwrap<T: AnyObject>`, `unwrapOptional`,
+  `unwrapVoid`, `unwrapBool`, `unwrapInt` (present for symmetry only — no use case in this slice
+  returns `ApiResult<Int>`), `unwrapList<Element>` (de-erases `NSArray` → `[Element]`),
+  `unwrapPage<Element>` (de-erases `CursorPage<Element>` → the new `Page<Element>` struct, carrying
+  `items`/`nextCursor`/`hasMore`). Implemented via the primary `onEnum(of:)`-based generic form the
+  plan specifies (not the `is`-check fallback) — whether that generic form actually type-checks
+  against the real SKIE output is a genuine open question this slice cannot resolve on Windows;
+  **no F8 fallback was needed by this authoring pass because there is no compiler here to fail
+  against** — if CI's real compiler rejects the generic `onEnum(of:)` form, swapping in the
+  plan's pre-written `is`-check fallback is expected to be a same-slice, one-file fix, not a redesign.
+- `Support/ErrorCopy.swift` — the one `ApiErrorCode → localization key` mapping, ported key-for-key
+  from Android's `ui/error/ApiErrorCopy.kt` naming. **Confirmed scope decision (not re-litigated):**
+  no dedicated `NETWORK_ERROR` copy key — Android has none, and the catalog must stay key-for-key
+  with Android. `isConnectivityFailure(_:)` exposed as a predicate instead, checking
+  `Unknown.raw == "NETWORK_ERROR"` (the string `ApiClient` synthesizes client-side for transport
+  failures, per `ApiErrorCode.kt`'s own kdoc on `RATE_LIMITED_*`/synthesized codes). `Unknown`
+  deliberately shares `"error_internal"` with `InternalError` — the one sanctioned key collision,
+  asserted explicitly in the test suite.
+- `Support/SharedBridge/MentoraClient.swift` — this slice's `auth`/`user` methods only:
+  `register(email:password:name:)`, `login`, `logout`, `refreshSession`, `restoreSession` (returns
+  `AuthState` directly, not `ApiResult`-wrapped — `RestoreSessionUseCase.invoke(): AuthState`
+  confirmed from source), `profile`, `updateProfile(name:)`, `setLocale(_:)`, `setTheme(_:)`
+  (synchronous — `SetThemeUseCase` has no `ApiResult`/suspend involvement, confirmed from source).
+  Deliberately does NOT expose `SetLocaleUseCase.onLogin`/`.onRegister` — those already fire
+  internally from `LoginUseCase`/`RegisterUseCase` on the Kotlin side; re-exposing and calling them
+  from Swift would double-apply the locale-precedence rules (an F6 violation).
+- `Support/SharedBridge/FlowBridge.swift` — this slice's `authStates()`/`currentAuthState()`/
+  `localeChanges()`/`currentLocale()` only; `aiStream(...)` is slice 2.
+- `iosAppTests/ApiResultBridgeTests.swift` / `iosAppTests/ErrorCopyTests.swift` — built from real
+  Kotlin constructors (`ApiResultSuccess<T>(data:)`, `ApiResultFailure(code:message:fields:
+  httpStatus:)`, `CursorPage(items:nextCursor:)`, Kotlin `data object` cases constructed via their
+  Obj-C-export parameterless-init convention, e.g. `ApiErrorCode.ValidationError()`) — no SDK, no
+  network. `ErrorCopyTests` hardcodes all 23 known `ApiErrorCode` wire strings read directly from
+  `ApiErrorCode.kt` (listed below) plus the `Unknown` case, asserting the code→key mapping, the
+  23-distinct-keys property, the one sanctioned `Unknown`/`InternalError` collision, and
+  `ErrorCopy.allKeys`'s count/pattern. `unwrapInt` deliberately left untested — its `KotlinInt`
+  constructor spelling was not part of this slice's confirmed ground truth, and guessing it in a
+  test not requested by the plan's own test list would risk a false CI failure unrelated to the
+  bridge logic itself.
+- `mobile/iosApp/project.yml` — added `- package: MentoraShared / product: Shared` to
+  `targets.iosAppTests.dependencies`, alongside the existing `- target: iosApp`. Without this,
+  `import shared` in the two new test files would not resolve at all — flagged by the plan as the
+  single most likely cause of a red CI run for this slice.
+
+**T4b refactor (deliberate, approved — decision #2 from the task brief, not re-litigated here).**
+`AppEnvironment.swift`, `SessionController.swift`, `LocaleController.swift`, `ThemeController.swift`
+(all previously CI-green, D108–D111) now take/store a `MentoraClient` instead of a raw `MentoraSdk`
+reference and call the new named bridge methods instead of `sdk.<facade>.<useCase>.invoke(...)`
+directly:
+- `AppEnvironment` keeps `let sdk: MentoraSdk` (A3's single-instance guarantee still lives there) and
+  adds `let client: MentoraClient`, constructed right after `sdk`; the bootstrap task's
+  `try? await sdk.auth.restoreSession.invoke()` became `try? await client.restoreSession()`.
+- `SessionController.init(sdk:)` → `init(client:)`; the `observeAuthState` `for await` loop now
+  iterates `client.authStates()`; `fetchProfileIfNeeded()`'s `sdk.user.getProfile.invoke()` +
+  `onEnum` unwrap became `try? await client.profile()` — the cross-account
+  `authGeneration`/`fetchingGeneration` guard logic (D108 fix round #2, Fix A) is untouched.
+  `KeychainStatus.shared.failures` (sanctioned non-façade entry point #6) is untouched, as directed —
+  it is not façade traffic.
+- `LocaleController.init(sdk:)` → `init(client:)`; the `observeLocale` `for await` loop now iterates
+  `client.localeChanges()`; `seedInitialLocaleIfNeeded()`'s `sdk.user.setLocale.invoke()` + `onEnum`
+  unwrap became a `do { try await client.setLocale(resolved) } catch { return }`, preserving the
+  exact same "leave the once-per-install flag unset on failure" semantics and the D108 Fix 9
+  `defaults.synchronize()` comment/call verbatim.
+- `ThemeController.init(sdk:coldStartTheme:)` → `init(client:coldStartTheme:)`; `setTheme(_:)` now
+  calls `client.setTheme(theme)` instead of `sdk.user.setTheme.invoke(theme:)`.
+- All four files' existing doc comments/history notes (D108/D109/D110/D111 references) are preserved
+  verbatim; only the specific lines this refactor touches were changed.
+- `AppEnvironment.swift`'s `ApiTimeouts`/`iosSimulator(timeouts:)` comment block, previously framed
+  as an open question pending CI confirmation (D108 Fix 8), is updated to **CONFIRMED**: this slice's
+  ground-truth research established that SKIE 0.9.5 generates **no default-argument overloads
+  anywhere in this framework**, for any Kotlin default parameter — there is no zero-arg
+  `iosSimulator()` to switch to, and the hardcoded `ApiTimeouts(connectTimeoutMillis:
+  requestTimeoutMillis:socketTimeoutMillis:)` block is the permanent, correct shape, not a pending
+  fallback.
+
+**Grep audit (A2/A5's own criterion): zero `.invoke(` outside `Support/SharedBridge/`.** Ran
+`grep -rn "\.invoke(" mobile/iosApp/iosApp/` after the refactor — every remaining hit outside
+`Support/SharedBridge/{MentoraClient,FlowBridge}.swift` is inside a doc comment (referencing the old
+call shape for context/history), never real code. No `Features/`/`Components/` directories exist yet
+(no screen work has started), so that half of A5's grep is trivially zero-hit for now.
+
+**`register_` naming (confirmed from source, not re-derived).** `AuthFacade.kt` declares
+`val register: RegisterUseCase`; the plan's claim that SKIE/Obj-C export renames this to `register_`
+in Swift (because `register` collides with a reserved-adjacent identifier in the Obj-C bridge) could
+not be independently re-verified without a real SKIE artifact on this Windows host — `MentoraClient`
+was written exactly as the plan specifies (`sdk.auth.register_.invoke(...)`), flagged here as the
+single highest-risk one-line spelling in this slice, exactly as the plan itself flagged it. If CI's
+compiler says otherwise, it is a one-line fix in `MentoraClient.swift` only.
+
+**Real `.wire` strings read directly from `ApiErrorCode.kt`** (used verbatim in `ErrorCopyTests.swift`
+and cross-checked against `ErrorCopy.swift`'s key table): `VALIDATION_ERROR`,
+`AUTH_INVALID_CREDENTIALS`, `AUTH_TOKEN_EXPIRED`, `AUTH_TOKEN_INVALID`, `FORBIDDEN_ROLE`,
+`FORBIDDEN_NOT_OWNER`, `FORBIDDEN_NOT_ENROLLED`, `FORBIDDEN_CSRF`, `COURSE_NOT_FOUND`,
+`SECTION_NOT_FOUND`, `LESSON_NOT_FOUND`, `CATEGORY_NOT_FOUND`, `QUIZ_NOT_FOUND`,
+`ATTEMPT_NOT_FOUND`, `CERTIFICATE_NOT_FOUND`, `LEARNING_PATH_NOT_FOUND`, `MEDIA_NOT_FOUND`,
+`USER_NOT_FOUND`, `EMAIL_ALREADY_REGISTERED`, `CATEGORY_IN_USE`, `RATE_LIMITED_AUTH`,
+`RATE_LIMITED_AI_TUTOR`, `INTERNAL_ERROR` (23 known codes) — confirming the plan's own correction
+that Android's `ApiErrorCopy.kt` "22 known codes" kdoc comment is wrong; the real count is 23.
+
+**No F8 fallback actually needed by this authoring pass.** Both pre-sanctioned fallbacks the plan
+called out (the `onEnum(of:)` generic-inference workaround in `ApiResultBridge.unwrap`, and the
+Keychain-style degrade-don't-crash pattern) were left as the plan's primary, non-fallback forms —
+there is no Windows compiler to fail against and trigger either one. This is disclosed explicitly,
+not silently: the next real CI run is what determines whether either fallback is actually needed.
+
+**Verification.** `:shared:testDebugUnitTest` 249/249 and `:androidApp:testDebugUnitTest` 241/241,
+both re-confirmed unaffected (no Kotlin file touched by this slice — `git diff` is entirely under
+`mobile/iosApp/`). No Swift compile/run is possible on this Windows host, exactly as every prior
+Phase 5 task — the next real `ios-ci.yml` run is this slice's actual verification.
+
+**Status:** T5 → **IMPLEMENTED (slice 1 of 2: auth+user) — PENDING CI (not DONE).** Slice 2 (the
+other 8 façades: catalog, enrollment, progress, quiz, certificates, learningPaths, media, aiTutor,
+plus `aiStream(...)` in `FlowBridge.swift`) is a separate, explicit follow-up task, not started here.
+F1 stays **PARTIAL**, not PASS.

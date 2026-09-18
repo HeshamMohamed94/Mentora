@@ -88,9 +88,9 @@ targets:
       - package: MentoraShared
         product: Shared
 
-  # Scaffold only (Task T4a) — real test cases are added by later, Mac-only tasks once SKIE-generated
-  # `shared` symbols exist to test against. A placeholder XCTestCase keeps the target buildable and the
-  # `sources:` path non-empty so `xcodegen generate` has something real to point at.
+  # Task T4a scaffold + Task T5 real bridge tests. `- package: MentoraShared / product: Shared` (added
+  # for T5) is required so `import shared` in `ApiResultBridgeTests.swift`/`ErrorCopyTests.swift`
+  # resolves in this target — without it the whole test target fails to build.
   iosAppTests:
     type: bundle.unit-test
     platform: iOS
@@ -106,6 +106,8 @@ targets:
           SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
     dependencies:
       - target: iosApp
+      - package: MentoraShared
+        product: Shared
 
   iosAppUITests:
     type: bundle.ui-testing
