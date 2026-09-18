@@ -1,0 +1,31 @@
+import Foundation
+import Observation
+import shared
+
+// Phase 5 Task T4b (D108) — cold-start theme read + write-through theme state (System Design § 8/G1).
+
+/// Reads the persisted theme once at cold start (before first paint), then routes every subsequent
+/// write through `UserFacade.setTheme` so Koin's own `IosPreferenceStore` instance stays the single
+/// source of truth. `AppEnvironment` supplies the cold-start value from its own throwaway
+/// `IosPreferenceStore().getTheme()` read (sanctioned non-façade entry point #5, A2) — there is no
+/// `observeTheme` on the façade, so that one-shot read is the only way to know the persisted theme
+/// before the first frame renders. Constructed exactly once by `AppEnvironment` — never from a view.
+@MainActor
+@Observable
+final class ThemeController {
+    private(set) var theme: ThemePreference
+
+    private let sdk: MentoraSdk
+
+    init(sdk: MentoraSdk, coldStartTheme: ThemePreference) {
+        self.sdk = sdk
+        self.theme = coldStartTheme
+    }
+
+    /// Updates local `@Observable` state immediately, then writes through the façade — never through
+    /// the cold-start reader's own `IosPreferenceStore` instance (G1).
+    func setTheme(_ theme: ThemePreference) {
+        self.theme = theme
+        sdk.user.setTheme.invoke(theme: theme)
+    }
+}

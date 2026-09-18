@@ -3921,3 +3921,216 @@ SKIE-generated Swift symbol names. Continue the small-slice → commit → push 
 review → rerun loop through as much of T4b-T23 as CI can genuinely verify; live/visual/accessibility
 verification (MC-2/MC-3/MC-4) remains a future Mac-session dependency, to be marked PARTIAL or NOT
 TESTABLE rather than fabricated.
+
+---
+
+### D108 — 2026-09-18 — Task T4b: Swift app bootstrap, authored against the real CI-run-#6 interface artifact; disclosed Flow-bridging deviation from System Design § 5/§ 7
+
+**Context.** `PHASE_5_IOS_IMPLEMENTATION_PLAN.md` T4b — the SDK/session/locale/theme bootstrap. Every
+Kotlin-facing signature used below was extracted directly from the real, CI-run-#6-captured
+`shared.h` Obj-C header and the real SKIE-generated `Shared/*.swift` wrapper files (not guessed), plus
+one additional real signature discovered by grepping that same artifact beyond what was handed in
+(`SetLocaleUseCase.invoke(locale:)`, below). Android is not consulted anywhere in this entry (Phase 5
+rule 1).
+
+**What was built.** `mobile/iosApp/iosApp/MentoraApp.swift` (rewritten): constructs the single
+`AppEnvironment` via `@State` (created exactly once for the process — never a `.shared` static, A3),
+injects it via `@Environment`, and renders a placeholder root that switches on `SessionController`'s
+observed state (`.unknown` vs `.authenticated`/`.unauthenticated`) so a later real screen can replace
+just the latter two branches without ever risking a flash of the wrong placeholder. New
+`mobile/iosApp/iosApp/Support/`:
+- `AppEnvironment.swift` — the one assembly root: `MentoraSdk.companion.create(environment:
+  platformModule:enableNetworkLogging:)` (`ApiEnvironment.companion.iosSimulator(timeouts:)`,
+  `platformModule()`), the sanctioned throwaway `IosPreferenceStore().getTheme()` cold-start read
+  (G1 — its `.locale` is never touched), and the single cold-start bootstrap `Task` (`restoreSession()`
+  then `seedInitialLocaleIfNeeded()`, in that order, System Design § 9 steps 1-2). `ApiTimeouts` has no
+  zero-arg Swift initializer (Kotlin default parameter values do not survive Obj-C export), so the three
+  values passed are `mobile/shared/.../ApiEnvironment.kt`'s own real `ApiTimeouts()` defaults
+  (15s/30s/30s connect/request/socket), not invented.
+- `SessionController.swift` — `@Observable` mirror of `AuthFacade.observeAuthState` (via
+  `KotlinFlowBridge`), the once-per-`.authenticated(user: nil)`-transition `GetProfileUseCase` backfill
+  (§ 9 step 4, no retry/loop on failure), and the sixth sanctioned non-façade entry point (A2):
+  `KeychainStatus.shared.failures`, observed exactly once, captured into observable state for a later
+  UI surface (B10).
+- `LocaleController.swift` — `@Observable` mirror of `UserFacade.observeLocale`, plus
+  `seedInitialLocaleIfNeeded()` (`resolveInitialLocale(systemLocales:)` against
+  `Locale.preferredLanguages`, gated on not-already-authenticated and a `UserDefaults` once-per-install
+  flag).
+- `ThemeController.swift` — cold-start `ThemePreference` state seeded from `AppEnvironment`'s throwaway
+  reader; every write goes through `UserFacade.setTheme` (G1).
+- `KotlinFlowBridge.swift` — the disclosed deviation fix, see below.
+
+**Disclosed deviation from System Design § 5/§ 7 (Flow bridging).** The plan's `AsyncSequence`
+assumption for `observeAuthState`/`observeLocale`/`KeychainStatus.failures` does not hold against the
+real artifact: no `Shared.ObserveAuthStateUseCase.swift`, `Shared.ObserveLocaleUseCase.swift`, or
+`Shared.KeychainStatus.swift` wrapper exists among the 74 real SKIE-generated files, and the raw
+`shared.h` header confirms all three return the plain, type-erased `Kotlinx_coroutines_core{State,
+Shared}Flow` Obj-C protocols (`id`-typed `value`/`emit` payloads), not a SKIE `AsyncSequence`. Fixed by
+`KotlinFlowBridge.swift`: a small, generic `watchKotlinFlow<Value>(_:as:onValue:)` free function backed
+by a `@MainActor` `NSObject`-subclassed `FlowCollector` conformance that downcasts each type-erased
+emission to the caller-specified `Value` (works for `AppLocale`/`KeychainFailure` via
+`_ObjectiveCBridgeable`, and for the `AuthState` protocol via ordinary existential downcast) and drops
+anything that doesn't match rather than crashing. Deliberately generic and reusable across the three
+call sites T4b needs, not three hand-rolled copies — T5's fuller `Support/SharedBridge/` layer is
+explicitly out of scope here. **If this Obj-C-protocol-conformance approach itself fails to compile on
+the next real CI run** (a Swift class conforming to a Kotlin/Native-generated Obj-C protocol with
+escaping completion-handler closures has its own unproven edge cases), that is expected to be resolved
+by that CI round's real compiler diagnostic, not by further guessing now.
+
+**A second, self-discovered deviation, beyond what was handed in.** `UserFacade.setLocale`
+(`SetLocaleUseCase`) is itself a Kotlin suspend function — `Skie_Suspend__6__invoke` in the raw header,
+and `Shared.SetLocaleUseCase.swift` confirms `public func invoke(locale: AppLocale) async throws ->
+ApiResult<KotlinUnit>` — not the synchronous void call the plan text's phrasing implied by analogy to
+`SetThemeUseCase` (which genuinely is synchronous/`void`). `LocaleController.seedInitialLocaleIfNeeded()`
+is `async` accordingly, and a thrown/failed call simply leaves the once-per-install `UserDefaults` flag
+unset (retried next cold start) rather than looping immediately.
+
+**Module-import risk, inherited from T4a, not introduced here.** All new files write `import Shared`,
+matching `Packages/MentoraShared/Package.swift`'s already-committed `product: Shared` /
+`project.yml`'s `product: Shared` dependency declaration — the only convention available to follow, since
+T4a's Package.swift is out of this task's file list. The SKIE-generated wrapper files themselves
+self-qualify with a lowercase `shared.` prefix internally (e.g. `shared.RestoreSessionUseCase`), which
+is ordinary Swift module-self-reference and does not by itself prove what a *consumer's* import
+statement must spell — this was investigated at length and the balance of evidence (T4a's own
+already-committed, twice-reviewed `Package.swift`) favors `import Shared` (capital), but this has never
+been compiled, on either side, on this Windows host. If CI reports a "module not found" style error,
+the fix is almost certainly changing every `import Shared` in this task's five new/changed files (a
+sed-scale mechanical fix), not a design change.
+
+**Windows-side verification performed.** `:shared:testDebugUnitTest` and `:androidApp:testDebugUnitTest`
+re-run to confirm no accidental regression — no Kotlin file was touched by this task. No Swift file can
+be compiled/linked/run on this Windows host; `xcodebuild build`/`test` via CI is the only real
+verification authority for everything above, per the standing T4b-onward host-tagging rule.
+
+**Fix round — 2026-09-18 — genuine bugs found by an Opus review of this diff against the real Kotlin
+sources, fixed before spending a macOS CI run on it.** All nine findings below were pre-verified against
+the real Kotlin source (not re-litigated here — just fixed):
+
+1. **(CRITICAL) `KotlinFlowWatcher.emit` cross-thread write, unenforced by class-level `@MainActor`.**
+   Kotlin/Native calls `-emitValue:completionHandler:` via `objc_msgSend` from whatever thread the
+   coroutine dispatcher is on — not necessarily main (`SessionManager.kt`'s token-refresh path sets
+   `_authState.value` off any Ktor/Darwin engine thread; `IosTokenStorage`'s suspend functions publish to
+   `KeychainStatus` similarly off-main), and Obj-C message sends are not actor-isolation-checked, so the
+   old class-level `@MainActor` enforced nothing. Fixed: `KotlinFlowWatcher` is now a plain `nonisolated`
+   `NSObject` conformer; `emit` hops to main explicitly via `DispatchQueue.main.async` (FIFO — preserves
+   StateFlow emission order across separate emissions, unlike separately-spawned `Task { @MainActor in }`
+   calls, which have no ordering guarantee relative to each other) and calls `completionHandler(nil)`
+   synchronously on the Kotlin-calling thread so the collector is never stalled.
+2. **(HIGH, likely compile blocker) `import Shared` → `import shared`.** `mobile/shared/build.gradle.kts`
+   sets `binaries.framework { baseName = "shared" }` (lowercase); Clang module names are case-sensitive,
+   and the SPM product name `Shared` in `Package.swift` only puts the framework on the search path — it
+   does not rename the module Swift imports. Fixed in all five files: `AppEnvironment.swift`,
+   `SessionController.swift`, `LocaleController.swift`, `ThemeController.swift`, `KotlinFlowBridge.swift`.
+   (`MentoraApp.swift` never imported `Shared`/`shared` — nothing to fix there.)
+3. **(HIGH, likely compile blocker) Kotlin top-level functions are file-facade static members, not Swift
+   globals.** `platformModule()` → `PlatformModule_iosKt.platformModule()` (declared in
+   `PlatformModule.ios.kt`); `resolveInitialLocale(systemLocales:)` →
+   `LocaleResolverKt.resolveInitialLocale(systemLocales:)` (declared in `settings/LocaleResolver.kt`).
+   Fixed in `AppEnvironment.swift` and `LocaleController.swift` respectively.
+4. **(MEDIUM-HIGH) `watchKotlinFlow`'s returned `Task` didn't own the subscription; doc comment was
+   false.** The completion-handler form of `collect` returns immediately, so the old `Task`'s body
+   completed on its first turn and cancelling it did nothing. Fixed: switched to the `async throws`
+   suspend form (`try await flow.collect(collector: watcher)`), which suspends for the collection's real
+   lifetime, with `CancellationError` handled as a no-op and other errors logged. **Needs CI to confirm**
+   — if the Swift compiler rejects calling the completion-handler-imported variant from an already-async
+   context, that diagnostic will surface on the next real compile; this is the best-grounded attempt, not
+   a guess.
+5. Covered by fix 1: a non-downcasting emission now trips a debug `assertionFailure` *and* a real
+   `Logger.error` call (release builds compile `assertionFailure` out, so the log call is the one that
+   actually fires there).
+6. **(MEDIUM) Redundant manual `apply()` call raced with the live subscription.** `AuthRepositoryImpl
+   .restoreSession` (Kotlin) already calls `sessionManager.setState(state)` before returning, so
+   `SessionController`'s own `observeAuthState` subscription already receives a cold-start restore.
+   `AppEnvironment`'s bootstrap task's second, manual `sessionController.apply(restoredState)` call was
+   redundant and made "exactly one `getProfile` call" fragile (two independent, non-atomically-guarded
+   call paths could each try to trigger it). Fixed: removed that manual call; `isAuthenticated` for
+   `seedInitialLocaleIfNeeded` is now derived directly from `restoreSession`'s own return value via
+   `onEnum(of:)`. `SessionController.apply` is now called from exactly one place.
+7. **(MEDIUM) Stale `profile` survived logout.** Concrete failure: user A logs out, user B logs in —
+   between B's `.authenticated(user: nil)` and the `getProfile` round-trip completing, any UI reading
+   `profile` would render user A's data. Fixed: `profile = nil` added to both the `.unauthenticated` and
+   `.unknown` branches of `SessionController.apply`.
+8. **(LOW-MEDIUM) Checked for a zero-arg `ApiEnvironment.companion.iosSimulator()` SKIE overload.** Could
+   not be verified either way — no captured `shared.h`/SKIE-artifact exists on this Windows host (no
+   macOS build has ever run for this repo). Kept the hardcoded `ApiTimeouts(...)` block, with an inline
+   comment in `AppEnvironment.swift` disclosing the check and its inconclusive result. **Needs CI to
+   confirm** whether a zero-arg overload actually exists.
+9. **(LOW) First-run locale-seed flag flush durability.** `UserDefaults.set(_:forKey:)`'s async flush can
+   lose the flag to process death before the next flush, silently re-running the seed — the same failure
+   mode Android's `LocaleController.kt` explicitly guards against by using `commit()` instead of
+   `apply()` for this exact flag (see its kdoc there). Fixed: added an explicit `defaults.synchronize()`
+   call right after setting the flag in `LocaleController.swift`, with a comment citing the Android
+   precedent.
+
+Re-ran `:shared:testDebugUnitTest`/`:androidApp:testDebugUnitTest` after these fixes (unaffected — no
+Kotlin file touched by this fix round either). All five Swift files above remain uncompiled/unverified on
+this Windows host; the next real `ios-ci.yml` run remains the only authority on whether they actually
+build, per the standing host-tagging rule.
+
+**Status change.** T4b moves from NOT STARTED to **implemented, fix round applied, pending CI** — not
+DONE; per the plan's own W-authored/C-verified tagging, a real green `ios-ci.yml` run is required before
+this can be marked DONE. See `CURRENT_STATUS.md`'s Phase 5 task table.
+
+**Next.** Commit this fix round and stop (per standing small-slice discipline) — the user pushes and
+triggers CI themselves. Do not start T5 or any feature-UI work in this session.
+
+**Fix round #2 — 2026-09-18 — an independent Codex review of the fix-round-#1 diff, run after fix round
+#1 above had already landed.** Two findings, addressed as below (no other findings re-litigated):
+
+1. **(HIGH, concrete bug, fixed) Cross-account `getProfile` fetch could overwrite state after a
+   logout/relogin race.** `SessionController.fetchProfileIfNeeded()`'s `Task` unconditionally wrote
+   `self.profile = success.data` on completion, with no check that the session which triggered the
+   fetch was still current, and its `isFetchingProfile` `Bool` guard had no concept of *which* session's
+   fetch was in flight. Concrete failure: user A's `.authenticated(user: nil)` starts a `getProfile`
+   fetch; A logs out (`.unauthenticated` — clears `profile` per fix-round-#1 Fix 7) and user B logs in,
+   reaching `.authenticated(user: nil)` too and starting its own fetch; if A's fetch resolves after B's
+   transition, A's profile data lands in `self.profile` while the UI shows session B — a cross-account
+   data leak. Additionally, the plain `Bool` guard could suppress B's legitimately-needed fetch if A's
+   was still technically "in progress" when B's state arrived. Fixed in `SessionController.swift`: added
+   a monotonic `authGeneration` counter, bumped on every `apply(_:)` call; `fetchProfileIfNeeded()`
+   captures `let generation = authGeneration` before starting its `Task`, and the completion checks
+   `guard generation == self.authGeneration else { return }` before writing `profile` (a stale
+   completion is discarded silently — expected/normal, not logged as an error). The dedup guard is now
+   `fetchingGeneration: Int?` (keyed by generation, not a bare `Bool`): a new generation's fetch is never
+   blocked by a stale generation's still-in-flight task, and each task's `defer` only clears
+   `fetchingGeneration` back to `nil` if it still refers to its own generation (never clobbering a newer
+   one). Doc comments on both new properties and on `fetchProfileIfNeeded()` explicitly call out that
+   this is a cross-account data-isolation guard, not a dedup/perf optimization, so it isn't
+   "simplified away" by a future reader.
+
+2. **(MEDIUM, disclosed, not fixed — no speculative Kotlin-side cancellation mechanism invented.)**
+   Codex raised a plausible but genuinely unconfirmed concern: `watchKotlinFlow`'s `try await
+   flow.collect(collector: watcher)` is Swift's automatic completion-handler-to-async sugar over the
+   raw, completion-handler-imported `collect(collector:completionHandler:)` — not a SKIE-generated,
+   cancellation-aware suspend wrapper (none exists for this generic `Flow` protocol method, per this
+   entry's own original finding above). Swift's automatic async-import sugar over an Obj-C
+   completion-handler method does not, by itself, guarantee that cancelling the Swift `Task` propagates
+   into Kotlin/Native's own suspend-cancellation machinery and tears down the underlying coroutine's
+   collection — whether it actually does is not verifiable by reading a static header, and fix-round-#1
+   Fix 4's doc comment ("the returned `Task` really does own the subscription... callers must store it
+   (or cancel it)") overstated this as settled. **Not fixed speculatively** — inventing a Kotlin-side
+   cancellation handle or `Job`-tracking mechanism without evidence of the real bridge's behavior would
+   be exactly the "guess deeply around an unconfirmed API shape" this phase has been avoiding throughout.
+   Instead: `KotlinFlowBridge.swift`'s `watchKotlinFlow` doc comment was softened to state plainly what
+   IS confirmed (cancelling the `Task` marks it cancelled locally, and causes `try await flow.collect(
+   ...)` to throw `CancellationError` *if* Kotlin's cancellation bridge honors it) versus what is
+   **unconfirmed** (whether the underlying Kotlin-side collection is actually torn down, freeing
+   Kotlin-side resources, or instead leaked). Not a live defect in T4b's own shipped behavior: all three
+   of T4b's flow subscriptions (`observeAuthState`, `observeLocale`, `KeychainStatus.failures`) are
+   created once in `AppEnvironment`/`SessionController`/`LocaleController`'s initializers and live for
+   the entire app process — none of T4b's own code ever calls `.cancel()` on the returned `Task`s. This
+   is a latent risk for *future* reuse only (e.g. T5+ per-screen subscriptions with real
+   cancel-on-navigate lifecycles), not a live one today. **Needs verification once real device/simulator
+   testing is possible** (MC-2, Mac-gated) — a macOS CI *compile* success does not prove runtime
+   cancellation semantics either. Recommendation for whoever builds T5's fuller `Support/SharedBridge/`
+   Flow-adapter layer: either (a) empirically verify cancellation behavior on a real Mac before relying
+   on it for per-screen cancel-on-navigate lifecycles, or (b) sidestep the question entirely by using
+   SKIE's actual generated `AsyncSequence` wrappers wherever they DO exist (confirmed to exist for other
+   Flow-returning members per System Design § 5's table — just not these three specific call sites)
+   rather than this manual bridge, so this bridge's cancellation-safety is never load-bearing for
+   anything beyond T4b's process-lifetime subscriptions.
+
+Re-ran `:shared:testDebugUnitTest`/`:androidApp:testDebugUnitTest` after this fix round too (unaffected —
+no Kotlin file touched). `SessionController.swift`/`KotlinFlowBridge.swift` remain uncompiled/unverified
+on this Windows host; status unchanged from fix round #1 above — **implemented, fix rounds applied,
+pending CI**, not DONE. Do not start T5 or any feature-UI work in this session.
