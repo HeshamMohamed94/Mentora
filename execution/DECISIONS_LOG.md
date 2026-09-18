@@ -2978,3 +2978,168 @@ begins** — this session does not start it. See `PHASE_HANDOFF.md`'s new Phase 
 fixed-structure write-up (status, implementation summary, files/modules, tests/verification, known
 limitations, decisions, what Phase 5 depends on, what Phase 5 must not redo, git reference).
 
+---
+
+### D96 — 2026-09-18 — PHASE 5 kickoff: Acceptance Criteria, System Design, Implementation Plan authored and reviewed twice before any code
+
+**Context.** The user explicitly approved Phase 5 (iOS, SwiftUI) to begin, with a standing instruction
+that Phase 6 (AI Tutor real-provider integration) must not start without separate approval. Per the
+user's own required sequencing (recovery → acceptance criteria → system design → implementation plan →
+plan review → only then implementation), this session did not write any Swift/Kotlin code before
+completing that sequence.
+
+**Recovery.** Verified Phase 4 COMPLETE (`8feacad`, clean tree apart from one pre-existing, unrelated
+uncommitted `mobile/gradle.properties` IDE setting, left untouched throughout). Confirmed Design System
+v1.3.2 locked, no `iosApp` exists yet, `mobile/shared/src/iosMain/` exists on disk but is not wired into
+`shared/build.gradle.kts` (D69), no macOS/Xcode/iOS Simulator on this Windows host (`xcodebuild` not
+found), and that `execution/MASTER_IMPLEMENTATION_PLAN.md` and `design-to-code/shared/platform-contract.json`
+already sketch a Phase 5 milestone skeleton and an iOS design-token mapping respectively — both treated
+as authoritative starting points, not re-derived from scratch.
+
+**Documents produced** (by the `architect` subagent, grounded in the real repo, not invented): three new
+files under `execution/` — `PHASE_5_ACCEPTANCE_CRITERIA.md` (categories A-J per the user's own kickoff
+prompt, each criterion host-tagged W/M/W→M and traceable to a real source), `PHASE_5_IOS_SYSTEM_DESIGN.md`
+(24 sections covering the SwiftUI↔KMP boundary through Android/iOS parity boundaries), and
+`PHASE_5_IOS_IMPLEMENTATION_PLAN.md` (originally 23 tasks, dependency-ordered, each with scope/files/
+criteria/tests/manual verification/completion gate/host tag).
+
+**Screen list reconciliation.** The user's kickoff prompt named 17 screens; `product/SCREEN_INVENTORY.md`
+defines 18 mobile-platform screen concepts, exactly what Phase 4 shipped. Phase 5 ships the same 18, with
+three documented reconciliations (Progress is not a screen; Edit Profile is an inline Profile action, not
+a route; Learning Paths list ships as an Explore segment) — no silent scope divergence.
+
+**Review round 1 (Opus, primary reviewer).** Empirically verified ~30 factual claims against the real
+repo, including actually applying the proposed `shared/build.gradle.kts` iOS-wiring patch and running
+Gradle (`:shared:testDebugUnitTest` stayed 249/249, BUILD SUCCESSFUL). Confirmed the overall architecture
+sound (the `SharedBridge` boundary, per-tab `NavigationStack` model, `\.locale`/`\.layoutDirection`
+localization mechanism, 23-task granularity, and every Phase 3/4 "must not redo" boundary). Found 7
+substantive + 9 minor issues, the most serious (HIGH) being that the originally-proposed `Font.mentora*`
+static-value typography API cannot support Dynamic Type at all (SwiftUI's `relativeTo:` only exists on
+`Font.custom`, unavailable since no font is bundled) — would have failed accessibility criterion I1 on
+every one of the 18 screens. Other confirmed defects: a nonexistent Gradle task name
+(`assembleSharedXCFramework`), Android's `%1$s`-style format specifiers ported unconverted (would crash
+or corrupt on iOS, needs `%1$@`), an icon-mirroring completion gate built against an unrelated
+Material-Symbols name list instead of the actual 42-glyph set, a screen-model ownership pattern that
+risked a hidden second `MentoraSdk` instance (violating the D76 per-instance playback-throttle
+constraint), an unstated My Learning pagination/fail-fast parity gap with Android, and a stale
+`design-to-code/shared/platform-contract.json` iOS section that AC's own scope rule forbade updating.
+All 16 findings (7 + 9) fixed directly in the three documents by the `architect` subagent in a corrective
+pass; no finding was disputed or left unresolved.
+
+**Review round 2 (Codex, independent second opinion — criteria met: architecture-sensitive,
+security-sensitive auth/session code, cross-platform planning at a phase kickoff).** Found 3 further
+issues the Opus pass's scope hadn't covered: (1) HIGH — the existing, shipped Phase 3
+`IosTokenStorage.kt` ignores every Keychain `OSStatus`, so a failed write/delete can silently leave a
+mismatched token pair or a logout that appears to succeed while the old session survives; the plan's own
+proposed fix (switching to `kSecAttrAccessibleAfterFirstUnlock`) was backwards — it would weaken
+locked-device protection without achieving any real reinstall-cleanup behavior. (2) MEDIUM — the
+corrected Dynamic Type typography formula still computed line spacing as `lineHeight - size` (both
+unscaled/scaled mismatch), which goes negative at accessibility sizes. (3) MEDIUM — Task T4b's host tag
+contradicted itself (claimed Windows-authorable while depending on a Mac-only checkpoint). Codex
+explicitly confirmed the `navigationDestination`-closure screen-model-ownership pattern does NOT create a
+second `MentoraSdk` instance under SwiftUI's view-rebuild semantics — no issue found there. All 3 fixed
+in a second corrective pass: `IosTokenStorage` hardening promoted to its own task (**T1b**, new criterion
+**B10**), with `kSecAttrAccessibleWhenUnlockedThisDeviceOnly` chosen (matches today's implicit default
+class, so it hardens rather than weakens, and blocks iCloud Keychain sync of session tokens); reinstall
+session-survival explicitly accepted as out of scope under ADR-012's local-demo-scope reasoning, not
+silently left ambiguous. Typography line-spacing formula corrected to
+`max(0, scaledSize × (originalLineHeight/originalFontSize − 1.2))` scaled by the same `@ScaledMetric`
+anchor as the font size, provably non-negative. T4b reclassified as Mac-only (host tag **M**, depends on
+MC-1); **T4a is the actual Windows-side stopping point**, stated identically across all three documents.
+
+**Outcome.** Both review rounds converged on real, verifiable issues each time (not manufactured
+findings) and both were fully resolved. Two independent review rounds is treated as sufficient rigor for
+this phase-kickoff milestone — no further review round is planned before implementation begins, per the
+routing policy's "never invoke Codex speculatively or just for reassurance" instruction.
+
+**User decision on the one genuine blocker.** Asked the user directly whether a Mac with Xcode is
+available (the plan's own §4.1 open question — without one, the large majority of Phase 5's acceptance
+criteria end as NOT TESTABLE (HOST)). User answered: not yet, will get access later. Decision: proceed
+now with the tasks genuinely completable and verifiable on this Windows host — **T1 (`:shared` iOS
+Gradle/XCFramework wiring), T1b (Keychain hardening, authored/reviewed but Mac-unverified), T2 (iOS
+design-token generation), T3 (icon asset catalog, structurally checkable, rendering unverified), T4a
+(Xcode project scaffold: `project.yml`, SPM wrapper, scripts, `Info.plist`, `.gitignore`)** — then stop
+cleanly. T4b and every task after it (T5-T23) remain blocked until Mac access is confirmed; this session
+will not author them blind.
+
+**Files changed.** New: `execution/PHASE_5_ACCEPTANCE_CRITERIA.md`, `execution/PHASE_5_IOS_SYSTEM_DESIGN.md`,
+`execution/PHASE_5_IOS_IMPLEMENTATION_PLAN.md`. This entry. No code changed. `mobile/gradle.properties`'s
+pre-existing uncommitted local change remains untouched and out of scope.
+
+---
+
+### D97 — 2026-09-18 — Task T1b: `IosTokenStorage` Keychain error handling, authored on Windows, unverified until MC-1/MC-2
+
+**Context.** `PHASE_5_IOS_IMPLEMENTATION_PLAN.md` T1b, `PHASE_5_ACCEPTANCE_CRITERIA.md` B10, and
+`PHASE_5_IOS_SYSTEM_DESIGN.md § 9.1` — the Category 2 (review-found, not Mac-found) fix D96 scheduled as
+its own task. F3 explicitly requires its own `DECISIONS_LOG.md` entry for either fix category; this is it.
+
+**The defect (read from the shipped Phase 3 file, not inferred).** `IosTokenStorage` discarded every
+Keychain `OSStatus`: `setKeychainValue` ignored the result of both `SecItemAdd` and `SecItemUpdate`, and
+`deleteKeychainValue` ignored `SecItemDelete` entirely. Two concrete failure modes followed, neither
+detectable by a happy-path round-trip test: (1) a mismatched token pair — the access and refresh tokens
+were two separate Keychain items, so a first write succeeding and a second failing left a *new* access
+token beside the *old, already-rotated* refresh token, silently signing the user out mid-session on the
+next refresh; (2) a logout that only appeared to succeed — a failed `SecItemDelete` was invisible, so
+`SessionManager.onSignedOut()` published `Unauthenticated` while the tokens remained in the Keychain and
+the session returned on the next cold start (a security-relevant false success, not cosmetic).
+
+**The fix — six decisions, exactly as `PHASE_5_IOS_SYSTEM_DESIGN.md § 9.1` specifies (not re-derived
+here):**
+
+- **K1.** The access/refresh pair is stored as **one** `kSecClassGenericPassword` item (account
+  `authTokens`) holding a JSON `{accessToken, refreshToken}` value, so a partial pair is structurally
+  impossible rather than cleaned up after the fact. Matches `AndroidTokenStorage`'s existing single-blob
+  `AuthTokensPayload` shape; `kotlinx.serialization` is already applied to this module, so no new
+  dependency was needed.
+- **K2.** Every `add`/`update`/`delete`/`copyMatching` `OSStatus` is inspected. `errSecItemNotFound` is
+  the expected "no stored session" outcome, never a failure. Every other status is genuine and is carried
+  by raw value only — never a token.
+- **K3.** Because `TokenStorage.saveTokens`/`clearTokens` are plain `commonMain` `suspend fun`s with no
+  `@Throws` (and adding `@Throws` would itself be a forbidden `commonMain` change, A6), a Kotlin exception
+  can never cross into Swift here — it would terminate the process. Instead: `saveTokens` best-effort
+  purges on a genuine failure; `clearTokens` retries the delete once, then overwrites the item with a
+  tombstone value via `SecItemUpdate` (which `readTokens()` maps to `null`, same as a missing item); any
+  failure that survives both is published on a new top-level `KeychainStatus.failures: StateFlow<KeychainFailure?>`
+  for `SessionController` (T4b, not part of this task) to subscribe to and surface — the sixth sanctioned
+  non-façade entry point (A2).
+- **K4.** Every Keychain query now explicitly sets `kSecAttrAccessibleWhenUnlockedThisDeviceOnly` — the
+  same unlock requirement the omitted attribute already defaulted to (no weakening), plus explicit
+  non-migratability (excluded from iCloud Keychain sync and cross-device backup restore). The earlier
+  Codex-review-corrected draft's `kSecAttrAccessibleAfterFirstUnlock` proposal is not used — it was
+  withdrawn as backwards (§ 9.1 K4/K5 explains why at length).
+- **K5.** No reinstall-purge mechanism. A fresh install may legitimately resume a stale Keychain session —
+  accepted at this project's scope per ADR-012 (local single-developer demo, no production deployment, no
+  real user data). Not built; disclosed as a known limitation.
+- **K6.** The Keychain access is now routed through a new `internal interface KeychainStore`
+  (`add`/`update`/`delete`/`copyMatching`, each surfacing the raw `OSStatus`), with `SecurityFrameworkKeychain`
+  as the only production code calling `platform.Security` directly. `IosTokenStorage`'s constructor takes
+  `keychain: KeychainStore = SecurityFrameworkKeychain()` as a **defaulted** parameter, so
+  `PlatformModule.ios.kt`'s `IosTokenStorage()` call site is unchanged and the seam never reaches the
+  generated Swift API (SKIE only sees the public constructor's default).
+
+**Files.** Rewritten: `mobile/shared/src/iosMain/kotlin/com/mentora/shared/auth/IosTokenStorage.kt`
+(same class name, same `TokenStorage` contract, same Keychain service string `com.mentora.shared.tokenStorage`).
+New: `mobile/shared/src/iosMain/kotlin/com/mentora/shared/auth/Keychain.kt` (`KeychainStore`,
+`SecurityFrameworkKeychain`, `KeychainFailure`, `KeychainOperation`, `KeychainStatus`);
+`mobile/shared/src/iosTest/kotlin/com/mentora/shared/auth/{FakeKeychain.kt,IosTokenStorageTest.kt}` (14
+tests covering add/update/delete/query failure injection, the tombstone self-heal and its own failure
+path, a malformed stored payload, and an explicit no-token-in-any-published-failure assertion). Nothing
+else in `iosMain` touched (`IosPreferenceStore`, `HttpClientEngineFactory.ios.kt`, `PlatformModule.ios.kt`
+unchanged) and `commonMain` untouched (A6).
+
+**Verification — Windows only, and explicitly partial.** `:shared:testDebugUnitTest` 249/249 (unchanged —
+the new `iosTest` tests are not part of this count and do not run on this host);
+`:shared:assembleDebug` clean; `git diff mobile/shared/src/iosMain` limited to the two files above;
+`git status mobile/shared/src/commonMain` empty. `:shared:compileKotlinIosSimulatorArm64` and
+`:shared:iosSimulatorArm64Test` were both attempted and both report `SKIPPED` (the iOS targets are
+configured but disabled — no Kotlin/Native toolchain on this Windows host, `kotlin.native.ignoreDisabledTargets=true`)
+— expected, not a failure, and not evidence the new code actually compiles.
+
+**Status: authored and reviewed, not verified.** This is a Category 2 (review-found) fix per F3 — tagged
+W-auth / M-verify, and it is never reported as PASS on Windows evidence. **PARTIAL, not DONE**, until
+**MC-1** compiles it and runs `:shared:iosSimulatorArm64Test` (the failure-injection unit tests) and
+**MC-2** verifies the live round trip (login → terminate → relaunch stays authenticated; logout →
+relaunch stays logged out) and the live forced-failure logout path (does not present as a completed
+logout). Recorded in `CURRENT_STATUS.md`'s Task Breakdown table as PARTIAL, matching this entry.
+
