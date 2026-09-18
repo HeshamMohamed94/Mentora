@@ -142,6 +142,32 @@ class IosTokenStorageTest {
         assertNull(KeychainStatus.lastFailure)
     }
 
+    @Test
+    fun `save does not purge an existing valid item when both the probe and the add itself fail`() = runBlocking {
+        // Distinct from the duplicate-item fallthrough test above: here add() does NOT report
+        // errSecDuplicateItem, so nothing resolves the probe's false "not found" reading before
+        // reaching the genuine-add-failure branch. Before Fix A (review round 3) that branch
+        // purged unconditionally on the theory that SecItemAdd is atomic so nothing else could be
+        // deleted -- true only when the probe had actually proven the item absent. Here the probe
+        // failed for a genuine, unrelated reason while a valid item was sitting there the whole
+        // time, so the purge must not happen and that item must survive untouched.
+        val keychain = FakeKeychain(
+            initiallyStored = EXISTING_PAYLOAD_JSON,
+            existsOverrides = listOf(GENERIC_FAILURE_STATUS),
+            addOverrides = listOf(ANOTHER_FAILURE_STATUS),
+        )
+        val storage = IosTokenStorage(keychain)
+
+        storage.saveTokens(TOKENS)
+
+        assertEquals(0, keychain.deleteCallCount) // the pre-existing valid item must survive
+        assertEquals(EXISTING_PAYLOAD_JSON, keychain.currentValue) // untouched
+        val failure = assertNotNull(KeychainStatus.lastFailure)
+        assertEquals(KeychainOperation.SAVE, failure.operation)
+        assertEquals(ANOTHER_FAILURE_STATUS, failure.status)
+        assertNoTokenLeaked(failure)
+    }
+
     // --- clearTokens ---------------------------------------------------------------------------
 
     @Test
@@ -248,6 +274,23 @@ class IosTokenStorageTest {
         val failure = assertNotNull(KeychainStatus.lastFailure)
         assertEquals(KeychainOperation.READ, failure.operation)
         assertEquals(GENERIC_FAILURE_STATUS, failure.status)
+        assertNoTokenLeaked(failure)
+    }
+
+    @Test
+    fun `read publishes a failure when the query succeeds but the bridged value is null`() = runBlocking {
+        // Fix C (review round 3): errSecSuccess with a null value can only be a genuine
+        // CoreFoundation-to-NSData bridging failure (see Keychain.kt copyMatching()'s kdoc) -- a
+        // real "no stored session" is always reported as errSecItemNotFound instead (K2), never
+        // as errSecSuccess + null. Nothing is actually stored here; forcing the SUCCESS override
+        // reproduces exactly the status-without-a-value combination the real bridge can silently
+        // produce, which used to fall straight through to "no session" with nothing published.
+        val keychain = FakeKeychain(copyMatchingOverrides = listOf(FakeKeychain.SUCCESS))
+        val storage = IosTokenStorage(keychain)
+
+        assertNull(storage.readTokens())
+        val failure = assertNotNull(KeychainStatus.lastFailure)
+        assertEquals(KeychainOperation.READ, failure.operation)
         assertNoTokenLeaked(failure)
     }
 

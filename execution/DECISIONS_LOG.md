@@ -3236,3 +3236,82 @@ Kotlin visibility rules, not compiler-confirmed.
 does not change that, it only reduces what MC-1 is expected to find. `CURRENT_STATUS.md`'s T1b row updated
 to note the round-2 fixes were applied, still Mac-unverified.
 
+---
+
+### D99 — 2026-09-18 — Task T1b review round 3: closing two partially-resolved D98 findings plus one newly-found search-scoping bug, authored on Windows, still unverified until MC-1/MC-2
+
+**Context.** A second Opus verification pass on D98/commit `0b89644` found the fix-up commit "safe to
+ship, done-pending-Mac-verification" and confirmed 5 of the 6 non-blocker findings (and the compile
+blocker) were fully resolved — but flagged that D98's write-up **overstated** two of them: finding 3
+(the existence-probe race) and finding 6 (the cinterop bridging fix) were each only *partially* closed by
+the D98 commit, not fully, as D98's own text claimed. It also found one new issue, pre-existing since
+`0ae3302` (D97) but not previously caught. All are low-severity/fail-safe — none are security holes — and
+all are fixed in this follow-up commit. Same Category 2 (review-found) fix per F3 as D97/D98, not a new
+task.
+
+**Finding 3, residual half (Fix A).** D98's fix correctly stopped purging on an `update()` failure and
+correctly fell through to `update()` when `add()` reports `errSecDuplicateItem` — but the genuine-add-
+failure branch still purged *unconditionally*, reasoning "`SecItemAdd` is atomic, so nothing else could
+have been deleted." That reasoning silently assumed the existence probe had actually proven the item
+absent. If the probe itself failed for some *other* genuine reason (not `errSecItemNotFound`) —
+`existsAlready` collapsing to `false` even though a valid item might really be present — and `add()` then
+also failed with something other than `errSecDuplicateItem`, the old code still fell through to the same
+unconditional `delete()`, which could destroy a pre-existing valid session the probe simply failed to see.
+Fixed by capturing the probe's actual `OSStatus` (`probeStatus`, not a collapsed boolean) and gating the
+purge on `probeStatus == errSecItemNotFound` — provably absent — never on a probe that merely failed.
+`IosTokenStorage.kt:135-145`'s comment corrected to state this precisely rather than the overstated "can
+only remove an item this call itself just failed to create" claim. New test:
+`` `save does not purge an existing valid item when both the probe and the add itself fail` `` in
+`IosTokenStorageTest.kt` — distinct from D98's existing duplicate-item-fallthrough test, this one has
+`add()` fail with a *non*-duplicate status too, so nothing resolves the probe's false reading before
+reaching the genuine-failure branch; asserts `deleteCallCount == 0` and the pre-existing item untouched.
+
+**Finding 6, residual half (Fix C).** D98's `CFBridgingRelease` fix correctly balanced the +1 Core
+Foundation retain — but D98's comment overstated that this also solved "reports nothing if the bridge
+silently fails." It didn't: if `SecItemCopyMatching` returns `errSecSuccess` but the bridge yields `null`
+anyway, `copyMatching()` still returns `status = errSecSuccess, value = null`, and `IosTokenStorage.
+readTokens` treated that identically to a genuine empty Keychain — no `KeychainFailure` published, silently
+indistinguishable from success. Fixed: `readTokens` now has a dedicated branch for `status == errSecSuccess
+&& value == null` (a case that can only mean a genuine bridging failure, since a real "no session" is
+always `errSecItemNotFound` per K2) that publishes a `KeychainFailure(READ, errSecParam)` before returning
+`null` — reusing `errSecParam` as the "not a real platform `OSStatus`, a local processing failure" sentinel
+the same way Fix 5 already does for the `encodeToString` failure. `Keychain.kt`'s comment on the
+`CFBridgingRelease` line corrected to state precisely which half of the silent-failure problem it fixes
+(retain balance) and which half (reportability) is fixed in `IosTokenStorage.kt` instead. New test:
+`` `read publishes a failure when the query succeeds but the bridged value is null` ``.
+
+**New issue, not one of the original 7 findings (Fix B).** `SecurityFrameworkKeychain.baseQuery()` — shared
+by `copyMatching()`/`update()`/`delete()`/`exists()` — included `kSecAttrAccessible`, not just `add()`'s
+dictionary. `kSecAttrAccessible` is a *matchable* search attribute to `SecItemCopyMatching`/`SecItemUpdate`/
+`SecItemDelete`, not merely a write-time attribute to `SecItemAdd`. Including it in every search meant any
+item whose accessibility class doesn't exactly match `kSecAttrAccessibleWhenUnlockedThisDeviceOnly` (e.g. a
+hypothetical item written before this attribute was ever explicitly set, defaulting to the OS's own
+default class) would become invisible to every read/update/delete query issued through this class, while
+still colliding with `add()`'s primary-key match (class+service+account) on `SecItemAdd` — a permanent,
+self-perpetuating "duplicate item that can never be found or fixed" failure loop. Pre-existing since D97/
+`0ae3302` (K4 added the attribute to `baseQuery()` there), not something D98 introduced or was asked to
+review, but caught during this same review round. Fixed by removing `kSecAttrAccessible` from `baseQuery()`
+entirely and setting it only on `add()`'s own dictionary, the one place it's actually meant to apply.
+
+**Two nits (Fix D).** `KeychainStatus.resetForTest()` called `resetReplayCache()`
+(`@ExperimentalCoroutinesApi`) without the `@OptIn` annotation every other experimental API in this file
+already carries (e.g. `ExperimentalForeignApi`); added `@OptIn(ExperimentalCoroutinesApi::class)`.
+`KeychainStatus.lastFailure` was `public`, unnecessarily widening the Swift-visible API surface — only
+`iosTest` (via test-compilation association) actually needs synchronous access to it; narrowed to
+`internal`.
+
+**Files.** Same four as D97/D98, no others: `mobile/shared/src/iosMain/kotlin/com/mentora/shared/auth/
+{IosTokenStorage.kt,Keychain.kt}`, `mobile/shared/src/iosTest/kotlin/com/mentora/shared/auth/
+{FakeKeychain.kt,IosTokenStorageTest.kt}`.
+
+**Verification — Windows only, and explicitly partial, same limits as D97/D98.** `:shared:testDebugUnitTest`
+249/249, confirmed unaffected (Android's unit-test source set never compiles `iosMain`/`iosTest`);
+`:shared:assembleDebug` clean; byte-scan of all four files for stray NUL/control bytes clean; `git diff
+--stat` confirms scope limited to the four files above plus this log and `CURRENT_STATUS.md`. No Kotlin/
+Native compiler on this host, so none of this is compiler-confirmed.
+
+**Status: authored and reviewed, still not verified.** Same PARTIAL status as D97/D98 — this round of
+fixes does not change that; it closes out two claims D98 overstated and one newly-found pre-existing issue,
+reducing what MC-1 is expected to find further still. `CURRENT_STATUS.md`'s T1b row parenthetical updated
+accordingly.
+

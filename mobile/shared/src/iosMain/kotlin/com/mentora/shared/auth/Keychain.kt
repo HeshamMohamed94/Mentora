@@ -5,6 +5,7 @@ import kotlinx.cinterop.alloc
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.ptr
 import kotlinx.cinterop.value
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -61,6 +62,23 @@ import platform.Security.kSecValueData
 //            (leaking the object every read) nor reports anything if the bridge silently fails.
 //            Now uses CFBridgingRelease. This one is an inherited Phase 3 bug, not something T1b
 //            introduced -- see DECISIONS_LOG.md.
+//
+// Review round 3 (a second Opus verification pass on the round-2 fix-up commit) found two of the
+// round-2 fixes above were only partially complete, plus one new pre-existing issue; see
+// DECISIONS_LOG.md D98/D99 for the full summary. The fixes that touch this file:
+//   Fix B -- baseQuery() used to include kSecAttrAccessible, which is a *matchable* search
+//            attribute, not just a write-time one -- putting it in the dictionary shared by every
+//            search/update/delete query could make a pre-existing item invisible to all of those
+//            while still colliding with add()'s primary-key match, a permanent unfixable
+//            "duplicate item" loop. Now set only in add()'s own dictionary -- see baseQuery's kdoc.
+//   Fix C -- copyMatching()'s Fix 6 above only balanced the CFBridgingRelease retain count; it did
+//            not make a genuine bridging failure (errSecSuccess status but a null bridged value)
+//            reportable. IosTokenStorage.readTokens (not this file) now tells that case apart from
+//            a real "no session" and publishes a KeychainFailure for it -- see its kdoc.
+//   Fix D -- resetForTest() called the @ExperimentalCoroutinesApi resetReplayCache() without the
+//            @OptIn annotation every other experimental API in this file already carries; added.
+//            KeychainStatus.lastFailure was also public when only iosTest (via test-compilation
+//            association) needs it; narrowed to internal.
 
 /** Same (service, account) shape Phase 3 shipped for the single Keychain item this module owns —
  * preserved verbatim per T1b's "same Keychain class and service" constraint. K1: the access/
@@ -115,11 +133,13 @@ internal interface KeychainStore {
  * directly. `kSecClassGenericPassword` item, service [service] / account [account] — same
  * (service, account) Phase 3 shipped.
  *
- * K4: every query starts from [baseQuery], which explicitly asks for
- * [kSecAttrAccessibleWhenUnlockedThisDeviceOnly] — the same unlock requirement Phase 3's omitted
- * attribute already defaulted to (so this does not weaken locked-device protection), plus explicit
- * non-migratability (excluded from iCloud Keychain sync and from a restore onto a different
- * device), which the omitted-attribute default did not provide.
+ * K4: every write ([add]) explicitly asks for [kSecAttrAccessibleWhenUnlockedThisDeviceOnly] — the
+ * same unlock requirement Phase 3's omitted attribute already defaulted to (so this does not
+ * weaken locked-device protection), plus explicit non-migratability (excluded from iCloud Keychain
+ * sync and from a restore onto a different device), which the omitted-attribute default did not
+ * provide. Fix B (review round 3): this attribute is set only on [add]'s own dictionary, not on
+ * [baseQuery] shared by every search/update/delete operation — see [baseQuery]'s kdoc for why
+ * putting it there would be actively harmful, not just redundant.
  */
 @OptIn(ExperimentalForeignApi::class)
 internal class SecurityFrameworkKeychain(
@@ -127,15 +147,23 @@ internal class SecurityFrameworkKeychain(
     private val account: String = KEYCHAIN_ACCOUNT,
 ) : KeychainStore {
 
+    /** The shared shape for every search/update/delete query (`copyMatching`, `exists`, `update`,
+     * `delete`): identifies the item by (class, service, account) only. Fix B (review round 3):
+     * deliberately does NOT include [kSecAttrAccessible] -- that attribute is a *matchable* search
+     * attribute to `SecItemCopyMatching`/`SecItemUpdate`/`SecItemDelete`, not just a write-time
+     * attribute to `SecItemAdd`. Including it here would mean any item whose accessibility class
+     * does not exactly match [kSecAttrAccessibleWhenUnlockedThisDeviceOnly] -- e.g. a hypothetical
+     * item written before this attribute was ever set, defaulting to the OS's own default
+     * accessibility class -- becomes invisible to every read/update/delete query issued through
+     * this class, while still colliding with [add]'s primary-key match (class+service+account) on
+     * `SecItemAdd`. That combination is a permanent, self-perpetuating "duplicate item that can
+     * never be found or fixed" failure loop. [kSecAttrAccessible] is added only in [add], the one
+     * place it is actually meant to apply. */
     private fun baseQuery(): NSMutableDictionary {
         val query = NSMutableDictionary()
         query.setObject(kSecClassGenericPassword, forKey = kSecClass as NSString)
         query.setObject(service, forKey = kSecAttrService as NSString)
         query.setObject(account, forKey = kSecAttrAccount as NSString)
-        query.setObject(
-            kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
-            forKey = kSecAttrAccessible as NSString,
-        )
         return query
     }
 
@@ -150,6 +178,12 @@ internal class SecurityFrameworkKeychain(
         val data = value.toKeychainData() ?: return errSecParam
         val newItem = baseQuery()
         newItem.setObject(data, forKey = kSecValueData as NSString)
+        // K4, Fix B: kSecAttrAccessible belongs only on the write -- see baseQuery's kdoc for why
+        // it must not also be part of the shared search/update/delete query shape.
+        newItem.setObject(
+            kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
+            forKey = kSecAttrAccessible as NSString,
+        )
         return SecItemAdd(newItem as CFDictionaryRef, null)
     }
 
@@ -186,8 +220,14 @@ internal class SecurityFrameworkKeychain(
             // is what both correctly bridges it into a Kotlin/Native-managed NSData AND balances
             // that retain count. A plain `as? NSData` cast on the raw pointer neither balances the
             // retain (leaking the object on every read) nor reports anything if the bridge
-            // silently fails to produce an NSData -- exactly the kind of silent failure this whole
-            // task exists to eliminate.
+            // silently fails to produce an NSData. CFBridgingRelease fixes the retain-balance half
+            // of that; it does NOT by itself make the silent-bridging-failure case reportable --
+            // this function still just returns `status = errSecSuccess, value = null` if the
+            // bridge yields null despite a successful query, indistinguishable here from a normal
+            // empty read. Fix C (review round 3) closes that: IosTokenStorage.readTokens is the
+            // code that actually tells the two apart and publishes a KeychainFailure for the
+            // former, since only it knows that errSecSuccess + null value can never legitimately
+            // mean "no session" (that case is always reported as errSecItemNotFound instead, K2).
             @Suppress("UNCHECKED_CAST")
             val data = CFBridgingRelease(resultRef.value) as? NSData
             val value = data?.let { NSString.create(it, NSUTF8StringEncoding) as String? }
@@ -244,8 +284,11 @@ object KeychainStatus {
     val failures: SharedFlow<KeychainFailure> = _failures.asSharedFlow()
 
     /** The most recently published failure, if any. See the [KeychainStatus] kdoc for why this
-     * exists alongside [failures]. */
-    val lastFailure: KeychainFailure?
+     * exists alongside [failures]. `internal` (Fix D, review round 3): only `iosTest` (via
+     * test-compilation association, which can see `internal` declarations of the module under
+     * test) actually needs synchronous access to this for assertions -- a real consumer should
+     * collect [failures] directly, so this need not widen the Swift-visible API surface. */
+    internal val lastFailure: KeychainFailure?
         get() = _failures.replayCache.lastOrNull()
 
     internal fun publish(failure: KeychainFailure) {
@@ -254,6 +297,7 @@ object KeychainStatus {
 
     /** Test-only reset — [KeychainStatus] is a process-wide singleton, so `iosTest` needs a way to
      * clear the last-published failure between tests instead of leaking state across them. */
+    @OptIn(ExperimentalCoroutinesApi::class)
     internal fun resetForTest() {
         _failures.resetReplayCache()
     }

@@ -49,6 +49,20 @@ import platform.Security.errSecSuccess
 //            than the tombstone step's, since that is more diagnostically useful.
 //   Fix 5 -- encodeToString was unguarded here (a SerializationException would have propagated
 //            uncaught, violating K3); wrapped in runCatching below.
+//
+// Review round 3 (a second Opus verification pass on the round-2 fix-up commit) found two of the
+// round-2 fixes above were still only partially complete; see DECISIONS_LOG.md D98/D99 for the
+// full summary. The fixes that touch this file:
+//   Fix A -- saveTokens's genuine-add-failure branch used to purge unconditionally, reasoning that
+//            SecItemAdd is atomic so nothing else could have been deleted. True only when the
+//            existence probe had actually proven the item absent; if the probe itself failed for
+//            some other reason, existence was genuinely unknown, and the unconditional delete
+//            could destroy a pre-existing valid item the probe simply failed to see. Now only
+//            purges when the probe's own status was errSecItemNotFound.
+//   Fix C -- readTokens used to treat `status == errSecSuccess, value == null` (a genuine
+//            CoreFoundation-to-NSData bridging failure in Keychain.kt's copyMatching(), not a real
+//            "no session") identically to a genuine empty Keychain -- silently, with no
+//            KeychainFailure published. Now published as a READ failure before returning null.
 
 /**
  * iOS Keychain-backed [TokenStorage] (`kSecClassGenericPassword`, service
@@ -100,11 +114,11 @@ class IosTokenStorage internal constructor(private val keychain: KeychainStore) 
         // isn't, and anything else means the probe itself failed for some other reason (e.g. the
         // device is locked) -- in which case existence is genuinely unknown here, and it is
         // add()'s own errSecDuplicateItem response below (not this guess) that ends up resolving
-        // add-vs-update correctly.
-        val existsAlready = when (keychain.exists()) {
-            errSecSuccess -> true
-            else -> false
-        }
+        // add-vs-update correctly. probeStatus itself is kept (not just the collapsed boolean)
+        // because the genuine-add-failure branch below still needs to tell "the probe proved the
+        // item absent" apart from "the probe failed for some other reason" (Fix A, review round 3).
+        val probeStatus = keychain.exists()
+        val existsAlready = probeStatus == errSecSuccess
 
         if (existsAlready) {
             val status = keychain.update(payload)
@@ -133,9 +147,14 @@ class IosTokenStorage internal constructor(private val keychain: KeychainStore) 
         }
 
         // A genuine add failure: SecItemAdd is atomic, so nothing was written by this call --
-        // best-effort purge is safe here because it can only remove an item this call itself
-        // just failed to create, never one that predates this call (K3).
-        keychain.delete()
+        // but that alone does not make a purge safe. It is only provably safe when the probe
+        // above proved the item was genuinely absent (probeStatus == errSecItemNotFound): in that
+        // case the item this add() just failed to create is the only thing a delete() here could
+        // possibly remove. If the probe instead failed for some other reason (e.g. the device
+        // being locked), existence is genuinely unknown -- a pre-existing valid item could be
+        // sitting there unseen by the probe, and purging would destroy a session that predates
+        // this call and had nothing wrong with it (Fix A, review round 3; K3).
+        if (probeStatus == errSecItemNotFound) keychain.delete()
         KeychainStatus.publish(KeychainFailure(KeychainOperation.SAVE, addStatus))
     }
 
@@ -149,7 +168,21 @@ class IosTokenStorage internal constructor(private val keychain: KeychainStore) 
                 KeychainStatus.publish(KeychainFailure(KeychainOperation.READ, result.status))
                 null
             }
-            result.value == null || result.value == TOMBSTONE_VALUE -> null
+            result.value == null -> {
+                // Fix C (review round 3): errSecSuccess with a null value can only mean the
+                // CoreFoundation-to-NSData bridge inside Keychain.kt's copyMatching() failed
+                // despite the underlying query succeeding (see its kdoc) -- a genuine "no stored
+                // session" is always reported as errSecItemNotFound instead (K2), never as
+                // errSecSuccess + null. Previously this branch did not exist, so this case fell
+                // straight through to "return null" exactly like a real empty Keychain, with no
+                // KeychainFailure published -- a silent failure indistinguishable from success.
+                // errSecParam is reused here as the sentinel status, the same "not a real
+                // platform OSStatus, a local processing failure" convention Fix 5 already
+                // established for the encodeToString failure in saveTokens above.
+                KeychainStatus.publish(KeychainFailure(KeychainOperation.READ, errSecParam))
+                null
+            }
+            result.value == TOMBSTONE_VALUE -> null
             else -> decodePayload(result.value)
         }
     }
