@@ -71,6 +71,21 @@ kotlin {
         }
     }
 
+    // Task T4c (D100): `:shared:iosSimulatorArm64Test` has no default simulator device configured —
+    // probed directly on this host by querying the registered task's `device`/`deviceId` properties:
+    // both are completely unset, and querying either throws "Cannot query the value... because it
+    // has no value available." This is mandatory configuration, not optional convenience — the test
+    // task cannot run at all without it. Driven by a Gradle property so
+    // `.github/workflows/ios-ci.yml`'s "Select iOS Simulator destination" step can pass the exact
+    // device name it detected as actually available on the runner image
+    // (`-Pmentora.ios.testDevice="${SIM_DEVICE_NAME}"` — see that workflow step for where
+    // `SIM_DEVICE_NAME` comes from). "iPhone 16" is the fallback for when that property is absent
+    // (e.g. running this task locally), matching the first entry in the workflow's own `preferred`
+    // simulator-name list so local and CI behavior agree.
+    iosSimulatorArm64 {
+        testRuns["test"].deviceId = (findProperty("mentora.ios.testDevice") as String?) ?: "iPhone 16"
+    }
+
     jvmToolchain(21)
 
     sourceSets {

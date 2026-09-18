@@ -1,0 +1,474 @@
+# Mentora — iOS CI (Phase 5, Task T4c)
+#
+# WHAT THIS IS. The automated macOS compile/unit-test gate for the iOS work in `mobile/iosApp/` and
+# the iOS target of `mobile/shared/`. It is the CI tier described in
+# `execution/PHASE_5_IOS_SYSTEM_DESIGN.md § 20` and specified as Task T4c in
+# `execution/PHASE_5_IOS_IMPLEMENTATION_PLAN.md § 4`. It exists because the development host is
+# Windows and can compile neither Kotlin/Native nor Swift (`PHASE_5_ACCEPTANCE_CRITERIA.md § 0`,
+# criterion J1).
+#
+# WHAT THIS IS NOT. It is not MC-2/MC-3/MC-4. It never launches the app interactively, never runs the
+# real local Ktor backend or MongoDB, never runs XCUITests, and proves nothing visual, RTL,
+# Dynamic-Type, VoiceOver, playback or live-session-related. Those stay human, on a real Mac, against
+# the real local backend — see the CI-vs-MC table in `PHASE_5_IOS_SYSTEM_DESIGN.md § 20`.
+#
+# SCOPE BOUNDARY (deliberate). This workflow touches the iOS surface only. It never invokes an
+# `:androidApp` task, never builds `web/` or `backend/`, and its path filter deliberately does not
+# include `mobile/androidApp/**`. Android's gates stay exactly where they are today: local, manual,
+# on the developer's Windows machine (`PHASE_5_ACCEPTANCE_CRITERIA.md` A7/A8, F4).
+#
+# SECRETS: none. Nothing here signs, notarizes, uploads to TestFlight, or talks to any service other
+# than Maven Central / Google Maven / Homebrew / GitHub itself. No `secrets.*` reference appears
+# below, and none should be added without revisiting `PHASE_5_IOS_IMPLEMENTATION_PLAN.md § 6`, which
+# excludes all signing/distribution work from Phase 5.
+#
+# COST. `HeshamMohamed94/Mentora` is a PUBLIC repository, and GitHub Actions usage on standard
+# GitHub-hosted runners is free for public repositories — so at the time of writing this workflow
+# consumes no billed minutes. That is the ONLY reason a macOS runner is affordable here: for a
+# private repo, macOS minutes bill at a 10x multiplier against the included quota (a 12-minute job
+# would consume 120 minutes of a 2,000-minute allowance). Every cost control below — path filters,
+# `workflow_dispatch`, `concurrency` cancellation, `timeout-minutes`, Gradle/konan caching — is kept
+# anyway, because the repo could go private and because a stuck macOS job is expensive in wall-clock
+# terms regardless of billing.
+#
+# ACTION VERSIONS were resolved against the GitHub API on 2026-09-18 (latest releases: checkout
+# v7.0.1, setup-java v6.0.1, cache v6.1.0, upload-artifact v7.0.1, gradle/actions v6.3.0) and pinned
+# to their major tags. If a major tag has moved on since, update deliberately rather than floating.
+
+name: iOS CI
+
+on:
+  # Manual trigger: the primary, deliberate way to spend a macOS runner on demand — e.g. after
+  # authoring a Swift slice on Windows. NOTE: workflow_dispatch only appears in the Actions UI once
+  # this file exists on the repository's DEFAULT branch (main).
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'mobile/shared/**'
+      - 'mobile/iosApp/**'
+      - 'mobile/gradle/**'
+      - 'mobile/gradle.properties'
+      - 'mobile/settings.gradle.kts'
+      - 'mobile/build.gradle.kts'
+      - 'mobile/gradlew'
+      - 'tools/token-pipeline/generate.js'
+      - '.github/workflows/ios-ci.yml'
+      # Documentation-only changes under the paths above must not spend a macOS runner. Negative
+      # patterns are evaluated after the positive ones, so this subtracts from the set above.
+      - '!**/*.md'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'mobile/shared/**'
+      - 'mobile/iosApp/**'
+      - 'mobile/gradle/**'
+      - 'mobile/gradle.properties'
+      - 'mobile/settings.gradle.kts'
+      - 'mobile/build.gradle.kts'
+      - 'mobile/gradlew'
+      - 'tools/token-pipeline/generate.js'
+      - '.github/workflows/ios-ci.yml'
+      - '!**/*.md'
+
+# A superseded run is cancelled rather than left to finish — the single biggest protection against
+# burning macOS time on commits nobody is waiting for.
+concurrency:
+  group: ios-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  ios-compile-gate:
+    name: KMP iOS compile + XCFramework + Xcode build/test
+    # `macos-15` (arm64) is pinned deliberately rather than `macos-latest`:
+    #   * `macos-latest` currently resolves to macOS 26, whose default Xcode is 26.x. Kotlin 2.0.21's
+    #     Kotlin/Native and SKIE 0.9.5 predate that toolchain by two major Xcode releases, and
+    #     Kotlin/Native has a documented history of breaking against Xcode versions newer than the
+    #     one its own release was tested against. Pinning keeps the toolchain deterministic.
+    #   * `macos-14` is deprecated in `actions/runner-images`.
+    # The `macos-15` arm64 image ships Xcode 16.4 as default, JDK 21 (matching this build's
+    # `jvmToolchain(21)`), a preinstalled Android SDK at `$ANDROID_HOME` (required merely to
+    # CONFIGURE `:shared`, which applies the Android Library plugin), Homebrew, and iOS 18.x
+    # simulator runtimes.
+    runs-on: macos-15
+    # Hard ceiling. A hung simulator or a stuck Kotlin/Native link must never run for GitHub's
+    # 6-hour default.
+    timeout-minutes: 60
+    env:
+      # Pin the Xcode the whole job uses. If this exact app bundle is absent from a future image
+      # revision, the job now fails loudly (`exit 1`) rather than silently falling back to the image
+      # default — see criterion J11(e) ("fails loudly — no step swallows a non-zero exit") and the
+      # "Select and report Xcode toolchain" step below.
+      XCODE_APP: Xcode_16.4.app
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+      HOMEBREW_NO_INSTALL_CLEANUP: '1'
+      DERIVED_DATA: ${{ github.workspace }}/mobile/iosApp/.derived-data
+      XCFRAMEWORK_PATH: mobile/shared/build/XCFrameworks/debug/shared.xcframework
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Select and report Xcode toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Image default toolchain:"
+          xcodebuild -version
+          if [ -d "/Applications/${XCODE_APP}" ]; then
+            sudo xcode-select -switch "/Applications/${XCODE_APP}/Contents/Developer"
+            echo "Pinned Xcode -> /Applications/${XCODE_APP}"
+          else
+            echo "::error::/Applications/${XCODE_APP} is not present on this runner image. Refusing to silently fall back to the image default (criterion J11(e): no step may swallow a non-zero exit / fail silently). Kotlin 2.0.21 and SKIE 0.9.5 were never tested against a newer Xcode, and a silent fallback would turn a clear 'pinned toolchain unavailable' failure into confusing downstream compiler/linker errors instead. If the image has genuinely moved on, update XCODE_APP deliberately and re-verify Kotlin/Native + SKIE compatibility before changing this pin."
+            exit 1
+          fi
+          echo "Active toolchain:"
+          xcodebuild -version
+          # Belt-and-braces: also assert the active Xcode's major version is exactly the one this
+          # pipeline was designed against, in case XCODE_APP is ever pointed at a differently
+          # versioned bundle by mistake.
+          ACTIVE_MAJOR="$(xcodebuild -version | head -n 1 | grep -oE '[0-9]+' | head -n 1)"
+          if [ "${ACTIVE_MAJOR}" != "16" ]; then
+            echo "::error::Active Xcode major version is ${ACTIVE_MAJOR}, expected 16 (XCODE_APP=${XCODE_APP}). Failing loudly (J11(e)) instead of letting Kotlin/Native + SKIE hit an untested toolchain silently."
+            exit 1
+          fi
+          echo "iphonesimulator SDK version: $(xcrun --sdk iphonesimulator --show-sdk-version)"
+          swift --version
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Report toolchain preconditions
+        shell: bash
+        run: |
+          set -euo pipefail
+          java -version
+          echo "JAVA_HOME=${JAVA_HOME}"
+          echo "ANDROID_HOME=${ANDROID_HOME:-<unset>}"
+          # The :shared module applies the Android Library plugin, so Gradle cannot even CONFIGURE
+          # the build without an Android SDK location. The macos-15 image sets ANDROID_HOME; fail
+          # loudly and early with an actionable message rather than deep inside a Gradle stack trace
+          # if that ever changes.
+          if [ -z "${ANDROID_HOME:-}" ] || [ ! -d "${ANDROID_HOME}" ]; then
+            echo "::error::ANDROID_HOME is unset or missing on this runner image. The :shared module applies the Android Library plugin and cannot configure without it. Fix: add an android-actions/setup-android step, or set ANDROID_HOME explicitly."
+            exit 1
+          fi
+          ls "${ANDROID_HOME}/platforms" || echo "No platforms installed yet - AGP will download compileSdk 36 on demand."
+
+      # Kotlin/Native's compiler and platform libraries live in ~/.konan and are a multi-hundred-MB
+      # download on a cold runner. `gradle/actions/setup-gradle` does NOT cache this directory, so it
+      # is cached separately here. This is the single largest wall-clock saving in the job.
+      - name: Cache Kotlin/Native (~/.konan)
+        uses: actions/cache@v6
+        with:
+          path: ~/.konan
+          # `runner.os` alone ("macOS") does not distinguish architecture or runner image, so a
+          # future architecture or image change could restore an incompatible cached `.konan`
+          # directory. `runner.arch` is included for that reason; `macos-15` is baked into the key
+          # directly (rather than via a workflow expression, since no such expression exists) so a
+          # future change to `runs-on` also invalidates the cache deliberately instead of silently
+          # reusing a mismatched one.
+          key: konan-${{ runner.os }}-${{ runner.arch }}-macos-15-${{ hashFiles('mobile/gradle/libs.versions.toml') }}
+          restore-keys: |
+            konan-${{ runner.os }}-${{ runner.arch }}-macos-15-
+
+      # Caches the Gradle User Home (dependency cache, wrapper distribution, build cache) with the
+      # action's own pruning logic, and validates the committed wrapper JAR's checksum
+      # (`validate-wrappers` defaults to true in v6). Only `main` writes the cache; branches and PRs
+      # read it, so a broken branch can never poison the shared cache.
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
+      # Picks a simulator that (a) actually exists on this image and (b) is not newer than the
+      # selected Xcode's iOS SDK — booting a runtime newer than the active Xcode is a classic CI
+      # failure. Exports SIM_DEVICE_NAME / SIM_OS_VERSION / SIM_DESTINATION for the later steps.
+      # The app's deployment target is iOS 17.0 (`mobile/iosApp/project.yml`); running on a newer
+      # simulator runtime is expected and correct — no iOS 17.x runtime ships on current images.
+      - name: Select iOS Simulator destination
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' | tee -a "$GITHUB_ENV"
+          import json, re, subprocess, sys
+
+          def parse(v):
+              return tuple(int(x) for x in re.findall(r"\d+", v))
+
+          sdk = subprocess.check_output(
+              ["xcrun", "--sdk", "iphonesimulator", "--show-sdk-version"], text=True
+          ).strip()
+          sdk_v = parse(sdk)
+
+          data = json.loads(subprocess.check_output(
+              ["xcrun", "simctl", "list", "devices", "available", "--json"], text=True
+          ))
+
+          candidates = []
+          for runtime, devices in data.get("devices", {}).items():
+              m = re.search(r"iOS-([0-9-]+)$", runtime)
+              if not m:
+                  continue
+              rv = parse(m.group(1))
+              if rv > sdk_v:      # newer than the active Xcode can drive - skip
+                  continue
+              for d in devices:
+                  if d.get("isAvailable") and d.get("name", "").startswith("iPhone"):
+                      candidates.append((rv, d["name"]))
+
+          if not candidates:
+              sys.exit(
+                  "No available iPhone simulator with a runtime <= iphonesimulator SDK %s. "
+                  "Runtimes seen: %s" % (sdk, sorted(data.get("devices", {}).keys()))
+              )
+
+          newest = max(rv for rv, _ in candidates)
+          pool = sorted({name for rv, name in candidates if rv == newest})
+          preferred = ["iPhone 16", "iPhone 16 Pro", "iPhone 17", "iPhone SE (3rd generation)"]
+          name = next((p for p in preferred if p in pool), pool[0])
+          os_version = ".".join(str(x) for x in newest)
+
+          print("SIM_DEVICE_NAME=%s" % name)
+          print("SIM_OS_VERSION=%s" % os_version)
+          print("SIM_DESTINATION=platform=iOS Simulator,name=%s,OS=%s" % (name, os_version))
+          PY
+
+      # ---------------------------------------------------------------------------------------
+      # Tier 1 - the KMP/Kotlin-Native half. This is the automatable part of MC-1
+      # (`PHASE_5_IOS_IMPLEMENTATION_PLAN.md § 3`): SKIE actually applying under Kotlin 2.0.21 on
+      # macOS, `iosMain` compiling for the first time ever, T1b's Keychain failure-injection tests
+      # in `iosTest` actually running, and the XCFramework actually assembling.
+      #
+      # Task names are the ones Task T1 really registered (`mobile/shared/build.gradle.kts`):
+      # `assembleSharedDebugXCFramework` - there is NO `assembleSharedXCFramework`.
+      #
+      # `-Pmentora.ios.testDevice` is read by `mobile/shared/build.gradle.kts` (Task T4c's
+      # `iosSimulatorArm64 { testRuns["test"].deviceId = ... }` block) so the Kotlin/Native simulator
+      # test targets a device that actually exists on this image. Verified directly on this host:
+      # without that block, querying `testRuns["test"].deviceId` throws "Cannot query the value...
+      # because it has no value available" - there is no KGP fallback device name, and the task
+      # cannot run at all without this configuration. If that build-script block is ever missing or
+      # broken, the failure here reads as that "no value available" error, not a "device not found"
+      # error - if you see the latter instead, the device name itself (not the config) is the
+      # problem.
+      # ---------------------------------------------------------------------------------------
+      - name: Gradle - compile, link, test and package the shared iOS framework
+        working-directory: mobile
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew --stacktrace \
+            :shared:compileKotlinIosSimulatorArm64 \
+            :shared:linkDebugFrameworkIosSimulatorArm64 \
+            :shared:iosSimulatorArm64Test \
+            :shared:assembleSharedDebugXCFramework \
+            -Pmentora.ios.testDevice="${SIM_DEVICE_NAME}"
+
+      - name: Verify the XCFramework landed where Package.swift expects it
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Packages/MentoraShared/Package.swift hardcodes this relative binaryTarget path and has
+          # never been confirmed on a real Mac (Task T4a authored it blind). If this check fails,
+          # fix Package.swift - do not "fix" it by moving the Gradle output.
+          if [ ! -d "${XCFRAMEWORK_PATH}" ]; then
+            echo "::error::Expected the XCFramework at ${XCFRAMEWORK_PATH} (the path Packages/MentoraShared/Package.swift points at) but it does not exist."
+            find mobile/shared/build -maxdepth 3 -name '*.xcframework' -print || true
+            exit 1
+          fi
+          find "${XCFRAMEWORK_PATH}" -maxdepth 3
+
+      # ---------------------------------------------------------------------------------------
+      # Tier 2 - the Xcode half. `xcodegen generate` has never run against `project.yml` on any
+      # host; this is its first real execution.
+      # ---------------------------------------------------------------------------------------
+      - name: Install XcodeGen
+        shell: bash
+        run: |
+          set -euo pipefail
+          brew install xcodegen
+          xcodegen --version
+
+      - name: Generate iosApp.xcodeproj from project.yml
+        working-directory: mobile/iosApp
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodegen generate --spec project.yml
+          test -d iosApp.xcodeproj
+
+      - name: xcodebuild - build the app for the Simulator
+        working-directory: mobile/iosApp
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild build \
+            -project iosApp.xcodeproj \
+            -scheme iosApp \
+            -configuration Debug \
+            -destination "${SIM_DESTINATION}" \
+            -derivedDataPath "${DERIVED_DATA}" \
+            CODE_SIGNING_ALLOWED=NO \
+            2>&1 | tee "${RUNNER_TEMP}/xcodebuild-build.log"
+          # Criterion J2 wants "zero NEW warnings". CI reports the count and keeps the full log as an
+          # artifact; judging which warnings are new is still a human read of that log.
+          echo "--- compiler warning count ---"
+          grep -c 'warning:' "${RUNNER_TEMP}/xcodebuild-build.log" || true
+
+      - name: xcodebuild - run the XCTest unit target
+        working-directory: mobile/iosApp
+        shell: bash
+        run: |
+          set -euo pipefail
+          # -only-testing:iosAppTests deliberately excludes iosAppUITests: XCUITests (criterion J4)
+          # need the real local Ktor backend and seeded MongoDB, which this workflow explicitly does
+          # not stand up (see the file header). They stay an MC-3 item.
+          xcodebuild test \
+            -project iosApp.xcodeproj \
+            -scheme iosApp \
+            -configuration Debug \
+            -destination "${SIM_DESTINATION}" \
+            -derivedDataPath "${DERIVED_DATA}" \
+            -only-testing:iosAppTests \
+            -resultBundlePath "${RUNNER_TEMP}/iosAppTests.xcresult" \
+            CODE_SIGNING_ALLOWED=NO \
+            2>&1 | tee "${RUNNER_TEMP}/xcodebuild-test.log"
+
+      # ---------------------------------------------------------------------------------------
+      # The MC-1 artifact that unblocks Windows-side authoring: whatever Swift/Obj-C interface of the
+      # shared framework actually exists after this run, plus a `swift-api-digester` dump of the real
+      # Swift-visible API surface. Downloading and reading this artifact is how a Windows host learns
+      # the actual SKIE symbol spellings instead of guessing them (see
+      # `PHASE_5_IOS_SYSTEM_DESIGN.md § 20.1` and Implementation Plan T4b) — but see the explicit gate
+      # in those documents: T4b does not start on the strength of this artifact existing alone, only
+      # once it is confirmed to actually contain a usable Swift API surface.
+      #
+      # Both steps below run with `if: always()`: by the time they would run, the XCFramework was
+      # already built in Tier 1 above, so it is extractable even if a later step (most likely
+      # `xcodegen generate` or `xcodebuild build`) has already failed — exactly the situation where
+      # this artifact is most useful for debugging. Each step is defensive about the XCFramework not
+      # existing at all (e.g. because the Gradle build itself failed before Tier 1 finished).
+      # ---------------------------------------------------------------------------------------
+      - name: Dump the real Swift-visible API surface (swift-api-digester)
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT="${RUNNER_TEMP}/kmp-interface"
+          mkdir -p "${OUT}"
+          if [ ! -d "${XCFRAMEWORK_PATH}" ]; then
+            echo "No XCFramework at ${XCFRAMEWORK_PATH} - an earlier step must have failed before it could be assembled. Skipping the API digest." > "${OUT}/shared-api-digest-skipped.txt"
+            exit 0
+          fi
+          # The XCFramework's simulator-slice directory name (e.g. "ios-arm64-simulator") has never
+          # been observed on a real Mac, so it is discovered here rather than hardcoded.
+          SIM_SLICE="$(find "${XCFRAMEWORK_PATH}" -maxdepth 1 -type d -iname '*simulator*' | head -n 1)"
+          if [ -z "${SIM_SLICE}" ]; then
+            echo "No simulator slice directory found under ${XCFRAMEWORK_PATH} - skipping the API digest." > "${OUT}/shared-api-digest-skipped.txt"
+            find "${XCFRAMEWORK_PATH}" -maxdepth 1 >> "${OUT}/shared-api-digest-skipped.txt"
+            exit 0
+          fi
+          # swift-api-digester imports the framework through Swift's Clang importer and dumps the
+          # actual Swift-visible API surface it produces - a real Xcode tool, and a stronger guarantee
+          # than hoping SKIE's intermediate Swift files are in a predictable place. This is a
+          # best-effort capture, not a hard requirement of this job: a non-zero exit here is reported
+          # but does not fail the pipeline, since neither this flag combination nor the module's
+          # digestibility as a static framework with no library evolution has been confirmed on a
+          # real Mac yet.
+          xcrun swift-api-digester --dump-sdk \
+            -module shared \
+            -target arm64-apple-ios17.0-simulator \
+            -sdk "$(xcrun --sdk iphonesimulator --show-sdk-path)" \
+            -F "${SIM_SLICE}" \
+            -o "${OUT}/shared-api.json" \
+            || echo "::warning::swift-api-digester exited non-zero - best-effort capture only, see shared-api.json (may be partial or absent) and the other captured interface files instead."
+
+      - name: Capture the generated shared-framework interface
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT="${RUNNER_TEMP}/kmp-interface"
+          mkdir -p "${OUT}"
+          if [ ! -d "${XCFRAMEWORK_PATH}" ]; then
+            echo "No XCFramework at ${XCFRAMEWORK_PATH} - an earlier step (most likely the Gradle build) must have failed before it could be assembled. Skipping capture." > "${OUT}/capture-skipped.txt"
+            ls -la "${OUT}"
+            exit 0
+          fi
+          find "${XCFRAMEWORK_PATH}" -maxdepth 5 > "${OUT}/xcframework-tree.txt"
+          # Kotlin/Native always emits an Obj-C header. SKIE's Swift output location is NOT verified
+          # yet on a real run, so rather than cherry-picking filenames nobody has confirmed, this
+          # searches broadly under the shared module's whole build output for anything that could
+          # plausibly be SKIE's Swift output (*.swift, *.swiftinterface, *.swiftmodule, or any path
+          # whose name contains "skie", case-insensitive) and archives the whole relevant tree.
+          while IFS= read -r f; do
+            cp "$f" "${OUT}/$(echo "$f" | tr '/' '_')"
+          done < <(find "${XCFRAMEWORK_PATH}" -name '*.h')
+          if [ -d mobile/shared/build ]; then
+            find mobile/shared/build \( -iname '*skie*' -o -name '*.swift' -o -name '*.swiftinterface' -o -name '*.swiftmodule' \) > "${OUT}/swift-output-file-list.txt" || true
+            if [ -s "${OUT}/swift-output-file-list.txt" ]; then
+              tar -czf "${OUT}/swift-output.tar.gz" -T "${OUT}/swift-output-file-list.txt"
+            else
+              echo "No *.swift / *.swiftinterface / *.swiftmodule file or skie-named path found under mobile/shared/build on this run." > "${OUT}/swift-output-file-list.txt"
+            fi
+            find mobile/shared/build -maxdepth 2 -type d > "${OUT}/shared-build-tree.txt"
+          else
+            echo "mobile/shared/build does not exist on this run." > "${OUT}/swift-output-file-list.txt"
+          fi
+          ls -la "${OUT}"
+
+      - name: Upload the generated shared-framework interface
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: kmp-swift-interface
+          path: ${{ runner.temp }}/kmp-interface
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ios-ci-logs
+          path: |
+            ${{ runner.temp }}/xcodebuild-build.log
+            ${{ runner.temp }}/xcodebuild-test.log
+            mobile/shared/build/reports/tests/**
+            mobile/shared/build/test-results/**
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Upload the xcresult bundle (failures only)
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ios-ci-xcresult
+          path: ${{ runner.temp }}/iosAppTests.xcresult
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Job summary
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "## iOS CI"
+            echo ""
+            echo "| Item | Value |"
+            echo "|---|---|"
+            echo "| Runner image | macos-15 (arm64) |"
+            echo "| Xcode | $(xcodebuild -version | head -n 1) |"
+            echo "| Simulator | ${SIM_DEVICE_NAME:-unresolved} / iOS ${SIM_OS_VERSION:-unresolved} |"
+            echo "| Gradle tasks | compileKotlinIosSimulatorArm64, linkDebugFrameworkIosSimulatorArm64, iosSimulatorArm64Test, assembleSharedDebugXCFramework |"
+            echo "| Xcode targets | iosApp (build), iosAppTests (test) |"
+            echo "| NOT covered | live backend, XCUITests, visual/RTL/Dynamic-Type/VoiceOver - MC-2/MC-3/MC-4 |"
+          } >> "$GITHUB_STEP_SUMMARY"
