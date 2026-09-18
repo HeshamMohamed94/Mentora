@@ -27,6 +27,25 @@
  *     constants, per design-to-code/shared/platform-contract.json's "android" mapping table.
  * This is purely additive — see the `--- ANDROID (KOTLIN) OUTPUT TARGET ---` section near the end
  * of this file. It does not read/write anything the three Web-output functions above it touch.
+ *
+ * Phase 5 Task T2 (execution/PHASE_5_IOS_IMPLEMENTATION_PLAN.md § "T2") added the iOS output
+ * target:
+ *   - mobile/iosApp/iosApp/Theme/MentoraTokens.swift — spacing, radius (incl. xlarge), elevation
+ *     radius/y/opacity per step, icon sizes, typography METRICS ONLY (size/lineHeight/weight/
+ *     tracking numbers — never a Font value; T6 composes the runtime Font/ViewModifier from these
+ *     numbers), per-theme state opacities, and touchTarget.ios_pt.
+ *   - mobile/iosApp/iosApp/Theme/Color+Mentora.swift — a Color extension, one computed property
+ *     per semantic color dot-path, reading the asset catalog below.
+ *   - mobile/iosApp/iosApp/Theme/MentoraColors.xcassets/ — one `.colorset` per semantic COLOR
+ *     dot-path (46; the color tree's other 5 leaves are state opacities, which are numbers, not
+ *     colors, and go into MentoraTokens.swift instead), each with an "Any Appearance" (light) and
+ *     a "Dark" (dark) appearance, plus one `mentoraShadowElevation<N>` colorset per elevation step
+ *     (Any = light theme's elevationShadowBase at that step's opacity; Dark = dark theme's
+ *     elevationShadowBase at that step's opacity x 0.7, per elevation.darkModeNote's ~30%
+ *     dark-mode shadow-opacity reduction — applied HERE so no SwiftUI view ever branches on
+ *     colorScheme for shadow strength).
+ * This is purely additive — see the `--- IOS (SWIFT) OUTPUT TARGET ---` section near the end of
+ * this file. It does not read/write anything the Web or Android output functions above it touch.
  */
 
 const fs = require('fs');
@@ -603,7 +622,282 @@ val MentoraTouchTargetMinDp: Dp = ${tokens.touchTarget.android_dp}.dp
 fs.mkdirSync(MOBILE_ANDROID_THEME_DIR, { recursive: true });
 fs.writeFileSync(path.join(MOBILE_ANDROID_THEME_DIR, 'MentoraTokens.kt'), androidKotlin, 'utf8');
 
+// ---------- IOS (SWIFT) OUTPUT TARGET ----------
+// mobile/iosApp/iosApp/Theme/{MentoraTokens.swift, Color+Mentora.swift, MentoraColors.xcassets/**}
+// — GENERATED, never hand-edited. Reuses flattenTree()/elevationLevels()/camelPath() above (the
+// SAME dot-path -> camelCase helper Android's target uses — iOS/Android share one naming
+// convention per platform-contract.json). Mapping table: design-to-code/shared/platform-contract.json#/ios.
+
+const MOBILE_IOS_THEME_DIR = path.join(ROOT, 'mobile', 'iosApp', 'iosApp', 'Theme');
+const IOS_COLORS_XCASSETS_DIR = path.join(MOBILE_IOS_THEME_DIR, 'MentoraColors.xcassets');
+
+/** Swift keywords that can't be used as a bare identifier (need backtick-escaping). Only
+ *  `icon.sizes.default` actually collides today, but this is kept general on purpose. */
+const SWIFT_RESERVED_IDENTIFIERS = new Set([
+  'default', 'case', 'switch', 'for', 'in', 'where', 'is', 'as', 'if', 'else', 'guard', 'while',
+  'repeat', 'do', 'catch', 'try', 'throw', 'throws', 'rethrows', 'return', 'break', 'continue',
+  'fallthrough', 'defer', 'func', 'var', 'let', 'class', 'struct', 'enum', 'protocol', 'extension',
+  'import', 'typealias', 'associatedtype', 'operator', 'precedencegroup', 'internal', 'private',
+  'public', 'static', 'self', 'Self', 'true', 'false', 'nil', 'init', 'deinit', 'subscript', 'inout',
+]);
+
+/** "default" -> "`default`"; "brandPrimary" -> "brandPrimary" (unchanged). */
+function swiftIdentifier(name) {
+  return SWIFT_RESERVED_IDENTIFIERS.has(name) ? `\`${name}\`` : name;
+}
+
+/** "mentora" + capitalized camelPath(dotPath) — the asset-catalog-name / Color-extension-property
+ *  naming convention platform-contract.json#/ios/colorMapping specifies (e.g. "brand.primary" ->
+ *  "mentoraBrandPrimary"). */
+function iosColorName(dotPath) {
+  return `mentora${capitalizeSegment(camelPath(dotPath))}`;
+}
+
+/** "#RRGGBB" / "#RRGGBBAA" / "rgba(r,g,b,a)" -> { r, g, b: two-digit uppercase hex strings (no
+ *  "0x" prefix), a: 0..1 } for Xcode's color-set component encoding. */
+function colorLiteralToIosComponents(raw) {
+  const v = String(raw).trim();
+  if (v.startsWith('#')) {
+    const hex = v.slice(1);
+    if (hex.length === 6) {
+      return { r: hex.slice(0, 2).toUpperCase(), g: hex.slice(2, 4).toUpperCase(), b: hex.slice(4, 6).toUpperCase(), a: 1 };
+    }
+    if (hex.length === 8) {
+      return {
+        r: hex.slice(0, 2).toUpperCase(),
+        g: hex.slice(2, 4).toUpperCase(),
+        b: hex.slice(4, 6).toUpperCase(),
+        a: parseInt(hex.slice(6, 8), 16) / 255,
+      };
+    }
+    throw new Error(`generate.js (ios): unexpected hex color length in "${v}"`);
+  }
+  const m = v.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)$/);
+  if (m) {
+    const [, r, g, b, a] = m;
+    const toHex = (n) => Number(n).toString(16).padStart(2, '0').toUpperCase();
+    return { r: toHex(r), g: toHex(g), b: toHex(b), a: a !== undefined ? parseFloat(a) : 1 };
+  }
+  throw new Error(`generate.js (ios): cannot convert color "${v}" to iOS color-set components`);
+}
+
+/** Same RGB as `baseRgba`, alpha overridden to `opacity` — used for the elevation shadow
+ *  colorsets, whose alpha is the elevation step's opacity, not elevationShadowBase's own (fixed
+ *  1.0) alpha. */
+function shadowComponents(baseRgba, opacity) {
+  const base = colorLiteralToIosComponents(baseRgba);
+  return { r: base.r, g: base.g, b: base.b, a: opacity };
+}
+
+function iosColorSetContents(lightComponents, darkComponents) {
+  const toColorJson = (c) => ({
+    'color-space': 'srgb',
+    components: { red: `0x${c.r}`, green: `0x${c.g}`, blue: `0x${c.b}`, alpha: c.a.toFixed(3) },
+  });
+  return {
+    colors: [
+      { idiom: 'universal', color: toColorJson(lightComponents) },
+      { idiom: 'universal', appearances: [{ appearance: 'luminosity', value: 'dark' }], color: toColorJson(darkComponents) },
+    ],
+    info: { version: 1, author: 'xcode' },
+  };
+}
+
+function writeIosColorSet(name, lightComponents, darkComponents) {
+  const colorSetDir = path.join(IOS_COLORS_XCASSETS_DIR, `${name}.colorset`);
+  fs.mkdirSync(colorSetDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(colorSetDir, 'Contents.json'),
+    JSON.stringify(iosColorSetContents(lightComponents, darkComponents), null, 2) + '\n',
+    'utf8'
+  );
+}
+
+const iosGeneratedHeader = `// GENERATED — DO NOT EDIT.
+// Source: design-system/design-tokens.json, design-system/themes/theme-{light,dark}.json
+// Regenerate with: npm run generate (from tools/token-pipeline/), or node tools/token-pipeline/generate.js
+`;
+
+// ---- MentoraColors.xcassets (color catalog: 46 semantic colorsets + per-step shadow colorsets) ----
+// Rebuilt from scratch every run (rm + mkdir) so a renamed/removed token never leaves a stale
+// colorset directory behind.
+
+fs.rmSync(IOS_COLORS_XCASSETS_DIR, { recursive: true, force: true });
+fs.mkdirSync(IOS_COLORS_XCASSETS_DIR, { recursive: true });
+fs.writeFileSync(
+  path.join(IOS_COLORS_XCASSETS_DIR, 'Contents.json'),
+  JSON.stringify({ info: { version: 1, author: 'xcode' } }, null, 2) + '\n',
+  'utf8'
+);
+
+const iosLightColorFlat = flattenTree(themeLight.color, '', {});
+const iosDarkColorFlat = flattenTree(themeDark.color, '', {});
+const iosColorDotPaths = Object.keys(iosLightColorFlat);
+
+for (const dotPath of iosColorDotPaths) {
+  writeIosColorSet(
+    iosColorName(dotPath),
+    colorLiteralToIosComponents(iosLightColorFlat[dotPath]),
+    colorLiteralToIosComponents(iosDarkColorFlat[dotPath])
+  );
+}
+
+// elevation.darkModeNote's ~30% dark-mode shadow-opacity reduction, applied in the generator
+// (once) rather than in any SwiftUI view (never).
+const IOS_DARK_SHADOW_OPACITY_FACTOR = 0.7;
+
+for (const [step, level] of elevationLevels()) {
+  writeIosColorSet(
+    `mentoraShadowElevation${step}`,
+    shadowComponents(themeLight.elevationShadowBase, level.ios.opacity),
+    shadowComponents(themeDark.elevationShadowBase, level.ios.opacity * IOS_DARK_SHADOW_OPACITY_FACTOR)
+  );
+}
+
+// ---- Color+Mentora.swift ----
+
+function iosColorExtensionLines() {
+  return iosColorDotPaths.map((dotPath) => {
+    const name = iosColorName(dotPath);
+    return `    static var ${name}: Color { Color("${name}") }`;
+  });
+}
+
+const colorMentoraSwift = `${iosGeneratedHeader}
+import SwiftUI
+
+/// One computed property per semantic color dot-path (design-tokens.json#/color/semantic),
+/// reading MentoraColors.xcassets — "Any Appearance" is the light theme's value, "Dark" is the
+/// dark theme's, so SwiftUI's automatic dark-mode resolution does the theme switch; no view ever
+/// branches on colorScheme for these. Mirrors platform-contract.json#/ios/colorMapping.
+extension Color {
+${iosColorExtensionLines().join('\n')}
+}
+`;
+
+fs.writeFileSync(path.join(MOBILE_IOS_THEME_DIR, 'Color+Mentora.swift'), colorMentoraSwift, 'utf8');
+
+// ---- MentoraTokens.swift ----
+
+function iosSpacingLines() {
+  return Object.entries(tokens.spacing.scale).map(
+    ([k, v]) => `    static let ${swiftIdentifier(camelPath(k))}: CGFloat = ${v}`
+  );
+}
+
+function iosRadiusLines() {
+  return Object.entries(tokens.shape.radius).map(
+    ([k, v]) => `    static let ${swiftIdentifier(camelPath(k))}: CGFloat = ${v}`
+  );
+}
+
+function iosElevationLines() {
+  return elevationLevels().map(
+    ([k, v]) =>
+      `    static let level${k} = MentoraElevationStep(radius: ${v.ios.radius}, y: ${v.ios.y}, opacity: ${v.ios.opacity})`
+  );
+}
+
+function iosIconSizeLines() {
+  return Object.entries(tokens.icon.sizes).map(
+    ([k, v]) => `    static let ${swiftIdentifier(camelPath(k))}: CGFloat = ${v}`
+  );
+}
+
+function iosTypographyLines() {
+  return Object.entries(tokens.typography.scale).map(([name, style]) => {
+    const prop = swiftIdentifier(camelPath(name));
+    return (
+      `    static let ${prop} = MentoraTypographyMetrics(\n` +
+      `        fontSize: ${style.fontSize},\n` +
+      `        lineHeight: ${style.lineHeight},\n` +
+      `        fontWeight: ${style.fontWeight},\n` +
+      `        tracking: ${style.letterSpacing}\n` +
+      `    )`
+    );
+  });
+}
+
+/** theme-{light,dark}.json's stateOpacity keys ("hover", "pressed", ...) with the "Opacity"
+ *  suffix design-tokens.json's color.semantic.*.state.* keys already carry — same convention
+ *  Android's androidStateOpacityObjectLines() above uses, mirrored here for iOS. */
+function iosStateOpacityLines(stateOpacity) {
+  return Object.entries(stateOpacity).map(([k, v]) => `    static let ${camelPath(k)}Opacity: Double = ${v}`);
+}
+
+const mentoraTokensSwift = `${iosGeneratedHeader}
+import CoreGraphics
+
+/// One typography.scale entry (design-tokens.json § typography.scale) — METRICS ONLY (size /
+/// lineHeight / weight / tracking numbers). Deliberately NOT a SwiftUI Font: Dynamic Type needs
+/// \`Font.custom(_:size:relativeTo:)\` (which requires a bundled font) or a \`ViewModifier\` +
+/// \`@ScaledMetric\` composed at runtime from these numbers — see
+/// design-to-code/shared/platform-contract.json#/ios/typographyMapping and
+/// PHASE_5_IOS_SYSTEM_DESIGN.md § 15.1 (a later task, not this one, implements that modifier).
+struct MentoraTypographyMetrics {
+    let fontSize: CGFloat
+    let lineHeight: CGFloat
+    let fontWeight: CGFloat
+    let tracking: CGFloat
+}
+
+/// elevation.<N>.ios (design-tokens.json) — shadow radius/y/opacity for one elevation step. The
+/// step's shadow COLOR (elevationShadowBase resolved per theme, dark reduced by 30%) lives in the
+/// generated \`mentoraShadowElevation<N>\` colorset instead (Color+Mentora.swift / MentoraColors.xcassets),
+/// not here.
+struct MentoraElevationStep {
+    let radius: CGFloat
+    let y: CGFloat
+    let opacity: Double
+}
+
+/// spacing.scale (design-tokens.json), as pt.
+enum MentoraSpacing {
+${iosSpacingLines().join('\n')}
+}
+
+/// shape.radius (design-tokens.json), as pt.
+enum MentoraRadius {
+${iosRadiusLines().join('\n')}
+}
+
+/// elevation.0..4 (design-tokens.json), using each step's ios.{radius,y,opacity}.
+enum MentoraElevation {
+${iosElevationLines().join('\n')}
+}
+
+/// icon.sizes (design-tokens.json), as pt.
+enum MentoraIconSize {
+${iosIconSizeLines().join('\n')}
+}
+
+/// typography.scale (design-tokens.json) — one MentoraTypographyMetrics per scale entry.
+enum MentoraTypography {
+${iosTypographyLines().join('\n\n')}
+}
+
+/// theme-light.json's stateOpacity — hover/pressed/focus/disabled interaction-state opacities.
+enum MentoraStateOpacityLight {
+${iosStateOpacityLines(themeLight.stateOpacity).join('\n')}
+}
+
+/// theme-dark.json's stateOpacity — same properties as MentoraStateOpacityLight, dark values.
+enum MentoraStateOpacityDark {
+${iosStateOpacityLines(themeDark.stateOpacity).join('\n')}
+}
+
+/// touchTarget.ios_pt (design-tokens.json) — minimum touch target size.
+enum MentoraTouchTarget {
+    static let iosPt: CGFloat = ${tokens.touchTarget.ios_pt}
+}
+`;
+
+fs.mkdirSync(MOBILE_IOS_THEME_DIR, { recursive: true });
+fs.writeFileSync(path.join(MOBILE_IOS_THEME_DIR, 'MentoraTokens.swift'), mentoraTokensSwift, 'utf8');
+
 console.log(
   'Generated web/styles/tokens.css, web/styles/tailwind-theme.css, web/src/lib/design-tokens.generated.ts, ' +
-    'and mobile/androidApp/src/main/kotlin/com/mentora/android/theme/MentoraTokens.kt'
+    'mobile/androidApp/src/main/kotlin/com/mentora/android/theme/MentoraTokens.kt, and ' +
+    'mobile/iosApp/iosApp/Theme/{MentoraTokens.swift, Color+Mentora.swift, MentoraColors.xcassets/**} ' +
+    `(${iosColorDotPaths.length} color sets + ${elevationLevels().length} shadow sets)`
 );
