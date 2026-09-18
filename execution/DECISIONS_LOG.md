@@ -4495,3 +4495,151 @@ changed (T4b's Swift bootstrap code is not implicated — see the note appended 
 Kotlin/Native Apple-platform toolchain, as always). **Status: authored, NOT compile-verified — CI run #12
 is the only real verification, exactly as stated above.** Do not start T5 or any feature-UI work; T4b
 remains implemented/pending-CI per D108's own status, unaffected by this entry.
+
+**Correction appended 2026-09-19, found during a pre-push Opus review of this entry's own commit
+(`b1623c1`) — see D110 below for the fix round this correction is part of. Three inaccuracies in the
+writeup above, corrected here rather than silently rewritten, per this log's own convention:**
+
+1. *"`interpretObjCPointer`... with no retain/release side effect"* (above, and in the deleted
+   `asNSString()` kdoc this entry's fix introduced) is inaccurate. Per the D110 review, `interpretObjCPointer`
+   routes through `Kotlin_Interop_refFromObjC`, which establishes a genuine *managed* Kotlin reference —
+   retained now, released when the Kotlin-side wrapper is garbage-collected — not "no side effect" at all.
+   The corrected characterization: it is a *balanced* reference (retain now, matching release later, both
+   sides handled by the Kotlin/Native runtime), which is why it was still the right choice over
+   `CFBridgingRelease` (an *unbalanced*, ownership-transferring release that would have wrongly decremented
+   a borrowed, process-lifetime framework constant's retain count) — the conclusion above was correct, the
+   stated reasoning for it was not.
+2. *"`interpretObjCPointer`'s exact declaration... could not be read from source on this host"* is false as
+   stated. `kotlinx.cinterop` (including `interpretObjCPointer`) is part of the **common** Kotlin/Native
+   stdlib, not an Apple-platform klib — its source is present on this Windows machine at
+   `~/.konan/kotlin-native-prebuilt-windows-x86_64-2.0.21/sources/kotlin-stdlib-native-sources.zip`
+   (`nativeMain/kotlinx/cinterop/ObjectiveCImpl.kt`), and was in fact read from exactly there for the D110
+   review. Only the `platform.Security`/`platform.CoreFoundation` Apple-platform klib declarations (e.g.
+   `CFStringRef`'s real typealias target) are genuinely unreadable on this host, per the "no Apple klibs
+   cached on Windows" limitation already stated correctly elsewhere in this entry — the blanket claim above
+   incorrectly conflated the two.
+3. *"`IosTokenStorageTest.kt`'s 18 tests"* (above, and D107's original count, and `CURRENT_STATUS.md`'s T1b
+   row) undercounts the file even as of this entry's own writing: it has 20 `@Test` functions, no `@Ignore`s,
+   confirmed by direct count. This was not a count that grew since D109 was written — the file already had
+   20 when this entry was authored. Left uncorrected in the prose above (per this log's convention of not
+   rewriting history in place); D110 below and its `CURRENT_STATUS.md` companion edit use the correct count
+   of 20 going forward.
+
+### D110 — 2026-09-19 — Pre-push Opus review of the D109 commit (`b1623c1`) found the fix correct but incomplete: a mirror-image cast bug six lines further down the same functions, fixed before pushing to CI
+
+**Context.** Before pushing D109's commit (`b1623c1`) to trigger CI run #12, an Opus review of that commit
+(decompiled against this machine's own pinned `kotlin-native-prebuilt-windows-x86_64-2.0.21` compiler
+internals — `org.jetbrains.kotlin.backend.konan.llvm.CodeGeneratorVisitor.genInstanceOfImpl`) found the fix
+was directionally correct but did not go far enough, and would very likely have moved the crash one line
+further down the same call chain on the very next real CI run.
+
+**The finding (high confidence, ~85-90%, NOT yet a real observed crash — see the honesty note below).**
+Kotlin/Native's `as` operator picks its cast strategy purely based on whether the **destination** type of
+the cast is an Objective-C type. `kSecClass as NSString` (what D109 fixed) has an ObjC destination type
+(`NSString`), so it takes the ObjC-aware `isKindOfClass:` path — the non-retaining `interpretObjCPointer`
+reinterpret D109 introduced was exactly the right fix for that direction. But `SecurityFrameworkKeychain`
+had six more casts of the *opposite* shape, all still present after D109's fix:
+```kotlin
+return SecItemAdd(newItem as CFDictionaryRef, null)                                          // add()
+return SecItemUpdate(baseQuery() as CFDictionaryRef, attributesToUpdate as CFDictionaryRef)   // update()
+override fun delete(): Int = SecItemDelete(baseQuery() as CFDictionaryRef)                    // delete()
+return SecItemCopyMatching(query as CFDictionaryRef, null)                                    // exists()
+val status = SecItemCopyMatching(query as CFDictionaryRef, resultRef.ptr)                     // copyMatching()
+```
+Here the destination type (`CFDictionaryRef`, a plain `kotlinx.cinterop.CPointer`) is NOT an Objective-C
+type, so Kotlin/Native's `as` falls back to its ordinary Kotlin `TypeInfo` subtype check — and an
+`NSMutableDictionary` instance (what `baseQuery()`/`add()`/`update()` built the query out of) is not a
+`CPointer` subtype at that level, so every one of these would throw `TypeCastException` too, on the very
+next real Keychain call after D109's fix got past `baseQuery()`'s own casts. Predicted crash, if this fix
+round had not been made: `kotlin.TypeCastException: class platform.Foundation.NSMutableDictionary cannot be
+cast to class kotlinx.cinterop.CPointer`, same `restoreSession()` → `readTokens()` → `copyMatching()` call
+chain as D109's real CI-run-#11 crash, just six lines further down.
+
+**The fix — rebuild the query dictionaries as real `CFDictionary`s instead of `NSMutableDictionary`.**
+`baseQuery()` now returns a `CFMutableDictionaryRef` built via `CFDictionaryCreateMutable(kCFAllocatorDefault,
+0, kCFTypeDictionaryKeyCallBacks.ptr, kCFTypeDictionaryValueCallBacks.ptr)`, populated with
+`CFDictionaryAddValue`, instead of an `NSMutableDictionary`. This sidesteps the NSObject↔CFTypeRef bridging
+problem for the dictionary itself in both directions at once — no cast of the dictionary is needed at any
+`SecItem*` call site any more (a `CFMutableDictionaryRef` already satisfies each function's `CFDictionaryRef?`
+parameter type directly), and [D109's `asNSString()`] extension is now entirely unused and deleted, since
+every dictionary entry is built with genuine CF-native values instead:
+- `kSecClass`/`kSecClassGenericPassword`, `kSecAttrAccessible`/`kSecAttrAccessibleWhenUnlockedThisDeviceOnly`,
+  `kSecMatchLimit`/`kSecMatchLimitOne` — raw, borrowed (Core Foundation "Get Rule") `CFStringRef` constants,
+  passed directly to `CFDictionaryAddValue` (which takes `CFTypeRef?` on both sides) with no bridging at all.
+- `service`/`account` (plain Kotlin `String`s) — bridged via a new `String.toCFStringRef()` helper
+  (`CFBridgingRetain(this as NSString) as CFStringRef`, a genuine +1-owned "Create Rule" result), added to
+  the dictionary, then immediately `CFRelease`d — the dictionary's own `kCFTypeDictionaryValueCallBacks`
+  retains its own copy on `CFDictionaryAddValue`, so releasing the local +1 right after adding does not
+  under-retain the value the dictionary now holds.
+- `kSecValueData`'s `NSData` payload (`add()`/`update()`) — same `CFBridgingRetain(data) as CFTypeRef` /
+  `CFDictionaryAddValue` / `CFRelease` pattern as `service`/`account` above.
+- `kSecReturnData`'s boolean (`copyMatching()`) — **Finding #2 (also from this review, fixed for free by the
+  rewrite):** the old code passed a Kotlin `true` literal, which bridges to a Kotlin/Native-synthesized
+  `NSNumber`-shaped wrapper across the ObjC/CF boundary, not the genuine `kCFBoolean` singleton Security
+  .framework's query validation expects in some cases. Now uses `kCFBooleanTrue` (`platform.CoreFoundation`)
+  directly, the real CFBoolean constant, with no bridging needed (same "Get Rule" treatment as the `kSecXxx`
+  constants above).
+
+Every `CFBridgingRetain`/`CFDictionaryCreateMutable` allocation (the two per-call query/attributes
+dictionaries themselves, plus each `service`/`account`/`data` value bridged into them) is released exactly
+once, on every exit path including early returns and exceptions, via `try { ... } finally { CFRelease(...) }`
+around each method body — re-audited by re-reading the whole file once after the rewrite specifically
+looking for a leak-on-early-return path; none found (the `toKeychainData() ?: return@runCatching errSecParam`
+early exits in `add()`/`update()` happen before any dictionary is created, so there is nothing to release on
+those paths, matching what D109's original review already noted).
+
+**Finding #3 (same review, same file) — defensive degradation added.** None of `SecurityFrameworkKeychain`'s
+five `KeychainStore` methods caught anything; any interop mistake in this class (like the two cast bugs found
+across D109/D110) would crash the whole process instead of surfacing as a `KeychainFailure`/`OSStatus`,
+defeating K3 ("never throw across the Swift boundary"). Every method body is now wrapped in
+`runCatching { ... }.getOrElse { errSecParam }` (`copyMatching()`'s fallback is `KeychainReadResult(errSecParam,
+null)`), so a *future* interop bug in this class degrades to a reportable failure instead of a hard crash. This
+is a defensive addition, not a fix for an observed bug — no exception has ever actually been thrown from this
+class as far as this project's CI history shows.
+
+**Documentation corrections.** See the correction block appended to the end of D109 above for three
+inaccuracies found during this review's own reading of D109's writeup: (1) `interpretObjCPointer` does have a
+retain/release side effect (a *balanced* managed reference), it does not have "no" side effect; (2)
+`kotlinx.cinterop` source (including `interpretObjCPointer`) IS readable on this Windows host from the
+cached stdlib-sources zip — only the Apple-platform `platform.Security`/`platform.CoreFoundation` klib
+declarations are not; (3) `IosTokenStorageTest.kt` has 20 `@Test` functions, not 18, confirmed by direct
+count with no `@Ignore`s — this entry and its `CURRENT_STATUS.md` companion edit use 20 throughout.
+
+**Honesty about verification status — repeating D109's own framing, because it applies identically here.**
+Finding #1 (the `as CFDictionaryRef` bug) was **never actually observed in a real CI crash**. It is a
+pre-emptive fix based on the same class of decompiled-compiler-internals reasoning that found D109's
+original, CI-confirmed bug — strong, but not itself CI-confirmed. **CI run #12 is still the real verification
+for all of this** (both D109's original fix and this entry's rewrite), not an assumption that either is
+correct. If `CFDictionaryCreateMutable`/`CFDictionaryAddValue`'s exact call shape used here turns out to be
+even slightly wrong, that will be a real Kotlin/Native compiler error on that run (no code path here can
+partially "sort of" compile), not a silent behavioral bug.
+
+**Self-review leak audit — two more real leak-on-exception paths found and fixed before commit.**
+Re-reading the whole file once after the rewrite (as this fix round's own verification step requires) found
+two exit paths the first draft of the rewrite missed: (1) `baseQuery()` itself had no `try`/`finally` around
+its own construction — if `service.toCFStringRef()`/`account.toCFStringRef()` ever threw mid-build, the
+just-created `CFDictionaryCreateMutable` result would leak silently, since it had not yet been returned to
+any caller that could release it; fixed with an internal `built` flag + `finally { if (!built) CFRelease(query) }`.
+(2) `update()`'s second `CFDictionaryCreateMutable(...)!!` call (for `attributesToUpdate`) sat *outside* the
+`try` that releases `query`, so an exception there (including the `!!` itself, however unlikely) would leak
+`query`; fixed by nesting `attributesToUpdate`'s construction and its own `finally` inside `query`'s `try`.
+Both are exactly the kind of subtle exit-path mistake this fix round exists to guard against; neither was
+found by a real crash, both by re-reading the code specifically looking for this class of bug.
+
+**Files.** `mobile/shared/src/iosMain/kotlin/com/mentora/shared/auth/Keychain.kt` only — the `CFDictionary`
+rewrite, `kCFBooleanTrue` fix, and `runCatching` defensive wrapping are all inside `SecurityFrameworkKeychain`.
+No Swift file changed (this is entirely inside the Kotlin/Native `SecItem*`-calling class D109 already
+identified as the only code in this module that calls `platform.Security` directly). No `iosTest`/`commonTest`
+file changed — `KeychainStore`'s public interface (`add`/`update`/`delete`/`copyMatching`/`exists` signatures)
+is unchanged, so `FakeKeychain`/`IosTokenStorageTest.kt` needed no edits; the pre-existing "real
+`SecurityFrameworkKeychain` iosTest coverage gap" D109 disclosed and left as a follow-up is unaffected by
+this entry (still not closed, still a follow-up).
+
+**Verification performed on Windows.** `:shared:testDebugUnitTest` re-run: 249/249, unchanged (`iosMain` is
+not part of this task's compile inputs). `:androidApp:testDebugUnitTest` re-run: 241/241, unchanged (no
+Android code touched). `IosTokenStorageTest.kt` confirmed 20 `@Test` functions, 0 `@Ignore`s, by direct count.
+`:shared:compileKotlinIosSimulatorArm64`/`:shared:iosSimulatorArm64Test` cannot run on this host — no
+Kotlin/Native Apple-platform toolchain on Windows, same limitation as every other T1b entry in this log.
+**Status: authored, NOT compile-verified — CI run #12 is the only real verification, exactly as D109 already
+stated for its own fix.** Do not start T5 or any feature-UI work; T4b remains implemented/pending-CI per
+D108's own status, unaffected by this entry.

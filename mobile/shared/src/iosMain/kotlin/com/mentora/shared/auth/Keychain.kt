@@ -2,22 +2,29 @@ package com.mentora.shared.auth
 
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.alloc
-import kotlinx.cinterop.interpretObjCPointer
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.ptr
-import kotlinx.cinterop.rawValue
 import kotlinx.cinterop.value
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import platform.CoreFoundation.CFDictionaryAddValue
+import platform.CoreFoundation.CFDictionaryCreateMutable
 import platform.CoreFoundation.CFDictionaryRef
+import platform.CoreFoundation.CFMutableDictionaryRef
+import platform.CoreFoundation.CFRelease
 import platform.CoreFoundation.CFStringRef
+import platform.CoreFoundation.CFTypeRef
 import platform.CoreFoundation.CFTypeRefVar
+import platform.CoreFoundation.kCFAllocatorDefault
+import platform.CoreFoundation.kCFBooleanTrue
+import platform.CoreFoundation.kCFTypeDictionaryKeyCallBacks
+import platform.CoreFoundation.kCFTypeDictionaryValueCallBacks
 import platform.Foundation.CFBridgingRelease
+import platform.Foundation.CFBridgingRetain
 import platform.Foundation.NSData
-import platform.Foundation.NSMutableDictionary
 import platform.Foundation.NSString
 import platform.Foundation.NSUTF8StringEncoding
 import platform.Foundation.create
@@ -83,25 +90,38 @@ import platform.Security.kSecValueData
 //            KeychainStatus.lastFailure was also public when only iosTest (via test-compilation
 //            association) needs it; narrowed to internal.
 //
-// Real-CI fix round (see DECISIONS_LOG.md, the entry cross-referencing D97/D98/D99): the first
-// actual on-device launch (Phase 5 Task T4b's real CI run) crashed with a genuine, deterministic
-// `kotlin.TypeCastException: class kotlinx.cinterop.CPointer cannot be cast to class
-// platform.Foundation.NSString` inside baseQuery() -- every `kSecXxx` constant this file uses
-// (`kSecClass`, `kSecClassGenericPassword`, `kSecAttrService`, `kSecAttrAccount`, `kSecValueData`,
-// `kSecAttrAccessible`, `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`, `kSecMatchLimit`,
-// `kSecMatchLimitOne`, `kSecReturnData`) is a raw, un-bridged cinterop `CFStringRef?`/`CPointer` at
-// the Kotlin type level, not Kotlin/Native's internal `NSString` object representation, even though
-// they are toll-free-bridged at the ObjC/CF ABI level -- see [asNSString]'s kdoc for the full
-// explanation. This was a pre-existing T1b bug, never actually exercised before this exact CI run
-// (this file's `iosTest` suite drives `IosTokenStorage` through `FakeKeychain`, a test double that
-// never calls into this class at all -- see IosTokenStorageTest.kt / FakeKeychain.kt). Every
-// `kSecXxx as NSString` cast site is fixed via [asNSString] below; the same underlying bug also
-// affected `kSecClassGenericPassword`, `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`, and
-// `kSecMatchLimitOne` where they were previously passed as bare dictionary *values* with no cast at
-// all -- those are raw CFStringRef constants too, and passing a raw CPointer as `Any` to an
-// NSMutableDictionary would have stored a Kotlin/Native synthetic object wrapper instead of the
-// real CFString constant Security.framework matches against, which SecItemAdd/SecItemCopyMatching
-// cannot recognize -- fixed identically via [asNSString].
+// Real-CI fix round (see DECISIONS_LOG.md D109): the first actual on-device launch (Phase 5 Task
+// T4b's real CI run #11) crashed with a genuine, deterministic `kotlin.TypeCastException: class
+// kotlinx.cinterop.CPointer cannot be cast to class platform.Foundation.NSString` inside
+// baseQuery() -- every `kSecXxx` constant this file uses is a raw, un-bridged cinterop
+// `CFStringRef?`/`CPointer` at the Kotlin type level, not Kotlin/Native's internal `NSString`
+// object representation, even though they are toll-free-bridged at the ObjC/CF ABI level. That
+// round's fix was a private `CFStringRef?.asNSString()` extension (`interpretObjCPointer`-based, a
+// non-retaining "Get Rule" reinterpret cast) used at every `kSecXxx` cast/value site, applied atop
+// an `NSMutableDictionary`-based query. D109 is the full incident writeup and root-cause detail.
+//
+// Real-CI fix round 2 (see DECISIONS_LOG.md D110): an Opus review of the D109 commit, done BEFORE
+// pushing it, found that fix was correct but incomplete -- it fixed every `kSecXxx as NSString`
+// cast (destination type IS an Objective-C type, so Kotlin/Native's `as` took the ObjC-aware
+// `isKindOfClass:` path, which is what needed the non-retaining reinterpret), but left six
+// `queryDict as CFDictionaryRef` casts untouched at every `SecItem*` call site. Those are the
+// mirror-image bug: the destination type (`kotlinx.cinterop.CPointer`/`CFDictionaryRef`) is a
+// plain Kotlin class, NOT an Objective-C type, so Kotlin/Native's `as` falls back to its ordinary
+// Kotlin TypeInfo subtype check instead of the ObjC-aware path -- and an `NSMutableDictionary`
+// instance is not a `CPointer` subtype at that level, so every one of those casts would have
+// thrown `TypeCastException` too, just six lines further down the same functions, on the very next
+// real CI run. The fix: `baseQuery()` and every ad-hoc dictionary in `add()`/`update()` are now
+// built as genuine `CFDictionary`s via `CFDictionaryCreateMutable`/`CFDictionaryAddValue`, not
+// `NSMutableDictionary` -- this sidesteps the NSObject<->CFTypeRef bridging problem for the
+// dictionary itself in both directions at once, so [asNSString] (deleted by this fix round) is no
+// longer needed for keys/values either. This also incidentally fixed a second, independently-found
+// issue (`kCFBooleanTrue` used instead of a Kotlin `true` literal for `kSecReturnData` -- see
+// D110), and `SecurityFrameworkKeychain`'s five methods now `runCatching` their bodies so a future
+// interop mistake in this class degrades to an `errSecParam`-shaped `KeychainFailure` instead of
+// crashing the process (K3). See D110 for the full writeup, including the explicit disclosure that
+// this round's own finding (the `as CFDictionaryRef` bug) was never actually observed in a real CI
+// crash -- it is a pre-emptive fix based on the same class of compiler-internals reasoning that
+// found the original D109 bug, not yet confirmed by a real crash log.
 
 /** Same (service, account) shape Phase 3 shipped for the single Keychain item this module owns —
  * preserved verbatim per T1b's "same Keychain class and service" constraint. K1: the access/
@@ -163,6 +183,12 @@ internal interface KeychainStore {
  * provide. Fix B (review round 3): this attribute is set only on [add]'s own dictionary, not on
  * [baseQuery] shared by every search/update/delete operation — see [baseQuery]'s kdoc for why
  * putting it there would be actively harmful, not just redundant.
+ *
+ * Real-CI fix round 2 (D110): every method body is wrapped in `runCatching { }.getOrElse { }` so a
+ * future interop mistake in this class (an incorrect cast, a wrong CF calling convention, etc.)
+ * degrades to a reportable `errSecParam`-shaped failure instead of crashing the whole process --
+ * this class is the only place `platform.Security`/raw `platform.CoreFoundation` calls happen in
+ * this module, so it is also the only place such a mistake could ever originate.
  */
 @OptIn(ExperimentalForeignApi::class)
 internal class SecurityFrameworkKeychain(
@@ -171,52 +197,74 @@ internal class SecurityFrameworkKeychain(
 ) : KeychainStore {
 
     /**
-     * Reinterprets a `platform.Security` `CFStringRef?` global constant (`kSecClass`,
-     * `kSecClassGenericPassword`, `kSecAttrService`, etc.) as the genuine Kotlin/Native `NSString`
-     * instance `NSMutableDictionary.setObject(forKey:)` needs, whether used as a query key or as a
-     * query value.
-     *
-     * These constants are raw, un-bridged cinterop `CPointer`s at the Kotlin type level -- NOT
-     * Kotlin/Native's internal representation of an actual Objective-C `NSString` object -- even
-     * though `CFStringRef` and `NSString*` are toll-free-bridged at the Objective-C/C ABI level.
-     * The naive `kSecClass as NSString` this file used to write is a REAL Kotlin/Native runtime
-     * type check against its own internal object-model tag, and a raw interop `CPointer` never
-     * carries that tag, so the cast threw `TypeCastException` unconditionally, on every real
-     * Keychain call, the first time this class ever actually ran on real hardware (see the
-     * "Real-CI fix round" note above this class for the full incident and DECISIONS_LOG.md for the
-     * write-up).
-     *
-     * [interpretObjCPointer] reinterprets an already-live raw native pointer as an existing
-     * instance of an Objective-C-interop-mapped Kotlin/Native type, with NO retain/release side
-     * effect -- exactly the right semantics here, because these constants are borrowed,
-     * process-lifetime, framework-owned globals (the CoreFoundation "Get Rule": a caller never owns
-     * them). [CFBridgingRelease] is deliberately NOT used for this -- it both bridges AND releases,
-     * which is correct only for a genuinely +1-owned "Create Rule" result (e.g. [copyMatching]'s
-     * `SecItemCopyMatching` out-parameter below), and would instead incorrectly decrement one of
-     * these global constants' retain count on every single Keychain call for the process's entire
-     * lifetime -- an eventual over-release/corruption of a framework-global constant, a far worse
-     * and harder-to-diagnose bug than the crash this fixes.
+     * Bridges a plain Kotlin [String] to a genuine, `+1`-owned (Core Foundation "Create Rule")
+     * `CFStringRef` via `CFBridgingRetain`. The caller owns the result and must `CFRelease` it
+     * exactly once -- every call site below does so immediately after handing the value to
+     * `CFDictionaryAddValue` (which retains it a second time via the dictionary's own "Create
+     * Rule" value callbacks, so the dictionary's ownership does not depend on this local retain
+     * surviving).
      */
-    private fun CFStringRef?.asNSString(): NSString = interpretObjCPointer(this!!.rawValue)
+    private fun String.toCFStringRef(): CFStringRef = CFBridgingRetain(this as NSString) as CFStringRef
 
-    /** The shared shape for every search/update/delete query (`copyMatching`, `exists`, `update`,
-     * `delete`): identifies the item by (class, service, account) only. Fix B (review round 3):
-     * deliberately does NOT include [kSecAttrAccessible] -- that attribute is a *matchable* search
-     * attribute to `SecItemCopyMatching`/`SecItemUpdate`/`SecItemDelete`, not just a write-time
-     * attribute to `SecItemAdd`. Including it here would mean any item whose accessibility class
-     * does not exactly match [kSecAttrAccessibleWhenUnlockedThisDeviceOnly] -- e.g. a hypothetical
-     * item written before this attribute was ever set, defaulting to the OS's own default
-     * accessibility class -- becomes invisible to every read/update/delete query issued through
-     * this class, while still colliding with [add]'s primary-key match (class+service+account) on
+    /**
+     * Builds a fresh, `+1`-owned (`CFDictionaryCreateMutable`, Core Foundation "Create Rule")
+     * `CFDictionary` for the shared search/update/delete query shape: identifies the item by
+     * (class, service, account) only. Fix B (review round 3): deliberately does NOT include
+     * [kSecAttrAccessible] -- that attribute is a *matchable* search attribute to
+     * `SecItemCopyMatching`/`SecItemUpdate`/`SecItemDelete`, not just a write-time attribute to
+     * `SecItemAdd`. Including it here would mean any item whose accessibility class does not
+     * exactly match [kSecAttrAccessibleWhenUnlockedThisDeviceOnly] -- e.g. a hypothetical item
+     * written before this attribute was ever set, defaulting to the OS's own default accessibility
+     * class -- becomes invisible to every read/update/delete query issued through this class,
+     * while still colliding with [add]'s primary-key match (class+service+account) on
      * `SecItemAdd`. That combination is a permanent, self-perpetuating "duplicate item that can
      * never be found or fixed" failure loop. [kSecAttrAccessible] is added only in [add], the one
-     * place it is actually meant to apply. */
-    private fun baseQuery(): NSMutableDictionary {
-        val query = NSMutableDictionary()
-        query.setObject(kSecClassGenericPassword.asNSString(), forKey = kSecClass.asNSString())
-        query.setObject(service, forKey = kSecAttrService.asNSString())
-        query.setObject(account, forKey = kSecAttrAccount.asNSString())
-        return query
+     * place it is actually meant to apply.
+     *
+     * Real-CI fix round 2 (D110): built as a genuine `CFDictionary` (not `NSMutableDictionary`),
+     * because every `SecItem*` call site needs `... as CFDictionaryRef`, and that specific cast --
+     * `NSMutableDictionary as CFDictionaryRef`, whose *destination* type (`CFDictionaryRef`, a
+     * plain `kotlinx.cinterop.CPointer`) is not an Objective-C type -- takes Kotlin/Native's
+     * ordinary (non-ObjC-aware) ` as` path and throws `TypeCastException` unconditionally, the
+     * mirror image of the bug D109 fixed. Building the dictionary as a real `CFDictionary` from
+     * the start sidesteps that bridging problem entirely, in both directions, so no cast of the
+     * dictionary itself is needed anywhere below (a `CFMutableDictionaryRef` already satisfies
+     * every `SecItem*` function's `CFDictionaryRef?` parameter type).
+     *
+     * Caller owns the returned dictionary and must `CFRelease` it exactly once when done with it,
+     * on every exit path (including early returns and exceptions) -- every caller below does so in
+     * a `finally` block.
+     */
+    private fun baseQuery(): CFMutableDictionaryRef {
+        val query = CFDictionaryCreateMutable(
+            kCFAllocatorDefault,
+            0,
+            kCFTypeDictionaryKeyCallBacks.ptr,
+            kCFTypeDictionaryValueCallBacks.ptr,
+        )!!
+        // `query` is not yet owned by any caller -- if anything below throws before the `return`,
+        // this function (not the caller) is responsible for releasing it, or it leaks silently.
+        var built = false
+        try {
+            // kSecClass/kSecClassGenericPassword are raw, borrowed (Get Rule) CFStringRef
+            // constants -- CFDictionaryAddValue takes CFTypeRef? on both sides, so they are used
+            // directly, no bridging/casting needed (they were never the problem; the dictionary
+            // type was).
+            CFDictionaryAddValue(query, kSecClass, kSecClassGenericPassword)
+
+            val serviceRef = service.toCFStringRef()
+            CFDictionaryAddValue(query, kSecAttrService, serviceRef)
+            CFRelease(serviceRef)
+
+            val accountRef = account.toCFStringRef()
+            CFDictionaryAddValue(query, kSecAttrAccount, accountRef)
+            CFRelease(accountRef)
+
+            built = true
+            return query
+        } finally {
+            if (!built) CFRelease(query)
+        }
     }
 
     /** Fix 5: returns `null` instead of throwing when UTF-8 encoding fails -- a raw Kotlin
@@ -226,66 +274,109 @@ internal class SecurityFrameworkKeychain(
     private fun String.toKeychainData(): NSData? =
         (this as NSString).dataUsingEncoding(NSUTF8StringEncoding)
 
-    override fun add(value: String): Int {
-        val data = value.toKeychainData() ?: return errSecParam
+    override fun add(value: String): Int = runCatching {
+        val data = value.toKeychainData() ?: return@runCatching errSecParam
         val newItem = baseQuery()
-        newItem.setObject(data, forKey = kSecValueData.asNSString())
-        // K4, Fix B: kSecAttrAccessible belongs only on the write -- see baseQuery's kdoc for why
-        // it must not also be part of the shared search/update/delete query shape.
-        newItem.setObject(
-            kSecAttrAccessibleWhenUnlockedThisDeviceOnly.asNSString(),
-            forKey = kSecAttrAccessible.asNSString(),
-        )
-        return SecItemAdd(newItem as CFDictionaryRef, null)
-    }
-
-    override fun update(value: String): Int {
-        val data = value.toKeychainData() ?: return errSecParam
-        val attributesToUpdate = NSMutableDictionary()
-        attributesToUpdate.setObject(data, forKey = kSecValueData.asNSString())
-        return SecItemUpdate(baseQuery() as CFDictionaryRef, attributesToUpdate as CFDictionaryRef)
-    }
-
-    override fun delete(): Int = SecItemDelete(baseQuery() as CFDictionaryRef)
-
-    override fun exists(): Int {
-        val query = baseQuery()
-        query.setObject(kSecMatchLimitOne.asNSString(), forKey = kSecMatchLimit.asNSString())
-        // No kSecReturnData (or kSecReturnAttributes) at all: the OSStatus alone
-        // (errSecSuccess vs errSecItemNotFound) fully answers "does the item exist", so the
-        // out-parameter is left null rather than materializing anything (Fix 3).
-        return SecItemCopyMatching(query as CFDictionaryRef, null)
-    }
-
-    override fun copyMatching(): KeychainReadResult {
-        val query = baseQuery()
-        query.setObject(true, forKey = kSecReturnData.asNSString())
-        query.setObject(kSecMatchLimitOne.asNSString(), forKey = kSecMatchLimit.asNSString())
-
-        return memScoped {
-            val resultRef = alloc<CFTypeRefVar>()
-            val status = SecItemCopyMatching(query as CFDictionaryRef, resultRef.ptr)
-            if (status != errSecSuccess) return@memScoped KeychainReadResult(status, null)
-
-            // Fix 6 (inherited from Phase 3, found during this review): SecItemCopyMatching hands
-            // back a +1-owned CFTypeRef per the Core Foundation "Create Rule" -- CFBridgingRelease
-            // is what both correctly bridges it into a Kotlin/Native-managed NSData AND balances
-            // that retain count. A plain `as? NSData` cast on the raw pointer neither balances the
-            // retain (leaking the object on every read) nor reports anything if the bridge
-            // silently fails to produce an NSData. CFBridgingRelease fixes the retain-balance half
-            // of that; it does NOT by itself make the silent-bridging-failure case reportable --
-            // this function still just returns `status = errSecSuccess, value = null` if the
-            // bridge yields null despite a successful query, indistinguishable here from a normal
-            // empty read. Fix C (review round 3) closes that: IosTokenStorage.readTokens is the
-            // code that actually tells the two apart and publishes a KeychainFailure for the
-            // former, since only it knows that errSecSuccess + null value can never legitimately
-            // mean "no session" (that case is always reported as errSecItemNotFound instead, K2).
-            @Suppress("UNCHECKED_CAST")
-            val data = CFBridgingRelease(resultRef.value) as? NSData
-            val value = data?.let { NSString.create(it, NSUTF8StringEncoding) as String? }
-            KeychainReadResult(status, value)
+        try {
+            // The CFBridgingRetain result below is a fresh, locally-owned "Create Rule" bridge of
+            // `data` -- same retain-then-release-after-add discipline as service/account above.
+            val dataRef = CFBridgingRetain(data) as CFTypeRef
+            CFDictionaryAddValue(newItem, kSecValueData, dataRef)
+            CFRelease(dataRef)
+            // K4, Fix B: kSecAttrAccessible belongs only on the write -- see baseQuery's kdoc for
+            // why it must not also be part of the shared search/update/delete query shape. Raw,
+            // borrowed (Get Rule) constant, used directly like kSecClass/kSecClassGenericPassword.
+            CFDictionaryAddValue(newItem, kSecAttrAccessible, kSecAttrAccessibleWhenUnlockedThisDeviceOnly)
+            SecItemAdd(newItem as CFDictionaryRef, null)
+        } finally {
+            CFRelease(newItem)
         }
-    }
+    }.getOrElse { errSecParam }
+
+    override fun update(value: String): Int = runCatching {
+        val data = value.toKeychainData() ?: return@runCatching errSecParam
+        val query = baseQuery()
+        try {
+            val attributesToUpdate = CFDictionaryCreateMutable(
+                kCFAllocatorDefault,
+                0,
+                kCFTypeDictionaryKeyCallBacks.ptr,
+                kCFTypeDictionaryValueCallBacks.ptr,
+            )!!
+            try {
+                val dataRef = CFBridgingRetain(data) as CFTypeRef
+                CFDictionaryAddValue(attributesToUpdate, kSecValueData, dataRef)
+                CFRelease(dataRef)
+                SecItemUpdate(query as CFDictionaryRef, attributesToUpdate as CFDictionaryRef)
+            } finally {
+                CFRelease(attributesToUpdate)
+            }
+        } finally {
+            CFRelease(query)
+        }
+    }.getOrElse { errSecParam }
+
+    override fun delete(): Int = runCatching {
+        val query = baseQuery()
+        try {
+            SecItemDelete(query as CFDictionaryRef)
+        } finally {
+            CFRelease(query)
+        }
+    }.getOrElse { errSecParam }
+
+    override fun exists(): Int = runCatching {
+        val query = baseQuery()
+        try {
+            // Raw, borrowed (Get Rule) constant, used directly -- see baseQuery's kdoc.
+            CFDictionaryAddValue(query, kSecMatchLimit, kSecMatchLimitOne)
+            // No kSecReturnData (or kSecReturnAttributes) at all: the OSStatus alone
+            // (errSecSuccess vs errSecItemNotFound) fully answers "does the item exist", so the
+            // out-parameter is left null rather than materializing anything (Fix 3).
+            SecItemCopyMatching(query as CFDictionaryRef, null)
+        } finally {
+            CFRelease(query)
+        }
+    }.getOrElse { errSecParam }
+
+    override fun copyMatching(): KeychainReadResult = runCatching {
+        val query = baseQuery()
+        try {
+            // kCFBooleanTrue (D110): the real CFBoolean singleton Security.framework's query
+            // validation expects, not a Kotlin `true` literal -- passing a Kotlin Boolean across
+            // the ObjC/CF boundary would produce a Kotlin/Native-synthesized NSNumber-shaped
+            // wrapper, not the genuine kCFBooleanTrue instance.
+            CFDictionaryAddValue(query, kSecReturnData, kCFBooleanTrue)
+            CFDictionaryAddValue(query, kSecMatchLimit, kSecMatchLimitOne)
+
+            memScoped {
+                val resultRef = alloc<CFTypeRefVar>()
+                val status = SecItemCopyMatching(query as CFDictionaryRef, resultRef.ptr)
+                if (status != errSecSuccess) return@memScoped KeychainReadResult(status, null)
+
+                // Fix 6 (inherited from Phase 3, found during review round 2): SecItemCopyMatching
+                // hands back a +1-owned CFTypeRef per the Core Foundation "Create Rule" --
+                // CFBridgingRelease is what both correctly bridges it into a Kotlin/Native-managed
+                // NSData AND balances that retain count. A plain `as? NSData` cast on the raw
+                // pointer neither balances the retain (leaking the object on every read) nor
+                // reports anything if the bridge silently fails to produce an NSData.
+                // CFBridgingRelease fixes the retain-balance half of that; it does NOT by itself
+                // make the silent-bridging-failure case reportable -- this function still just
+                // returns `status = errSecSuccess, value = null` if the bridge yields null despite
+                // a successful query, indistinguishable here from a normal empty read. Fix C
+                // (review round 3) closes that: IosTokenStorage.readTokens is the code that
+                // actually tells the two apart and publishes a KeychainFailure for the former,
+                // since only it knows that errSecSuccess + null value can never legitimately mean
+                // "no session" (that case is always reported as errSecItemNotFound instead, K2).
+                @Suppress("UNCHECKED_CAST")
+                val data = CFBridgingRelease(resultRef.value) as? NSData
+                val value = data?.let { NSString.create(it, NSUTF8StringEncoding) as String? }
+                KeychainReadResult(status, value)
+            }
+        } finally {
+            CFRelease(query)
+        }
+    }.getOrElse { KeychainReadResult(errSecParam, null) }
 }
 
 /** Which [IosTokenStorage] operation a [KeychainFailure] came from. Diagnostic only. */
