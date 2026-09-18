@@ -1,114 +1,115 @@
 package com.mentora.shared.auth
 
-import kotlinx.cinterop.ExperimentalForeignApi
-import kotlinx.cinterop.alloc
-import kotlinx.cinterop.memScoped
-import kotlinx.cinterop.ptr
-import kotlinx.cinterop.value
-import platform.CoreFoundation.CFDictionaryRef
-import platform.CoreFoundation.CFTypeRefVar
-import platform.Foundation.NSData
-import platform.Foundation.NSMutableDictionary
-import platform.Foundation.NSString
-import platform.Foundation.NSUTF8StringEncoding
-import platform.Foundation.create
-import platform.Foundation.dataUsingEncoding
-import platform.Security.SecItemAdd
-import platform.Security.SecItemCopyMatching
-import platform.Security.SecItemDelete
-import platform.Security.SecItemUpdate
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import platform.Security.errSecItemNotFound
 import platform.Security.errSecSuccess
-import platform.Security.kSecAttrAccount
-import platform.Security.kSecAttrService
-import platform.Security.kSecClass
-import platform.Security.kSecClassGenericPassword
-import platform.Security.kSecMatchLimit
-import platform.Security.kSecMatchLimitOne
-import platform.Security.kSecReturnData
-import platform.Security.kSecValueData
 
-// NOT compiled/verified on this Windows machine — iosArm64/iosSimulatorArm64 require a macOS
-// host. See "Disclosed limitation B1" in execution/PHASE_3_KMP_PLAN.md. Written to the standard
-// Kotlin/Native `platform.Security` Keychain interop pattern: a `kSecClassGenericPassword` item
-// per (service, account), queried with SecItemCopyMatching, created with SecItemAdd, replaced
-// with SecItemUpdate, and removed with SecItemDelete — the well-established KMP Keychain wrapper
-// shape. `shared/build.gradle.kts` documents the one dependency a macOS host still needs to add
-// (`multiplatform-settings`, for `IosPreferenceStore`) before this source set can be wired back in
-// — this file itself needs no extra dependency beyond the Kotlin/Native platform bindings.
+// NOT compiled/verified on this Windows machine -- iosArm64/iosSimulatorArm64 require a macOS
+// host. See "Disclosed limitation B1" in execution/PHASE_3_KMP_PLAN.md.
+//
+// Phase 5 Task T1b rewrite (PHASE_5_IOS_SYSTEM_DESIGN.md section 9.1): the shipped Phase 3
+// version of this file discarded every Keychain OSStatus -- setKeychainValue ignored the result
+// of both SecItemAdd and SecItemUpdate, and deleteKeychainValue ignored SecItemDelete entirely --
+// so a failed refresh-token write could leave a mismatched token pair (access token rotated,
+// refresh token stale) and a failed logout delete could report success while the session survived
+// into the next launch. This version:
+//   K1 -- stores the pair as ONE Keychain item holding a JSON {accessToken, refreshToken} value,
+//         so a partial pair is structurally impossible rather than cleaned up after the fact.
+//   K2 -- inspects every add/update/delete/query OSStatus; errSecItemNotFound is the expected
+//         "no stored session" outcome, never a failure.
+//   K3 -- never throws across the Swift boundary: a save failure best-effort purges, a clear
+//         failure retries once then tombstone-overwrites, and anything that survives both is
+//         published on KeychainStatus.failures (see Keychain.kt) for SessionController (T4b) to
+//         surface -- never a thrown Kotlin exception.
+//   K4 -- delegated to Keychain.kt's SecurityFrameworkKeychain, which sets an explicit
+//         kSecAttrAccessibleWhenUnlockedThisDeviceOnly on every query.
+//   K6 -- talks to the Keychain only through the KeychainStore seam (Keychain.kt), defaulted to
+//         the real SecurityFrameworkKeychain so PlatformModule.ios.kt's IosTokenStorage() call
+//         site is unchanged.
 
-private const val KEYCHAIN_SERVICE = "com.mentora.shared.tokenStorage"
-private const val ACCESS_TOKEN_ACCOUNT = "accessToken"
-private const val REFRESH_TOKEN_ACCOUNT = "refreshToken"
+private val tokenStorageJson = Json { ignoreUnknownKeys = true }
+
+@Serializable
+private data class AuthTokensPayload(val accessToken: String, val refreshToken: String)
+
+/** The value `clearTokens()` overwrites the item with when `SecItemDelete` fails twice (K3) --
+ * deliberately not valid JSON, so `readTokens()` maps it to `null` exactly like a missing item:
+ * two independent ways to neutralize a session that could not be deleted outright. */
+private const val TOMBSTONE_VALUE = "MENTORA_KEYCHAIN_TOMBSTONE"
 
 /**
- * iOS Keychain-backed [TokenStorage] (`kSecClassGenericPassword`). Never logs a token value.
+ * iOS Keychain-backed [TokenStorage] (`kSecClassGenericPassword`, service
+ * `com.mentora.shared.tokenStorage`). Never logs a token value.
  *
- * A plain class, not an `expect`/`actual` pairing with [com.mentora.shared.auth.TokenStorage] —
- * see that interface's kdoc for why. Constructed directly by iOS platform DI (Task 15); needs no
- * constructor argument (unlike [AndroidTokenStorage], which needs a `Context`).
+ * A plain class, not an `expect`/`actual` pairing with [com.mentora.shared.auth.TokenStorage] --
+ * see that interface's kdoc for why. Constructed directly by iOS platform DI
+ * ([com.mentora.shared.di.platformModule]); needs no constructor argument from that call site --
+ * [keychain] is the section 9.1 K6 test seam, defaulted to the real [SecurityFrameworkKeychain] so
+ * `PlatformModule.ios.kt`'s `IosTokenStorage()` call is unchanged and the seam itself stays out of
+ * the generated Swift API (only the defaulted public constructor shape is visible there).
  */
-@OptIn(ExperimentalForeignApi::class)
-class IosTokenStorage : TokenStorage {
+class IosTokenStorage(private val keychain: KeychainStore = SecurityFrameworkKeychain()) : TokenStorage {
 
     override suspend fun saveTokens(tokens: AuthTokens) {
-        setKeychainValue(ACCESS_TOKEN_ACCOUNT, tokens.accessToken)
-        setKeychainValue(REFRESH_TOKEN_ACCOUNT, tokens.refreshToken)
+        val payload = tokenStorageJson.encodeToString(
+            AuthTokensPayload.serializer(),
+            AuthTokensPayload(accessToken = tokens.accessToken, refreshToken = tokens.refreshToken),
+        )
+
+        // One item, one logical write of the pair (K1): this existence check only decides whether
+        // that write is a SecItemAdd or a SecItemUpdate -- it is never a second mutation of the
+        // pair, and it reuses the same copyMatching() the K6 seam already exposes for reads rather
+        // than adding a fifth seam method just for this.
+        val existsAlready = keychain.copyMatching().status == errSecSuccess
+        val status = if (existsAlready) keychain.update(payload) else keychain.add(payload)
+
+        if (status == errSecSuccess) return
+
+        // Genuine failure: best-effort purge so nothing stale or half-written survives, then
+        // publish -- never throw across the Swift boundary (K3).
+        keychain.delete()
+        KeychainStatus.publish(KeychainFailure(KeychainOperation.SAVE, status))
     }
 
     override suspend fun readTokens(): AuthTokens? {
-        val accessToken = getKeychainValue(ACCESS_TOKEN_ACCOUNT) ?: return null
-        val refreshToken = getKeychainValue(REFRESH_TOKEN_ACCOUNT) ?: return null
-        return AuthTokens(accessToken = accessToken, refreshToken = refreshToken)
+        val result = keychain.copyMatching()
+
+        return when {
+            // The expected "no stored session" outcome (K2) -- never a failure.
+            result.status == errSecItemNotFound -> null
+            result.status != errSecSuccess -> {
+                KeychainStatus.publish(KeychainFailure(KeychainOperation.READ, result.status))
+                null
+            }
+            result.value == null || result.value == TOMBSTONE_VALUE -> null
+            else -> decodePayload(result.value)
+        }
     }
 
     override suspend fun clearTokens() {
-        deleteKeychainValue(ACCESS_TOKEN_ACCOUNT)
-        deleteKeychainValue(REFRESH_TOKEN_ACCOUNT)
+        if (isDeletedOrAlreadyGone(keychain.delete())) return
+        if (isDeletedOrAlreadyGone(keychain.delete())) return // one retry, per K3
+
+        val tombstoneStatus = keychain.update(TOMBSTONE_VALUE)
+        if (tombstoneStatus == errSecSuccess) return
+
+        // The delete retry and the tombstone overwrite both failed: the session cannot be
+        // neutralized from in here. Published rather than thrown (K3) so SessionController can
+        // keep this from presenting itself as a completed logout.
+        KeychainStatus.publish(KeychainFailure(KeychainOperation.CLEAR, tombstoneStatus))
     }
 
-    /** The base (service, account) match predicate every Keychain call for [account] starts from. */
-    private fun baseQuery(account: String): NSMutableDictionary {
-        val query = NSMutableDictionary()
-        query.setObject(kSecClassGenericPassword, forKey = kSecClass as NSString)
-        query.setObject(KEYCHAIN_SERVICE, forKey = kSecAttrService as NSString)
-        query.setObject(account, forKey = kSecAttrAccount as NSString)
-        return query
-    }
+    private fun isDeletedOrAlreadyGone(status: Int): Boolean =
+        status == errSecSuccess || status == errSecItemNotFound
 
-    private fun setKeychainValue(account: String, value: String) {
-        val data = (value as NSString).dataUsingEncoding(NSUTF8StringEncoding)
-            ?: error("Failed to UTF-8 encode a token value for the Keychain")
-
-        val existsAlready = SecItemCopyMatching(baseQuery(account) as CFDictionaryRef, null) == errSecSuccess
-
-        if (existsAlready) {
-            val attributesToUpdate = NSMutableDictionary()
-            attributesToUpdate.setObject(data, forKey = kSecValueData as NSString)
-            SecItemUpdate(baseQuery(account) as CFDictionaryRef, attributesToUpdate as CFDictionaryRef)
-        } else {
-            val newItem = baseQuery(account)
-            newItem.setObject(data, forKey = kSecValueData as NSString)
-            SecItemAdd(newItem as CFDictionaryRef, null)
-        }
-    }
-
-    private fun getKeychainValue(account: String): String? {
-        val query = baseQuery(account)
-        query.setObject(true, forKey = kSecReturnData as NSString)
-        query.setObject(kSecMatchLimitOne, forKey = kSecMatchLimit as NSString)
-
-        return memScoped {
-            val resultRef = alloc<CFTypeRefVar>()
-            val status = SecItemCopyMatching(query as CFDictionaryRef, resultRef.ptr)
-            if (status != errSecSuccess) return@memScoped null
-
-            @Suppress("UNCHECKED_CAST")
-            val data = resultRef.value as? NSData ?: return@memScoped null
-            NSString.create(data, NSUTF8StringEncoding) as String?
-        }
-    }
-
-    private fun deleteKeychainValue(account: String) {
-        SecItemDelete(baseQuery(account) as CFDictionaryRef)
+    /** A malformed/corrupted stored payload is treated as "no valid session" -- never a crash,
+     * and per K3 not itself a published failure (the same bucket as "not found" and the
+     * tombstone). */
+    private fun decodePayload(raw: String): AuthTokens? = try {
+        val payload = tokenStorageJson.decodeFromString(AuthTokensPayload.serializer(), raw)
+        AuthTokens(accessToken = payload.accessToken, refreshToken = payload.refreshToken)
+    } catch (cause: Exception) {
+        null
     }
 }
