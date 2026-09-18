@@ -4170,3 +4170,81 @@ If CI run #8 still reports `__emit(value:) async throws` as missing, that's fix 
 
 Re-ran `:shared:testDebugUnitTest`/`:androidApp:testDebugUnitTest` (unaffected, no Kotlin touched).
 Pushed as a follow-up commit; CI run #8 is the next real verification.
+
+**Fix round #4 — 2026-09-18 — correction, not a new deviation.** CI run #8 (commit `e52849e`) ran, and
+its real `xcodebuild` compiler error proves this entry's own original "disclosed Flow-bridging deviation
+from System Design § 5/§ 7" claim above (the one that motivated building `KotlinFlowBridge.swift` in the
+first place) was **wrong**. Quoted verbatim, ground truth:
+
+```
+SessionController.swift:54:XX: error: argument type 'SkieSwiftStateFlow<any AuthState>' does not conform
+to expected type 'Kotlinx_coroutines_coreFlow'
+SessionController.swift:59:72: error: argument type 'SkieSwiftSharedFlow<KeychainFailure>' does not
+conform to expected type 'Kotlinx_coroutines_coreFlow'
+```
+
+i.e. `sdk.auth.observeAuthState.invoke()` and `KeychainStatus.shared.failures` really return genuine SKIE
+`SkieSwiftStateFlow`/`SkieSwiftSharedFlow` wrapper types — not the plain, type-erased
+`Kotlinx_coroutines_core{State,Shared}Flow` Obj-C protocols the original finding above claimed. That
+original finding was based on reading the wrong file during artifact investigation: an intermediate SKIE
+build-cache header (`skie/binaries/.../cache/kotlin-framework/shared.framework/Headers/shared.h`), not
+the real shipped XCFramework, whose actual bundled interface
+(`shared.xcframework/ios-arm64-simulator/shared.framework/Modules/shared.swiftmodule/
+arm64-apple-ios-simulator.swiftinterface`) has no separate Obj-C header in the captured artifact at
+all — only that genuine Swift textual interface. Independently re-reading that real `.swiftinterface`
+confirms `SkieSwiftStateFlow<T>`/`SkieSwiftSharedFlow<T>` both conform to `SkieSwiftFlowProtocol :
+AsyncSequence` and expose a real `makeAsyncIterator() -> SkieSwiftFlowIterator<T>`
+(`SkieSwiftFlowIterator.next() async -> T?`, non-throwing) — genuinely real `AsyncSequence`s, exactly what
+`PHASE_5_IOS_SYSTEM_DESIGN.md` § 5/§ 7 originally assumed. There was no deviation from System Design here
+at all; the whole manual bridge was solving a problem that never existed.
+
+**Fix applied.** `KotlinFlowBridge.swift` (`KotlinFlowWatcher`, `watchKotlinFlow`, `__emit`) deleted
+entirely. `SessionController.swift`'s two flow subscriptions and `LocaleController.swift`'s one
+subscription rewritten as plain `for await` loops inside their existing `Task { [weak self] in ... }`
+literals, e.g.:
+
+```swift
+authStateWatcher = Task { [weak self] in
+    for await state in sdk.auth.observeAuthState.invoke() {
+        self?.apply(state)
+    }
+}
+```
+
+Since each controller is `@MainActor`-isolated and its `Task { }` literal is created from a `@MainActor`
+synchronous context (`init`), Swift infers the task closure's isolation from its enclosing context — every
+resumed iteration of `for await` already runs back on the main actor, with no manual
+`DispatchQueue.main.async` hop needed. `LocaleController.swift`'s `observeLocale.invoke()` rewrite is not
+yet directly compiler-confirmed (CI run #8's failing compile batch didn't reach that file's own frontend
+job before failing elsewhere), but it follows the identical façade/use-case shape as `observeAuthState`
+(`ObserveLocaleUseCase(): StateFlow<AppLocale>`, same shape per System Design § 7's own table), so it's
+written the same way pending the next CI run's direct confirmation.
+
+**Both prior review findings that were specifically about the manual bridge are now moot, not fixed** —
+the code they were about no longer exists, so there is nothing left to have "resolved":
+- Fix round #1 finding 1 (Opus): the cross-thread `@MainActor` enforcement gap in `KotlinFlowWatcher.emit`
+  (unenforced Obj-C message-send actor isolation, worked around with an explicit `DispatchQueue.main
+  .async` hop). Moot — a genuine `for await` loop resumed from a `@MainActor` `Task` has real,
+  compiler-enforced actor isolation; there is no hand-rolled `FlowCollector` conformance left for a
+  cross-thread call to land on.
+- Fix round #2 finding 2 (Codex): the unconfirmed cancellation-propagation semantics of `try await
+  flow.collect(collector:)`'s completion-handler-to-async sugar. Moot — a genuine Swift `AsyncSequence`/
+  `for await` loop has standard, well-defined cancellation semantics (a cancelled `Task` causes the next
+  `for await` suspension point to exit the loop cooperatively); there is no manual bridge left whose
+  cancellation behavior was ever in question.
+
+`AppEnvironment.swift`'s bootstrap task is unchanged — it already derives `isAuthenticated` from
+`restoreSession()`'s own return value (fix round #1, Fix 6), which remains correct and needed no
+simplification; `SkieSwiftStateFlow`'s synchronous `.value: T` getter (confirmed real by this same
+`.swiftinterface`, Android's own `LocaleController.kt` precedent for reading it directly) is now a
+confirmed option for future call sites but is not forced onto this one just because it exists.
+
+Re-ran `:shared:testDebugUnitTest` (249/249) and `:androidApp:testDebugUnitTest` (241/241) — unaffected,
+no Kotlin file touched by this fix round either. No Swift compile is possible on this Windows host; the
+next real `ios-ci.yml` run is the only verification authority for everything in this fix round, per the
+standing host-tagging rule. Grepped the whole `mobile/iosApp/` tree for `KotlinFlowBridge`,
+`watchKotlinFlow`, `KotlinFlowWatcher`, and `__emit` — none remain.
+
+**Status unchanged** — T4b remains **implemented, fix rounds applied, pending CI**, not DONE; this fix
+round is a correction/simplification of already-authored T4b code, not new scope. Do not start T5 or any
+feature-UI work in this session.

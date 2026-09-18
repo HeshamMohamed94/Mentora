@@ -50,14 +50,25 @@ final class SessionController {
     init(sdk: MentoraSdk) {
         self.sdk = sdk
 
-        // § 9 step 3.
-        authStateWatcher = watchKotlinFlow(sdk.auth.observeAuthState.invoke(), as: AuthState.self) { [weak self] state in
-            self?.apply(state)
+        // § 9 step 3. `observeAuthState.invoke()` returns a genuine `SkieSwiftStateFlow<any AuthState>`
+        // (a real `AsyncSequence`, confirmed by CI run #8's compiler error — see `DECISIONS_LOG.md` D108
+        // fix round #4). `SessionController` is `@MainActor`-isolated and this `Task { }` literal is
+        // created from a `@MainActor` synchronous context (`init`), so Swift infers the task closure's
+        // isolation from its enclosing context — every resumed iteration of `for await` already runs
+        // back on the main actor, with no manual thread-hop needed.
+        authStateWatcher = Task { [weak self] in
+            for await state in sdk.auth.observeAuthState.invoke() {
+                self?.apply(state)
+            }
         }
 
         // § 9.1 — sanctioned non-façade entry point #6 (A2), observed exactly once, here.
-        keychainFailureWatcher = watchKotlinFlow(KeychainStatus.shared.failures, as: KeychainFailure.self) { [weak self] failure in
-            self?.keychainFailure = failure
+        // `KeychainStatus.shared.failures` returns a genuine `SkieSwiftSharedFlow<KeychainFailure>` (same
+        // real-`AsyncSequence` confirmation as above).
+        keychainFailureWatcher = Task { [weak self] in
+            for await failure in KeychainStatus.shared.failures {
+                self?.keychainFailure = failure
+            }
         }
     }
 

@@ -20,8 +20,15 @@ final class LocaleController {
 
     init(sdk: MentoraSdk) {
         self.sdk = sdk
-        localeWatcher = watchKotlinFlow(sdk.user.observeLocale.invoke(), as: AppLocale.self) { [weak self] locale in
-            self?.currentLocale = locale
+        // `observeLocale.invoke()` follows the same façade/use-case shape as `observeAuthState`
+        // (`ObserveLocaleUseCase(): StateFlow<AppLocale>` per System Design § 7's table), so it returns
+        // a genuine `SkieSwiftStateFlow<AppLocale>` `AsyncSequence` the same way — see `DECISIONS_LOG.md`
+        // D108 fix round #4. `LocaleController` is `@MainActor`-isolated and this `Task { }` is created
+        // from a `@MainActor` synchronous context (`init`), so no manual thread-hop is needed.
+        localeWatcher = Task { [weak self] in
+            for await locale in sdk.user.observeLocale.invoke() {
+                self?.currentLocale = locale
+            }
         }
     }
 
