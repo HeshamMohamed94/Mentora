@@ -963,7 +963,7 @@ Swift at all).
 |---|---|---|
 | T1 | `:shared` iOS enablement (`iosMain` wiring, XCFramework, gitignore) | **DONE** (Windows gates green — 249/249 unit, `assembleDebug` clean, `assembleXCFramework`/`assembleSharedDebugXCFramework`/`assembleSharedReleaseXCFramework` registered, zero new config warnings; MC-1 still required to prove real iOS compilation/linking) |
 | T1b | `IosTokenStorage` Keychain hardening (checked `OSStatus`, injectable failure seam) — added after the Codex review round, D96 | NOT_STARTED |
-| T2 | Token pipeline iOS output target (`MentoraTokens.swift`, `MentoraColors.xcassets`) | NOT_STARTED |
+| T2 | Token pipeline iOS output target (`MentoraTokens.swift`, `MentoraColors.xcassets`) | **DONE** (Windows-verified: generator idempotent, 46 semantic colorsets + 5 shadow colorsets Any+Dark, `tools/ios-checks/assets-check.js` passing, Web/Android outputs byte-identical, `platform-contract.json`'s `ios` section refreshed; rendering confirmed at MC-2) |
 | T3 | Icon set (`MentoraIcons.xcassets`, 42 glyphs) + mirroring data | NOT_STARTED |
 | T4a | Xcode project scaffold (`project.yml`, SPM wrapper, scripts, `Info.plist`, `.gitignore`) | NOT_STARTED |
 | T4b | Swift app bootstrap (SDK/session/locale/theme wiring) | **BLOCKED — Mac-only, needs MC-1** |
