@@ -28,7 +28,7 @@ private fun repositoryFor(engine: MockEngine): MediaRepository =
 class MediaRepositoryImplTest {
 
     @Test
-    fun `getPlaybackUrl hits the exact endpoint and maps url and expiresAt verbatim, url still relative`() = runTest {
+    fun `getPlaybackUrl hits the exact endpoint and maps url and expiresAt verbatim with url still relative`() = runTest {
         var seenPath: String? = null
         val engine = MockEngine { request: HttpRequestData ->
             seenPath = request.url.encodedPath

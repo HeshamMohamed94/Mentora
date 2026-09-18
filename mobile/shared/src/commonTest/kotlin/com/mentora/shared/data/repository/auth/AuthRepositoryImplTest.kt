@@ -88,7 +88,7 @@ class AuthRepositoryImplTest {
     }
 
     @Test
-    fun `login with AUTH_INVALID_CREDENTIALS surfaces one generic failure, no field hint`() = runTest {
+    fun `login with AUTH_INVALID_CREDENTIALS surfaces one generic failure with no field hint`() = runTest {
         val engine = MockEngine {
             respond(
                 content = """{"error":{"code":"AUTH_INVALID_CREDENTIALS","message":"Invalid email or password."},"meta":{"requestId":"r"}}""",

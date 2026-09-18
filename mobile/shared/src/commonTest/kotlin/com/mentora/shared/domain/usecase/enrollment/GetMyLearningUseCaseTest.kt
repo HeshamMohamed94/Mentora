@@ -113,7 +113,7 @@ class GetMyLearningUseCaseTest {
     }
 
     @Test
-    fun `invoke fails fast on the first per-course detail failure, not a partial success`() = runTest {
+    fun `invoke fails fast on the first per-course detail failure not a partial success`() = runTest {
         val enrollments = listOf(enrollment("e1", "c1"), enrollment("e2", "c2"))
         val enrollmentRepository = FakeEnrollmentRepositoryForMyLearning(
             ApiResult.Success(CursorPage(items = enrollments, nextCursor = null)),

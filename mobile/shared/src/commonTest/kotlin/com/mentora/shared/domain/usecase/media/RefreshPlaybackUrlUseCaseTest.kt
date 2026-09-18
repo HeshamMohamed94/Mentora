@@ -55,7 +55,7 @@ class RefreshPlaybackUrlUseCaseTest {
     // ---- use case behavior ----
 
     @Test
-    fun `a source well before expiry is not refreshed, repository never called`() = runTest {
+    fun `a source well before expiry is not refreshed and repository is never called`() = runTest {
         val expiresAt = Instant.parse("2026-09-12T10:05:00Z")
         val current = PlaybackSource(url = "http://10.0.2.2:8080/api/v1/media/m1/stream?token=old", expiresAt = expiresAt)
         val repository = FakeMediaRepository(result = ApiResult.Success(current))

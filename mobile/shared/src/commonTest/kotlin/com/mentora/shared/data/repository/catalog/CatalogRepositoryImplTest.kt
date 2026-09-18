@@ -81,7 +81,7 @@ class CatalogRepositoryImplTest {
     // ---- listCategories ----
 
     @Test
-    fun `listCategories maps a plain array response, not a CursorPage`() = runTest {
+    fun `listCategories maps a plain array response not a CursorPage`() = runTest {
         val engine = MockEngine {
             respond(
                 content = """{"data":[{"id":"cat1","name":"Programming","slug":"programming","courseCount":3},{"id":"cat2","name":"Design","slug":"design","courseCount":1}],"meta":{"requestId":"r1"}}""",
@@ -142,7 +142,7 @@ class CatalogRepositoryImplTest {
     }
 
     @Test
-    fun `getCourseDetails maps status Draft as-is for an enrolled caller (D64) without special handling`() = runTest {
+    fun `getCourseDetails maps status Draft as-is for an enrolled caller D64 without special handling`() = runTest {
         val engine = MockEngine {
             respond(content = courseDetailJson(status = "draft"), status = HttpStatusCode.OK, headers = jsonHeaders())
         }

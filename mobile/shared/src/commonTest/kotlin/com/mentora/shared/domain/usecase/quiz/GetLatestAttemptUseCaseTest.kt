@@ -50,7 +50,7 @@ class GetLatestAttemptUseCaseTest {
     }
 
     @Test
-    fun `a 404 ATTEMPT_NOT_FOUND maps to a clean NoAttemptYet result, not a generic failure`() = runTest {
+    fun `a 404 ATTEMPT_NOT_FOUND maps to a clean NoAttemptYet result not a generic failure`() = runTest {
         val failure = ApiResult.Failure(ApiErrorCode.AttemptNotFound, "No quiz attempt was found.", null, 404)
         val repository = FakeQuizRepositoryForLatestAttempt(failure)
         val useCase = GetLatestAttemptUseCase(repository)
@@ -62,7 +62,7 @@ class GetLatestAttemptUseCaseTest {
     }
 
     @Test
-    fun `a non-enrolled 403 failure is forwarded unchanged, never folded into NoAttemptYet`() = runTest {
+    fun `a non-enrolled 403 failure is forwarded unchanged and never folded into NoAttemptYet`() = runTest {
         val failure = ApiResult.Failure(ApiErrorCode.ForbiddenNotEnrolled, "Not enrolled.", null, 403)
         val repository = FakeQuizRepositoryForLatestAttempt(failure)
         val useCase = GetLatestAttemptUseCase(repository)

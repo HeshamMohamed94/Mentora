@@ -11,7 +11,7 @@ class LocaleResolverTest {
     }
 
     @Test
-    fun `an Arabic tag anywhere in the list resolves to Arabic, even if not first`() {
+    fun `an Arabic tag anywhere in the list resolves to Arabic even if not first`() {
         assertEquals(AppLocale.Arabic, resolveInitialLocale(listOf("fr", "ar")))
     }
 
@@ -31,7 +31,7 @@ class LocaleResolverTest {
     }
 
     @Test
-    fun `matching is on the language subtag, not an exact string match`() {
+    fun `matching is on the language subtag not an exact string match`() {
         assertEquals(AppLocale.Arabic, resolveInitialLocale(listOf("AR-eg")))
     }
 }

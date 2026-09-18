@@ -77,7 +77,7 @@ class CompleteLessonUseCaseTest {
     }
 
     @Test
-    fun `completing the very last lesson of the whole course returns CourseFinished, not a crash`() = runTest {
+    fun `completing the very last lesson of the whole course returns CourseFinished not a crash`() = runTest {
         val allButLast = listOf("l000", "l001", "l002", "l003", "l100", "l101", "l102", "l103", "l200", "l201", "l202")
         val progressRepository = FakeProgressRepositoryForComplete(ApiResult.Success(progressAfter(allButLast + "l203")))
         val catalogRepository = FakeCatalogRepositoryForComplete(ApiResult.Success(progressTestCourse()))

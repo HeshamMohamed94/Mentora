@@ -13,7 +13,7 @@ import kotlin.test.assertEquals
 class ResolveThumbnailUrlUseCaseTest {
 
     @Test
-    fun `builds the plain unsigned public file url, no token query parameter`() {
+    fun `builds the plain unsigned public file url with no token query parameter`() {
         val useCase = ResolveThumbnailUrlUseCase(ApiEnvironment.custom("http://10.0.2.2:8080"))
 
         val url = useCase("thumb-1")

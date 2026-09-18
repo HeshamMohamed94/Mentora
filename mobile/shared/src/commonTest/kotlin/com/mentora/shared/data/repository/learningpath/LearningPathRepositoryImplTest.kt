@@ -174,7 +174,7 @@ class LearningPathRepositoryImplTest {
     // ---- course order preservation: realistic curated (non-alphabetical, non-id-sorted) order ----
 
     @Test
-    fun `getLearningPath preserves the curated course order exactly, applying no client-side sort`() = runTest {
+    fun `getLearningPath preserves the curated course order exactly applying no client-side sort`() = runTest {
         val engine = MockEngine {
             respond(
                 content = """{"data":{"id":"lp1","title":"Full Stack Path","description":"d","courses":[{"id":"c3","title":"Deployment Basics","thumbnailMediaId":null},{"id":"c1","title":"Advanced Kotlin","thumbnailMediaId":null},{"id":"c9","title":"Intro to Backend","thumbnailMediaId":null},{"id":"c2","title":"Zeroth Concepts","thumbnailMediaId":null}],"progressPercent":null,"isFollowing":false},"meta":{"requestId":"r1"}}""",
@@ -237,7 +237,7 @@ class LearningPathRepositoryImplTest {
     }
 
     @Test
-    fun `follow twice in a row is idempotent, both calls succeeding with isFollowing true`() = runTest {
+    fun `follow twice in a row is idempotent with both calls succeeding with isFollowing true`() = runTest {
         var requestCount = 0
         val engine = MockEngine {
             requestCount++
@@ -260,7 +260,7 @@ class LearningPathRepositoryImplTest {
     }
 
     @Test
-    fun `unfollow twice in a row is idempotent, both calls succeeding with isFollowing false`() = runTest {
+    fun `unfollow twice in a row is idempotent with both calls succeeding with isFollowing false`() = runTest {
         var requestCount = 0
         val engine = MockEngine {
             requestCount++

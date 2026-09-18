@@ -52,7 +52,7 @@ class CompleteDemoCheckoutUseCaseTest {
     }
 
     @Test
-    fun `invoke returns a repeat completion as Success with alreadyEnrolled true, never as an error`() = runTest {
+    fun `invoke returns a repeat completion as Success with alreadyEnrolled true never as an error`() = runTest {
         val completion = EnrollmentCompletion(enrollment = testEnrollment, alreadyEnrolled = true)
         val repository = FakeEnrollmentRepositoryForComplete(ApiResult.Success(completion))
         val useCase = CompleteDemoCheckoutUseCase(repository)
@@ -64,7 +64,7 @@ class CompleteDemoCheckoutUseCaseTest {
     }
 
     @Test
-    fun `invoke never issues more than one completion call per invocation (no client-side retry)`() = runTest {
+    fun `invoke never issues more than one completion call per invocation - no client-side retry`() = runTest {
         val completion = EnrollmentCompletion(enrollment = testEnrollment, alreadyEnrolled = false)
         val repository = FakeEnrollmentRepositoryForComplete(ApiResult.Success(completion))
         val useCase = CompleteDemoCheckoutUseCase(repository)

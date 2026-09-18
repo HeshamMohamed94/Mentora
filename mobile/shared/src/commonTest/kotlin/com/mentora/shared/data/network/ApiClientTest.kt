@@ -59,7 +59,7 @@ class ApiClientTest {
     }
 
     @Test
-    fun `5xx response with an unparseable body still maps to a Failure, not a thrown exception`() = runBlocking {
+    fun `5xx response with an unparseable body still maps to a Failure not a thrown exception`() = runBlocking {
         val engine = MockEngine {
             respond(
                 content = "<html><body>Internal Server Error</body></html>",
@@ -75,7 +75,7 @@ class ApiClientTest {
     }
 
     @Test
-    fun `a network-level exception maps to a Failure, not a thrown exception`() = runBlocking {
+    fun `a network-level exception maps to a Failure not a thrown exception`() = runBlocking {
         val engine = MockEngine { throw RuntimeException("connection refused") }
 
         val result = clientFor(engine).get<TestCourse>("/api/v1/courses/c1")
@@ -157,7 +157,7 @@ class ApiClientTest {
     }
 
     @Test
-    fun `no Cookie header is ever sent, even after a response carries Set-Cookie`() = runBlocking {
+    fun `no Cookie header is ever sent even after a response carries Set-Cookie`() = runBlocking {
         var requestCount = 0
         var sawCookieHeader = false
         val engine = MockEngine { request ->

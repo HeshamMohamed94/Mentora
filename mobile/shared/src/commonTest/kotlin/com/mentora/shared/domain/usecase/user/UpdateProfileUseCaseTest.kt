@@ -41,7 +41,7 @@ private class FakeUserRepositoryForUpdateProfile : UserRepository {
 class UpdateProfileUseCaseTest {
 
     @Test
-    fun `blank name fails local validation with REQUIRED, no network call`() = runTest {
+    fun `blank name fails local validation with REQUIRED and no network call`() = runTest {
         val repository = FakeUserRepositoryForUpdateProfile()
         val useCase = UpdateProfileUseCase(repository)
 
@@ -54,7 +54,7 @@ class UpdateProfileUseCaseTest {
     }
 
     @Test
-    fun `a name over 120 chars fails local validation with TOO_LONG, no network call`() = runTest {
+    fun `a name over 120 chars fails local validation with TOO_LONG and no network call`() = runTest {
         val repository = FakeUserRepositoryForUpdateProfile()
         val useCase = UpdateProfileUseCase(repository)
 

@@ -54,7 +54,7 @@ private class FakeUserRepositoryForSetLocale : UserRepository {
 class SetLocaleUseCaseTest {
 
     @Test
-    fun `invoke writes PreferenceStore immediately for a guest, with no backend call`() = runTest {
+    fun `invoke writes PreferenceStore immediately for a guest with no backend call`() = runTest {
         val preferenceStore = FakePreferenceStore(initialLocale = AppLocale.English)
         val userRepository = FakeUserRepositoryForSetLocale()
         val useCase = SetLocaleUseCase(
@@ -119,7 +119,7 @@ class SetLocaleUseCaseTest {
     }
 
     @Test
-    fun `onRegister sends the current local value up to seed the new account, no local overwrite`() = runTest {
+    fun `onRegister sends the current local value up to seed the new account with no local overwrite`() = runTest {
         val preferenceStore = FakePreferenceStore(initialLocale = AppLocale.Arabic)
         val userRepository = FakeUserRepositoryForSetLocale()
         val useCase = SetLocaleUseCase(preferenceStore, userRepository, FakeAuthRepository(AuthState.Unknown))
@@ -133,7 +133,7 @@ class SetLocaleUseCaseTest {
     }
 
     @Test
-    fun `login-overwrites-local and register-seeds-account are distinct, opposite-direction flows`() = runTest {
+    fun `login-overwrites-local and register-seeds-account are distinct opposite-direction flows`() = runTest {
         // Scenario 1: LOGIN — the local device had English selected before sign-in, but the
         // existing account's own value is Arabic. Login wins: local becomes Arabic.
         val loginPreferenceStore = FakePreferenceStore(initialLocale = AppLocale.English)

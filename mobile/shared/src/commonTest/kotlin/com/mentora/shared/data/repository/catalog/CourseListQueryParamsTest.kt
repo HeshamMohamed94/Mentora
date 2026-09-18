@@ -32,7 +32,7 @@ class CourseListQueryParamsTest {
     }
 
     @Test
-    fun `every filter is omitted when unset, only language remains`() {
+    fun `every filter is omitted when unset with only language remaining`() {
         val params = courseListQueryParams(
             filters = CourseFilters(),
             cursor = null,

@@ -29,7 +29,7 @@ class GetLessonPlaybackSourceUseCaseTest {
     }
 
     @Test
-    fun `a repository failure passes through unchanged, no url resolution attempted`() = runTest {
+    fun `a repository failure passes through unchanged with no url resolution attempted`() = runTest {
         val failure = ApiResult.Failure(ApiErrorCode.ForbiddenNotEnrolled, "Not enrolled.", null, 403)
         val repository = FakeMediaRepository(result = failure)
         val useCase = GetLessonPlaybackSourceUseCase(repository, ApiEnvironment.custom("http://10.0.2.2:8080"))

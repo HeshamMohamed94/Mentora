@@ -3760,3 +3760,56 @@ baselines. Diff scoped to exactly one file: `mobile/gradle/libs.versions.toml` �
 found no other catalog entry needing a change. The actual iOS-simulator-target compile itself can
 only be re-verified by re-running CI on macOS.
 Nothing else.
+
+### D105 — 2026-09-18 — Fourth real iOS CI run's first-ever `commonTest`/`iosTest` Kotlin/Native compile surfaced a new defect class: `(`, `)`, `,` are illegal in backtick-quoted test names on Kotlin/Native; fixed repo-wide, not just the flagged 40
+
+**Context.** With D102–D104 clearing every klib-ABI and DI-wiring blocker, `.github/workflows/ios-ci.yml`
+got its fourth real macOS run (GitHub Actions run
+[35383932753](https://github.com/HeshamMohamed94/Mentora/actions/runs/35383932753/job/105726289528)).
+Major milestone: `:shared:compileKotlinIosSimulatorArm64` **succeeded for the first time ever** — the
+shared module's main source actually compiled and linked for iOS, with SKIE processing real Swift
+bindings. The very next task, `:shared:compileTestKotlinIosSimulatorArm64`, then failed — the first
+time anything has ever compiled `commonTest`/`iosTest` for a real Kotlin/Native target, since
+`androidApp`'s and `shared`'s Android-target unit tests are the only ones that had ever run before.
+
+**Root cause.** Kotlin/Native mangles backtick-quoted test function display names into native,
+Objective-C-interop-safe symbols so the generated test binary can be linked and run on-device/on-
+simulator. `(`, `)`, and `,` are illegal in the resulting symbol, so the Kotlin/Native compiler rejects
+any backtick test name containing them. The JVM/Android target never had this restriction — the JVM
+invokes JUnit test methods via reflection using an arbitrary `String` name, so parentheses and commas
+in a backtick-quoted display name have always been silently fine there. This is a real, previously-
+invisible portability constraint on `commonTest` that simply had no way to surface until a
+Kotlin/Native compile of `commonTest`/`iosTest` actually ran — which D102–D104 finally unblocked.
+
+**Fix.** Renamed every affected backtick-quoted test function name to remove `(`, `)`, and `,`
+entirely, while keeping each name as descriptive as it was before: commas were replaced with "and"/
+"with"/"not"/plain removal depending on what read best in context, and the one parenthetical aside
+(`AuthPluginTest.kt`'s `401 AUTH_TOKEN_INVALID (...)` test) was folded into the sentence using em-dash-
+style ` - ... - ` separators instead of parens. Every change is a pure rename of the `` fun `...`() ``
+declaration line — no test body, assertion, or behavior was touched, confirmed by diffing every
+changed line individually.
+
+**Scope: 40 functions found by the CI run's error list, all across `commonTest` plus one `iosTest`
+file (`IosTokenStorageTest.kt`, a T1b addition) — none in `androidApp`, which wasn't touched.** A
+proactive repo-wide sweep (`` fun `[^`]*[(),][^`]*`() `` across the entirety of
+`mobile/shared/src/commonTest/` and `mobile/shared/src/iosTest/`) confirmed the CI run's flagged list
+was already fully exhaustive — the sweep found exactly the same 40 occurrences, zero more, zero less.
+A follow-up sweep for other Objective-C-selector-illegal punctuation (`:`, `;`, `/`, `[`, `]`, `<`,
+`>`, `\`) inside backtick names found none. A broader sweep for other unusual punctuation (`{`, `}`,
+`+`, `=`, `*`, `&`, `%`, `$`, `#`, `@`, `!`, `?`, `"`, `~`, `^`, `|`) found exactly one suspicious
+pattern worth flagging but not fixing (not part of this defect class, not flagged by the actual
+compiler, and its legality is unconfirmed): `getCourseDetails appends language=ar ...` /
+`language=en ...` style names in `CatalogRepositoryImplTest.kt` (lines 174, 187) and
+`LearningPathRepositoryImplTest.kt` (lines 141, 158) contain a literal `=`. Since `=` wasn't among the
+error-causing characters this CI run actually hit and its status for Kotlin/Native symbol mangling is
+unverified, these were deliberately left unchanged rather than guessed at — worth revisiting if a
+future CI run flags them.
+
+**Verification.** `:shared:testDebugUnitTest` → **249/249** (same count as D104's baseline — pure
+display-name renames, no test added/removed/changed). `:shared:assembleDebug` → clean.
+`:androidApp:testDebugUnitTest` → **241/241** (confirms zero collateral damage; `androidApp` wasn't
+touched). Diff reviewed line-by-line: exactly 40 changed lines across 25 files, every one of them only
+the `` fun `...`() `` declaration, nothing in any test body. A final post-fix sweep of the same regex
+across both source trees returned zero remaining matches. The actual iOS-simulator-target
+`compileTestKotlinIosSimulatorArm64` step itself can only be re-verified by re-running CI on macOS.
+Nothing else.

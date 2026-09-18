@@ -7,7 +7,7 @@ import kotlin.test.assertTrue
 class EmailValidatorTest {
 
     @Test
-    fun `valid emails pass, normalized to trimmed lowercase`() {
+    fun `valid emails pass normalized to trimmed lowercase`() {
         val cases = listOf(
             "  Student@Example.com  " to "student@example.com",
             "a.b+tag@sub.example.co" to "a.b+tag@sub.example.co",

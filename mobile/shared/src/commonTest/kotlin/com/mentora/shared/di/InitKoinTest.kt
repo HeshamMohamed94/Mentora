@@ -143,13 +143,13 @@ class InitKoinTest {
     }
 
     @Test
-    fun `SessionManager is a shared single, never a fresh instance per resolution`() {
+    fun `SessionManager is a shared single never a fresh instance per resolution`() {
         val koin = initKoin(testEnvironment, testPlatformModule()).koin
         assertSame(koin.get<SessionManager>(), koin.get<SessionManager>())
     }
 
     @Test
-    fun `use cases are factories, a fresh instance per resolution`() {
+    fun `use cases are factories with a fresh instance per resolution`() {
         val koin = initKoin(testEnvironment, testPlatformModule()).koin
         assertNotSame(koin.get<LoginUseCase>(), koin.get<LoginUseCase>())
     }

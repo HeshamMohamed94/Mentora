@@ -23,7 +23,7 @@ private fun jsonHeaders() = headersOf(HttpHeaders.ContentType, ContentType.Appli
 class UnfollowLearningPathUseCaseTest {
 
     @Test
-    fun `invoke twice in a row is idempotent, both calls succeeding with false`() = runTest {
+    fun `invoke twice in a row is idempotent with both calls succeeding with false`() = runTest {
         var requestCount = 0
         val engine = MockEngine {
             requestCount++

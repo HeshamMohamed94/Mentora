@@ -44,7 +44,7 @@ class GetQuizUseCaseTest {
     }
 
     @Test
-    fun `a 404 QUIZ_NOT_FOUND maps to a clean NoQuiz result, not a generic failure`() = runTest {
+    fun `a 404 QUIZ_NOT_FOUND maps to a clean NoQuiz result not a generic failure`() = runTest {
         val failure = ApiResult.Failure(ApiErrorCode.QuizNotFound, "The quiz was not found.", null, 404)
         val repository = FakeQuizRepositoryForGetQuiz(failure)
         val useCase = GetQuizUseCase(repository)
@@ -56,7 +56,7 @@ class GetQuizUseCaseTest {
     }
 
     @Test
-    fun `a non-enrolled 403 failure is forwarded unchanged, never folded into NoQuiz`() = runTest {
+    fun `a non-enrolled 403 failure is forwarded unchanged and never folded into NoQuiz`() = runTest {
         val failure = ApiResult.Failure(ApiErrorCode.ForbiddenNotEnrolled, "Not enrolled.", null, 403)
         val repository = FakeQuizRepositoryForGetQuiz(failure)
         val useCase = GetQuizUseCase(repository)

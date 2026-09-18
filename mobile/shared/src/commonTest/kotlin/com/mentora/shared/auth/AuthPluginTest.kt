@@ -106,7 +106,7 @@ class AuthPluginTest {
      * 401→refresh→retry flow this task exists to build would never fire against the real backend.
      */
     @Test
-    fun `401 AUTH_TOKEN_INVALID (the code the real backend actually emits for an expired access token) also triggers exactly one refresh then a successful retry`() = runTest {
+    fun `401 AUTH_TOKEN_INVALID - the code the real backend actually emits for an expired access token - also triggers exactly one refresh then a successful retry`() = runTest {
         var refreshCallCount = 0
         var protectedCallCount = 0
         val engine = MockEngine { request ->
@@ -207,7 +207,7 @@ class AuthPluginTest {
     }
 
     @Test
-    fun `a failed refresh clears TokenStorage and sets Unauthenticated, with no retry`() = runTest {
+    fun `a failed refresh clears TokenStorage and sets Unauthenticated with no retry`() = runTest {
         var protectedCallCount = 0
         val engine = MockEngine { request ->
             if (request.url.encodedPath.endsWith("/auth/refresh")) {

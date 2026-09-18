@@ -295,7 +295,7 @@ class IosTokenStorageTest {
     }
 
     @Test
-    fun `a malformed stored payload reads as no session, not a crash or a failure`() = runBlocking {
+    fun `a malformed stored payload reads as no session not a crash or a failure`() = runBlocking {
         val keychain = FakeKeychain(initiallyStored = "not valid json")
         val storage = IosTokenStorage(keychain)
 
@@ -318,7 +318,7 @@ class IosTokenStorageTest {
     // --- state transitions & KeychainStatus delivery --------------------------------------------
 
     @Test
-    fun `a save, clear, save round trip transitions state correctly across all three calls`() = runBlocking {
+    fun `a save then clear then save round trip transitions state correctly across all three calls`() = runBlocking {
         val keychain = FakeKeychain()
         val storage = IosTokenStorage(keychain)
 

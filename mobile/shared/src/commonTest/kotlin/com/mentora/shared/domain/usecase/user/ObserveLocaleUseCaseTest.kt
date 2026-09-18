@@ -8,7 +8,7 @@ import kotlin.test.assertEquals
 class ObserveLocaleUseCaseTest {
 
     @Test
-    fun `invoke exposes PreferenceStore's locale StateFlow, reflecting later writes`() {
+    fun `invoke exposes PreferenceStore's locale StateFlow reflecting later writes`() {
         val preferenceStore = FakePreferenceStore(initialLocale = AppLocale.English)
         val useCase = ObserveLocaleUseCase(preferenceStore)
 

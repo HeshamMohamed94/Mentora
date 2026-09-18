@@ -27,7 +27,7 @@ class QuizDtoTest {
     }
 
     @Test
-    fun `an isCorrect field on the wire is silently ignored, never surfacing on QuizOptionDto`() {
+    fun `an isCorrect field on the wire is silently ignored and never surfaces on QuizOptionDto`() {
         val json = """{"optionId":"o1","text":"A","isCorrect":true}"""
 
         val decoded = MentoraJson.decodeFromString(QuizOptionDto.serializer(), json)
