@@ -1,0 +1,136 @@
+# Phase 5 Task T4a — XcodeGen project spec (https://github.com/yonaskolb/XcodeGen).
+#
+# THIS FILE IS THE AUTHORITATIVE PROJECT DEFINITION. `iosApp.xcodeproj/` is GENERATED FROM this file
+# on a Mac via `xcodegen generate` (see `scripts/build-shared-xcframework.sh` for the companion step
+# that must run first) — the `.xcodeproj` itself is never hand-edited or committed (see
+# `mobile/.gitignore`). Authored on a Windows host with no Xcode/xcodegen available; every structural
+# choice below is reviewed against XcodeGen's documented YAML schema, but `xcodegen generate` itself
+# has never been run against this file — that is an explicit MC-2 (Mac-only) item
+# (`execution/PHASE_5_IOS_IMPLEMENTATION_PLAN.md` T4a completion gate).
+#
+# Directory layout matches `execution/PHASE_5_IOS_SYSTEM_DESIGN.md` § 22 / `architecture/
+# REPOSITORY_STRUCTURE.md` § 4 exactly: app target sources under `iosApp/`, unit tests under
+# `iosAppTests/`, UI tests under `iosAppUITests/`, the local SPM wrapper under `Packages/MentoraShared/`.
+
+name: iosApp
+
+options:
+  # Bundle id convention mirrors Android's sibling app id (`com.mentora.android`,
+  # `mobile/androidApp/build.gradle.kts`) — `com.mentora.ios` for the app target itself.
+  bundleIdPrefix: com.mentora
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+  # `xcodegen generate` will delete files/groups from the .xcodeproj that no longer have a matching
+  # source on disk when regenerating — the standard, recommended XcodeGen setting so the project file
+  # never drifts from `sources:` below.
+  generateEmptyDependentSchemes: false
+
+# Local SPM package dependency (Task T4a file list): wraps the KMP-built `shared.xcframework` as a
+# binaryTarget — see `Packages/MentoraShared/Package.swift`. Declared once here, referenced by the app
+# target's `dependencies:` below.
+packages:
+  MentoraShared:
+    path: Packages/MentoraShared
+
+targets:
+  iosApp:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: iosApp
+        # `Resources/Info.plist` is wired in via the `INFOPLIST_FILE` build setting below, not as a
+        # Copy Bundle Resources entry — excluding it here avoids XcodeGen's well-known "Multiple
+        # commands produce Info.plist" duplicate-output build error. The `Theme/MentoraColors.xcassets`
+        # and `Theme/MentoraIcons.xcassets` catalogs from T2/T3 need no special handling: Xcode
+        # auto-compiles any `.xcassets` directory it finds under a target's `sources:` path.
+        excludes:
+          - "Resources/Info.plist"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.mentora.ios
+        PRODUCT_NAME: iosApp
+        INFOPLIST_FILE: iosApp/Resources/Info.plist
+        # Lets `iosApp/Resources/Info.plist` gate its `NSAppTransportSecurity` block behind a
+        # `#ifdef MENTORA_DEBUG_ATS` C-preprocessor conditional — the real Xcode mechanism for making
+        # an Info.plist key genuinely differ per build configuration (as opposed to always being
+        # present with a value that merely looks conditional). `INFOPLIST_PREPROCESSOR_DEFINITIONS`
+        # below supplies the macro, per configuration.
+        INFOPLIST_PREPROCESS: YES
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: "1"
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1,2"
+      configs:
+        Debug:
+          # Required so `#if DEBUG` guards compiled into Swift (T4b's `enableNetworkLogging`, per
+          # `PHASE_5_IOS_SYSTEM_DESIGN.md` § 8) are real for Debug builds — an inline comment alone is
+          # not a guard.
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
+          # Debug-only App Transport Security exception for local networking (dev backend on
+          # localhost — see `ApiEnvironment.iosSimulator()` in `mobile/shared`). Defines the macro that
+          # `Info.plist`'s `#ifdef MENTORA_DEBUG_ATS` block checks for; Release below defines nothing,
+          # so the ATS exception is compiled out of Release Info.plists entirely.
+          INFOPLIST_PREPROCESSOR_DEFINITIONS: "MENTORA_DEBUG_ATS=1"
+        Release:
+          INFOPLIST_PREPROCESSOR_DEFINITIONS: ""
+    dependencies:
+      - package: MentoraShared
+        product: Shared
+
+  # Scaffold only (Task T4a) — real test cases are added by later, Mac-only tasks once SKIE-generated
+  # `shared` symbols exist to test against. A placeholder XCTestCase keeps the target buildable and the
+  # `sources:` path non-empty so `xcodegen generate` has something real to point at.
+  iosAppTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: iosAppTests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.mentora.ios.iosAppTests
+        SWIFT_VERSION: "5.0"
+      configs:
+        Debug:
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
+    dependencies:
+      - target: iosApp
+
+  iosAppUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: iosAppUITests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.mentora.ios.iosAppUITests
+        SWIFT_VERSION: "5.0"
+      configs:
+        Debug:
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
+    dependencies:
+      - target: iosApp
+
+schemes:
+  iosApp:
+    build:
+      targets:
+        iosApp: all
+        iosAppTests: [test]
+        iosAppUITests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - iosAppTests
+        - iosAppUITests
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release

@@ -15,7 +15,13 @@ build/
 *.xcframework
 DerivedData/
 xcuserdata/
+*.xcuserdatad/
 *.xcuserstate
+
+# Phase 5 Task T4a: `iosApp.xcodeproj/` is GENERATED from `mobile/iosApp/project.yml` by
+# `xcodegen generate` on a Mac — never hand-edited, never committed (see project.yml's own header
+# comment and `execution/PHASE_5_IOS_SYSTEM_DESIGN.md` § 22's project tree).
+mobile/iosApp/iosApp.xcodeproj/
 
 # Phase 5 Task T1: explicit XCFramework output path, once `:shared:assembleSharedDebugXCFramework`/
 # `:shared:assembleSharedReleaseXCFramework` actually run on a macOS host (Kotlin Multiplatform's
