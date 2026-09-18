@@ -4248,3 +4248,65 @@ standing host-tagging rule. Grepped the whole `mobile/iosApp/` tree for `KotlinF
 **Status unchanged** — T4b remains **implemented, fix rounds applied, pending CI**, not DONE; this fix
 round is a correction/simplification of already-authored T4b code, not new scope. Do not start T5 or any
 feature-UI work in this session.
+
+**Fix round #5 — 2026-09-19 — real CI run #9 (commit `5f21c53`) progress + a genuine runtime crash.**
+For the first time, the entire `iosApp` Swift target compiled and linked successfully and `xcodebuild
+build` passed — fix round #4's `for await` rewrite is now compiler-confirmed, including
+`LocaleController.swift`'s `observeLocale` subscription (not directly confirmed by CI run #8, since its
+failing compile batch never reached that file). The job then failed at "xcodebuild - run the XCTest unit
+target" with a genuine runtime crash, not a compile error — quoted verbatim from the real CI log:
+
+```
+2026-09-18 21:07:44.426253+0000 iosApp[8481:29434] [library] load_eligibility_plist: Failed to open ...
+(benign CoreSimulator warning, unrelated)
+AppEnvironment.swift:96: Fatal error: AppEnvironment must be injected via
+`.environment(\.appEnvironment, ...)` before any view reads it — see MentoraApp.swift.
+Testing failed: iosApp (8481) encountered an error (Early unexpected exit, operation never finished
+bootstrapping - no restart will be attempted. (Underlying Error: Test crashed with signal trap before
+starting test execution.))
+```
+
+Confirmed: this fired before any `iosAppTests` test method ran, during `xcodebuild test -only-testing:
+iosAppTests`'s own launch of the real `iosApp` binary as the test host (not a mock). Ruled out:
+`iosAppTests/ScaffoldPlaceholderTests.swift` (a trivial `XCTAssertTrue(true)`, touches nothing app-side)
+and `#Preview` macros (none exist anywhere in `mobile/iosApp/`). The actual trigger was
+`AppEnvironmentKey.defaultValue`'s hard `fatalError()` (added when `AppEnvironment` was first written,
+on the — now-disproven — assumption that `MentoraApp` always injects before any view reads it, so the
+trap could never actually fire). It fired for real: `PlaceholderRootView`'s `@Environment(\.appEnvironment)`
+read hit this default during the test-hosted launch. **Not confirmed**: the exact SwiftUI/Xcode mechanism
+that let the read reach the default in that launch context. A plausible contributing factor — not proven
+— is that a unit-test-hosted app launch has no real, visible `UIWindowScene` attached, and SwiftUI's
+environment-population guarantee is tied to the render graph actually running, which may not fully happen
+in a headless test-host launch.
+
+**Fix applied**, following this same task's own established convention for exactly this situation (Fix 5
+above: don't crash on an unexpected/edge-case state — assert in debug, degrade gracefully in release,
+same shape as the Keychain-flow-bridge's approach to unexpected states). `appEnvironment` is now
+`AppEnvironment?` (was non-optional `AppEnvironment`), with `AppEnvironmentKey.defaultValue` returning
+`nil` instead of trapping — chosen over constructing a fallback `AppEnvironment()` instance because that
+would spin up a second `MentoraSdk` (System Design § 3.1, acceptance criterion A3 — a review-stopper).
+`PlaceholderRootView` (`MentoraApp.swift`) now unwraps the optional: the real, correctly-configured
+launch path (`MentoraApp.body` always injects before this view renders) is completely unchanged in
+behavior; the `nil` branch renders the identical splash background — indistinguishable from `.unknown`,
+per System Design § 9 step 5's "never a flash of the wrong thing" rule — and raises a debug-only
+`assertionFailure` (via a `hasAssertedMissingEnvironment` static flag, so it fires at most once per
+process rather than on every re-render) the first time it actually renders that `nil` case, so a genuine
+wiring omission is still caught loudly in a normal Debug build/manual run without ever taking down a
+release build or a test host again. Both files' doc comments were rewritten to state this crash and fix
+honestly — quoting the real CI log rather than presenting the "headless test-host launch" theory as a
+proven root cause.
+
+Grepped the whole `mobile/iosApp/` tree for `fatalError(` after this fix: zero live call sites remain
+(the two remaining textual matches are this fix round's own doc-comment references to the crash, not
+code). This was a one-off, not a pattern — no other `fatalError`-shaped trap exists anywhere in
+`mobile/iosApp/iosApp/` (including `Support/SessionController.swift`, `LocaleController.swift`,
+`ThemeController.swift` — none use it).
+
+Re-ran `:shared:testDebugUnitTest` (249/249) and `:androidApp:testDebugUnitTest` (241/241) — unaffected,
+no Kotlin file touched by this fix round. No Swift compile/run is possible on this Windows host; the next
+real `ios-ci.yml` run (CI run #10) is the only verification authority, specifically whether `xcodebuild
+test` now gets past app launch and actually executes `ScaffoldPlaceholderTests.testScaffoldCompiles()`.
+
+**Status unchanged** — T4b remains **implemented, fix rounds applied, pending CI**, not DONE; CI run #10
+is required to confirm the test host now launches successfully. Do not start T5 or any feature-UI work in
+this session.

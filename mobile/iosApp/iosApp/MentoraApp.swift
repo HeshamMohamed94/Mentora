@@ -21,15 +21,47 @@ struct MentoraApp: App {
 /// Renders the same full-bleed background for every session state today; the per-case branches exist
 /// so `.unknown` can never flash anything but this splash placeholder once real screens replace the
 /// `.authenticated`/`.unauthenticated` branches.
+///
+/// D108 fix round — `appEnvironment` is `AppEnvironment?` (see `AppEnvironmentKey`'s doc comment in
+/// `AppEnvironment.swift` for the real, CI-run-#9-observed crash this replaced). In the normal launch
+/// path (`MentoraApp.body` above always injects before this view renders), `appEnvironment` is never
+/// `nil`. The `nil` branch exists only for the atypical/unconfirmed launch context that CI run #9 hit
+/// (a unit-test-hosted app launch) and renders the identical splash background — indistinguishable from
+/// `.unknown`, per System Design § 9 step 5's "never a flash of the wrong thing" rule — while raising a
+/// debug-only `assertionFailure` (once) so a genuine wiring omission is still caught loudly in a normal
+/// Debug build/manual run, without ever crashing a release build or a test host.
 private struct PlaceholderRootView: View {
     @Environment(\.appEnvironment) private var appEnvironment
 
     var body: some View {
-        switch appEnvironment.sessionController.authState {
-        case .unknown:
-            Color.mentoraBackgroundPrimary.ignoresSafeArea()
-        case .authenticated, .unauthenticated:
+        if let appEnvironment {
+            switch appEnvironment.sessionController.authState {
+            case .unknown, .authenticated, .unauthenticated:
+                Color.mentoraBackgroundPrimary.ignoresSafeArea()
+            }
+        } else {
+            #if DEBUG
+            Self.assertNotYetInjectedOnce()
+            #endif
             Color.mentoraBackgroundPrimary.ignoresSafeArea()
         }
     }
+
+    #if DEBUG
+    /// Fires at most once per process — a genuine omission would otherwise re-trip this on every
+    /// re-render of a `nil`-environment tree, which would be noisy without being any more informative.
+    private static var hasAssertedMissingEnvironment = false
+
+    private static func assertNotYetInjectedOnce() {
+        guard !hasAssertedMissingEnvironment else { return }
+        hasAssertedMissingEnvironment = true
+        assertionFailure(
+            "PlaceholderRootView rendered before AppEnvironment was injected via " +
+            "`.environment(\\.appEnvironment, ...)` — see MentoraApp.swift. This should never happen in " +
+            "the real app launch path; only a genuine wiring omission, or an atypical launch context " +
+            "(e.g. a unit-test host launch — see AppEnvironment.swift's AppEnvironmentKey doc comment), " +
+            "should ever reach here."
+        )
+    }
+    #endif
 }

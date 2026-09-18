@@ -88,20 +88,48 @@ final class AppEnvironment {
 }
 
 /// Required-dependency `@Environment` key (System Design § 3.1: `@Environment` injection, never a
-/// static singleton). `MentoraApp` always injects the real, single `AppEnvironment` before any view's
-/// body runs, so `defaultValue` below is a fail-fast trap, not a fallback instance — it is never
-/// actually constructed in the shipped app.
+/// static singleton). `MentoraApp` always injects the real, single `AppEnvironment` before
+/// `PlaceholderRootView`'s body is expected to read it in the normal app-launch path.
+///
+/// D108 fix round — CI run #9 (commit `5f21c53`) caught this key's original `defaultValue` — a hard
+/// `fatalError()`, on the theory that `MentoraApp` always injects before any view reads it — actually
+/// crashing for real, every time, in a genuinely reproducible launch path. Verbatim from that CI log:
+/// ```
+/// AppEnvironment.swift:96: Fatal error: AppEnvironment must be injected via
+/// `.environment(\.appEnvironment, ...)` before any view reads it — see MentoraApp.swift.
+/// Testing failed: iosApp (8481) encountered an error (Early unexpected exit, operation never finished
+/// bootstrapping - no restart will be attempted. (Underlying Error: Test crashed with signal trap
+/// before starting test execution.))
+/// ```
+/// Confirmed: the trap fired before any `iosAppTests` test method ran, during `xcodebuild test`'s own
+/// launch of the real `iosApp` binary as `iosAppTests`'s test host — not a mock, not a compile error,
+/// and not `ScaffoldPlaceholderTests.swift` (a trivial `XCTAssertTrue(true)`, confirmed unrelated) or an
+/// `#Preview` macro (none exist anywhere in `mobile/iosApp/`). Not confirmed: the exact SwiftUI/Xcode
+/// mechanism that let `PlaceholderRootView`'s `@Environment` read reach this default in that launch
+/// context. A unit-test-hosted app launch plausibly has no real, visible `UIWindowScene` attached, and
+/// SwiftUI's environment-population guarantee is tied to the render graph actually running — which may
+/// not fully happen in a headless test-host launch — but this is a plausible contributing factor, not a
+/// proven root cause.
+///
+/// Regardless of the exact mechanism, a hard `fatalError()` default is the wrong contract for a value
+/// that a real, reproducible (if atypical) launch path can reach — it takes down the entire test host
+/// (and would take down a real user's app, if the same path were ever hit there) instead of degrading.
+/// Fixed per this codebase's own established convention for exactly this situation (D108 Fix 5's
+/// Keychain-flow-bridge pattern: don't crash on an unexpected state — assert in debug, degrade
+/// gracefully in release). `appEnvironment` below is now `AppEnvironment?`, defaulting to `nil` instead
+/// of constructing (or crashing while trying to construct) a real value — `defaultValue` must never call
+/// `AppEnvironment()`'s real initializer, since that would spin up a second `MentoraSdk` instance
+/// (System Design § 3.1, acceptance criterion A3 — forbidden). `PlaceholderRootView` (`MentoraApp.swift`)
+/// treats `nil` as visually identical to `.unknown` — both are the launch splash — and raises a
+/// debug-only `assertionFailure` (never a release-mode crash) the first time it actually renders the
+/// `nil` case, so a genuine wiring omission is still caught loudly in a normal Debug build/manual test
+/// run.
 private struct AppEnvironmentKey: EnvironmentKey {
-    static var defaultValue: AppEnvironment {
-        fatalError(
-            "AppEnvironment must be injected via `.environment(\\.appEnvironment, ...)` before any " +
-            "view reads it — see MentoraApp.swift."
-        )
-    }
+    static var defaultValue: AppEnvironment? { nil }
 }
 
 extension EnvironmentValues {
-    var appEnvironment: AppEnvironment {
+    var appEnvironment: AppEnvironment? {
         get { self[AppEnvironmentKey.self] }
         set { self[AppEnvironmentKey.self] = newValue }
     }
