@@ -4970,3 +4970,39 @@ one-line fix for (see the "`register_` naming (confirmed from source, not re-der
 Grepped all of `mobile/iosApp/` for `register_` afterward — no other occurrence exists.
 
 **Status.** Not yet re-verified by CI — the next `ios-ci.yml` run is the real check for this fix.
+
+#### D114 — 2026-09-19 — CI run #14 confirms `ApiResultFailure` doesn't implicitly convert to typed `ApiResult<T>`; force-cast fix at 4 sites
+
+**Context.** Real macOS CI (run #14,
+https://github.com/HeshamMohamed94/Mentora/actions/runs/35407043541/job/105798837601) got past the
+D113 `.register` fix and the D112 build fixes — the app target now builds — but the `ApiResultBridgeTests`
+unit target failed with 4 genuine Swift compiler errors, all of the shape "cannot assign value of type
+`ApiResult<KotlinNothing>` to type `ApiResult<X>`" (`X` = `NSString`, `KotlinUnit`, `NSArray`, and
+`NSString?`), at the 4 sites where a plain `ApiResultFailure(...)` result was assigned to a
+typed-`let`.
+
+**Root cause.** The generated header exports the base class as
+`@interface SharedApiResult<__covariant T> : SharedBase`, so `ApiResult<T>` is genuinely covariant at
+the Obj-C/Swift level. In real Kotlin, `Failure : ApiResult<Nothing>()`, and Kotlin's `Nothing` is a
+true bottom type that unifies with any `T`. But at the imported-header level, `KotlinNothing` is just
+an ordinary leaf Obj-C/Swift class — Swift's type-checker has no special bottom-type rule for it, so
+covariance alone doesn't make `ApiResult<KotlinNothing>` convert to `ApiResult<X>` for arbitrary `X`.
+The plain typed-`let` assignments the tests relied on therefore don't compile, in any of the 4 places
+across different `T`s. (`ApiResultSuccess<T>(data:)` sites are unaffected — that constructor is
+genuinely generic over `T` and already types correctly; this is specific to `ApiResultFailure`'s
+`Nothing`-typed constructor.)
+
+**Fix.** In `mobile/iosApp/iosAppTests/ApiResultBridgeTests.swift`, all 4 affected sites changed from a
+typed-`let` assignment to an explicit force-cast, since Obj-C generics are erased at runtime and the
+cast can never actually fail:
+- `testUnwrapFailureThrowsMentoraErrorWithFieldsAndHttpStatus`: `let result: ApiResult<NSString> = failure` → `let result = failure as! ApiResult<NSString>`
+- `testUnwrapVoidThrowsOnFailure`: `let result: ApiResult<KotlinUnit> = failure` → `let result = failure as! ApiResult<KotlinUnit>`
+- `testUnwrapListThrowsOnFailure`: `let result: ApiResult<NSArray> = failure` → `let result = failure as! ApiResult<NSArray>`
+- `testUnwrapOptionalFailureThrows`: `let result: ApiResult<NSString>? = failure` → `let result = failure as! ApiResult<NSString>?` (force-cast directly to the Optional type — standard, idiomatic Swift; no separate unwrap/rewrap needed)
+
+This is a known, standard KMP/SKIE Obj-C-interop pattern for bottom-typed Kotlin sealed-class cases
+(`Nothing`-typed branches), not a workaround hack. No other test in this file, and no non-test file,
+was touched.
+
+**Status.** Not yet re-verified by CI — the next `ios-ci.yml` run is the real check for this fix.
+No Swift compile is possible on this Windows host.

@@ -25,7 +25,7 @@ final class ApiResultBridgeTests: XCTestCase {
             fields: ["email": "REQUIRED"],
             httpStatus: 422
         )
-        let result: ApiResult<NSString> = failure
+        let result = failure as! ApiResult<NSString>
 
         XCTAssertThrowsError(try ApiResultBridge.unwrap(result)) { error in
             guard let mentoraError = error as? MentoraError else {
@@ -47,7 +47,7 @@ final class ApiResultBridgeTests: XCTestCase {
 
     func testUnwrapVoidThrowsOnFailure() {
         let failure = ApiResultFailure(code: ApiErrorCode.InternalError(), message: "m", fields: nil, httpStatus: 500)
-        let result: ApiResult<KotlinUnit> = failure
+        let result = failure as! ApiResult<KotlinUnit>
         XCTAssertThrowsError(try ApiResultBridge.unwrapVoid(result))
     }
 
@@ -76,7 +76,7 @@ final class ApiResultBridgeTests: XCTestCase {
 
     func testUnwrapListThrowsOnFailure() {
         let failure = ApiResultFailure(code: ApiErrorCode.InternalError(), message: "m", fields: nil, httpStatus: 500)
-        let result: ApiResult<NSArray> = failure
+        let result = failure as! ApiResult<NSArray>
         XCTAssertThrowsError(try ApiResultBridge.unwrapList(result, as: String.self))
     }
 
@@ -113,7 +113,7 @@ final class ApiResultBridgeTests: XCTestCase {
 
     func testUnwrapOptionalFailureThrows() {
         let failure = ApiResultFailure(code: ApiErrorCode.InternalError(), message: "m", fields: nil, httpStatus: 500)
-        let result: ApiResult<NSString>? = failure
+        let result = failure as! ApiResult<NSString>?
         XCTAssertThrowsError(try ApiResultBridge.unwrapOptional(result))
     }
 }
