@@ -4134,3 +4134,39 @@ Re-ran `:shared:testDebugUnitTest`/`:androidApp:testDebugUnitTest` after this fi
 no Kotlin file touched). `SessionController.swift`/`KotlinFlowBridge.swift` remain uncompiled/unverified
 on this Windows host; status unchanged from fix round #1 above — **implemented, fix rounds applied,
 pending CI**, not DONE. Do not start T5 or any feature-UI work in this session.
+
+**Fix round #3 (CI run #7, real compile failure — the first genuine Swift compile of any T4b code).**
+Pushed `e11b4b4` and triggered CI run #7 (`35392756985`). Gradle KMP compile/link/`iosSimulatorArm64Test`/
+XCFramework assembly and `xcodegen generate` all succeeded for real — the first real evidence the shared
+framework and its test suite build cleanly against this project's actual Xcode/Kotlin-Native toolchain
+pairing. `xcodebuild build` (the `iosApp` Swift target) failed with a genuine Swift compiler error,
+quoted verbatim from the real log (not paraphrased):
+
+```
+KotlinFlowBridge.swift:39:21: error: type 'KotlinFlowWatcher<Value>' does not conform to protocol
+'Kotlinx_coroutines_coreFlowCollector'
+shared.Kotlinx_coroutines_coreFlowCollector.__emit:2:6: note: protocol requires function
+'__emit(value:completionHandler:)' with type '(Any?, @escaping ((any Error)?) -> Void) -> Void'
+shared.Kotlinx_coroutines_coreFlowCollector.__emit:2:6: note: protocol requires function
+'__emit(value:)' with type '(Any?) async throws -> Void'
+```
+
+**Real finding, undiscoverable from the static `shared.h` Obj-C header:** the Swift-visible protocol
+requirement SKIE actually generated is named `__emit`, not `emit` — a SKIE-internal naming choice with
+no trace in the Obj-C header (which only shows the underlying selector, `emitValue:completionHandler:`,
+transliterated the "obvious" way that turned out to be wrong). This is exactly the class of surprise the
+project's "never guess the SKIE/KMP Swift API shape — let the first real compile discover it" rule
+exists for; it was not and could not have been caught by reading the header alone.
+
+**Fix applied.** Renamed `KotlinFlowWatcher.emit(value:completionHandler:)` to
+`__emit(value:completionHandler:)` (signature otherwise unchanged — the threading-safety design from fix
+round #1 is untouched, just the method name). The diagnostic lists a **second** unsatisfied requirement,
+`__emit(value:) async throws` — not fixed here, deliberately: it's unknown whether SKIE's protocol
+supplies a default extension bridging one form from the other (in which case implementing only the
+completion-handler form is sufficient) or requires both implemented explicitly. Implementing only the
+evidenced, design-matching form and letting the **next** real compile confirm or refute the second
+requirement is the correct next slice per this phase's own execution-loop rule — not a guess made now.
+If CI run #8 still reports `__emit(value:) async throws` as missing, that's fix round #4, not a surprise.
+
+Re-ran `:shared:testDebugUnitTest`/`:androidApp:testDebugUnitTest` (unaffected, no Kotlin touched).
+Pushed as a follow-up commit; CI run #8 is the next real verification.

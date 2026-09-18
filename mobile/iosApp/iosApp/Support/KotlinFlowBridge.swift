@@ -12,6 +12,18 @@ import shared
 // artifact-verified deviation — see `execution/DECISIONS_LOG.md` D108. T5's `Support/SharedBridge/`
 // layer will build this out further; this file stays intentionally small and generic — just enough
 // for the three call sites T4b itself needs (`SessionController`/`LocaleController`).
+//
+// CI run #7 (real compile, e11b4b4) proved a Swift-name detail no static header could show: the
+// Swift-visible protocol requirement is `__emit`, not `emit` — SKIE's own generated name, not the
+// raw Obj-C selector `emitValue:completionHandler:` transliterated the obvious way. Real compiler
+// diagnostic quoted here rather than re-guessed:
+//   shared.Kotlinx_coroutines_coreFlowCollector.__emit:2:6: note: protocol requires function
+//   '__emit(value:completionHandler:)' with type '(Any?, @escaping ((any Error)?) -> Void) -> Void'
+// A second requirement, `__emit(value:) async throws`, was also listed as unsatisfied in that same
+// diagnostic — implementing only the completion-handler form below is this round's best-evidenced
+// next step (it's the one this file's threading design already targets); if SKIE's protocol has no
+// default extension bridging one form from the other, the next CI run will report the async form as
+// still missing, and that's the next slice, not a guess made now.
 
 private let kotlinFlowWatcherLog = Logger(subsystem: "com.mentora.ios", category: "KotlinFlowBridge")
 
@@ -43,7 +55,7 @@ private final class KotlinFlowWatcher<Value>: NSObject, Kotlinx_coroutines_coreF
         self.onValue = onValue
     }
 
-    func emit(value: Any?, completionHandler: @escaping (Error?) -> Void) {
+    func __emit(value: Any?, completionHandler: @escaping (Error?) -> Void) {
         let typed = value as? Value
         DispatchQueue.main.async { [onValue] in
             guard let typed else {
