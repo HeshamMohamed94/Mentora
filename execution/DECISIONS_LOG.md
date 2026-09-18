@@ -4354,3 +4354,144 @@ loop is designed to do.
 Re-ran `:shared:testDebugUnitTest` (249/249) and `:androidApp:testDebugUnitTest` (241/241) — unaffected, no
 Kotlin touched. **Status unchanged** — T4b remains **implemented, fix rounds applied, pending CI**; CI run
 #11 is the next verification. Do not start T5 or any feature-UI work in this session.
+
+**CI run #11 (commit `8d607ea`) — a genuine milestone, plus a crash that is NOT a T4b bug.** Fix round #6's
+`@ViewBuilder` fix held: `xcodebuild build` succeeded for the entire `iosApp` Swift target for the first
+time, and the app genuinely launched in the simulator (the log's `FirstFramePresentationMetric` line
+confirms a first frame actually rendered) — T4b's Swift bootstrap code itself is sound. The app then
+crashed with `kotlin.TypeCastException: class kotlinx.cinterop.CPointer cannot be cast to class
+platform.Foundation.NSString` while `AppEnvironment`'s cold-start `Task` ran `restoreSession()`'s Keychain
+read for the first time on real Kotlin/Native. **This is a T1b bug** (`SecurityFrameworkKeychain.baseQuery()`
+in `mobile/shared/src/iosMain/kotlin/com/mentora/shared/auth/Keychain.kt`), pre-existing since D97, not
+something T4b introduced — T4b's `restoreSession()` call site is exactly what the design always specified
+(System Design § 9 step 1) and is not implicated. See **D109** for the full root-cause writeup and fix; no
+T4b file changed. T4b's own status is unaffected by this entry — still **implemented, fix rounds applied,
+pending CI**, CI run #12 (after D109's fix) is the next verification of both T4b's launch path and D109's
+Keychain fix together.
+
+### D109 — 2026-09-19 — Task T1b correctness fix: `SecurityFrameworkKeychain` crashed on every real Keychain call — raw `CFStringRef` cinterop constants cast as `NSString`, never actually exercised until CI run #11's real app launch
+
+**Context.** This is a T1b bug (`mobile/shared/src/iosMain/kotlin/com/mentora/shared/auth/Keychain.kt`,
+authored under D97, reviewed and amended under D98/D99), surfaced only now because T4b's real CI run #11
+(see the note appended to D108 above) was the first time `restoreSession()` ever actually invoked
+`SecurityFrameworkKeychain` on real Kotlin/Native hardware. Filed as its own decision entry, not a T4b
+fix round, because the bug and the fix are entirely inside T1b's file and have nothing to do with T4b's
+Swift bootstrap code, which compiled and ran correctly right up to the point it called into this bug.
+
+**The real crash, quoted verbatim from CI run #11 (commit `8d607ea`):**
+```
+Uncaught Kotlin exception: kotlin.TypeCastException: class kotlinx.cinterop.CPointer cannot be cast to class platform.Foundation.NSString
+
+    at 5   iosApp.debug.dylib    ThrowTypeCastException + 471
+    at 6   iosApp.debug.dylib    kfun:com.mentora.shared.auth.SecurityFrameworkKeychain.baseQuery#internal + 747
+    at 7   iosApp.debug.dylib    kfun:com.mentora.shared.auth.SecurityFrameworkKeychain#copyMatching(){}com.mentora.shared.auth.KeychainReadResult + 479
+    at 8   iosApp.debug.dylib    kfun:com.mentora.shared.auth.KeychainStore#copyMatching(){}com.mentora.shared.auth.KeychainReadResult-trampoline + 99
+    at 9   iosApp.debug.dylib    kfun:com.mentora.shared.auth.IosTokenStorage#readTokens#suspend(...){}kotlin.Any? + 287
+    at 10  iosApp.debug.dylib    kfun:com.mentora.shared.auth.TokenStorage#readTokens#suspend(...){}kotlin.Any?-trampoline + 107
+    at 11  iosApp.debug.dylib    kfun:com.mentora.shared.data.repository.auth.AuthRepositoryImpl.$restoreSessionCOROUTINE$4.invokeSuspend#internal + 471
+    at 12  iosApp.debug.dylib    kfun:com.mentora.shared.data.repository.auth.AuthRepositoryImpl#restoreSession#suspend(...){}kotlin.Any + 263
+```
+An uncaught exception inside a coroutine aborts the Kotlin/Native process (`signal abrt`); the CI job
+reported `Testing failed: iosApp encountered an error (Early unexpected exit ... Test crashed with signal
+abrt before starting test execution.)`.
+
+**Root cause.** `platform.Security.kSecClass` (and every other `kSecXxx` constant this file uses —
+`kSecClassGenericPassword`, `kSecAttrService`, `kSecAttrAccount`, `kSecAttrAccessible`,
+`kSecAttrAccessibleWhenUnlockedThisDeviceOnly`, `kSecValueData`, `kSecMatchLimit`, `kSecMatchLimitOne`,
+`kSecReturnData`) are cinterop-imported `CFStringRef?` globals — at the Kotlin type level these are raw,
+un-bridged `CPointer`s, not Kotlin/Native's internal representation of a genuine Objective-C `NSString`
+object. `CFStringRef` and `NSString*` ARE toll-free-bridged at the Objective-C/CoreFoundation ABI level,
+but Kotlin/Native's `as` operator performs a real runtime check against its own internal object-model
+tag, and a raw interop `CPointer` never carries that tag — so `kSecClass as NSString` threw
+`TypeCastException` deterministically, on every single call, the first time this code ever actually ran.
+This was not a flake and not data-dependent: every `baseQuery()`/`add()`/`update()`/`exists()`/
+`copyMatching()` invocation would have hit it, forever, on every real launch, until fixed.
+
+**A second, related bug this investigation also found, beyond the `as NSString` cast sites themselves.**
+Three of the `kSecXxx` constants above (`kSecClassGenericPassword`, `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`,
+`kSecMatchLimitOne`) were being passed as bare dictionary *values* to `NSMutableDictionary.setObject(_:forKey:)`
+with no cast at all — this compiles because `setObject`'s Kotlin signature takes `Any?`, and a raw `CPointer`
+is trivially a subtype of `Any`, but it is the same underlying bug: Kotlin/Native's `Any`→`id` Objective-C
+bridging only recognizes genuine Kotlin/Native ObjC-wrapper objects, Kotlin `String`, and boxed primitives —
+not a raw `CPointer` — so passing one directly would have made the dictionary hold a synthetic Kotlin
+object-wrapper proxy instead of the real, singleton `CFString` constant Security.framework matches
+against, which `SecItemAdd`/`SecItemCopyMatching` cannot recognize. Fixing only the explicit `as NSString`
+casts (the literal crash-log call sites) would have moved the crash to the very next line on the very
+next CI run, once the query dictionary actually reached `SecItemAdd`/`SecItemCopyMatching` with a garbage
+`kSecClass` value — so all 13 raw-constant usages in the file (9 explicit casts + 4 uncast value-position
+usages) are fixed identically, not just the ones the crash log's stack trace happened to reach first.
+
+**The fix.** A private extension, `CFStringRef?.asNSString()`, defined once inside `SecurityFrameworkKeychain`
+and used at every one of the 13 sites (both key and value positions):
+```kotlin
+private fun CFStringRef?.asNSString(): NSString = interpretObjCPointer(this!!.rawValue)
+```
+`kotlinx.cinterop.interpretObjCPointer<T>` reinterprets an already-live raw native pointer as an existing
+instance of an Objective-C-interop-mapped Kotlin/Native type, with **no retain/release side effect** —
+exactly the right semantics, because `kSecClass` and friends are borrowed, process-lifetime,
+framework-owned global constants (the CoreFoundation "Get Rule": a caller never owns them, never balances
+them). `.rawValue` (`kotlinx.cinterop.rawValue`, an extension on `CPointer<*>`) supplies the `NativePtr`
+`interpretObjCPointer` needs from the constant's existing `CFStringRef` value.
+
+**Why `CFBridgingRelease` was deliberately NOT used here.** `CFBridgingRelease` is correctly used
+elsewhere in this same file (`copyMatching()`'s `CFBridgingRelease(resultRef.value) as? NSData`, D98's Fix
+6) because `SecItemCopyMatching`'s out-parameter follows the Core Foundation "Create Rule" — the caller
+receives a genuine +1-owned reference it must balance, and `CFBridgingRelease` both bridges AND releases,
+doing exactly that. `kSecClass`/`kSecAttrService`/etc. are the opposite case (the "Get Rule") — calling
+`CFBridgingRelease` on one of these would incorrectly decrement a global, process-lifetime framework
+constant's retain count on every single Keychain operation for the rest of the process's life: an eventual
+over-release/corruption of a framework-global constant, a far worse and much harder-to-diagnose bug than
+the crash being fixed here. `interpretObjCPointer` was chosen specifically because it performs no
+ownership transfer at all, matching the "Get Rule" semantics exactly.
+
+**Verification limits — this was NOT compiled on this Windows host, and cannot be.** `iosMain`/`iosTest`
+Kotlin/Native compilation requires a macOS host (same limitation every T1b/T4b entry in this log has
+worked within). `interpretObjCPointer`'s exact signature was cross-checked against this project's pinned
+Kotlin/Native `2.0.21` distribution's own cached `kotlin-native-prebuilt-windows-x86_64-2.0.21` toolchain
+on this machine — but that distribution does not bundle Apple-platform (`ios*`) klibs on Windows (only
+Android/Linux/MinGW platform libraries are present locally; confirmed by inspecting
+`~/.konan/kotlin-native-prebuilt-windows-x86_64-2.0.21/klib/platform/`), so `platform.Security`'s real
+`CFStringRef` typealias and `kotlinx.cinterop.interpretObjCPointer`'s exact declaration could not be read
+from source on this host either. The fix is based on well-documented, widely-used real Kotlin/Native
+interop semantics (an ObjC-interop-mapped-type-reinterpreting, non-retaining pointer cast is the
+established, correct tool for exactly this "toll-free-bridged CF constant used as an NSObject" scenario),
+not a compile-verified result. **The next real CI run (run #12) is the only genuine verification** — if
+`interpretObjCPointer`'s call shape turns out to be even slightly wrong, that will be a real compiler
+error on that run, not a silent behavioral bug, since no code path here can partially "sort of" compile.
+
+**Test-coverage gap, confirmed, stated plainly.** `IosTokenStorageTest.kt`'s 18 tests (D97/D98/D99, all
+passing in CI run #6's real `:shared:iosSimulatorArm64Test`) exercise `IosTokenStorage` exclusively against
+`FakeKeychain` (`mobile/shared/src/iosTest/kotlin/com/mentora/shared/auth/FakeKeychain.kt`), a hand-written
+`KeychainStore` test double that never calls into `SecurityFrameworkKeychain`/`baseQuery()` at all — it
+reimplements Keychain-like state transitions purely in Kotlin. This is not new information contradicting
+D107's "18 tests passed on real Kotlin/Native" claim — that claim was accurate for exactly what those tests
+covered (`IosTokenStorage`'s failure-recovery/state-machine logic, § 9.1 K1-K4/K6) — but it means the actual
+`platform.Security` C-API-calling code in `SecurityFrameworkKeychain` was authored, reviewed three separate
+times (D97/D98/D99), and unit-tested *around*, but never once actually executed, until CI run #11's real
+app launch. T1b's prior "DONE (compile/unit-test half)" status (D107) was honest about its own scope; this
+entry is the honest correction that real Security-framework interaction specifically was an unverified gap
+until now.
+
+**Whether to add a real (non-fake) `SecurityFrameworkKeychain` `iosTest` now — considered, not added.**
+A test that actually round-trips through `SecurityFrameworkKeychain` against a real Keychain would need
+either (a) the real Keychain to be genuinely writable/readable inside the CI simulator's XCTest process
+(plausible, but unverified — sandboxing/entitlements for a bare `iosSimulatorArm64Test` Kotlin/Native test
+binary, as opposed to the full `iosApp` under `xcodebuild test`, is untested territory), or (b) new
+infrastructure to reset/isolate Keychain state between test runs so `KEYCHAIN_SERVICE`/`KEYCHAIN_ACCOUNT`
+don't collide across CI runs or leak items between runs. Both are more than a "straightforward, low-risk"
+addition per this fix's own scope constraints. **Left as a follow-up, not implemented now** — if CI run #12
+confirms this fix works, a future task should add at least one real, non-`FakeKeychain` `iosTest` that
+exercises `SecurityFrameworkKeychain.add()`/`copyMatching()`/`delete()` directly, specifically so a future
+regression in this exact cast/bridging area is caught by `:shared:iosSimulatorArm64Test` instead of by a
+real app launch again.
+
+**Files.** `mobile/shared/src/iosMain/kotlin/com/mentora/shared/auth/Keychain.kt` only. No Swift file
+changed (T4b's Swift bootstrap code is not implicated — see the note appended to D108). No `iosTest`/
+`commonTest` file changed (the coverage gap above is documented, not closed, per the scope decision above).
+
+**Verification performed on Windows.** `:shared:testDebugUnitTest` re-run: 249/249, unchanged.
+`:androidApp:testDebugUnitTest` unaffected (241/241), not re-run since no Android code touched.
+`:shared:compileKotlinIosSimulatorArm64`/`:shared:iosSimulatorArm64Test` cannot run on this host (no
+Kotlin/Native Apple-platform toolchain, as always). **Status: authored, NOT compile-verified — CI run #12
+is the only real verification, exactly as stated above.** Do not start T5 or any feature-UI work; T4b
+remains implemented/pending-CI per D108's own status, unaffected by this entry.
