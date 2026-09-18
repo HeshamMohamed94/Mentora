@@ -83,18 +83,18 @@ final class ApiResultBridgeTests: XCTestCase {
     // MARK: - unwrapPage
 
     func testUnwrapPageDeErasesItemsAndCarriesNextCursor() throws {
-        let page = CursorPage(items: ["a", "b"], nextCursor: "cur")
+        let page = CursorPage<NSString>(items: ["a", "b"] as [NSString], nextCursor: "cur")
         let result: ApiResult<CursorPage<NSString>> = ApiResultSuccess(data: page)
-        let bridged: Page<String> = try ApiResultBridge.unwrapPage(result)
+        let bridged: Page<NSString> = try ApiResultBridge.unwrapPage(result)
         XCTAssertEqual(bridged.items, ["a", "b"])
         XCTAssertEqual(bridged.nextCursor, "cur")
         XCTAssertTrue(bridged.hasMore)
     }
 
     func testUnwrapPageNilNextCursorMeansNoMore() throws {
-        let page = CursorPage(items: ["a"], nextCursor: nil)
+        let page = CursorPage<NSString>(items: ["a"] as [NSString], nextCursor: nil)
         let result: ApiResult<CursorPage<NSString>> = ApiResultSuccess(data: page)
-        let bridged: Page<String> = try ApiResultBridge.unwrapPage(result)
+        let bridged: Page<NSString> = try ApiResultBridge.unwrapPage(result)
         XCTAssertNil(bridged.nextCursor)
         XCTAssertFalse(bridged.hasMore)
     }

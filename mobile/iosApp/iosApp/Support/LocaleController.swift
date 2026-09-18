@@ -26,10 +26,12 @@ final class LocaleController {
         // D108 fix round #4. `LocaleController` is `@MainActor`-isolated and this `Task { }` is created
         // from a `@MainActor` synchronous context (`init`), so no manual thread-hop is needed.
         //
-        // T5 (D112): routed through `MentoraClient.localeChanges()` (`FlowBridge.swift`) instead of
-        // the raw `sdk.user.observeLocale.invoke()` call, so `.invoke` never appears outside
+        // T5 (D112): routed through `MentoraClient.localeChanges()` instead of the raw
+        // `sdk.user.observeLocale.invoke()` call, so `.invoke` never appears outside
         // `Support/SharedBridge/` (System Design § 2) — a deliberate, approved refactor, not a
-        // behavior change.
+        // behavior change. (`localeChanges()` originally lived in a separate `FlowBridge.swift`;
+        // folded into `MentoraClient.swift` itself in the D112 review-fix round, Fix 6, so `sdk`
+        // could become `private`.)
         localeWatcher = Task { [weak self] in
             for await locale in client.localeChanges() {
                 self?.currentLocale = locale

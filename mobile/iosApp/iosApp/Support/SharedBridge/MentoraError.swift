@@ -45,12 +45,38 @@ struct MentoraError: Error {
         self.httpStatus = httpStatus
     }
 
-    /// The one failure the bridge itself can originate: `ApiResultSuccess.data` arrived nil, or an
-    /// erased-list element failed its cast. Modelled as an `Unknown` code so `ErrorCopy` needs no
-    /// special case and the user sees the ordinary "something went wrong" copy.
+    /// The one failure the bridge itself can originate: `ApiResultSuccess.data` arrived nil.
+    /// Modelled as an `Unknown` code so `ErrorCopy` needs no special case and the user sees the
+    /// ordinary "something went wrong" copy. Review fix round (D112): logs before returning --
+    /// see `logBridgeFailure` below, the same "a bridge-internal failure must leave a diagnostic
+    /// trail, never just silently degrade" reasoning as `Keychain.kt`'s `logInteropFailure`
+    /// (DECISIONS_LOG.md, the entry appended after D110).
     static func unexpectedNilData(_ context: String) -> MentoraError {
-        MentoraError(code: ApiErrorCode.Unknown(raw: "IOS_BRIDGE_UNEXPECTED_NIL"),
-                     message: "Bridge received a nil payload for \(context).")
+        logBridgeFailure("unexpectedNilData", context: context)
+        return MentoraError(code: ApiErrorCode.Unknown(raw: "IOS_BRIDGE_UNEXPECTED_NIL"),
+                             message: "Bridge received a nil payload for \(context).")
+    }
+
+    /// The other failure the bridge itself can originate: an erased `NSArray`/`CursorPage` element
+    /// failed its `as? Element` cast in `ApiResultBridge.unwrapList`/`unwrapPage` (a future call site
+    /// naming the wrong element type, or a duplicate-runtime cross-boundary cast inconsistency --
+    /// see `project.yml`'s `iosAppTests` `link: false` comment). Modelled as `Unknown` for the same
+    /// reason as `unexpectedNilData`.
+    static func elementCastFailed(_ context: String) -> MentoraError {
+        logBridgeFailure("elementCastFailed", context: context)
+        return MentoraError(code: ApiErrorCode.Unknown(raw: "IOS_BRIDGE_ELEMENT_CAST_FAILED"),
+                             message: "Bridge failed to cast one or more elements for \(context).")
+    }
+
+    /// Logs that a bridge-*self-generated* failure occurred -- distinct from an ordinary
+    /// backend-reported `ApiResultFailure`, which is never logged here (only these two
+    /// bridge-internal cases get this treatment; see `ApiResultBridge.swift`). `NSLog`, not `print`,
+    /// so this shows up in the real device/simulator/CI log stream the same way `Keychain.kt`'s
+    /// `println` shows up in the Kotlin/Native log. Logs only the case name and the caller-supplied
+    /// type/context string -- never a payload, token, or user data (`AUTH_SECURITY.md`'s
+    /// never-log-sensitive-data rule).
+    private static func logBridgeFailure(_ kind: String, context: String) {
+        NSLog("Mentora SharedBridge failure: MentoraError.\(kind) — \(context)")
     }
 }
 

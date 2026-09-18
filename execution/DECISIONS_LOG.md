@@ -4850,5 +4850,105 @@ Phase 5 task — the next real `ios-ci.yml` run is this slice's actual verificat
 
 **Status:** T5 → **IMPLEMENTED (slice 1 of 2: auth+user) — PENDING CI (not DONE).** Slice 2 (the
 other 8 façades: catalog, enrollment, progress, quiz, certificates, learningPaths, media, aiTutor,
-plus `aiStream(...)` in `FlowBridge.swift`) is a separate, explicit follow-up task, not started here.
-F1 stays **PARTIAL**, not PASS.
+plus `aiStream(...)`) is a separate, explicit follow-up task, not started here. F1 stays
+**PARTIAL**, not PASS.
+
+#### D112 review-fix round — 2026-09-19 — Opus review of commit `2eb8b23` found the T4b refactor and `MentoraClient` signatures correct, but 6 real problems elsewhere; all fixed same-slice
+
+**Context.** The review traced every T4b refactor behavioral path and confirmed every `MentoraClient`
+method signature against the real Kotlin sources exactly — both fully correct, not re-litigated here.
+It found six other real issues, none touching slice-2 scope, none starting feature-UI work. Fixed as
+follows:
+
+1. **(HIGH) `iosAppTests`'s new `MentoraShared` package dependency double-links `shared`.**
+   `mobile/shared/build.gradle.kts` builds `shared.xcframework` `isStatic = true`; the `.xctest`
+   bundle gets `dlopen`'d into the already-running `iosApp` host process, which already statically
+   contains the full Kotlin/Native runtime and every `Shared*` Obj-C class. A plain `package:`
+   dependency links the module a second time — realistic outcome: Obj-C "Class
+   SharedApiResultSuccess is implemented in both …" warnings at minimum, possibly two independent
+   Kotlin/Native runtime instances causing inconsistent `as?` casts inside the test target
+   specifically, the one target that exists to validate that exact boundary. **Fix:** added
+   `link: false` to `targets.iosAppTests.dependencies`'s `package: MentoraShared` entry in
+   `mobile/iosApp/project.yml`, per XcodeGen's documented schema for a package-product dependency.
+   **Open question, unconfirmed on this Windows host:** whether XcodeGen genuinely respects
+   `link: false` in exactly this position (a Swift Package product dependency, not a binary/framework
+   target). **Flagged for the next real CI log:** grep `xcodebuild test`'s output for "is implemented
+   in both" — present means this didn't work and needs a different approach; absent confirms it did.
+
+2. **(HIGH) `unwrapList`/`unwrapPage` silently discarded cast-failed elements in Release builds.**
+   The count-mismatch check was only an `assert`, which compiles out entirely under `-O` — a wrong
+   element type at a future call site, or the Fix-1 double-link cast inconsistency, would have
+   silently returned a shorter (possibly empty) array with no error and no retry affordance (an I4
+   violation), while `MentoraError.unexpectedNilData`'s own doc comment already (wrongly) claimed
+   this case was covered. **Fix:** both `unwrapList` and `unwrapPage` in `ApiResultBridge.swift` now
+   `throw MentoraError.elementCastFailed(...)` unconditionally on a count mismatch (new
+   `MentoraError` case, parallel to `unexpectedNilData`); the `assert` calls are kept alongside for a
+   louder debug-time signal only.
+
+3. **(HIGH, compile-blocking) Two real type errors in `ApiResultBridgeTests.swift`'s `testUnwrapPage*`
+   tests.** Both tests declared `let bridged: Page<String>` (fails `unwrapPage<Element: AnyObject>`'s
+   constraint — plain `String` isn't `AnyObject`, only its bridged class form `NSString` is) and
+   constructed `CursorPage(items: ["a", "b"], nextCursor: "cur")` with no contextual type (inferred
+   `T == String` from the array literal, same `AnyObject` failure). **Fix:** both tests now use
+   `CursorPage<NSString>(items: ["a", "b"] as [NSString], nextCursor: "cur")` and
+   `let bridged: Page<NSString>`, per `CursorPage.kt`'s real `data class CursorPage<T>(val items:
+   List<T>, val nextCursor: String?)` constructor shape. Re-read the whole file afterward for any
+   other bare-`String`-vs-`AnyObject`-constrained-generic instance — none found; `unwrapList`'s own
+   tests use `NSArray`/plain `String` correctly, since `unwrapList<Element>` carries no `AnyObject`
+   constraint.
+
+4. **(MEDIUM-HIGH) Bridge-originated failures had no diagnostic-logging trail.** Same failure
+   mechanism as the `SecurityFrameworkKeychain` fix appended after D110 (`logInteropFailure`): both
+   `MentoraError.unexpectedNilData` and the new `elementCastFailed` map to the generic
+   `"error_internal"` copy with nothing distinguishing a bridge-internal failure from an ordinary
+   backend-reported one, and `SessionController.fetchProfileIfNeeded()`/
+   `LocaleController.seedInitialLocaleIfNeeded` both swallow via `try?`/`catch { return }` — if
+   `ApiResultSuccess<T>.data` ever bridges as genuinely-sometimes-nil in a real scenario (D112's own
+   open, CI-unconfirmed question), every call would silently degrade with zero trail, uncatchable by
+   the unit tests (which only construct `ApiResultSuccess(data:)` with guaranteed non-nil values).
+   **Fix:** added a private `MentoraError.logBridgeFailure(_:context:)` helper (`NSLog`, mirroring
+   `Keychain.kt`'s `println` pattern), called from both `unexpectedNilData` and `elementCastFailed`
+   before returning. Logs only the case name and the caller-supplied type/context string — never a
+   payload/token/user value (`AUTH_SECURITY.md`'s never-log-sensitive-data rule). Ordinary `Failure`
+   cases from the backend are deliberately NOT logged this way — only these two bridge-self-generated
+   cases.
+
+5. **(MEDIUM) `ErrorCopyTests.swift`'s "23 known codes map to distinct keys" test was tautological.**
+   It derived its expected-distinct-count from its own fixture table's `key` column, never checking
+   `ErrorCopy` itself — a future added `ApiErrorCode` case with a forgotten `ErrorCopy.allKeys` update
+   would leave every existing test green. **Fix:** added
+   `testKeyForRealMatchesAllKeysExactly`, asserting
+   `Set(knownCodesAndExpectations.map { ErrorCopy.key(for: $0.code) }) == ErrorCopy.allKeys` — the
+   real invariant, checked against `ErrorCopy.key(for:)`'s actual return values, not the fixture's own
+   literal column.
+
+6. **(LOW, cheap, applied) Tightened the `.invoke` boundary from grep-enforced to compiler-enforced.**
+   `MentoraClient.sdk` was `internal` (not `private`) solely so `FlowBridge.swift`'s
+   `extension MentoraClient` (a separate file) could reach it — nothing stopped a future `Features/`
+   file from writing `env.client.sdk.auth.login.invoke(...)` directly, bypassing the bridge entirely;
+   A5 compliance rested on a grep check, not the type system. Confirmed by grep first that nothing
+   outside `AppEnvironment`'s own `init` reads `AppEnvironment.sdk`, and nothing outside
+   `MentoraClient.swift`/`FlowBridge.swift` reads `MentoraClient.sdk`. **Fix applied:**
+   `FlowBridge.swift`'s four methods (`authStates`, `currentAuthState`, `localeChanges`,
+   `currentLocale`) folded directly into `MentoraClient.swift` as regular methods; `FlowBridge.swift`
+   deleted. `MentoraClient.sdk` and `AppEnvironment.sdk` are now both `private`. Re-grepped
+   `mobile/iosApp/iosApp/` for `.invoke(` afterward: every real (non-doc-comment) hit is inside
+   `MentoraClient.swift`, none outside `Support/SharedBridge/` — the boundary is now compiler-enforced
+   for both properties, not just convention-enforced. `SessionController.swift`/
+   `LocaleController.swift`'s doc comments referencing the old `FlowBridge.swift` path were updated to
+   note the fold, not left stale.
+
+**Also disclosed, no fix (slice-2 concern).** `unwrapList`'s parameter type (`ApiResult<NSArray>`)
+may not accept real slice-2 call sites: Kotlin's `ApiResult<List<Section>>` exports as
+`ApiResult<NSArray<Section>>` (a parameterized `NSArray`), and it is unconfirmed whether Swift's
+variance rules let that convert to the unparameterized `ApiResult<NSArray>` this function currently
+declares. Slice 1 has no list-returning façade method, so this cannot be tested here — flagged for
+whoever implements slice 2 to verify against the real CI compiler when wiring the first
+list-returning façade method.
+
+**Verification.** `:shared:testDebugUnitTest` 249/249 and `:androidApp:testDebugUnitTest` 241/241,
+re-confirmed unaffected — no Kotlin file touched by this fix round either. No Swift compile/run is
+possible on this Windows host; the next real `ios-ci.yml` run is the actual verification for all six
+fixes, specifically: (a) grep `xcodebuild test`'s log for "is implemented in both" (Fix 1), (b)
+confirm the two `ApiResultBridgeTests.swift` type-error fixes actually resolve the compile errors
+(Fix 3), (c) confirm everything else compiles clean.

@@ -90,7 +90,20 @@ targets:
 
   # Task T4a scaffold + Task T5 real bridge tests. `- package: MentoraShared / product: Shared` (added
   # for T5) is required so `import shared` in `ApiResultBridgeTests.swift`/`ErrorCopyTests.swift`
-  # resolves in this target — without it the whole test target fails to build.
+  # resolves in this target — without it the whole test target fails to build. `link: false` (review
+  # fix round, D112) is deliberate: `shared.xcframework` is built `isStatic = true`
+  # (`mobile/shared/build.gradle.kts`), and the `.xctest` bundle this dependency produces gets
+  # `dlopen`'d into the already-running `iosApp` host process, which already statically contains the
+  # entire Kotlin/Native runtime and every `Shared*` Obj-C class. Linking this package a second time
+  # here (the plain `package:` form's default) would duplicate that runtime/class table inside the
+  # test bundle — realistically an Obj-C "Class SharedApiResultSuccess is implemented in both …" runtime
+  # warning at minimum, and a plausible source of inconsistent `as?` casts across the Swift/Kotlin
+  # boundary inside the test target specifically. `link: false` keeps the module visible for
+  # `import shared`/type-checking without linking it again; genuinely unconfirmed on this Windows host
+  # whether XcodeGen respects `link: false` in exactly this position (Swift Package product dependency,
+  # not a binary/framework target) — the next real CI run's `xcodebuild test` log is the actual
+  # verification: grep it for "is implemented in both" (present = this didn't work, needs a different
+  # approach; absent = confirmed working).
   iosAppTests:
     type: bundle.unit-test
     platform: iOS
@@ -108,6 +121,7 @@ targets:
       - target: iosApp
       - package: MentoraShared
         product: Shared
+        link: false
 
   iosAppUITests:
     type: bundle.ui-testing

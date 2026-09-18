@@ -10,7 +10,10 @@ import shared
 // `shared.h`/SKIE artifact, not guessed — see `execution/DECISIONS_LOG.md` D108.
 @MainActor
 final class AppEnvironment {
-    let sdk: MentoraSdk
+    /// `private` (review fix round, D112 Fix 6) -- confirmed by grep that nothing outside this
+    /// `init` reads `sdk` directly; every real call goes through `client` below. A3's
+    /// single-instance guarantee still lives here, it just no longer needs to be externally visible.
+    private let sdk: MentoraSdk
     let client: MentoraClient
     let sessionController: SessionController
     let localeController: LocaleController

@@ -57,10 +57,12 @@ final class SessionController {
         // isolation from its enclosing context — every resumed iteration of `for await` already runs
         // back on the main actor, with no manual thread-hop needed.
         //
-        // T5 (D112): routed through `MentoraClient.authStates()` (`FlowBridge.swift`) instead of the
-        // raw `sdk.auth.observeAuthState.invoke()` call, so `.invoke` never appears outside
+        // T5 (D112): routed through `MentoraClient.authStates()` instead of the raw
+        // `sdk.auth.observeAuthState.invoke()` call, so `.invoke` never appears outside
         // `Support/SharedBridge/` (System Design § 2) — a deliberate, approved refactor, not a
-        // behavior change.
+        // behavior change. (`authStates()` originally lived in a separate `FlowBridge.swift`; folded
+        // into `MentoraClient.swift` itself in the D112 review-fix round, Fix 6, so `sdk` could
+        // become `private`.)
         authStateWatcher = Task { [weak self] in
             for await state in client.authStates() {
                 self?.apply(state)

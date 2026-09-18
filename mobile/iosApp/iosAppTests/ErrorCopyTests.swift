@@ -51,6 +51,16 @@ final class ErrorCopyTests: XCTestCase {
         XCTAssertEqual(Set(keys).count, 23, "the 23 known codes must map to 23 distinct keys")
     }
 
+    // Review fix round (D112): the two tests above only check a property of this file's OWN fixture
+    // table (its literal `key` column), never `ErrorCopy` itself -- a future person could add an
+    // `ApiErrorCode` case, forget to update `ErrorCopy.allKeys`, and every test here would stay green.
+    // This is the real invariant: every key `ErrorCopy.key(for:)` genuinely returns for the 23 known
+    // codes must equal `ErrorCopy.allKeys` exactly (as sets).
+    func testKeyForRealMatchesAllKeysExactly() {
+        let realKeys = Set(Self.knownCodesAndExpectations.map { ErrorCopy.key(for: $0.code) })
+        XCTAssertEqual(realKeys, ErrorCopy.allKeys)
+    }
+
     func testUnknownDeliberatelySharesErrorInternalWithInternalError() {
         let unknown = ApiErrorCode.Unknown(raw: "SOME_FUTURE_CODE")
         XCTAssertEqual(ErrorCopy.key(for: unknown), "error_internal")

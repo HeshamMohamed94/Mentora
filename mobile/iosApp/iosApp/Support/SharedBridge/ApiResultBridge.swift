@@ -39,19 +39,33 @@ enum ApiResultBridge {
 
     /// `ApiResult<List<T>>` bridges as `ApiResult<NSArray>` -- element type is erased by Kotlin/Native
     /// for a generic class. Re-typed here, once, so no screen ever casts.
+    ///
+    /// Review fix round (D112): a count mismatch used to only `assert` -- which compiles out entirely
+    /// under `-O` (Release builds), so a wrong element type (or a duplicate-runtime cast
+    /// inconsistency, see `project.yml`'s `iosAppTests` `link: false` comment) would have silently
+    /// returned a shorter, possibly empty, array with no error and no retry affordance (an I4
+    /// violation). Now throws unconditionally; the `assert` stays too, purely for a louder debug-time
+    /// signal.
     static func unwrapList<Element>(_ result: ApiResult<NSArray>, as: Element.Type = Element.self) throws -> [Element] {
         let raw = try unwrap(result)
         let mapped = raw.compactMap { $0 as? Element }
         assert(mapped.count == raw.count, "SharedBridge: \(raw.count - mapped.count) element(s) of \(Element.self) failed to cast -- the bridge method names the wrong element type.")
+        guard mapped.count == raw.count else {
+            throw MentoraError.elementCastFailed("\(Element.self) (expected \(raw.count), got \(mapped.count))")
+        }
         return mapped
     }
 
     /// `CursorPage<T>.items` is `NSArray<id>` -> `[Any]` because `CursorPage` is a generic class.
-    /// Converted to a Swift `Page<Element>` here so no screen ever casts.
+    /// Converted to a Swift `Page<Element>` here so no screen ever casts. Same real-throw-not-just-
+    /// `assert` fix as `unwrapList` above, for the identical reason.
     static func unwrapPage<Element: AnyObject>(_ result: ApiResult<CursorPage<Element>>) throws -> Page<Element> {
         let page = try unwrap(result)
         let items = page.items.compactMap { $0 as? Element }
         assert(items.count == page.items.count, "SharedBridge: CursorPage<\(Element.self)> element cast lost items.")
+        guard items.count == page.items.count else {
+            throw MentoraError.elementCastFailed("CursorPage<\(Element.self)> (expected \(page.items.count), got \(items.count))")
+        }
         return Page(items: items, nextCursor: page.nextCursor)
     }
 }
