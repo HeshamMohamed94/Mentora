@@ -4310,3 +4310,47 @@ test` now gets past app launch and actually executes `ScaffoldPlaceholderTests.t
 **Status unchanged** — T4b remains **implemented, fix rounds applied, pending CI**, not DONE; CI run #10
 is required to confirm the test host now launches successfully. Do not start T5 or any feature-UI work in
 this session.
+
+**Fix round #6 — 2026-09-19 — real CI run #10 (commit `f79bba0`), a Swift compile error in fix round #5's
+own diagnostic code.** Fix round #5's non-crashing `nil`-environment branch placed a bare, void-returning
+function call directly in a `@ViewBuilder` context:
+```swift
+} else {
+    #if DEBUG
+    Self.assertNotYetInjectedOnce()
+    #endif
+    Color.mentoraBackgroundPrimary.ignoresSafeArea()
+}
+```
+Real `xcodebuild` compiler error, quoted verbatim:
+```
+MentoraApp.swift:44:13: error: 'buildExpression' is unavailable: this expression does not conform to 'View'
+            Self.assertNotYetInjectedOnce()
+SwiftUICore.ViewBuilder.buildExpression:3:22: note: 'buildExpression' has been explicitly marked unavailable here
+  public static func buildExpression(_ invalid: Any) -> some View
+```
+Every statement inside a `@ViewBuilder` closure (the `if`/`else` branches of `body`) must itself produce a
+`View` — a bare side-effecting function-call statement doesn't. **Fix:** moved the assertion call into an
+`.onAppear { }` closure attached to the branch's `Color` view — `.onAppear(perform:)` takes a plain
+`() -> Void` closure, not a `ViewBuilder`, so a void statement is valid there:
+```swift
+} else {
+    Color.mentoraBackgroundPrimary.ignoresSafeArea()
+        .onAppear {
+            #if DEBUG
+            Self.assertNotYetInjectedOnce()
+            #endif
+        }
+}
+```
+Behavior is unchanged from fix round #5's intent (debug-only, fires-once assertion on the genuinely
+unexpected `nil`-environment render path); only the mechanism by which the call is scheduled changed, to
+one that actually compiles. This CI run also reconfirmed, again, that `xcodebuild build` for the whole
+`iosApp` Swift target otherwise compiles cleanly (fix round #4's `for await` rewrite and fix round #5's
+`AppEnvironment?` change both held up under a real compile) — the *only* new defect introduced was this one
+`@ViewBuilder` composition mistake, caught immediately by the next real CI run exactly as the execution
+loop is designed to do.
+
+Re-ran `:shared:testDebugUnitTest` (249/249) and `:androidApp:testDebugUnitTest` (241/241) — unaffected, no
+Kotlin touched. **Status unchanged** — T4b remains **implemented, fix rounds applied, pending CI**; CI run
+#11 is the next verification. Do not start T5 or any feature-UI work in this session.

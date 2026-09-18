@@ -40,10 +40,12 @@ private struct PlaceholderRootView: View {
                 Color.mentoraBackgroundPrimary.ignoresSafeArea()
             }
         } else {
-            #if DEBUG
-            Self.assertNotYetInjectedOnce()
-            #endif
             Color.mentoraBackgroundPrimary.ignoresSafeArea()
+                .onAppear {
+                    #if DEBUG
+                    Self.assertNotYetInjectedOnce()
+                    #endif
+                }
         }
     }
 
