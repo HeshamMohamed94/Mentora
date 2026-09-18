@@ -1,6 +1,6 @@
 # Mentora — Current Implementation Status
 
-**Last updated:** 2026-09-15 (PHASE 4 — Android — **COMPLETE**, all 20 tasks done, pending explicit user approval before Phase 5 begins — see `PHASE_HANDOFF.md`'s new Phase 4 entry and `DECISIONS_LOG.md` D94/D95 for the session-interruption recovery + final task account; task plan derived by the `architect` subagent, see `execution/PHASE_4_ANDROID_PLAN.md` and `DECISIONS_LOG.md` D78; see "PHASE 4 — Task Breakdown" near the end of this file for the full per-task account)
+**Last updated:** 2026-09-18 (PHASE 5 — iOS — **IN_PROGRESS**, planning complete and reviewed twice, no Mac/Xcode available yet — see "PHASE 5 — iOS" near the end of this file and `DECISIONS_LOG.md` D96 for the full account. Phase 4 — Android — **COMPLETE**, all 20 tasks done, approved by the user before Phase 5 began.)
 
 ---
 
@@ -8,7 +8,15 @@
 
 **Read this section first when resuming.**
 
-- **TASK 19 RECOVERY (2026-09-15) — READ THIS FIRST.** Task 19 is now **DONE**. This bullet records a
+- **PHASE 5 (iOS) — READ THIS FIRST.** Phase 5 is `IN_PROGRESS`. Planning (Acceptance Criteria/System
+  Design/Implementation Plan) is done and reviewed twice (Opus + Codex, D96). **This machine has no
+  macOS/Xcode/iOS Simulator; the user confirmed no Mac is available yet (will get access later).**
+  Executing only T1/T1b/T2/T3/T4a (Windows-completable) then stopping — T4b and T5-T23 are blocked on
+  Mac access, do not author them blind. See "PHASE 5 — iOS" section near the end of this file for the
+  exact resume point and task table, and `execution/PHASE_5_IOS_IMPLEMENTATION_PLAN.md` for full task
+  detail. The Phase 4 history below (Task 19 recovery, etc.) is retained for context only — Phase 4 is
+  COMPLETE, do not redo it.
+- **TASK 19 RECOVERY (2026-09-15).** Task 19 is now **DONE**. This bullet records a
   session-interruption recovery for future reference — see `DECISIONS_LOG.md` D94 for the full account.
   Sequence of events: (1) Task 19 was paused mid-work for a planned user shutdown at WIP checkpoint
   commit `1fc9fae` (on top of Task 18's real completion commit `b19a0ce`); (2) the user resumed and told
@@ -128,7 +136,7 @@ Allowed phase states: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `COMPLETE`.
 | PHASE 2 — Website | **IN_PROGRESS** | Started 2026-09-06. See task breakdown below. |
 | PHASE 3 — KMP Shared Mobile Core | **COMPLETE** | Started 2026-09-12, completed 2026-09-12, pending explicit user approval before Phase 4 begins. See `PHASE_HANDOFF.md` for the full write-up and the task breakdown near the end of this file. |
 | PHASE 4 — Android | **COMPLETE** | Started 2026-09-13, completed 2026-09-15, pending explicit user approval before Phase 5 begins. See `PHASE_HANDOFF.md` for the full write-up and `execution/PHASE_4_ANDROID_PLAN.md` / the task breakdown near the end of this file for detail. |
-| PHASE 5 — iOS | NOT_STARTED | Blocked on Phase 3. |
+| PHASE 5 — iOS | **IN_PROGRESS** | Started 2026-09-18. Acceptance criteria, system design, and a 23-task implementation plan authored and reviewed twice (Opus + Codex) before any code — see `PHASE_5_ACCEPTANCE_CRITERIA.md`/`PHASE_5_IOS_SYSTEM_DESIGN.md`/`PHASE_5_IOS_IMPLEMENTATION_PLAN.md` and `DECISIONS_LOG.md` D96. No Mac/Xcode available yet (user confirmed); executing only T1/T1b/T2/T3/T4a (Windows-completable), then pausing before T4b/T5+ until Mac access is confirmed. See "PHASE 5 — Task Breakdown" near the end of this file. |
 | PHASE 6 — AI Tutor Integration | NOT_STARTED | Blocked on Phases 2, 4, 5 (client shells) + Phase 1 (aitutor scaffold). |
 | PHASE 7 — Full Integration | NOT_STARTED | Blocked on all prior phases. |
 | PHASE 8 — QA, Polish & Portfolio Demo | NOT_STARTED | Blocked on Phase 7. |
@@ -930,3 +938,37 @@ the emulator's own responsiveness (`adb shell uptime`'s load average climbing) a
 any real code change — confirmed again in Tasks 12 and 18 (D84, D93); kill and relaunch the AVD fresh
 if a full-suite run shows failures only in tests unrelated to what you just changed, before assuming a
 regression.
+
+---
+
+## PHASE 5 — iOS
+
+**Status:** IN_PROGRESS (started 2026-09-18). Planning complete: `execution/PHASE_5_ACCEPTANCE_CRITERIA.md`
+(categories A-J), `execution/PHASE_5_IOS_SYSTEM_DESIGN.md` (24 sections), `execution/PHASE_5_IOS_IMPLEMENTATION_PLAN.md`
+(dependency-ordered task list). Reviewed twice before any code — Opus (7 substantive + 9 minor findings,
+all fixed) then Codex as an independent second opinion (3 more findings, all fixed). See `DECISIONS_LOG.md`
+D96 for the full account.
+
+**EXACT RESUME POINT.** This machine has no macOS/Xcode/iOS Simulator (Windows host, confirmed). The user
+was asked directly whether Mac access exists and answered: not yet, will get it later. Per that answer,
+this phase executes only the tasks genuinely completable and verifiable on Windows —
+**T1, T1b, T2, T3, T4a** — then stops cleanly. **T4b and every task after it (T5-T23) are blocked** until
+the user confirms Mac access; do not author them blind. See `PHASE_5_IOS_IMPLEMENTATION_PLAN.md § 1`/`§ 5`
+for the full host-tagging rationale (every task from T4b onward needs a real Mac to compile/run/verify
+Swift at all).
+
+### PHASE 5 — Task Breakdown
+
+| # | Task | Status |
+|---|---|---|
+| T1 | `:shared` iOS enablement (`iosMain` wiring, XCFramework, gitignore) | **DONE** (Windows gates green — 249/249 unit, `assembleDebug` clean, `assembleXCFramework`/`assembleSharedDebugXCFramework`/`assembleSharedReleaseXCFramework` registered, zero new config warnings; MC-1 still required to prove real iOS compilation/linking) |
+| T1b | `IosTokenStorage` Keychain hardening (checked `OSStatus`, injectable failure seam) — added after the Codex review round, D96 | NOT_STARTED |
+| T2 | Token pipeline iOS output target (`MentoraTokens.swift`, `MentoraColors.xcassets`) | NOT_STARTED |
+| T3 | Icon set (`MentoraIcons.xcassets`, 42 glyphs) + mirroring data | NOT_STARTED |
+| T4a | Xcode project scaffold (`project.yml`, SPM wrapper, scripts, `Info.plist`, `.gitignore`) | NOT_STARTED |
+| T4b | Swift app bootstrap (SDK/session/locale/theme wiring) | **BLOCKED — Mac-only, needs MC-1** |
+| T5-T23 | `SharedBridge` through final acceptance audit | **BLOCKED — needs Mac access** |
+
+Full per-task scope/files/criteria/tests/verification/completion-gate detail lives in
+`execution/PHASE_5_IOS_IMPLEMENTATION_PLAN.md § 4` — read it before starting any task, do not re-derive
+scope from memory.
