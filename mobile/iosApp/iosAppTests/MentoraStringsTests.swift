@@ -46,6 +46,21 @@ final class MentoraStringsTests: XCTestCase {
 
     // MARK: - Formatted lookup: positional substitution AND "%%" -> "%" collapsing
 
+    /// `String(format:locale:arguments:)` under an RTL (`ar`) locale wraps each substituted `%@`
+    /// argument in Unicode bidirectional-isolate marks (U+2068 FIRST STRONG ISOLATE / U+2069 POP
+    /// DIRECTIONAL ISOLATE) -- real, CI-observed Foundation behavior (run 35459405076's first attempt
+    /// failed on the two tests below with e.g. `"اكتمل \u{2068}75\u{2069}٪"`, not the plain-digit
+    /// literal originally assumed), not a bug: it is Apple's documented mechanism for keeping an
+    /// embedded LTR run (Western-numeral digits) from visually disordering the surrounding RTL text,
+    /// and iOS RTL screens want this. Rather than hardcode the exact isolate characters into every
+    /// expected literal (brittle -- Apple has changed which isolate character it uses in exactly this
+    /// scenario across OS versions), assertions below compare AFTER stripping bidi control characters,
+    /// so the check stays focused on the actual substituted content and word order.
+    private func strippingBidiControlCharacters(_ value: String) -> String {
+        let bidiControls = CharacterSet(charactersIn: "\u{2066}\u{2067}\u{2068}\u{2069}\u{200E}\u{200F}")
+        return String(String.UnicodeScalarView(value.unicodeScalars.filter { !bidiControls.contains($0) }))
+    }
+
     /// `course_player_top_bar_meta` -- verified by reading `Localizable.xcstrings` directly, not
     /// assumed -- carries three positional arguments AND, in its EN value only, the literal "%%" escape
     /// mixed with a real substitution: EN `"Lesson %1$@ of %2$@ · %3$@%%"`, AR
@@ -64,10 +79,11 @@ final class MentoraStringsTests: XCTestCase {
             "single \"%\" via String(format:locale:arguments:) -- \"%%\" survived unprocessed")
 
         let resolvedArabic = MentoraStrings.text("course_player_top_bar_meta", locale: .arabic, "1", "2", "50")
-        XCTAssertEqual(resolvedArabic, "الدرس 1 من 2 · 50٪",
-            "Expected the Arabic value's positional arguments substituted (AR carries no \"%%\" to " +
-            "collapse -- it already uses the literal Arabic percent-sign glyph U+066A) -- got " +
-            "\"\(resolvedArabic)\"")
+        XCTAssertEqual(strippingBidiControlCharacters(resolvedArabic), "الدرس 1 من 2 · 50٪",
+            "Expected the Arabic value's positional arguments substituted (bidi-isolate marks around " +
+            "each digit run stripped before comparing -- see this file's own note above; AR carries no " +
+            "\"%%\" to collapse, it already uses the literal Arabic percent-sign glyph U+066A) -- got " +
+            "\"\(resolvedArabic)\" (raw, un-stripped)")
 
         print("MENTORA-L10N: MentoraStringsTests course_player_top_bar_meta " +
               "en=\"\(resolvedEnglish)\" ar=\"\(resolvedArabic)\"")
@@ -82,7 +98,9 @@ final class MentoraStringsTests: XCTestCase {
         XCTAssertEqual(resolvedEnglish, "75% complete")
 
         let resolvedArabic = MentoraStrings.text("my_learning_percent_complete", locale: .arabic, "75")
-        XCTAssertEqual(resolvedArabic, "اكتمل 75٪")
+        XCTAssertEqual(strippingBidiControlCharacters(resolvedArabic), "اكتمل 75٪",
+            "Bidi-isolate marks around the substituted digit run stripped before comparing -- see this " +
+            "file's own note above this test group. Got \"\(resolvedArabic)\" (raw, un-stripped)")
 
         print("MENTORA-L10N: MentoraStringsTests my_learning_percent_complete " +
               "en=\"\(resolvedEnglish)\" ar=\"\(resolvedArabic)\"")
