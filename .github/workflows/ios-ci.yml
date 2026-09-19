@@ -119,7 +119,7 @@ jobs:
       # seconds instead of ~15 minutes into the Kotlin/Native + xcodebuild chain. The same scripts
       # run on the Windows authoring host (`npm run check` in tools/ios-checks) and are expected to
       # be green before any push -- this step is the enforcement copy, not the discovery copy.
-      - name: iOS source gates (theme/token grep + asset structure + catalog parity) - plain Node, no toolchain
+      - name: iOS source gates (theme/token grep + asset structure + catalog parity + localization policy) - plain Node, no toolchain
         shell: bash
         run: |
           set -euo pipefail
@@ -141,6 +141,11 @@ jobs:
           echo "--- tools/ios-checks/catalog-parity.js (T7 localization catalog parity) ---"
           node tools/ios-checks/catalog-parity.js || {
             echo "::error::iOS localization catalog parity check FAILED - see the errors above (PHASE_5_IOS_IMPLEMENTATION_PLAN.md T7). Reproduce with 'npm run check:catalog' in tools/ios-checks."
+            exit 1
+          }
+          echo "--- tools/ios-checks/localization-checks.js (T7 completion gate - source-policy: MentoraStrings-only, no hardcoded/auto-extracted strings, RTL-safe layout) ---"
+          node tools/ios-checks/localization-checks.js || {
+            echo "::error::iOS localization source-policy check FAILED - see the errors above. This is Task T7's completion gate (PHASE_5_IOS_IMPLEMENTATION_PLAN.md T7, D124/D125). Reproduce on the authoring host with 'npm run check:localization' in tools/ios-checks - no Xcode required."
             exit 1
           }
 
@@ -575,7 +580,7 @@ jobs:
             echo "| Runner image | macos-15 (arm64) |"
             echo "| Xcode | ${XCODE_VERSION_LINE} |"
             echo "| Simulator | ${SIM_DEVICE_NAME:-unresolved} / iOS ${SIM_OS_VERSION:-unresolved} |"
-            echo "| Source gates | theme-checks.js + assets-check.js + catalog-parity.js (plain Node, pre-toolchain) |"
+            echo "| Source gates | theme-checks.js + assets-check.js + catalog-parity.js + localization-checks.js (plain Node, pre-toolchain) |"
             echo "| Gradle tasks | compileKotlinIosSimulatorArm64, linkDebugFrameworkIosSimulatorArm64, iosSimulatorArm64Test, assembleSharedDebugXCFramework |"
             echo "| Xcode targets | iosApp (build), iosAppTests (test) |"
             echo "| NOT covered | live backend, XCUITests, visual/RTL/Dynamic-Type/VoiceOver - MC-2/MC-3/MC-4 |"
