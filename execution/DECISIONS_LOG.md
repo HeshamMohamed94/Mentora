@@ -5568,5 +5568,9 @@ accessibility-scale sweep test added above) covering the 12-style metric table, 
 scale/anchor/weight mappings, and the line-height formula's clamp/Arabic-bump behavior at both
 default and accessibility content sizes.
 
-**Status: PENDING CI.** No Swift toolchain exists on this Windows host — the next real `ios-ci.yml`
-run is this entry's actual verification.
+**Status: DONE — CI run #21 GREEN** (https://github.com/HeshamMohamed94/Mentora/actions/runs/35418390771).
+Every step succeeded, including `xcodebuild - run the XCTest unit target` (all 14
+`MentoraTypographyTests` cases) and the crash-diagnostic step (clean, nothing to report); the
+xcresult-upload-on-failure step correctly skipped, matching the established green-run pattern from
+T5. T6 slice 1 (typography) is complete and CI-confirmed. Slice 2 (Dynamic Type geometry tests) is
+next.
