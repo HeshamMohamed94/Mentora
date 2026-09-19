@@ -5974,7 +5974,7 @@ the architect's explicit confirmation). No token gallery, no completion-gate scr
 
 ---
 
-## D122 — 2026-09-19 — T6 slice 3c (token gallery + completion-gate script + `ios-ci.yml` step): implemented + reviewed, PENDING CI
+## D122 — 2026-09-19 — T6 slice 3c (token gallery + completion-gate script + `ios-ci.yml` step): DONE, CI-green — closes out Task T6
 
 **Context.** The final sub-slice of Task T6 (design-system runtime), closing out T6 as a whole (3a
 shapes/elevation, 3b theme-root wiring, both already DONE/CI-green — D120, D121). Implemented from an
@@ -6222,15 +6222,7 @@ macro correctly resolves file-scope `private` declarations across macro-expansio
 open question the review could not settle without a compiler — left as the real CI run's job, per this
 project's hard-earned D121 lesson against guessing platform/compiler behavior.
 
-**Status: PENDING CI.** Not yet pushed. Windows-side verification complete, including the review round
-above: `npm run check` (both scripts) green including the full negative-control round (point 8, and the
-reviewer's own independent 20-check negative-test pass); `node tools/token-pipeline/generate.js` re-run,
-zero unexpected `git status --porcelain` drift (this slice does not touch the generator at all — a pure
-no-drift confirmation, not a real idempotency test of new code); manual read-through confirmed the scope
-statement above and that `ios-ci.yml`'s new step/path-filter edits match the surrounding steps' exact
-indentation and style, independently confirmed via a real YAML parse in the review round. The real
-macOS CI run (`ios-ci.yml`) is this slice's actual compile/`#Preview`-macro verification, not yet
-performed.
+**Status: DONE — CI run #27 GREEN, first attempt** (https://github.com/HeshamMohamed94/Mentora/actions/runs/35450960410). Pushed as `657298f`. All three of this slice's real risk points passed clean on the first push — no repeat of slice 3b's multi-round saga: the new "iOS source gates" step (`theme-checks.js` + `assets-check.js`) succeeded on macOS, not just Windows; `xcodebuild - build the app for the Simulator` succeeded, meaning `MentoraTokenGallery.swift`'s `#Preview` macros compiled cleanly with NO `ENABLE_PREVIEWS` build-setting change needed (resolving open risk 2 from point 11 — the fallback was never required); `xcodebuild - run the XCTest unit target` succeeded, confirming the existing suite is unaffected by the gallery file's presence. Open risk 1 (whether the Xcode preview *canvas* honors `.preferredColorScheme` for asset resolution) is a human MC-2 concern, not a `xcodebuild build/test` one, and remains open for that manual check — nothing about a green CI run answers it. **T6 slice 3c is complete and CI-confirmed. This closes out all of Task T6 (3a + 3b + 3c).**
 
 **Files changed/added:**
 - `tools/ios-checks/theme-checks.js` (new) — the completion-gate checker (20 named checks across Groups
