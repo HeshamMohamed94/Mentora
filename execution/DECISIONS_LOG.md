@@ -5351,3 +5351,110 @@ they existed to answer is answered). Stages 1/2/3/4/5 (none of which perform thi
 pushed for a final, real-CI confirmation that they pass cleanly — expected, based on `ApiResultBridgeTests`'
 own already-passing analogous coverage in this same run, but not yet directly confirmed for this
 specific file, per this project's standing "never assume, always confirm via real CI" rule.
+
+#### D116 — 2026-09-19 — T5 slice 2: remaining 8 façades bridged (36/37 use cases); `aiStream` deferred
+
+**Context.** T5 slice 1 (CI run #17, green) covered only `auth`+`user`. This slice adds the other 8
+façades' named methods to `MentoraClient.swift`: `catalog`, `enrollment`, `learningPaths`, `media`,
+`progress`, `quiz`, `certificates`, plus `aiTutor`'s `aiConversation(...)`.
+
+**(a) Real evidence source for this slice.** A prior architect investigation for this slice found and
+used the real, CI-run-#6-captured shipped SKIE `.swiftinterface` file (inside the `kmp-swift-interface`
+artifact, under `shared.xcframework/.../shared.swiftmodule/arm64-apple-ios-simulator.swiftinterface`),
+confirmed still current via `git log` showing zero `commonMain` Kotlin changes since that artifact was
+built. The captured Kotlin->Obj-C header in that same artifact is **PRE-SKIE** and its Flow return types
+are wrong — proof: it declares `KeychainStatus.failures` as a raw
+`id<SharedKotlinx_coroutines_coreSharedFlow>`, yet CI-green code (D108 fix round #4) consumes it as a
+real `SkieSwiftSharedFlow` — so only the `.swiftinterface` is authoritative for Flow-typed returns, never
+that header.
+
+**Correction (post-review): a stronger evidence source sits in the same artifact and was underused.**
+The Opus review of this slice found `shared-api.json` — the output of the CI step literally named "Dump
+the real Swift-visible API surface (swift-api-digester)" — sitting at the artifact root next to the
+extracted tree. It is the actual `swift-api-digester` dump of the shipped module's real Swift-visible
+API, and it settles cases the `.swiftinterface` alone cannot: SKIE's non-suspend transformations (e.g.
+`ResolveThumbnailUrlUseCase`, `SendAiTutorMessageUseCase`) don't appear in the `.swiftinterface` at all
+(it only lists SKIE's generated Swift *source* additions — suspend wrappers, `onEnum`), but they DO
+appear, correctly bridged, in `shared-api.json`. `shared.apinotes` (shipped inside the framework's
+`Headers/`) is a third, independently useful source for Obj-C-imported-type bridging (`SwiftBridge:`
+entries — see (e) below). Future slices should check all three (`.swiftinterface`, `shared-api.json`,
+`shared.apinotes`), not just the `.swiftinterface`, before deferring or guessing at a signature.
+
+**(b) D112's open slice-2 question is now RESOLVED.** D112 (Fix 6 section) originally flagged, verbatim:
+"**Also disclosed, no fix (slice-2 concern).** `unwrapList`'s parameter type (`ApiResult<NSArray>`) may
+not accept real slice-2 call sites: Kotlin's `ApiResult<List<Section>>` exports as
+`ApiResult<NSArray<Section>>` (a parameterized `NSArray`), and it is unconfirmed whether Swift's variance
+rules let that convert to the unparameterized `ApiResult<NSArray>` this function currently declares."
+The real `.swiftinterface` shows every such case is plain, non-parameterized `ApiResult<Foundation.NSArray>`
+(Swift's `NSArray` has no parameterized spelling) — so no variance problem ever existed, and no new
+`unwrapList` variant was needed. `categories()` and `curriculum(courseId:)` (this slice's two
+list-returning call sites) both use the existing `unwrapList` unchanged.
+
+**(c) The `boxedInt` addition and why.** `CourseFilters`/paged-list `limit:` parameters need a real
+`KotlinInt?` per the `.swiftinterface`; decomposing `CourseFilters` into plain Swift parameters (rather
+than exposing the Kotlin type directly to a future `Features/` file) keeps `KotlinInt` from ever
+appearing outside `Support/SharedBridge/` (A5's grep boundary). `Int32(clamping:)` chosen over
+`Int32(_:)` specifically so an out-of-range caller value never traps the process (I4).
+
+**(d) `aiStream(...)` is deferred — CORRECTED reason (post-review).** The original text here claimed
+`aiStream` had "no direct compiled evidence" because `SendAiTutorMessageUseCase` is non-suspend and so
+absent from the `.swiftinterface`. **That reasoning was wrong, and the conclusion it was used to support
+turned out to still be right for a different reason.** `shared-api.json` (see the correction in (a))
+gives the exact, real signature:
+
+```
+SendAiTutorMessageUseCase.invoke(content: Swift.String,
+                                 courseId: Swift.String?,
+                                 lessonContextId: Swift.String?)
+    -> shared.SkieSwiftFlow<shared.AiStreamResult>
+```
+
+So `aiStream`'s real bridged type IS already known, with the same evidentiary strength as everything
+else in this slice. It remains deferred to its own follow-up commit anyway — not because the signature
+is unknown, but for ordinary slice hygiene (isolating the one genuinely different bridging shape in this
+batch, a Flow-returning non-suspend call, in its own small, separately-verifiable CI round, consistent
+with this project's standing discipline). `aiConversation(...)` (which has direct `.swiftinterface`
+evidence) is implemented in this commit as originally planned.
+
+**(e) Genuinely new risks this slice carries — CORRECTED post-review: risks #2 and #3's fallbacks were
+themselves wrong and are struck; #4/#5 are downgraded to non-risks.** The Opus review cross-checked every
+item below against `shared.apinotes` and `shared-api.json` (see (a)) and found the pre-authorized
+fallbacks for #2 and #3 would have **broken already-correct code** if a future round had applied them
+reflexively on a red CI run without re-checking. Recorded here so nobody applies a struck fallback:
+
+1. **`aiStream`'s real bridged type** — RESOLVED, see the corrected (d) above. Deferred for slice hygiene
+   only, not because it's unknown.
+2. **`CourseFilters.level:`'s exact parameter type** — RESOLVED, no risk. `shared.apinotes` contains
+   `SwiftBridge: "CourseLevel"` / `SwiftName: "__CourseLevel"` / `SwiftPrivate: true` for
+   `SharedCourseLevel` — the Clang importer auto-bridges every imported API boundary to the public SKIE
+   `CourseLevel` enum, and `shared-api.json` confirms the imported initializer directly:
+   `CourseFilters.init(category:level: shared.CourseLevel?,maxPrice:query:)`. `MentoraClient.searchCourses`
+   as written is exactly right. **STRUCK fallback:** do NOT apply `level?.toKotlinEnum()` — `__CourseLevel`
+   is `SwiftPrivate` and not the real parameter type; that "fix" would have broken correct code.
+3. **`KotlinInt(int:)`'s exact constructor spelling** — RESOLVED, no risk. `shared-api.json` shows
+   `KotlinInt` has both `init(value: Int32)` (from `initWithInt:`) and `init(int: Int32)` (a convenience
+   factory from `numberWithInt:`) — `KotlinInt(int:)` compiles, and it's independently proven by exact
+   analogy to `KotlinBoolean(bool:)`, already CI-green in slice 1's test suite. **STRUCK fallback:** do
+   NOT delete `boxedInt` or pass `KotlinInt?` directly through `Features/` — that would violate A5 and
+   was never necessary.
+4. **`unwrapPage`'s generic inference at a real (non-test) call site** — downgraded to a non-risk: all
+   four call sites infer `Element` from the *argument* type (e.g. `ApiResult<CursorPage<Enrollment>>`),
+   which is stronger inference than the return-position inference the CI-green tests already exercise.
+5. **The `shared.Section` module-qualification** — downgraded to a non-risk: `Section` is a plain
+   `@interface SharedSection : SharedBase` with `swift_name("Section")`, no bridging involved.
+6. **All 25 new methods land with zero real callers until T6+ screens exist** — a scope note, not a
+   compile risk.
+
+**(f) F1 status.** `PHASE_5_ACCEPTANCE_CRITERIA.md`'s F1 reads, verbatim: "All **10** façade domains are
+genuinely exercised by shipped iOS code: `auth`, `user`, `catalog`, `enrollment`, `progress`, `quiz`,
+`certificates`, `learningPaths`, `media`, `aiTutor`." with required evidence "A per-façade table in the
+Phase 5 handoff mapping each façade to at least one real call site." This slice does NOT close F1 even
+once CI is green: F1's required evidence is a per-façade table produced at T23, and "genuinely exercised
+by shipped iOS code" requires a real screen-level call site, not just a compiled bridge method. All 10
+façades now have a real, compiled call site in `MentoraClient.swift` (36/37 use cases bridged once this
+commit lands, `aiStream` making it 37/37 in the follow-up) — this removes the last structural blocker to
+F1 but does not itself satisfy it.
+
+**Verification.** No Kotlin file touched (`mobile/shared` untouched) — `:shared:testDebugUnitTest`/
+`:androidApp:testDebugUnitTest` are unaffected by construction, not re-run here. No Swift compile/run is
+possible on this Windows host — the next real `ios-ci.yml` run is this slice's actual verification.

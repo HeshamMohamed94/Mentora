@@ -52,6 +52,15 @@ enum ApiResultBridge {
     /// Present for completeness/symmetry; no façade use case returns `ApiResult<Int>` in this slice.
     static func unwrapInt(_ result: ApiResult<KotlinInt>) throws -> Int { Int(try unwrap(result).int32Value) }
 
+    /// Kotlin `Int?` PARAMETERS export as `KotlinInt?` -- real `.swiftinterface`:
+    /// `invoke(cursor: Swift.String?, limit: shared.KotlinInt?)`. Boxed here, once, so `KotlinInt`
+    /// never appears in a `Features/` file (A5) -- the parameter-direction twin of `unwrapInt`.
+    /// `Int32(clamping:)` rather than `Int32(_:)`: a bridge must never trap on a caller value (I4).
+    static func boxedInt(_ value: Int?) -> KotlinInt? {
+        guard let value else { return nil }
+        return KotlinInt(int: Int32(clamping: value))
+    }
+
     /// `ApiResult<List<T>>` bridges as `ApiResult<NSArray>` -- element type is erased by Kotlin/Native
     /// for a generic class. Re-typed here, once, so no screen ever casts.
     ///

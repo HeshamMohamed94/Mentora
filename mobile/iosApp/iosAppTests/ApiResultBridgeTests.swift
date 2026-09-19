@@ -60,10 +60,31 @@ final class ApiResultBridgeTests: XCTestCase {
         XCTAssertFalse(try ApiResultBridge.unwrapBool(result))
     }
 
-    // `unwrapInt` is present on `ApiResultBridge` for completeness/symmetry only -- no façade use
-    // case returns `ApiResult<Int>` in this slice (see `ApiResultBridge.swift`'s own doc comment),
-    // and `KotlinInt`'s exact Swift constructor spelling is not part of this slice's confirmed
-    // ground truth, so it is deliberately left untested here rather than guessed.
+    // MARK: - unwrapInt / boxedInt (T5 slice 2)
+    //
+    // `KotlinInt`'s constructor spelling was deliberately left untested in slice 1 ("not part of that
+    // slice's confirmed ground truth"). Slice 2 makes it production code -- every paged use case's
+    // `limit:` parameter is a `KotlinInt?` -- so it is tested for real here, in both directions.
+
+    func testUnwrapIntUnboxesKotlinInt() throws {
+        let result: ApiResult<KotlinInt> = ApiResultSuccess(data: KotlinInt(int: 7))
+        XCTAssertEqual(try ApiResultBridge.unwrapInt(result), 7)
+    }
+
+    func testBoxedIntNilStaysNil() {
+        XCTAssertNil(ApiResultBridge.boxedInt(nil))
+    }
+
+    func testBoxedIntRoundTripsThroughKotlinInt() throws {
+        let boxed = try XCTUnwrap(ApiResultBridge.boxedInt(20))
+        XCTAssertEqual(boxed.int32Value, 20)
+    }
+
+    /// I4: a nonsensical caller value must clamp, never trap the process.
+    func testBoxedIntClampsRatherThanTrapping() throws {
+        let boxed = try XCTUnwrap(ApiResultBridge.boxedInt(Int(Int32.max) + 1))
+        XCTAssertEqual(boxed.int32Value, Int32.max)
+    }
 
     // MARK: - unwrapList
 
@@ -112,6 +133,23 @@ final class ApiResultBridgeTests: XCTestCase {
         let bridged: Page<NSString> = try ApiResultBridge.unwrapPage(result)
         XCTAssertNil(bridged.nextCursor)
         XCTAssertFalse(bridged.hasMore)
+    }
+
+    /// D115 (d) D4 deliberately left `unwrapPage`'s element-cast-mismatch throw untested while NO
+    /// production code called `unwrapPage` at all. Slice 2 gives it four real call sites
+    /// (`searchCourses`/`enrollments`/`myLearning`/`certificates`), so the gap is closed now --
+    /// through the already-proven `Success` path, with no force-cast anywhere (D115 (g): a
+    /// `Failure`-to-mismatched-`ApiResult<T>` force-cast is a CONFIRMED runtime trap; never write one).
+    func testUnwrapPageThrowsWhenAnElementIsNotTheNamedType() {
+        let page = CursorPage<NSString>(items: ["a" as NSString, NSNumber(value: 1)] as [Any], nextCursor: nil)
+        let result: ApiResult<CursorPage<NSString>> = ApiResultSuccess(data: page)
+        XCTAssertThrowsError(try ApiResultBridge.unwrapPage(result)) { error in
+            guard let mentoraError = error as? MentoraError else {
+                XCTFail("Expected MentoraError, got \(error)")
+                return
+            }
+            XCTAssertEqual(mentoraError.wire, "IOS_BRIDGE_ELEMENT_CAST_FAILED")
+        }
     }
 
     // MARK: - unwrapOptional
