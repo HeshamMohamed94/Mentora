@@ -101,7 +101,13 @@ struct MentoraClient {
     /// so the element type has no parameterized spelling here; de-erased once, in `unwrapList`.
     /// (This closes D112's open slice-2 question about `ApiResult<NSArray<T>>` variance: it never
     /// arises.)
-    func categories() async throws -> [Category] {
+    ///
+    /// Module-qualified `shared.Category` deliberately (real CI compiler error, run #18): the
+    /// Objective-C runtime header declares its own `Category` (`objc/runtime.h`'s
+    /// `typedef struct objc_category *Category`, always implicitly visible via Obj-C interop),
+    /// which collides with Kotlin's exported `Category` the same way `Section` collides with
+    /// SwiftUI's -- same fix, same reason.
+    func categories() async throws -> [shared.Category] {
         try ApiResultBridge.unwrapList(try await sdk.catalog.listCategories.invoke())
     }
 

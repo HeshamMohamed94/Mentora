@@ -5458,3 +5458,13 @@ F1 but does not itself satisfy it.
 **Verification.** No Kotlin file touched (`mobile/shared` untouched) — `:shared:testDebugUnitTest`/
 `:androidApp:testDebugUnitTest` are unaffected by construction, not re-run here. No Swift compile/run is
 possible on this Windows host — the next real `ios-ci.yml` run is this slice's actual verification.
+
+**Real CI run #18 caught one genuine compile error, fixed in the same round.** `categories() -> [Category]`
+failed: `'Category' is ambiguous for type lookup in this context`, with the compiler naming both
+candidates — Kotlin's exported `SharedCategory`/`Category` (from `shared.h`) and, independently,
+`objc/runtime.h`'s own `typedef struct objc_category *Category`, always implicitly visible via Obj-C
+interop. Same collision class as `Section` (SwiftUI's own `Section` type, already handled via
+module-qualification) — fixed identically, module-qualifying to `[shared.Category]`. No other bare
+`Category`/`Section`-shaped identifier exists elsewhere in this file (grepped). Not previously catchable
+without a real compiler: `Category` is such a common word that nothing about the Kotlin source or the
+`.swiftinterface` alone would surface an Obj-C-runtime-level name collision.
