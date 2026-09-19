@@ -4,10 +4,11 @@
   "version": "1.0.0",
   "description": "Windows-runnable structural/source gates for the iOS app target. Plain Node, zero dependencies (see execution/DECISIONS_LOG.md D35). See execution/PHASE_5_ACCEPTANCE_CRITERIA.md § 1.",
   "scripts": {
-    "check": "node theme-checks.js && node assets-check.js && node catalog-parity.js && node localization-checks.js",
+    "check": "node theme-checks.js && node assets-check.js && node catalog-parity.js && node localization-checks.js && node component-checks.js",
     "check:theme": "node theme-checks.js",
     "check:assets": "node assets-check.js",
     "check:catalog": "node catalog-parity.js",
-    "check:localization": "node localization-checks.js"
+    "check:localization": "node localization-checks.js",
+    "check:component": "node component-checks.js"
   }
 }
