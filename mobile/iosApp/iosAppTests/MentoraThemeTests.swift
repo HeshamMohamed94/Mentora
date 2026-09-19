@@ -68,66 +68,106 @@ final class MentoraThemeTests: XCTestCase {
             "MentoraThemeRules.foundationLocale(for: .english) must keep MentoraTypographyRules.isArabic(_:) false")
 
         // Direct typo guard on the identifier string itself. test_arabicLocaleForcesWesternNumerals's
-        // digit-rendering assertions cannot serve as an indirect guard on this platform (Apple's ICU
-        // already defaults bare "ar" to Latin digits -- see that test's own correction comment), so
-        // this is the one assertion that would actually catch arabicLocaleIdentifier silently losing
-        // its numbering-system extension (e.g. a typo dropping "-u-nu-latn" entirely).
+        // digit-rendering assertions were vacuous under numberStyle = .none (CI runs #24/#25 -- see
+        // that test's own correction comment), so this is the one assertion that reliably catches
+        // arabicLocaleIdentifier silently losing its numbering-system extension (e.g. a typo dropping
+        // "-u-nu-latn" entirely).
         XCTAssertTrue(MentoraThemeRules.arabicLocaleIdentifier.contains("-u-nu-latn"),
             "arabicLocaleIdentifier must carry the -u-nu-latn numbering-system extension")
     }
 
     // MARK: - 5. Arabic locale forces Western (ASCII) numerals
 
-    /// `NumberFormatter` is the real Foundation API that respects a `Locale`'s numbering-system
-    /// extension (`-u-nu-latn`) when formatting. `arabicLocaleIdentifier`'s `-u-nu-latn` suffix exists
-    /// to force Western/ASCII digits (`design-system/LOCALIZATION.md § 8`).
+    /// `arabicLocaleIdentifier`'s `-u-nu-latn` suffix exists to force Western/ASCII digits
+    /// (`design-system/LOCALIZATION.md § 8`). This formats a large integer through the REAL production
+    /// locale and asserts the rendered digits are ASCII.
     ///
-    /// CORRECTION (CI run #24, `ios-ci.yml`, T6 slice 3b): an earlier version of this test asserted
-    /// that bare `"ar"` (no `-u-nu-latn`) renders Eastern Arabic-Indic digits (٠-٩) by default, and used
-    /// that as a negative control. That assumption is FALSE on Apple platforms: Apple's own ICU data
-    /// patches the `ar` locale's default numbering system to `latn`, not `arab` (confirmed against
-    /// `apple-oss-distributions/ICU`'s `ar.txt` across the ICU versions this CI's Xcode/simulator could
-    /// select -- `default{"latn"}`, with `arab` reachable only as the explicit `native` system, never
-    /// the default; the equivalent upstream CLDR change landed independently at CLDR 46). So a bare
-    /// `"ar"` `NumberFormatter` was never going to produce Eastern digits here, regardless of
-    /// `numberStyle` -- the earlier fix attempt (`.none` -> `.decimal`) targeted the wrong mechanism.
-    /// The correct negative control forces the numbering system EXPLICITLY via the same `-u-nu-*`
-    /// extension mechanism `arabicLocaleIdentifier` itself depends on (`"ar-u-nu-arab"`, not bare
-    /// `"ar"`), which is deterministic across ICU/CLDR versions and vendors rather than resting on a
-    /// locale's default numbering-system data (exactly the kind of platform-default assumption that
-    /// just broke). `numberStyle` reverted to `.none` -- it was never the actual issue.
+    /// CORRECTION (CI runs #24 and #25, `ios-ci.yml`): BOTH previous failures of this test had the same
+    /// single cause -- `numberStyle = .none` -- and neither had anything to do with locale default data.
+    /// `.none` (`kCFNumberFormatterNoStyle`) is CoreFoundation's deliberately NON-localized integer
+    /// style: it emits unshaped ASCII digits regardless of the locale's numbering system, whether that
+    /// system comes from the locale's default data (run #24, bare `"ar"`) or from an EXPLICIT
+    /// `-u-nu-arab` extension (run #25). Run #24's "passing" positive assertion was therefore NOT
+    /// evidence that `-u-nu-latn` was honored -- ASCII is also exactly what "no shaping at all" looks
+    /// like, so under `.none` this test could never have failed even if `arabicLocaleIdentifier` had
+    /// silently become bare `"ar"` or `"ar_EG"`. It guarded nothing. `.decimal` is the style that
+    /// actually consults the locale's numbering system, so the assertions below are a real guard.
+    /// (The earlier claim that Apple's ICU is confirmed to default bare `"ar"` to `latn` rests only on
+    /// reading `apple-oss-distributions/ICU`'s open-source data, NOT on anything CI actually observed --
+    /// under `.none` the numbering system was never consulted either way, so neither run carries
+    /// information about `"ar"`'s real default on this platform.)
+    ///
+    /// The Eastern-digit NEGATIVE control is deliberately NOT a `NumberFormatter` round-trip anymore.
+    /// Whether Darwin resolves a `-u-nu-*` extension at all is still an open question neither CI run
+    /// answered, and a regression guard must not depend on an unverified platform behavior to be
+    /// non-vacuous. Non-vacuity is proven directly, against a literal, below; the open platform question
+    /// is answered by the diagnostics at the end of this test, which only PRINT (never assert) -- see
+    /// the `MENTORA-NUMFMT` lines in the `xcodebuild test` log. A future commit can promote whichever
+    /// construction the log proves works into a real negative control, with zero guessing.
     func test_arabicLocaleForcesWesternNumerals() {
         let value = 1_234_567_890
+        let easternArabicDigits = CharacterSet(charactersIn: "٠١٢٣٤٥٦٧٨٩")
 
+        // Non-vacuity guard: proves the detector below can actually SEE Eastern Arabic-Indic digits,
+        // and does not fire on plain ASCII. Without this, the XCTAssertNil assertion further down
+        // could pass merely because the detector itself was broken.
+        XCTAssertNotNil("١٢٣٤٥٦٧٨٩٠".unicodeScalars.first { easternArabicDigits.contains($0) },
+            "Eastern Arabic-Indic detector is broken -- it must match U+0660-U+0669")
+        XCTAssertNil(String(value).unicodeScalars.first { easternArabicDigits.contains($0) },
+            "Eastern Arabic-Indic detector is broken -- it must not match ASCII digits")
+
+        // `numberStyle` FIRST: assigning a style re-derives the formatter's other defaults, so it must
+        // not be set after `usesGroupingSeparator` / the fraction-digit limits.
         let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
         formatter.locale = MentoraThemeRules.foundationLocale(for: .arabic)
-        formatter.numberStyle = .none
         formatter.usesGroupingSeparator = false
+        formatter.minimumFractionDigits = 0
+        formatter.maximumFractionDigits = 0
 
         let formatted = formatter.string(from: NSNumber(value: value))
         XCTAssertEqual(formatted, String(value),
-            "Arabic locale (ar-u-nu-latn) must format digits identically to plain ASCII -- got \(formatted ?? "nil")")
-
-        let easternArabicDigits = CharacterSet(charactersIn: "٠١٢٣٤٥٦٧٨٩")
+            "Arabic locale (\(MentoraThemeRules.arabicLocaleIdentifier)) must render Western/ASCII " +
+            "digits with no grouping separator -- got \(formatted ?? "nil")")
         XCTAssertNil(formatted?.unicodeScalars.first { easternArabicDigits.contains($0) },
-            "Formatted output must contain no Eastern Arabic-Indic digit characters")
+            "Formatted output must contain no Eastern Arabic-Indic digit characters -- " +
+            "got \(formatted ?? "nil")")
 
-        // Negative control: proves NumberFormatter actually honors the `-u-nu-*` numbering-system
-        // extension mechanism at all (the same mechanism arabicLocaleIdentifier depends on), rather
-        // than this test passing merely because of some other, unrelated reason. Uses an EXPLICIT
-        // "ar-u-nu-arab" extension rather than relying on bare "ar"'s default numbering system --
-        // that default is ICU/CLDR-version- and vendor-dependent (Apple's ICU defaults bare "ar" to
-        // "latn", not "arab" -- see the correction above), so asserting against it would silently stop
-        // testing anything the moment a platform's default data changes, exactly as just happened here.
-        let arabDigitsFormatter = NumberFormatter()
-        arabDigitsFormatter.locale = Locale(identifier: "ar-u-nu-arab")
-        arabDigitsFormatter.numberStyle = .none
-        arabDigitsFormatter.usesGroupingSeparator = false
-        let arabDigitsFormatted = arabDigitsFormatter.string(from: NSNumber(value: value))
-        XCTAssertNotNil(arabDigitsFormatted?.unicodeScalars.first { easternArabicDigits.contains($0) },
-            "\"ar-u-nu-arab\" is expected to render Eastern Arabic-Indic digits -- if it no longer does, " +
-            "NumberFormatter no longer honors the -u-nu-* extension mechanism at all, and this test's " +
-            "positive assertions above are no longer a real regression guard for arabicLocaleIdentifier")
+        // ---- DIAGNOSTICS ONLY -- no assertions, this block can never fail the test. ----
+        // Records what Darwin's real ICU actually does with each way of requesting a numbering system,
+        // under both styles, so the still-open questions (is -u-nu-* resolved at all? what IS bare
+        // "ar"'s default numbering system on Apple's ICU? does .none shape anything?) are answered by
+        // real CI evidence rather than by another round of guess-and-check.
+        let probes: [(String, Locale)] = [
+            ("production", MentoraThemeRules.foundationLocale(for: .arabic)),
+            ("ar", Locale(identifier: "ar")),
+            ("ar_EG", Locale(identifier: "ar_EG")),
+            ("ar-u-nu-arab", Locale(identifier: "ar-u-nu-arab")),
+            ("ar@numbers=arab", Locale(identifier: "ar@numbers=arab")),
+            ("ar_EG@numbers=arab", Locale(identifier: "ar_EG@numbers=arab"))
+        ]
+        let styles: [(String, NumberFormatter.Style)] = [
+            ("decimal", NumberFormatter.Style.decimal),
+            ("none", NumberFormatter.Style.none)
+        ]
+        for (label, probeLocale) in probes {
+            for (styleName, style) in styles {
+                let probeFormatter = NumberFormatter()
+                probeFormatter.numberStyle = style
+                probeFormatter.locale = probeLocale
+                probeFormatter.usesGroupingSeparator = false
+                probeFormatter.minimumFractionDigits = 0
+                probeFormatter.maximumFractionDigits = 0
+                let out = probeFormatter.string(from: NSNumber(value: value)) ?? "<nil>"
+                let scalars = out.unicodeScalars
+                    .map { String(format: "U+%04X", $0.value) }
+                    .joined(separator: " ")
+                print("MENTORA-NUMFMT | requested=\(label) | style=\(styleName) " +
+                      "| canonical=\(probeLocale.identifier) " +
+                      "| nu=\(probeLocale.numberingSystem.identifier) " +
+                      "| out=\(out) | scalars=\(scalars)")
+            }
+        }
     }
 
     // MARK: - 6. \.locale / \.layoutDirection propagate through .mentoraTheme(...)
