@@ -5494,3 +5494,79 @@ its verification is compile (CI) + real screen usage later (T6+/MC-2/MC-3).
 
 **Status: PENDING CI.** No Swift toolchain exists on this Windows host — the next real `ios-ci.yml`
 run is this entry's actual verification, per this project's standing rule.
+
+## D118 — T6 slice 1 (typography) implemented
+
+T6 ("Design-system runtime") begins, slice 1 of 3 — typography only; shapes/elevation/theme-root
+are separate follow-up slices, not started. Two new files: `Theme/MentoraTypography.swift` (the
+hand-authored typography behavior layer: `MentoraTextStyle`, `MentoraTypographyRules`,
+`MentoraFontModifier`, `.mentoraFont(_:)`) and `iosAppTests/MentoraTypographyTests.swift` (14 XCTest
+cases covering the 12-style metric table, the scale/anchor/weight mappings, and the line-height
+formula's clamp/Arabic-bump behavior at default content size).
+
+**Naming collision avoided.** `Theme/MentoraTokens.swift` (T2's generated output) already declares
+`enum MentoraTypography` (the generated, unscaled metrics table). The new hand-authored rules type is
+therefore named `MentoraTypographyRules`, not `MentoraTypography`, to avoid a redeclaration compile
+error.
+
+**Line-height formula copied verbatim, not re-derived.** `PHASE_5_IOS_SYSTEM_DESIGN.md § 15.1`'s
+formula — `lineSpacing = max(0, scaledSize * ratio - scaledSize * naturalLineHeightFactor)` — is
+transcribed exactly as written. An earlier version of this same computation
+(`.lineSpacing(lineHeight - scaledSize)`, subtracting an UNSCALED token value from a SCALED one) was
+found to go negative at accessibility text sizes and was explicitly withdrawn in the design document;
+`test_lineSpacingAtDefaultSize_en`/`_ar` and the 12-row transcribed metrics table in the new test file
+are the regression test for that withdrawn form not silently reappearing.
+
+**Real discrepancy found and adapted during Step 1 verification.** The plan assumed
+`MentoraTypographyMetrics.fontWeight` was `Int`; the real, generated `Theme/MentoraTokens.swift`
+(line 16) declares it `CGFloat`. This does not affect `MentoraTypography.swift` itself (a `switch`
+over a `CGFloat` against integer-literal cases compiles fine), but it required retyping two spots in
+the test file that the plan had assumed were `Int`: `test_eachStyleMapsToDistinctMetrics`'s `Key.weight`
+field, and `test_metricsMatchDesignTokens`'s transcribed table's `fontWeight` column — both now
+`CGFloat`, with the corresponding assertions using floating-point `accuracy:` comparison.
+
+**Verification host.** Criterion G3's real host is W-auth/C-verify (not the stale "Host: M" that
+appears elsewhere in `PHASE_5_IOS_IMPLEMENTATION_PLAN.md` for T6) — G3's acceptance criteria state its
+geometry-reading XCTest "runs in CI since D100," and pixel-snapshot testing is explicitly NOT CI-safe
+and stays manual. This slice's new tests are therefore expected to give a real PASS/FAIL signal from
+CI, not just a compile check.
+
+No `mobile/shared` (Kotlin) file touched; `tools/token-pipeline/generate.js` untouched;
+`MentoraShape.swift`/`MentoraElevation.swift`/`MentoraTheme.swift`/`MentoraApp.swift`/
+`ThemeController.swift`/`LocaleController.swift` untouched (later slices).
+
+**Correction (post-review).** Opus review of this slice (before any CI push) found one real
+compile-breaking bug and one real coverage gap, both fixed prior to commit:
+
+- **HIGH — missing `import SwiftUI`.** The original test file relied on `@testable import iosApp`
+  alone but directly names `Font.TextStyle` (`test_anchorsMatchContract`); module imports are not
+  transitive in Swift, so this would have failed to compile in CI. Fixed by adding an explicit
+  `import SwiftUI` with a comment explaining why it's needed despite the `@testable` import.
+- **MEDIUM — accessibility-scale coverage gap.** Every original test exercised the line-height
+  formula only at `scaledSize == fontSize` (scale factor 1.0) — exactly the one point at which the
+  withdrawn formula (D-note above) still agreed with the current one. None of the original tests
+  could have caught the withdrawn formula's actual failure mode (going negative as scaled size grows
+  past the natural line height). Fixed by adding `test_lineSpacingScalesCorrectlyAtAccessibilitySizes`,
+  sweeping 8 scale factors × all 12 styles × both locales, asserting non-negativity always and exact
+  target-ratio preservation for every non-clamped style. The review independently re-derived the
+  formula and hand-verified all swept values before this test was written.
+- Two doc-comment citations of a not-yet-existing `tools/ios-checks/theme-checks.js` enforcement
+  script were corrected to instead cite the T6 completion-gate grep in the implementation plan (no
+  such automated script exists yet).
+- Minor citation fix: `MentoraTheme.kt:269-271` → the correct `:268-270`.
+- Minor accuracy fix: a comment characterizing Android's locale detection as a bare
+  `LocalConfiguration` default was corrected — the real Android call site passes a locale-derived
+  value explicitly via `observeLocale()`, which is actually closer to iOS's `@Environment(\.locale)`
+  approach than the original comment conceded.
+- Informational (not a defect): `naturalLineHeightFactor = 1.2` was measured against the Latin face;
+  SF Arabic's natural leading factor is larger, so the Arabic body +10% ratio bump likely renders
+  looser than a literal +10% in practice. Safe direction (never negative, never under-spaced), but
+  flagged as an MC-3 manual-measurement item. A note was added to the constant's doc comment.
+
+**Test count, corrected.** The file now has **14** XCTest cases (13 original + the new
+accessibility-scale sweep test added above) covering the 12-style metric table, the
+scale/anchor/weight mappings, and the line-height formula's clamp/Arabic-bump behavior at both
+default and accessibility content sizes.
+
+**Status: PENDING CI.** No Swift toolchain exists on this Windows host — the next real `ios-ci.yml`
+run is this entry's actual verification.
