@@ -53,6 +53,7 @@ on:
       - 'mobile/build.gradle.kts'
       - 'mobile/gradlew'
       - 'tools/token-pipeline/generate.js'
+      - 'tools/ios-checks/**'
       - '.github/workflows/ios-ci.yml'
       # Documentation-only changes under the paths above must not spend a macOS runner. Negative
       # patterns are evaluated after the positive ones, so this subtracts from the set above.
@@ -68,6 +69,7 @@ on:
       - 'mobile/build.gradle.kts'
       - 'mobile/gradlew'
       - 'tools/token-pipeline/generate.js'
+      - 'tools/ios-checks/**'
       - '.github/workflows/ios-ci.yml'
       - '!**/*.md'
 
@@ -111,6 +113,31 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+
+      # Cheapest gate in the job, deliberately FIRST: plain Node source/asset checks over the iOS
+      # tree. No Xcode, JDK, Gradle, konan cache or simulator needed, so a violation fails in
+      # seconds instead of ~15 minutes into the Kotlin/Native + xcodebuild chain. The same scripts
+      # run on the Windows authoring host (`npm run check` in tools/ios-checks) and are expected to
+      # be green before any push -- this step is the enforcement copy, not the discovery copy.
+      - name: iOS source gates (theme/token grep + asset structure) - plain Node, no toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v node >/dev/null 2>&1; then
+            echo "::error::node is not on PATH on this runner image. GitHub-hosted macOS images ship Node by default, so this is an image regression rather than a repo problem. Fix: add an actions/setup-node step before this one, pinning a major tag deliberately per this file's ACTION VERSIONS note. Failing loudly rather than skipping the gate (criterion J11(e))."
+            exit 1
+          fi
+          node --version
+          echo "--- tools/ios-checks/theme-checks.js (Task T6 completion gate) ---"
+          node tools/ios-checks/theme-checks.js || {
+            echo "::error::iOS theme/token completion-gate check FAILED - see the errors above. This is Task T6's completion gate (PHASE_5_IOS_IMPLEMENTATION_PLAN.md T6, plus the gate patterns recorded in DECISIONS_LOG.md D121). Reproduce on the authoring host with 'npm run check:theme' in tools/ios-checks - no Xcode required."
+            exit 1
+          }
+          echo "--- tools/ios-checks/assets-check.js (T2/T3 asset structure) ---"
+          node tools/ios-checks/assets-check.js || {
+            echo "::error::iOS asset structural check FAILED - see the errors above (PHASE_5_ACCEPTANCE_CRITERIA.md § 1). Reproduce with 'npm run check:assets' in tools/ios-checks."
+            exit 1
+          }
 
       - name: Select and report Xcode toolchain
         shell: bash
@@ -526,6 +553,7 @@ jobs:
             echo "| Runner image | macos-15 (arm64) |"
             echo "| Xcode | $(xcodebuild -version | head -n 1) |"
             echo "| Simulator | ${SIM_DEVICE_NAME:-unresolved} / iOS ${SIM_OS_VERSION:-unresolved} |"
+            echo "| Source gates | theme-checks.js + assets-check.js (plain Node, pre-toolchain) |"
             echo "| Gradle tasks | compileKotlinIosSimulatorArm64, linkDebugFrameworkIosSimulatorArm64, iosSimulatorArm64Test, assembleSharedDebugXCFramework |"
             echo "| Xcode targets | iosApp (build), iosAppTests (test) |"
             echo "| NOT covered | live backend, XCUITests, visual/RTL/Dynamic-Type/VoiceOver - MC-2/MC-3/MC-4 |"

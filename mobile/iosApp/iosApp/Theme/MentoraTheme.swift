@@ -63,8 +63,8 @@ enum MentoraThemeRules {
     /// not on anything CI actually observed; whether Darwin resolves ANY `-u-nu-*` numbering-system
     /// extension is still an open question, tracked via that test's non-assertive diagnostics.) This is
     /// the ONE named constant for this string -- it must never be inlined a second time anywhere in this
-    /// target (verified by the Step 6 grep in `DECISIONS_LOG.md`
-    /// D121).
+    /// target's production code (enforced by `tools/ios-checks/theme-checks.js` Check C5, the automated
+    /// successor to the manual grep `DECISIONS_LOG.md` D121 recorded).
     static let arabicLocaleIdentifier = "ar-u-nu-latn"
 
     /// `AppLocale` -> Foundation `Locale`, per `PHASE_5_IOS_SYSTEM_DESIGN.md § 12`/D4.

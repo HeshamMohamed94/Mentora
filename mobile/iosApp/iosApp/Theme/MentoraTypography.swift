@@ -17,8 +17,8 @@ import SwiftUI
 //      to live in a `Font`-shaped API.
 //   3. `UIFontMetrics` is NOT the workaround -- it reads the trait collection directly and ignores an
 //      injected `.dynamicTypeSize(...)`, which is exactly how this file's own tests drive assertions.
-//      `UIFontMetrics` is banned repo-wide (criterion G3, enforced by this file's completion-gate
-//      grep -- see `PHASE_5_IOS_IMPLEMENTATION_PLAN.md`'s T6 section; no automated script exists yet).
+//      `UIFontMetrics` is banned repo-wide (criterion G3, enforced by `tools/ios-checks/theme-checks.js`
+//      Check A2 -- see `PHASE_5_IOS_IMPLEMENTATION_PLAN.md`'s T6 completion gate section).
 
 // MARK: - The 12 scale steps
 
@@ -201,8 +201,9 @@ enum MentoraTypographyRules {
 // MARK: - The one modifier
 
 /// The SINGLE place `Font.system(size:weight:)` appears in the entire app target (criterion G3;
-/// enforced by the T6 completion-gate grep, `PHASE_5_IOS_IMPLEMENTATION_PLAN.md` -- no automated
-/// script exists yet). No bundled font, so SF Arabic substitution for Arabic runs stays automatic (H8).
+/// enforced by `tools/ios-checks/theme-checks.js` Check A1, per `PHASE_5_IOS_IMPLEMENTATION_PLAN.md`'s
+/// T6 completion gate section). No bundled font, so SF Arabic substitution for Arabic runs stays
+/// automatic (H8).
 private struct MentoraFontModifier: ViewModifier {
 
     /// The ONLY scaled value. `@ScaledMetric` honors both the system Dynamic Type setting AND an

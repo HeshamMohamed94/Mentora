@@ -63,9 +63,10 @@ artifact rather than implying an XCTest runs here:
 |---|---|---|
 | Catalog / mapping checker | `tools/ios-checks/catalog-parity.js` | `Localizable.xcstrings` is valid JSON; EN/AR key parity; per-key format-specifier parity; **only iOS-valid specifiers** (`%N$@`, never `%N$s`); every `ApiErrorCode` has a copy key. Zero-dependency Node, same precedent as `tools/token-pipeline/generate.js`. |
 | Asset/structure checker | `tools/ios-checks/assets-check.js` | 46 semantic colorsets + shadow colorsets present with `any`+`dark`; 42 icon imagesets; template rendering intent; SVG well-formedness and 24x24 viewBox; icon-name set equals Android's `MentoraIconName`; mirror set equals Android's `autoMirror` set. |
+| Theme/token completion-gate checker | `tools/ios-checks/theme-checks.js` | Task T6's completion gate over comment-stripped `.swift` source text: `Font.system(size:weight:)`/`.system(size:` appears exactly once (in `MentoraTypography.swift`), zero `UIFontMetrics`, zero raw system colors outside a `mentora*` semantic token, the 5 D121 theme-root gate patterns (`preferredColorScheme(`, locale/`layoutDirection` environment writes, `.mentoraTheme(`, the Arabic locale literal) each scoped to `Theme/MentoraTheme.swift` only, plus the token gallery's structural/color-list/preview-name completeness. Zero-dependency Node, same precedent as the other two scripts. |
 
-Both are new files under `tools/`, outside every path A8 protects. Anything **not** provable by one of
-those two scripts, by Gradle, by the token generator, or by grep/diff review is not `W`.
+All three are new files under `tools/`, outside every path A8 protects. Anything **not** provable by
+one of those three scripts, by Gradle, by the token generator, or by grep/diff review is not `W`.
 
 **CI-1** (the standing automated gate, D100) plus four named Mac checkpoints are defined in
 `PHASE_5_IOS_IMPLEMENTATION_PLAN.md § 3`

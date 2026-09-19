@@ -5971,3 +5971,281 @@ the architect's explicit confirmation). No token gallery, no completion-gate scr
 - **Actionable for a future slice, not this one:** if a hard Eastern-digit negative control is ever wanted again, `Locale(identifier: "ar@numbers=arab")` (or `"ar_EG@numbers=arab"`) is now a CI-evidenced-safe choice — `"ar-u-nu-arab"` is not, on this platform/Xcode/iOS combination.
 
 **Status: DONE — CI run #26 GREEN** (https://github.com/HeshamMohamed94/Mentora/actions/runs/35445837764). Pushed as `40096cf` (third round of fixes) on top of `ca8b34f`/`e307c04`. Both `xcodebuild` steps succeeded on this attempt. **The actual app/production code — `Theme/MentoraTheme.swift`, `Support/LocaleController.swift`, `MentoraApp.swift` — was correct and CI-untested-but-unchanged since round 1** (CI run #24 already proved the build itself compiles clean and 5/6 `MentoraThemeTests` cases pass on the first attempt); all three CI rounds were consumed entirely by one test's own numeral-formatting methodology, never by an app defect. T6 slice 3b is complete and CI-confirmed. Sub-slice 3c (token gallery + completion-gate script) is next, once picked up — it remains fully unstarted.
+
+---
+
+## D122 — 2026-09-19 — T6 slice 3c (token gallery + completion-gate script + `ios-ci.yml` step): implemented + reviewed, PENDING CI
+
+**Context.** The final sub-slice of Task T6 (design-system runtime), closing out T6 as a whole (3a
+shapes/elevation, 3b theme-root wiring, both already DONE/CI-green — D120, D121). Implemented from an
+architect-authored, implementation-ready plan on the Windows authoring host; every check pattern and
+every real Swift API shape referenced below was read directly from the actual source files first (per
+this project's standing rule against inventing Swift/KMP API shapes — the exact mistake that cost T6
+slice 3b 3 real CI rounds around `NumberFormatter`/`Locale` behavior, D121), not guessed.
+
+**1. Why `tools/ios-checks/theme-checks.js` is a NEW file, not an extension of `assets-check.js`.**
+Different domain — `assets-check.js` checks asset-CATALOG structure (JSON/SVG files under
+`.xcassets/`); `theme-checks.js` checks source-TEXT policy over `.swift` files (grep-shaped rules after
+comment-stripping). Different CI role too: `theme-checks.js` is meant to run FIRST in `ios-ci.yml`,
+before `assets-check.js` even runs, since it needs nothing but the checked-out tree — see point 9 below.
+
+**2. The comment-stripper finding, with the concrete numbers actually observed on this tree (not the
+architect's own estimate, re-measured directly before writing the stripper — the counts differ
+slightly, recorded here instead of silently reused):**
+- `.system(size:` — 4 raw-text matches (all in `Theme/MentoraTypography.swift`: lines 14, 203, 211, 226
+  as of this slice's own doc-comment fixes — line numbers shift with unrelated edits, so the COUNT is
+  what this design rests on, not the exact lines; three are doc-comment prose, one — line 226, inside
+  `MentoraFontModifier.body` — is real code). Comment-stripped: exactly 1 match. A naive raw-text grep
+  would report "found 4, expected 1" on a tree the architect independently verified is clean.
+- `UIFontMetrics` — 4 raw-text matches, all in `Theme/MentoraTypography.swift` doc comments (lines 18,
+  20, 114, 211 as of this slice's own edits; the architect's own header draft estimated 5, this
+  implementation's own grep before writing the checker found 4 — recorded as the actually-observed
+  number, not the estimate, so nobody "corrects" the checker back toward a wrong count later).
+  Comment-stripped: 0 matches anywhere — a naive raw-text grep would report "found 4, expected 0".
+- `Font.custom(` — 2 raw-text matches, both in doc comments (`Theme/MentoraTokens.swift` line 9,
+  `Theme/MentoraTypography.swift` line 12). Comment-stripped: 0 matches — same false-positive risk.
+
+Every check in `theme-checks.js` therefore runs against comment-stripped text (`stripSwiftComments`),
+never raw text, with the single deliberate exception of Check F1 (point 3 below), which is specifically
+about the stripper's own blind spot and must see raw text to do its job.
+
+**3. The raw-string-literal limitation and its self-guard.** `stripSwiftComments` is a character-level
+state machine handling `//` line comments, nesting-aware `/* */` block comments, `"..."` strings
+(backslash-escape aware), and `"""..."""` triple-quoted strings — but deliberately does NOT support
+Swift raw string literals (`#"..."#`). Rather than silently mis-scanning a file that uses one, Check F1
+asserts zero occurrences of the two-character sequence `#"` anywhere in the scanned file set (checked
+against RAW text, not stripped — the one check in this file that must be raw), failing loudly and
+naming the file/line if one is ever introduced, with a message telling the next maintainer to extend the
+stripper first. Verified zero `#"` occurrences exist in the current tree before writing this guard, so
+it starts green (confirmed by both a standalone grep and Check F1 itself passing).
+
+**4. Every `SANCTIONED_EXCEPTIONS` entry, with its reason (named once at the top of the file, not
+scattered inline in regexes):**
+- `systemSizeCallSite` — `Theme/MentoraTypography.swift`'s `MentoraFontModifier.body` is the one
+  legitimate `.system(size:` call site (Check A1).
+- `colorClearExcluded` — `Color.clear` is deliberately excluded from the forbidden-color palette (Check
+  Group B): it carries no visual identity and has no semantic-token equivalent; banning it would push
+  authors toward worse patterns like `.opacity(0)` hacks.
+- `galleryMentoraThemeCallSites` — `Theme/MentoraTokenGallery.swift`'s `.mentoraTheme(` call sites (one
+  per `#Preview`) are exempt from Check C4's "exactly one production call site" rule — see point 6.
+- `colorStringLiteralGeneratedOnly` — `Color("...")` string-literal construction (Check B4) is allowed
+  only in the generated `Theme/Color+Mentora.swift`.
+
+**5. Plan/D121-mandated checks vs additive checks (labeled in-code, distinct for future maintainers
+deciding whether a check can be relaxed):**
+- **Plan/D121-mandated:** A1 (`.system(size:` exactly once), A2 (zero `UIFontMetrics`), B1-B3 (zero raw
+  `Color.<name>`/raw-color modifier args/UIKit-bridging construction), C1-C5 (the 5 D121 theme-root
+  patterns).
+- **Additive (beyond the master plan's literal text):** A3 (zero `Font.custom(`, protects H8), A4
+  (`.font(` only in `MentoraTypography.swift`, forces `.mentoraFont(_:)`), B4 (`Color("...")` only in
+  the generated file), D1 (zero `.minimumScaleFactor(`), D2 (zero `.dynamicTypeSize(` RANGE argument).
+- Check Groups E (gallery completeness: E1-E4) and F (stripper self-guard: F1) are this slice's own
+  structural/safety checks, not tagged plan-mandated or additive in the same sense.
+
+**6. The C4 relaxation (gallery as a second sanctioned `.mentoraTheme` call site).** D121's original gate
+pattern list required `.mentoraTheme(` to appear exactly once in production code, in `MentoraApp.swift`,
+"until T8 adds a sanctioned sheet/cover re-application helper." This slice's gallery needs its own
+`.mentoraTheme(theme:locale:)` call per `#Preview` (8 of them) to drive light/dark/en/ar/default/AX5
+variation — Check C4 therefore counts `.mentoraTheme(` occurrences OUTSIDE
+`Theme/MentoraTokenGallery.swift` and requires exactly 1 there (in `MentoraApp.swift`), leaving the
+gallery's own occurrences unlimited/unchecked. Routing the gallery through the REAL production
+`.mentoraTheme(theme:locale:)` entry point — rather than injecting `.environment(\.locale, ...)` /
+`.preferredColorScheme(...)` directly on each preview — is strictly better verification for two reasons:
+(a) it keeps the gallery itself from violating Checks C1/C2/C3/C5 (which would otherwise see a second,
+uncontrolled theme-application site), and (b) it means the gallery exercises the exact shipping
+theme-application code path end to end, not a preview-only mock that could silently diverge from it.
+
+**7. Gallery design decisions.**
+- `allCases` is used for the Typography (`MentoraTextStyle`), Shapes (`MentoraShape.Step`), Elevation
+  (`MentoraElevationLevel`), and Icons (`MentoraIconName`) sections — zero-drift by construction: if any
+  of those enums ever gains/loses a case, the gallery's own rendering automatically follows without a
+  hand-maintained list to fall out of sync.
+- The 46-color hand list (`galleryColors` in `MentoraTokenGallery.swift`) is the ONE necessary exception
+  to "zero hand-duplicated values" — `Color+Mentora.swift`'s accessors are plain computed `static var`s,
+  not a `CaseIterable` enum, so there is no `allCases` to iterate. Every entry was read directly from the
+  real, current `Color+Mentora.swift` (not reconstructed from memory), and is gated by Check E3, which
+  fails if the gallery's name list and the generated accessor list (excluding
+  `mentoraShadowElevation<N>`) ever diverge, in either direction, by name.
+- All 46 colors are included (not a curated subset) — a curated subset would need its own, separate
+  "which ones matter" judgment call to keep in sync as new tokens are added; enumerating all of them
+  removes that judgment call entirely and lets Check E3 do the enforcement instead.
+- 8 previews = the full 2×2×2 light/dark × en/ar × default/AX5 matrix — the token gallery's whole
+  purpose (T6's Manual verification / MC-2 item) is to let a human visually confirm every combination of
+  theme, locale, and text-size regime at once; anything less than the full matrix would leave at least
+  one combination unverified by construction. AX5 specifically (not, say, AX3) matches slices 1/2's own
+  `.accessibility5` convention already established in `MentoraTypographyTests.swift` /
+  `MentoraTypographyGeometryTests.swift` — reusing the same extreme rather than introducing a second one.
+- The Icons section's inclusion serves a T3 MC-2 item (visual icon review, including the RTL-mirror pair
+  `arrowForward`/`arrowBack`) from within a T6 file — T3 itself never built a preview surface, so this
+  gallery is the first place all 42 icons become visually reviewable together.
+
+**8. Negative-control results (Step 5) — exactly which check groups were deliberately broken and
+confirmed to actually fire, per this project's standing rule against a gate that turns out to guard
+nothing (T6 has been burned by that twice already before this slice, per the architect's own framing).**
+Each of the following was tested by writing a throwaway `.swift` file containing one real violation to
+`mobile/iosApp/iosApp/Theme/_ScratchNegativeTest.swift` (a NEW, untracked file — never an edit to a
+real/tracked file, so there was nothing to revert), running `node theme-checks.js`, confirming the
+expected error fired with a sensible file/line/message, then deleting the scratch file:
+- **A1** — added a second `.font(.system(size: 10))` call → fired `"A1: expected exactly 1 ... found
+  2"` (and incidentally also fired A4, confirming that check too).
+- **A2** — added a `UIFontMetrics(forTextStyle:)` call → fired `"A2: banned \"UIFontMetrics\" found
+  ..."`.
+- **B1** — added `Rectangle().fill(Color.red)` → fired `"B1: raw system color \"Color.red\" found
+  ..."` (and did NOT also fire B2, confirming B1/B2 correctly distinguish the explicit `Color.red` form
+  from the dot-shorthand `.red` form B2 targets).
+- **B2** — added `Text("x").foregroundColor(.blue)` → fired `"B2: raw system color passed to a
+  color-bearing modifier ..."`.
+- **B3** — added `Rectangle().fill(Color(.systemBackground))` plus a bare `UIColor` reference → fired
+  BOTH `"B3: Color(.<member>) leading-dot construction found ..."` and `"B3: bare UIColor found ..."` in
+  the same run, confirming both B3 sub-patterns independently.
+- **C1** — added `Text("x").preferredColorScheme(.dark)` outside `Theme/MentoraTheme.swift` → fired
+  `"C1: \"preferredColorScheme(\" found outside ... this must stay the single theme-root call site"`.
+- **C4** — added a second `.mentoraTheme(theme: .light, locale: .english)` call outside both
+  `MentoraApp.swift` and the gallery → fired `"C4: expected exactly 1 ... found 2"`, correctly listing
+  both the real `MentoraApp.swift:40` occurrence and the injected scratch one.
+- **D1** — added `Text("x").minimumScaleFactor(0.5)` → fired `"D1 (additive): \".minimumScaleFactor(\"
+  found ..."`.
+
+After each case the scratch file was deleted and `npm run check` was re-run clean; `git status
+--porcelain` confirmed zero leftover diff in `mobile/iosApp/iosApp/Theme/` beyond the slice's own
+intentional new/edited files. Not separately negative-tested: B4, C2, C3, C5, D2, E1-E4, F1 — each is
+either a straightforward variant of an already-tested pattern-matching mechanism (B4/C2/C3/C5 reuse the
+identical "found outside the allowed file" logic B1-B3/C1 already proved fires; D2 reuses A1's balanced-
+paren/regex mechanism) or was exercised functionally by construction: E1 fired for real before the
+gallery file existed (Step 3's own run), and F1's zero-`#"` precondition was independently confirmed by
+a standalone grep. If a future reviewer wants B4/C2/C3/C5/D2/E2-E4/F1 individually negative-tested too,
+that is a cheap, safe follow-up — none of them share a novel matching mechanism this round didn't already
+exercise on a real regression.
+
+**9. CI decisions.**
+- The new `ios-ci.yml` step ("iOS source gates ... plain Node, no toolchain") is inserted immediately
+  after `Checkout` and before `Select and report Xcode toolchain` — the cheapest gate in the job,
+  deliberately first: it needs no Xcode, JDK, Gradle, konan cache, or simulator, so a violation fails in
+  seconds instead of ~15 minutes into the Kotlin/Native + `xcodebuild` chain.
+- `tools/ios-checks/**` was added to both `push.paths` and `pull_request.paths` (before the `!**/*.md`
+  negative pattern, which must stay last in each list). Its absence would have been a real bug: a
+  checker-only change (e.g. fixing a regex in `theme-checks.js` without touching any `mobile/**` file)
+  would not have matched any existing path filter and so would never have re-triggered `ios-ci.yml` at
+  all — silently leaving the CI-enforcement copy of these checks stale relative to the authoring-host
+  copy.
+- This is `assets-check.js`'s FIRST-EVER CI coverage, as a side effect of this slice's step wiring both
+  scripts together — it had previously only ever been run manually on the Windows host.
+- The Node-availability guard (`command -v node`) fails loudly with an actionable message rather than
+  silently skipping the gate if a future runner image regression removes Node — consistent with this
+  workflow's existing "fails loudly, never swallows a non-zero exit" convention (criterion J11(e)).
+
+**10. The two doc-comment fixes — comment-only, zero logic change (confirmed by re-running `npm run
+check` after each edit, both times unaffected):**
+- `Theme/MentoraTypography.swift` — two doc comments (near the file header, and above
+  `MentoraFontModifier`) that said "enforced by ... this file's completion-gate grep -- no automated
+  script exists yet" now cite `tools/ios-checks/theme-checks.js` Checks A2 and A1 respectively.
+- `Theme/MentoraTheme.swift` — the doc comment on `arabicLocaleIdentifier` that said "verified by the
+  Step 6 grep in `DECISIONS_LOG.md` D121" now cites `tools/ios-checks/theme-checks.js` Check C5 as the
+  automated successor to that manual grep.
+
+**11. Open items for the real CI run to answer — deliberately NOT guess-resolved here, per this
+project's standing rule against inventing unconfirmed Swift/Preview API behavior (T6 slice 3b's 3-round
+`NumberFormatter`/`Locale` lesson, D121):**
+- Whether the Xcode preview canvas actually honors `.preferredColorScheme` (applied transitively via
+  `.mentoraTheme(...)`) for asset-catalog color resolution. Ranked fallback if it does not: (1)
+  `.environment(\.colorScheme, ...)` applied directly on the preview (not gated by Check C1, which only
+  covers a literal `preferredColorScheme(` call), then (2) `#Preview(traits:)`.
+- Whether `#Preview` macro compilation needs an explicit "enable previews" build setting in
+  `project.yml`'s Debug configuration for this XcodeGen-generated project on Xcode 16.4. NOT applied
+  preemptively — `project.yml` was not touched by this slice at all; this setting is known to inject
+  codegen flags that could have other effects, so it is only worth adding if the real CI build actually
+  fails on the `#Preview` macros.
+
+**12. The T7 carve-out.** `MentoraTokenGallery.swift`'s English/Arabic sample strings (the Typography and
+Arabic-sample sections' paragraph text) and every enum `.rawValue` label rendered in the gallery are
+debug-only, non-user-facing literals. This file is explicitly EXCLUDED from Task T7's future "no
+user-facing literal in the app target" completion gate — flagged here now, before T7 starts, so that
+exclusion does not look like an oversight later. The file's own header doc comment carries the identical
+note.
+
+**13. Scope statement.** No `mobile/shared/**` (Kotlin) or `mobile/androidApp/**` file touched. No logic
+change to any existing `Theme/` file beyond the two named doc-comment fixes (point 10) —
+`MentoraShape.swift`, `MentoraElevation.swift` untouched entirely; `MentoraTheme.swift`/
+`MentoraTypography.swift` touched ONLY for their one named doc comment each. No `project.yml` change. No
+T7 (localization strings/`.xcstrings`) or T8 (component kit) work started.
+
+**Review round (Opus, before any CI push).** Independently re-verified rather than trusted: ran the
+checker directly, wrote a SECOND, independent parser to hand-check E3's color-list completeness (46
+`GalleryColor` rows == `Color+Mentora.swift`'s 46 non-shadow accessors, same set, same order, every
+name matching its accessor), YAML-parsed `ios-ci.yml` with a real parser rather than eyeballing
+indentation, and independently negative-tested all 20 checks (not just the 8 the implementation report
+claimed) via a scratch-file harness, confirming each fires with a correct file/line/message and leaves
+zero diff behind. Traced every Swift symbol the gallery references (`MentoraShape`, `MentoraShape.Step`,
+`.mentoraElevation`, `MentoraElevationLevel`, `MentoraIcon`, `MentoraIconName`, `MentoraTextStyle`,
+`.mentoraFont`, `MentoraSpacing.*`, `MentoraBorderWidth.default`, `.mentoraTheme`) against each symbol's
+real declaration in `Theme/` — no mismatch found. Confirmed `project.yml`'s directory-based `sources:`
+glob means the new gallery file is picked up by `xcodegen generate` automatically (no `project.yml`
+edit needed) and that CI's Debug config actually compiles the `#if DEBUG` body, so the completeness
+checks (E1-E4) verify a file that will actually build, not a dead one. **No blocking findings.** Fixed
+before push:
+- **Check E2 (gallery `#if DEBUG`/`#endif` structure) was too weak** — it only checked ordering
+  ("`#if DEBUG` before `#endif`"), not that `#endif` is the file's actual last line; a future edit
+  could shrink the `#if DEBUG` block to wrap only part of the gallery while E2 stayed green, silently
+  shipping the rest into a Release build. Fixed: E2 now also asserts nothing but whitespace follows
+  `#endif`.
+- **Checks E2/E3/E4 scanned RAW text while every other check in this file scans comment-stripped
+  text**, inconsistent with the file's own stated design principle — a commented-out
+  `GalleryColor(...)` or `#Preview(...)` line, or a stray `#endif`/`#if DEBUG` inside a future comment,
+  could have desynced these three checks from what actually compiles. Fixed: all three now call
+  `stripSwiftComments()` first, like every other check group (directives/macros like `#if`/`#endif`/
+  `#Preview` are preserved verbatim by the stripper — they aren't comments — so this costs nothing and
+  closes the gap.
+- **The file header's `Font.custom(` count ("matches 2 times in raw text") was scope-ambiguous** — the
+  "2" is the whole-`mobile/iosApp/iosApp/**`-tree count (1 in `MentoraTypography.swift`, 1 in
+  `MentoraTokens.swift`), not a per-file count the surrounding sentence's phrasing could be misread as.
+  Clarified in the header comment; also removed the header's hardcoded exact line numbers (14/203/210/
+  225 etc.) since those drift with any unrelated edit — the COUNTS are what the design rests on, and
+  this D122 entry (point 2, corrected below) is the place for a point-in-time line-number snapshot.
+- **`MentoraTokenGallery.swift`'s one `.foregroundColor(...)` call** (icon tint) was the app target's
+  only use of that soft-deprecated SwiftUI API (`renamed: "foregroundStyle(_:)"`, Xcode 16.4) — would
+  have produced a new compiler warning on the next CI run for no reason. Changed to
+  `.foregroundStyle(Color.mentoraTextPrimary)`; re-verified it still cannot trip Check B2 (B2 requires
+  the modifier's argument to start with a literal `.`, and `Color.mentoraTextPrimary` starts with the
+  type name `Color`, not a leading dot — confirmed by re-running the checker, still green).
+- **This entry's own line-number citations (point 2 above) were already stale** at review time — this
+  slice's own doc-comment edits (point 10) shift `MentoraTypography.swift`'s line numbers by one from
+  what an earlier draft of this checker's header comment assumed. Corrected above to the real current
+  lines (14/203/211/226 and 18/20/114/211) and to the true stripped/unstripped counts, which were
+  already right and unaffected by the line shift.
+
+Minor items reviewed and deliberately left as-is (informational, not defects): Check F1's `#"` probe
+would false-positive on an ordinary string literally containing `"#"` (none exist in this tree today;
+the failure mode is loud and named, not silent, so this is a documented future-maintainer edge case,
+not a fix-now item); the stripper's handling of an odd number of nested string literals inside one
+Swift string interpolation is unverified but has no real occurrence in this tree; whether the `#Preview`
+macro correctly resolves file-scope `private` declarations across macro-expansion buffers is a genuine
+open question the review could not settle without a compiler — left as the real CI run's job, per this
+project's hard-earned D121 lesson against guessing platform/compiler behavior.
+
+**Status: PENDING CI.** Not yet pushed. Windows-side verification complete, including the review round
+above: `npm run check` (both scripts) green including the full negative-control round (point 8, and the
+reviewer's own independent 20-check negative-test pass); `node tools/token-pipeline/generate.js` re-run,
+zero unexpected `git status --porcelain` drift (this slice does not touch the generator at all — a pure
+no-drift confirmation, not a real idempotency test of new code); manual read-through confirmed the scope
+statement above and that `ios-ci.yml`'s new step/path-filter edits match the surrounding steps' exact
+indentation and style, independently confirmed via a real YAML parse in the review round. The real
+macOS CI run (`ios-ci.yml`) is this slice's actual compile/`#Preview`-macro verification, not yet
+performed.
+
+**Files changed/added:**
+- `tools/ios-checks/theme-checks.js` (new) — the completion-gate checker (20 named checks across Groups
+  A-F).
+- `tools/ios-checks/package.json` (new) — mirrors `tools/token-pipeline/package.json`'s shape.
+- `mobile/iosApp/iosApp/Theme/MentoraTokenGallery.swift` (new) — the token gallery, `#if DEBUG`-gated,
+  46-color list + 12-style Typography section + Arabic/Latin leading-comparison section + 7-step Shapes
+  section + 5-level Elevation section + 42-icon Icons section, 8 `#Preview`s over the full light/dark ×
+  en/ar × default/AX5 matrix.
+- `mobile/iosApp/iosApp/Theme/MentoraTypography.swift` — two doc-comment fixes (point 10), no behavior
+  change.
+- `mobile/iosApp/iosApp/Theme/MentoraTheme.swift` — one doc-comment fix (point 10), no behavior change.
+- `.github/workflows/ios-ci.yml` — new pre-toolchain source-gates step; `tools/ios-checks/**` added to
+  both path-filter lists; one new Job-summary row.
+- `execution/PHASE_5_ACCEPTANCE_CRITERIA.md` § 1 — new table row for `theme-checks.js`; "Both are new
+  files" / "those two scripts" wording updated to "All three" / "those three scripts".
+- `execution/CURRENT_STATUS.md` — T6 row and a new "T6 SLICE 3c" resume-note section (this entry's
+  companion).
