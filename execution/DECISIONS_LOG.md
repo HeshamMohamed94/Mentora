@@ -5273,3 +5273,81 @@ No Swift compile/run is possible on this Windows host — as with D113/D114, thi
 authored blind against the real CI-run-#15 evidence, the architect's original research, and two
 independent reviews (Opus primary, Codex second opinion per this project's routing rules for
 critical-production-path findings), and stands or falls on the next real CI run.
+
+**(g) RESOLVED — CI run #16's real result (matches this table's very first row exactly).**
+(https://github.com/HeshamMohamed94/Mentora/actions/runs/35411714163). The app target built clean, and
+**all 12 `ApiResultBridgeTests` passed** ("Executed 12 tests, with 0 failures") — the D115 production
+`unwrap` rewrite, the reverted `unwrapVoid`, and every corrected test assertion are now real-CI-confirmed
+correct. `ApiResultFailureInteropTests` crashed, retried twice, and the whole test bundle gave up before
+ever reaching Stage 1 — an important operational lesson in its own right (see the note at the end of
+this section) — but this project's new "Diagnose test-host crashes" CI step (D5) worked exactly as
+designed and, for the first time in this entire investigation, produced a real, unambiguous answer:
+
+```json
+"threads": [{"triggered":true, ..., "frames":[
+  {"symbol":"Swift runtime failure: failed cast", "sourceFile":"/<compiler-generated>", "inline":true},
+  {"sourceLine":29, "sourceFile":"ApiResultFailureInteropTests.swift",
+   "symbol":"ApiResultFailureInteropTests.testStage0ForceCastToMismatchedStaticTypeSucceeds()"}
+]}]
+"exception": {"type":"EXC_BREAKPOINT","signal":"SIGTRAP", ...}
+```
+
+Line 29 of `ApiResultFailureInteropTests.swift` is exactly `let mismatched = makeFailure() as!
+ApiResult<NSString>` — Stage 0's force-cast, the identical operation the deleted D114 test code and
+`testStage4b...` both also performed. **H-cast is CONFIRMED, directly, by a real crash report naming
+the exact source line — not inferred, not hypothesized.** `EXC_BREAKPOINT`/`SIGTRAP` with symbol "Swift
+runtime failure: failed cast" is the Swift runtime's own deliberate trap for a checked/forced cast that
+it determines cannot succeed; this is Swift itself refusing the cast, not memory corruption or an
+unrelated OS-level fault.
+
+**This overturns a specific claim both this project's architect research and Codex's independent review
+made and both got wrong for this exact case**: SE-0057's "Obj-C lightweight generic arguments are
+erased at runtime, so a specialization mismatch cast is unchecked and cannot fail" does not hold for
+whatever the real bridged Swift type of `ApiResult<T>` actually is in this SKIE 0.9.5 / Kotlin 2.0.21
+build — the cast machinery genuinely checks something here and genuinely rejects the mismatch. (Given
+this project's own prior, hard-won finding that SKIE ships genuine `.swiftinterface` Swift types for
+some bridged classes rather than plain Obj-C-header lightweight generics — e.g. `SkieSwiftStateFlow`'s
+real `AsyncSequence` conformance, D108 — the most likely explanation is that `ApiResult<T>` is one of
+those genuinely-Swift-generic bridged types too, not a plain erased Obj-C lightweight generic, and
+therefore carries real per-instance generic metadata that a cross-specialization cast can legitimately
+inspect and reject. This is offered as the most likely explanation, not asserted as independently
+re-verified — nothing here required opening the real `.swiftinterface` to confirm it, since the crash
+report alone already settles the practical question.)
+
+**H1 and H2 are neither confirmed nor refuted by this result** — Stage 4 (bare dispatch via
+`onEnum(of:)`, no cast) and Stage 4b (mismatched dispatch) never got to run, because the whole
+`ApiResultFailureInteropTests` bundle gave up after Stage 0's retries were exhausted rather than
+skipping forward to the next test method (contrary to this entry's own D6 assumption, based on run
+#15's behavior, that XCTest always continues past a crashed test to the next one in the same run — that
+assumption held across different crashing tests in the SAME suite in run #15, but evidently not when
+the very first alphabetically-ordered test in a suite is the one crashing repeatedly). This is a real,
+useful operational finding for how this project designs future diagnostic ladders: **don't rely on a
+single test run to get past an early, definitely-crashing test to reach later ones in the same suite —
+delete or skip the confirmed-bad test first, in its own commit, before trying to reach the ones after
+it.**
+
+**Practical resolution — no further hypothesis-testing needed.** H-cast is the confirmed, real, sourced
+cause of CI run #15's original crash and CI run #16's `ApiResultFailureInteropTests` crash alike (both
+performed the identical `Failure`-as!-mismatched-`ApiResult<T>` operation). Since this operation:
+1. is now proven to genuinely fail at runtime in this SKIE build (not "unchecked, cannot fail" as
+   assumed), and
+2. **has zero real production call sites** — grep-confirmed (architect's original D115 investigation,
+   never invalidated): every real `ApiResult<T>` value in production code arrives already correctly,
+   concretely typed by the Kotlin function's own declared return type at `MentoraClient.swift`'s real
+   `sdk.<facade>.<useCase>.invoke(...)` call sites; no production code has ever force-cast an
+   `ApiResult` value to a different type parameter,
+
+**this was a genuine, real, but test-construction-only defect (H3's category, with H-cast now identified
+as its precise mechanism) — never a live production risk.** T5 slice 1's actual production code
+(`ApiResultBridge.unwrap`/`unwrapVoid`/`unwrapList`/`unwrapPage`/`unwrapOptional`, `MentoraClient`,
+`MentoraError`) is now real-CI-confirmed correct: all 12 `ApiResultBridgeTests` pass, the app builds,
+and D1's rewrite away from `onEnum(of:)` — while it turned out not to be fixing the actual defect that
+was found — remains independently sound (per both reviews) and is kept.
+
+**Follow-up action, taken in the same round this entry was updated**: delete `testStage0...` and
+`testStage4b...` from `ApiResultFailureInteropTests.swift` (both perform the now-confirmed-broken cast
+and would crash every future CI run identically, forever, for no further diagnostic value — the question
+they existed to answer is answered). Stages 1/2/3/4/5 (none of which perform this cast) are kept and
+pushed for a final, real-CI confirmation that they pass cleanly — expected, based on `ApiResultBridgeTests`'
+own already-passing analogous coverage in this same run, but not yet directly confirmed for this
+specific file, per this project's standing "never assume, always confirm via real CI" rule.
