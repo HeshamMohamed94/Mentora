@@ -1,6 +1,11 @@
 # Mentora — Current Implementation Status
 
-**Last updated:** 2026-09-18 (PHASE 5 — iOS — **IN_PROGRESS**, planning complete and reviewed twice, no Mac/Xcode available yet — see "PHASE 5 — iOS" near the end of this file and `DECISIONS_LOG.md` D96 for the full account. Phase 4 — Android — **COMPLETE**, all 20 tasks done, approved by the user before Phase 5 began.)
+**Last updated:** 2026-09-19 (PHASE 5 — iOS — **IN_PROGRESS**, now in the user's **parity-focused completion
+mode** (D132) — T9 (Navigation shell) complete and real-CI-green, T10 next, continuing automatically per
+task through the rest of the plan without per-task approval stops (tiered review policy applies). No
+Mac/Xcode available for interactive testing — see "PHASE 5 — iOS" near the end of this file and
+`DECISIONS_LOG.md` D96/D132 for the full account. Phase 4 — Android — **COMPLETE**, all 20 tasks done,
+approved by the user before Phase 5 began.)
 
 ---
 
@@ -982,7 +987,8 @@ Swift at all).
 | T6 | Design-system runtime (`MentoraTypography`/`MentoraShape`/`MentoraElevation`/theme-root wiring) | **✅ TASK T6 FULLY COMPLETE — all of 3a + 3b + 3c reviewed and real-CI-green.** **SLICE 3c (token gallery + completion-gate script + `ios-ci.yml` step) DONE — CI run #27 GREEN on the FIRST attempt** (https://github.com/HeshamMohamed94/Mentora/actions/runs/35450960410), no repeat of slice 3b's multi-round saga: the new "iOS source gates" step succeeded on macOS too, `xcodebuild build` succeeded (confirming `MentoraTokenGallery.swift`'s `#Preview` macros — the first anywhere in this repo — compiled clean with no `ENABLE_PREVIEWS` setting needed), `xcodebuild test` stayed green. Opus review before push found no blocking bugs (independently re-verified all 20 checks, hand-parsed the gallery's color/preview lists with a second parser, traced every Swift API against real declarations, YAML-parsed `ios-ci.yml`); minor fixes applied (a weakened Check E2 assertion strengthened, E2-E4 switched from raw to comment-stripped scanning for consistency, a soft-deprecated `.foregroundColor` call fixed, stale line-number citations corrected). Pushed as `657298f`. See the dedicated "T6 SLICE 3c" resume-note section appended after this row's history, and `DECISIONS_LOG.md` D122 for the full account. **✅ SLICE 3b (theme-root wiring) DONE — CI run #26 GREEN** (https://github.com/HeshamMohamed94/Mentora/actions/runs/35445837764), after 3 CI rounds (2 red on one test's own numeral-formatting methodology, never an app defect — see `DECISIONS_LOG.md` D121 for the full account). New `Theme/MentoraTheme.swift` (`MentoraThemeRules` pure namespace + `.mentoraTheme(theme:locale:)` `View` extension); `Support/LocaleController.swift`'s `currentLocale` changed from `AppLocale?` to non-optional `AppLocale`, seeded synchronously in `init` via `client.currentLocale()` before `localeWatcher` starts; `MentoraApp.swift`'s `WindowGroup` now renders a new private `MentoraRootView` (reads `@Environment(\.appEnvironment)`, applies `.mentoraTheme(...)`) above the untouched `PlaceholderRootView`; one doc-comment fix in `Theme/MentoraTypography.swift` (T7 → T6 slice 3b attribution for `ar-u-nu-latn`). `ThemePreference`/`AppLocale`'s real SKIE Swift shape (plain frozen enums, `Hashable, CaseIterable`, no sealed-class workaround) was verified from a CI artifact before writing any switch statement over them. `.system → nil` for `ColorScheme?` (deliberately diverges from Android's `resolveDarkTheme()` snapshot-resolution — `nil` keeps `.preferredColorScheme` tracking live OS changes); Arabic locale resolves through the one named `MentoraThemeRules.arabicLocaleIdentifier = "ar-u-nu-latn"` constant; layout direction is an explicit 2-case switch, not derived from `Locale.Language.characterDirection`; nil-locale handling uses `.transformEnvironment` (not `if/else`, to avoid a `_ConditionalContent` identity split). New `iosAppTests/MentoraThemeTests.swift` (6 test cases: color-scheme mapping, enum-case-count guard, layout-direction mapping, Arabic-locale language-subtag + cross-slice `MentoraTypographyRules.isArabic` integration, Arabic Western-numeral `NumberFormatter` formatting, and a real `UIHostingController`-hosted `\.locale`/`\.layoutDirection` environment-propagation round-trip reusing `MentoraTypographyGeometryTests.swift`'s harness pattern) — deliberately does not round-trip `.preferredColorScheme` itself (a SwiftUI preference, not a plain environment write; left to review + MC-3). Sheet/`fullScreenCover` inheritance: per System Design § 12, SwiftUI's `\.locale`/`\.layoutDirection` environment already propagates into sheets/alerts presented from the same hierarchy (a deliberate divergence from Android, which needed extra machinery to cross that boundary) — only a detached-context presentation is a real open risk, and § 14's "sheets/covers must inherit `.preferredColorScheme`" is an explicit MC-3 verification requirement, not yet a proven fact. Neither case is solved by this slice; an earlier draft of this note and of the code's own doc comments overclaimed a "every sheet must re-apply `.mentoraTheme`" contract that contradicted § 12 — corrected after Opus review (D121). See `DECISIONS_LOG.md` D121 for the full account, including the gate-pattern list recorded for slice 3c to consume later (scoped to production sources only — several of these patterns legitimately already appear in `iosAppTests/`). Self-verified on Windows only: generator re-run with zero drift (this slice doesn't touch the generator), and a manual grep of `mobile/iosApp/iosApp/**` production sources (excluding tests) confirmed every gate pattern (`preferredColorScheme(`, `environment(\.locale`/`transformEnvironment(\.locale`, `environment(\.layoutDirection`/`transformEnvironment(\.layoutDirection`, `.mentoraTheme(`, `Locale(identifier: "ar`) appears only where expected there. Independently reviewed to completion by Opus before push — no blocking bugs; fixes applied: a missing `import UIKit` in the test file, the D6 sheet/cover doc overclaim, an overclaimed "eliminates the [locale] race" framing (a residual first-launch English/LTR window on a truly fresh install is real but non-blocking, since nothing renders text/direction yet — recorded in D121), the gate-pattern test-scope correction, an overclaimed `.xcstrings`-lookup comment, and two test-quality gaps (a vacuous-pass guard, an Arabic-numeral negative control). No `mobile/shared/**` or `mobile/androidApp/**` touched; no `Info.plist` change; no token gallery or completion-gate script (that's slice 3c). **CI-GREEN on the third push — run #26** (https://github.com/HeshamMohamed94/Mentora/actions/runs/35445837764). CI runs #24 and #25 were both RED on the same test's own numeral-formatting methodology, never an app defect — the actual production code (`MentoraTheme.swift`, `LocaleController.swift`, `MentoraApp.swift`) compiled clean and 5/6 `MentoraThemeTests` cases passed on the very first attempt (run #24). Round 3's diagnostics-only probes (logged, never asserted) revealed the real story: round 2's negative control failed because `Locale(identifier: "ar-u-nu-arab")` is malformed by Foundation's parser on this platform (canonicalizes to `"ar-u-NU"`, drops the `arab` value, `numberingSystem` reports garbage, formatter returns `nil`) — not because of any `.none`/`.decimal` distinction; the legacy `@numbers=arab` locale-extension syntax works correctly where the modern `-u-nu-arab` form did not. Full three-round account in `DECISIONS_LOG.md` D121. **Slice 3a (shapes/elevation/generator addendum) DONE — CI run #23 GREEN** (https://github.com/HeshamMohamed94/Mentora/actions/runs/35440525334). See the dedicated resume note appended after this row's history (search `T6 SLICE 3a — DONE, CI-GREEN`) for the full account. In short: slice 3a's code is complete, self-verified (generator idempotency proven, one real defect found and fixed pre-review — elevation `radius`/`y` were hand-duplicating generated token values instead of delegating to them), independently reviewed to completion by Opus (D120, no blocking bugs, three medium findings all fixed: dark-mode elevation default, an alpha-0 RGB assertion, and a structural shadow-color-accessor drift risk), pushed as `7bfc4f3`, and passed real macOS CI on the first attempt — `xcodebuild` build + `xcodebuild test` both succeeded, crash-diagnostic clean, xcresult upload correctly skipped (no failures). This is the first real compile of any slice-3a Swift code. Slices 3b (theme-root wiring, touches KMP) and 3c (token gallery + completion-gate grep script) are separate, later sub-slices, not started, per the architect's own recommended 3-way split of slice 3 for CI-round hygiene. **Slice 2 (Dynamic Type geometry tests) DONE — CI run #22 GREEN (https://github.com/HeshamMohamed94/Mentora/actions/runs/35419859729), all 21 XCTest cases passed (14 slice-1 + 7 slice-2) on the first real CI attempt, including the fixed tracking algebra and the previously-unverified Arabic-branch tolerance.** New `iosAppTests/MentoraTypographyGeometryTests.swift` (7 XCTest cases) — the first test in this codebase to host and measure real rendered SwiftUI geometry (`UIHostingController.sizeThatFits(in:)`), proving slice 1's pure-function formulas actually reach rendered `Text` end to end. Every assertion is a same-run ratio/differential or an en-vs-ar difference over identical ASCII text, never an absolute font metric, since CI's simulator OS version isn't pinned. Opus review caught and fixed one confirmed blocking bug (the tracking test's original single-differential algebra didn't isolate tracking from glyph-advance width — would have failed on every style; fixed via a double en/ar differential) plus minor doc/harness fixes. One master-plan requirement ("leading ratio preserved") was reinterpreted as measured scale-invariance rather than literal token-ratio equality, since the literal reading is unachievable against real font metrics — documented as an explicit engineering call in `DECISIONS_LOG.md` D119, which has the full account including the accepted/monitored Arabic-tolerance risk and the now-dead-code follow-up item for slice 3. No `mobile/shared` (Kotlin) or `mobile/androidApp/` file touched. **Slice 1 (typography arithmetic) DONE — CI run #21 GREEN (https://github.com/HeshamMohamed94/Mentora/actions/runs/35418390771), every step succeeded including `xcodebuild test` (all 14 `MentoraTypographyTests` cases), xcresult upload correctly skipped (no failures).** New `Theme/MentoraTypography.swift` (`MentoraTextStyle`, `MentoraTypographyRules`, `MentoraFontModifier`, `.mentoraFont(_:)`) and `iosAppTests/MentoraTypographyTests.swift` (14 XCTest cases). Named `MentoraTypographyRules` (not `MentoraTypography`) to avoid a redeclaration collision with T2's already-generated `Theme/MentoraTokens.swift#MentoraTypography`. The `§ 15.1` line-height formula is copied verbatim, not re-derived — an earlier, subtly-wrong form of it was found to go negative at accessibility sizes and was explicitly withdrawn in the design document; the new tests are its regression guard. **Opus review (before any CI push) caught one real compile-breaking bug (missing `import SwiftUI` in the test file — module imports aren't transitive) and one real coverage gap (no original test exercised the accessibility-scale regime where the withdrawn formula actually failed) — both fixed**: `import SwiftUI` added, and `test_lineSpacingScalesCorrectlyAtAccessibilitySizes` added (8 scale factors × 12 styles × 2 locales, independently hand-verified by the reviewer). Also fixed: two doc-comment citations of a non-existent `theme-checks.js` enforcement script (now cite the T6 completion-gate grep instead), an off-by-one Android line citation, an inaccurate Android locale-detection characterization, and an added informational note on `naturalLineHeightFactor`'s Latin-vs-Arabic-face imprecision (MC-3 item, not a defect — review confirmed the core arithmetic and all 12 metric rows are correct). See `DECISIONS_LOG.md` D118 for the full account, including one real discrepancy adapted during implementation (`MentoraTypographyMetrics.fontWeight` is `CGFloat`, not the assumed `Int`). No `mobile/shared` (Kotlin) file touched. No Swift compile/run possible on this Windows host — the next real `ios-ci.yml` run is this slice's actual verification. **Slices 2 (Dynamic Type tests) and 3 (shape/elevation/theme-root wiring) are separate follow-up work, not started.** |
 | T7 | Localization foundation: `Localizable.xcstrings` (en+ar, 279 keys), locale/direction environment, `MentoraStrings`, formatters, Node parity+specifier lint | **✅ TASK T7 FULLY COMPLETE — all 4 slices done, real-CI-green.** See "T7 SLICE 1/2/3/4" sections below. |
 | T8 | Component Kit A (atoms — MentoraButton, MentoraIconButton, MentoraTextField, PasswordField, SearchField, MentoraToggle, MentoraSelect, Badge, CategoryChip, MentoraProgressBar, Avatar, MentoraTabs, MentoraSnackbar; `MentoraIcon`, the plan's 14th atom, was already built in T3) | **✅ TASK T8 FULLY COMPLETE — all 7 slices done, real-CI-green.** See "T8 SLICE 1"/"T8 SLICE 2"/"T8 SLICE 3"/"T8 SLICES 4+5"/"T8 SLICES 6+7" sections below. |
-| T9-T23 | Navigation shell through final acceptance audit | **NOT STARTED** — authored on Windows, compiled by CI, one small slice per push; live/visual verification still needs a Mac (MC-3/MC-4). |
+| T9 | Navigation shell (5-tab `TabView`, `TabRouter`, `AuthGate`/B8) | **✅ TASK T9 COMPLETE — mandatory Opus review applied, real-CI-green.** See "T9 — NAVIGATION SHELL" section below. |
+| T10-T23 | Auth/registration through final acceptance audit | **NOT STARTED** — parity-focused completion mode (see D132/`execution/DECISIONS_LOG.md`): continuing automatically task-by-task without per-task approval stops, small-batch implementation, tiered review (mandatory for auth/session/architecture/cross-cutting infra, lighter self-review+CI for ordinary screen work), authored on Windows, compiled by CI; live/visual verification still needs a Mac (MC-2/MC-3/MC-4) and is recorded as NOT TESTABLE, never fabricated. |
 
 ## T6 SLICE 3a — DONE, CI-GREEN (2026-09-19)
 
@@ -1517,3 +1523,116 @@ for the full account.
 Kit A atoms built and confirmed present by `component-checks.js`. Next task: **T9 — Navigation shell**
 (`TabView` + per-tab `NavigationStack`, `TabRouter`, `AuthGate`) — per the user's explicit instruction, may
 now begin.
+
+## T9 — NAVIGATION SHELL — DONE, CI-GREEN (2026-09-19)
+
+**Task:** Phase 5, Task T9 (Navigation shell). First task built under the user's **parity-focused
+completion mode** directive (see `DECISIONS_LOG.md` D132) — mandatory Opus review still applied (navigation
+foundation + architecture + auth/session touchpoint qualifies under the new tiered review policy), but
+implemented as one batched dispatch (3 slices' worth of work in one implementer pass) rather than the
+per-slice cadence T6-T8 used, per the policy's "faster execution" instruction.
+
+**What was built:** `Navigation/Route.swift` (`Tab`: 5 locked-order cases home/explore/myLearning/aiTutor/
+profile; `Route`: courseDetails/coursePlayer/quiz, id-only payloads per D7; `PendingIntent`) —
+`Navigation/TabRouter.swift` (`@MainActor @Observable`, 5 stored `[Route]` properties per System Design
+§ 3.1, `path(for tab:) -> Binding<[Route]>` as the one permitted indirection, push/popToRoot/setPath/
+selectTab (D2)/resetAllForLogout (D7)/requestGatedRoute/authenticationObserved/loginSheetDismissed (B8)) —
+`Navigation/TabShell.swift` (the `TabView` root + `MentoraRouteDestinations` ViewModifier, the one shared
+`.navigationDestination(for:)` table per D4, `.toolbar(.hidden, for: .tabBar)` for Course Player/Quiz per
+D5) — `Navigation/RootView.swift` (replaces the old `PlaceholderRootView`; branches only on `.unknown` vs.
+everything else, since guest and authenticated users share one shell) — `Navigation/TabRootPlaceholders.swift`
+(8 `// TEMPORARY (T9)` placeholder views for T10-T21 to replace, including the real B8 demonstration on
+Course Details' guest-only "Login to enroll" CTA) — `Navigation/AuthGate.swift` (the guest auth-gate
+sheet/dismiss/replay wiring) — `Components/MentoraTabBar.swift` (`MentoraTabBarSpec` constants + tint/
+background chrome modifiers) — 3 new test files (`TabRouterTests.swift`, `AuthGateLogicTests.swift`,
+`MentoraTabBarSpecTests.swift`) — `tools/ios-checks/navigation-checks.js` (a 6th Node source-policy gate,
+10 check groups: file existence, the 5-stored-properties rule, no `[Tab: [Route]]` dictionary, exactly-one
+`.navigationDestination(for:)` call, D5's tab-bar-hiding wiring present, no `.shared` singleton access,
+`AppEnvironment`/`MentoraClient`'s single-construction-site guarantee, placeholder-file/marker discipline).
+`AppEnvironment.swift` gained `let router: TabRouter`, constructed once alongside the other 3 controllers.
+
+**A project-owner architectural override, documented and review-scrutinized:** the architect's plan called
+for a separate guest-specific "GuestShell." This was overridden in favor of ONE 5-tab `TabShell` used
+identically for guest and authenticated users. Mandatory review found the override's originally-stated
+justification ("D1's literal text is silent about guests") does not actually hold up — D1's own cited
+source (`design-to-code/shared/navigation.json#/shells/mobileStudentShell`) is explicitly scoped to
+authenticated Students, and `ux/NAVIGATION_SPEC.md:82` directly contradicts a shared guest/authenticated
+shell. The override itself is kept — review independently confirmed a stronger, correct justification: one
+shell keeps `.unauthenticated`/`.authenticated` in the SAME `RootView` branch, so the tab whose
+`NavigationStack` originated a gated action survives login untouched, which is exactly what B8's "replay
+onto the original intent" needs; a GuestShell/TabShell swap at login would tear down that stack at the
+worst possible moment. Fully reversible (`Route`/`TabRouter`/`MentoraRouteDestinations` are shell-agnostic)
+if a future task needs to close the disclosed product gap (a guest currently sees My Learning/AI Tutor/
+Profile tabs with placeholder-only content, `ux/NAVIGATION_SPEC.md:82`'s guest-IA intent not yet
+implemented). `Route.swift`'s header comment now carries the corrected rationale. See D132 for full detail.
+
+**Mandatory Opus review found and fixed two real defects before push, plus one documentation-only
+correction:**
+1. **`mentoraTabBarChrome()` applied `.toolbarBackground(...)` to the `TabView` itself instead of inside
+   each tab's `NavigationStack` content — a silent no-op.** `.toolbarBackground` is a preference-propagating
+   modifier exactly like `.toolbar`/`.navigationTitle` (the very class of mistake this same file's own
+   `MentoraRouteDestinations` doc comment already warns against for `.navigationDestination`, applied here
+   in the mirror-image direction) — it must sit inside the bar-hosting container for the preference to
+   travel upward to it. No compile error, no gate failure; would have first surfaced as an unthemed
+   translucent tab bar at MC-3. Fixed by splitting the one modifier into `.mentoraTabBarTint()` (correctly
+   kept at the `TabView` root — `.tint` is a plain environment value, not a preference) and
+   `.mentoraTabBarBackgroundChrome()` (moved into `TabShell.stack(for:)`, applied once per tab's own stack
+   content, 5 call sites).
+2. **The B8 pending-route replay had a real, latent ordering race that would break at T10.** The original
+   design deferred the replay to the sheet's `onDismiss:` closure, sampling `isAuthenticated` at that
+   moment. `SessionController.isAuthenticated` updates asynchronously (via its own `authStates()`
+   subscription, crossing a Kotlin-coroutine → Swift-`AsyncSequence` boundary) with no ordering guarantee
+   against a real login screen's own `dismiss()` call on success — the idiomatic thing for T10's `LoginView`
+   to do. If `dismiss()` fired before auth was observed true, the pending intent would be silently dropped
+   (a direct B8 violation, and intermittent, since it depends on async arrival order). Fixed by having
+   `TabRouter.authenticationObserved()` perform the replay SYNCHRONOUSLY the instant auth is observed,
+   decoupled entirely from whenever/however the sheet's own dismissal happens; `loginSheetDismissed()`
+   (renamed, dropped its now-unused `isAuthenticated:` parameter) is now the user-cancelled path only,
+   unconditionally safe to call a second time from `onDismiss:` after a successful replay (double-fire
+   defense — `AuthGateLogicTests.swift`'s new explicit regression case for exactly this).
+3. **Doc-only:** `TabRouter.path(for:)`'s original comment overclaimed that `Binding`'s closures are
+   provably non-isolated at the type-system level (a claim that could not actually be confirmed one way or
+   the other from static reading alone, given no other `Binding(get:set:)` existed anywhere in this target
+   before this task). Corrected to disclose the real uncertainty, and — since `MainActor.assumeIsolated` is
+   correct and harmless under either outcome — now applied consistently at all 3 hand-rolled
+   `Binding(get:set:)` sites this task introduces (`TabRouter.path(for:)`, `TabShell.selectionBinding`,
+   `AuthGate.isPresentingLoginBinding`), not only the first one. `MentoraTabBarSpec`'s header also gained a
+   one-line correction: `height`/`iconSize` are recorded spec numbers, not yet consumed by any rendering
+   code (native `TabView` chrome takes neither as a parameter) — the passing spec-constant test proves the
+   constants match `COMPONENTS.md`, not that the rendered bar measures 64pt/24pt; that remains an MC-3 item.
+
+**Review explicitly confirmed clean (verified against real source, not just the design intent), reported
+here per the parity-focused completion mode's instruction to record what was checked, not only what
+failed:** the pending-intent-on-`TabRouter` (not `AppEnvironment`) placement soundly satisfies System
+Design § 10's actual intent despite diverging from its literal wording; `resetAllForLogout()` cannot
+spuriously fire on cold launch (`SessionController.isAuthenticated` is `false` for both `.unknown` and
+`.unauthenticated`, confirmed against real source, so that transition is a non-change and `onChange`
+without `initial:` never fires on it); `.navigationDestination(for:)`'s placement inside each stack's root
+content (not chained onto `NavigationStack(...)` from outside) is correct, and is in fact the most robust
+choice available since the root view never leaves the stack; D3 (per-tab stack independence), D4 (deep
+screens push onto the tab selected at tap time, not build time), D6 (no duplicated Swift-side auth flag),
+D7 (id-only `Route`, full 5-stack logout clear), and § 3.1's five-stored-properties compliance (`path(for:)`
+exists precisely because `private(set)` blocks `@Bindable`'s dictionary-style sugar, exactly as § 3.1
+itself anticipates) all hold. One informational, non-blocking note recorded for the future: D2's
+tap-active-tab-pops-to-root relies on legacy `.tabItem`-based `TabView` writing through the selection
+binding even when re-tapping the already-selected tab — the long-established, spec-matching pattern, but
+specifically an MC-3 device-verify item, and would need re-verification from scratch if a later task ever
+migrates to iOS 18's `TabView { Tab(...) }` builder syntax.
+
+**Verified before push:** all 6 Node gates (`theme`/`assets`/`catalog-parity`/`localization`/`component`/
+`navigation`) run clean via `npm run check`; `git status --porcelain` scope matched the expected 15-file
+list exactly (10 new, 5 edited) both before and after the review-fix round; every localization key the new
+placeholder/tab-bar code resolves (15 keys) confirmed pre-existing in `Localizable.xcstrings` by direct
+grep, zero new keys (catalog-parity's 279-key pin unaffected); all 5 tab icon glyphs confirmed real
+`MentoraIconName` cases including `.dashboard` for Home (no `.home` case exists, matching Android's own
+`MobileBottomNavigation.kt` mapping); `project.yml`'s directory-glob sourcing confirmed to need zero edits
+for the new `Navigation/` directory or the 3 new test files.
+
+**CI: DONE — GREEN on the first attempt after the review round**,
+https://github.com/HeshamMohamed94/Mentora/actions/runs/35476041934 (commit `4d9ecd2`, all 6 Node gates
+PASSED, 261/261 tests — up from T8's 241, 0 failures, 0 unexpected). `:shared:testDebugUnitTest`/
+`:androidApp:testDebugUnitTest` unaffected — zero `mobile/shared`/`mobile/androidApp` files touched.
+
+**TASK T9 IS NOW FULLY COMPLETE.** Next task: **T10 — Auth screens** (Login/Register), which the tiered
+review policy marks mandatory-review (auth/session logic). Per the parity-focused completion mode's
+explicit "continue automatically" instruction, T10 begins now without stopping for per-task approval.
