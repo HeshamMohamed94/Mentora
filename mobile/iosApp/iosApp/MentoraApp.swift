@@ -3,9 +3,10 @@ import SwiftUI
 // Phase 5 Task T4b (D108) — real SDK/session/locale/theme bootstrap, replacing T4c's zero-`shared`
 // placeholder (D100). The cold-start sequence itself lives in `Support/AppEnvironment.swift` (System
 // Design § 9 steps 1-2); this file only constructs the one process-wide `AppEnvironment` (via `@State`
-// so it is created exactly once for the process, never a `.shared` static — A3), injects it via
-// `@Environment`, and renders the placeholder root driven by `SessionController`'s observed state
-// (§ 9 step 5). No feature UI yet (T9/T10+) — no string literals.
+// so it is created exactly once for the process, never a `.shared` static — A3) and injects it via
+// `@Environment`. The former `PlaceholderRootView` (T4b) was replaced by the real `RootView`/`TabShell`
+// navigation shell in Task T9 (`Navigation/RootView.swift`) — this file's own job stays unchanged: apply
+// the single sanctioned `.mentoraTheme(...)` call site (Check C4) above whatever the real root renders.
 @main
 struct MentoraApp: App {
     @State private var appEnvironment = AppEnvironment()
@@ -21,10 +22,10 @@ struct MentoraApp: App {
 /// T6 slice 3b (D121) — exists solely so the two `@Observable` reads it needs
 /// (`themeController.theme`, `localeController.currentLocale`) happen inside a real `View` body, so
 /// SwiftUI's Observation tracking invalidates this view (and re-runs `.mentoraTheme(...)`) correctly
-/// when either value changes, and so `.mentoraTheme(...)` sits strictly ABOVE `PlaceholderRootView` in
-/// the tree (per `Theme/MentoraTheme.swift`'s "apply at the true WindowGroup-content root" contract).
-/// Holds no other logic — no branching, no session-state awareness; that all stays inside
-/// `PlaceholderRootView`, untouched by this slice.
+/// when either value changes, and so `.mentoraTheme(...)` sits strictly ABOVE `RootView` (T9) in the
+/// tree (per `Theme/MentoraTheme.swift`'s "apply at the true WindowGroup-content root" contract). Holds
+/// no other logic — no branching, no session-state awareness; that all stays inside `RootView`/
+/// `TabShell`, untouched by this slice.
 ///
 /// `?? .system` is the correct degrade when `appEnvironment` is `nil` (the same atypical/unconfirmed
 /// launch context documented on `AppEnvironmentKey` in `AppEnvironment.swift`) — `.system` follows the
@@ -36,60 +37,10 @@ private struct MentoraRootView: View {
     @Environment(\.appEnvironment) private var appEnvironment
 
     var body: some View {
-        PlaceholderRootView()
+        RootView()
             .mentoraTheme(
                 theme: appEnvironment?.themeController.theme ?? .system,
                 locale: appEnvironment?.localeController.currentLocale
             )
     }
-}
-
-/// Renders the same full-bleed background for every session state today; the per-case branches exist
-/// so `.unknown` can never flash anything but this splash placeholder once real screens replace the
-/// `.authenticated`/`.unauthenticated` branches.
-///
-/// D108 fix round — `appEnvironment` is `AppEnvironment?` (see `AppEnvironmentKey`'s doc comment in
-/// `AppEnvironment.swift` for the real, CI-run-#9-observed crash this replaced). In the normal launch
-/// path (`MentoraApp.body` above always injects before this view renders), `appEnvironment` is never
-/// `nil`. The `nil` branch exists only for the atypical/unconfirmed launch context that CI run #9 hit
-/// (a unit-test-hosted app launch) and renders the identical splash background — indistinguishable from
-/// `.unknown`, per System Design § 9 step 5's "never a flash of the wrong thing" rule — while raising a
-/// debug-only `assertionFailure` (once) so a genuine wiring omission is still caught loudly in a normal
-/// Debug build/manual run, without ever crashing a release build or a test host.
-private struct PlaceholderRootView: View {
-    @Environment(\.appEnvironment) private var appEnvironment
-
-    var body: some View {
-        if let appEnvironment {
-            switch appEnvironment.sessionController.authState {
-            case .unknown, .authenticated, .unauthenticated:
-                Color.mentoraBackgroundPrimary.ignoresSafeArea()
-            }
-        } else {
-            Color.mentoraBackgroundPrimary.ignoresSafeArea()
-                .onAppear {
-                    #if DEBUG
-                    Self.assertNotYetInjectedOnce()
-                    #endif
-                }
-        }
-    }
-
-    #if DEBUG
-    /// Fires at most once per process — a genuine omission would otherwise re-trip this on every
-    /// re-render of a `nil`-environment tree, which would be noisy without being any more informative.
-    private static var hasAssertedMissingEnvironment = false
-
-    private static func assertNotYetInjectedOnce() {
-        guard !hasAssertedMissingEnvironment else { return }
-        hasAssertedMissingEnvironment = true
-        assertionFailure(
-            "PlaceholderRootView rendered before AppEnvironment was injected via " +
-            "`.environment(\\.appEnvironment, ...)` — see MentoraApp.swift. This should never happen in " +
-            "the real app launch path; only a genuine wiring omission, or an atypical launch context " +
-            "(e.g. a unit-test host launch — see AppEnvironment.swift's AppEnvironmentKey doc comment), " +
-            "should ever reach here."
-        )
-    }
-    #endif
 }

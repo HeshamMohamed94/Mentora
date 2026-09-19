@@ -18,6 +18,9 @@ final class AppEnvironment {
     let sessionController: SessionController
     let localeController: LocaleController
     let themeController: ThemeController
+    /// Phase 5 Task T9 -- the navigation shell's single source of truth (`Navigation/TabRouter.swift`).
+    /// Constructed here, alongside the other three controllers, never from a view (A3).
+    let router: TabRouter
 
     /// Owns the single cold-start bootstrap task's lifetime (§ 9 steps 1-2) — never re-created, never
     /// started from a view.
@@ -71,6 +74,7 @@ final class AppEnvironment {
         self.sessionController = SessionController(client: client)
         self.localeController = LocaleController(client: client)
         self.themeController = ThemeController(client: client, coldStartTheme: coldStartTheme)
+        self.router = TabRouter()
 
         // System Design § 9 steps 1-2 — exactly one task, `restoreSession()` then
         // `seedInitialLocaleIfNeeded()`, in that order, never from a view's `.task`/`onAppear`.
@@ -103,7 +107,8 @@ final class AppEnvironment {
 
 /// Required-dependency `@Environment` key (System Design § 3.1: `@Environment` injection, never a
 /// static singleton). `MentoraApp` always injects the real, single `AppEnvironment` before
-/// `PlaceholderRootView`'s body is expected to read it in the normal app-launch path.
+/// `RootView`'s body (`Navigation/RootView.swift`, Task T9 -- the former `PlaceholderRootView` this key's
+/// history below refers to) is expected to read it in the normal app-launch path.
 ///
 /// D108 fix round — CI run #9 (commit `5f21c53`) caught this key's original `defaultValue` — a hard
 /// `fatalError()`, on the theory that `MentoraApp` always injects before any view reads it — actually
@@ -133,7 +138,8 @@ final class AppEnvironment {
 /// gracefully in release). `appEnvironment` below is now `AppEnvironment?`, defaulting to `nil` instead
 /// of constructing (or crashing while trying to construct) a real value — `defaultValue` must never call
 /// `AppEnvironment()`'s real initializer, since that would spin up a second `MentoraSdk` instance
-/// (System Design § 3.1, acceptance criterion A3 — forbidden). `PlaceholderRootView` (`MentoraApp.swift`)
+/// (System Design § 3.1, acceptance criterion A3 — forbidden). `RootView` (`Navigation/RootView.swift`,
+/// Task T9 -- the former `PlaceholderRootView` this key's history above refers to)
 /// treats `nil` as visually identical to `.unknown` — both are the launch splash — and raises a
 /// debug-only `assertionFailure` (never a release-mode crash) the first time it actually renders the
 /// `nil` case, so a genuine wiring omission is still caught loudly in a normal Debug build/manual test
