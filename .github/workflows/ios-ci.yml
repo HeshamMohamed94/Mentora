@@ -158,11 +158,20 @@ jobs:
             exit 1
           fi
           echo "Active toolchain:"
-          xcodebuild -version
+          # Captured into a variable FIRST, not piped directly into head/grep: `xcodebuild -version`
+          # writes two lines, and a live pipe whose reader (head -n 1) closes after the first line can
+          # race xcodebuild's second write() into a closed pipe. On this toolchain that manifests as an
+          # uncaught NSFileHandleOperationException ("Broken pipe") crashing the whole step with exit
+          # 134, not a quiet SIGPIPE -- a real, twice-reproduced flake, not a code defect (see
+          # DECISIONS_LOG.md D123's follow-up). `$(...)` command substitution reads to EOF regardless,
+          # so capturing first removes the race entirely; only the already-captured string is then piped
+          # to head/grep, whose writer at that point is a shell builtin, not xcodebuild.
+          ACTIVE_TOOLCHAIN_VERSION="$(xcodebuild -version)"
+          echo "${ACTIVE_TOOLCHAIN_VERSION}"
           # Belt-and-braces: also assert the active Xcode's major version is exactly the one this
           # pipeline was designed against, in case XCODE_APP is ever pointed at a differently
           # versioned bundle by mistake.
-          ACTIVE_MAJOR="$(xcodebuild -version | head -n 1 | grep -oE '[0-9]+' | head -n 1)"
+          ACTIVE_MAJOR="$(printf '%s\n' "${ACTIVE_TOOLCHAIN_VERSION}" | head -n 1 | grep -oE '[0-9]+' | head -n 1)"
           if [ "${ACTIVE_MAJOR}" != "16" ]; then
             echo "::error::Active Xcode major version is ${ACTIVE_MAJOR}, expected 16 (XCODE_APP=${XCODE_APP}). Failing loudly (J11(e)) instead of letting Kotlin/Native + SKIE hit an untested toolchain silently."
             exit 1
@@ -550,13 +559,21 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # Full output captured into a variable FIRST, then head'd from the already-captured string --
+          # not piped directly (`xcodebuild -version | head -n 1`). See the "Select and report Xcode
+          # toolchain" step's own comment for why a live pipe whose reader closes early can crash
+          # xcodebuild with a broken-pipe NSException on this toolchain (twice-reproduced). This step
+          # also runs with `if: always()`, so `|| echo unavailable` keeps it non-fatal on an
+          # already-failing/toolchain-unselected job rather than adding a second failure mode.
+          XCODE_VERSION_FULL="$(xcodebuild -version 2>&1 || echo unavailable)"
+          XCODE_VERSION_LINE="$(printf '%s\n' "${XCODE_VERSION_FULL}" | head -n 1)"
           {
             echo "## iOS CI"
             echo ""
             echo "| Item | Value |"
             echo "|---|---|"
             echo "| Runner image | macos-15 (arm64) |"
-            echo "| Xcode | $(xcodebuild -version | head -n 1) |"
+            echo "| Xcode | ${XCODE_VERSION_LINE} |"
             echo "| Simulator | ${SIM_DEVICE_NAME:-unresolved} / iOS ${SIM_OS_VERSION:-unresolved} |"
             echo "| Source gates | theme-checks.js + assets-check.js + catalog-parity.js (plain Node, pre-toolchain) |"
             echo "| Gradle tasks | compileKotlinIosSimulatorArm64, linkDebugFrameworkIosSimulatorArm64, iosSimulatorArm64Test, assembleSharedDebugXCFramework |"
