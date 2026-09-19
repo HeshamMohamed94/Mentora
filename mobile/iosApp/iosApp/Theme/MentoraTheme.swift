@@ -52,10 +52,16 @@ enum MentoraThemeRules {
     }
 
     /// `design-system/LOCALIZATION.md § 8` / `PHASE_5_IOS_SYSTEM_DESIGN.md § 12` -- Arabic locale
-    /// identifier forcing Western (ASCII) numerals. NOT plain `"ar"`: a bare `"ar"` locale renders
-    /// Eastern Arabic-Indic digits (٠-٩) in number formatting, which the design system explicitly
-    /// overrides. This is the ONE named constant for this string -- it must never be inlined a second
-    /// time anywhere in this target (verified by the Step 6 grep in `DECISIONS_LOG.md` D121).
+    /// identifier forcing Western (ASCII) numerals. NOT plain `"ar"`: region-specific Arabic locales
+    /// (`ar_EG`, `ar_SA`) default to Eastern Arabic-Indic digits (٠-٩) even on Apple platforms, and
+    /// `architecture/LOCALIZATION_ARCHITECTURE.md` requires the same `-u-nu-latn` override on Web and
+    /// Android, where it is unconditionally load-bearing -- so this override is applied unconditionally
+    /// here too, for cross-platform consistency, rather than being conditioned on Apple's own bare-`"ar"`
+    /// default (which a CI-run-#24 correction, `MentoraThemeTests.swift`/`DECISIONS_LOG.md` D121, found
+    /// already resolves to `latn` on Apple's ICU -- do not assume that generalizes to every Arabic
+    /// locale tag or platform). This is the ONE named constant for this string -- it must never be
+    /// inlined a second time anywhere in this target (verified by the Step 6 grep in `DECISIONS_LOG.md`
+    /// D121).
     static let arabicLocaleIdentifier = "ar-u-nu-latn"
 
     /// `AppLocale` -> Foundation `Locale`, per `PHASE_5_IOS_SYSTEM_DESIGN.md § 12`/D4.

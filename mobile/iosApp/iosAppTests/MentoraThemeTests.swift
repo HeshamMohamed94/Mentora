@@ -66,15 +66,36 @@ final class MentoraThemeTests: XCTestCase {
             "MentoraThemeRules.foundationLocale(for: .arabic) must keep MentoraTypographyRules.isArabic(_:) true")
         XCTAssertFalse(MentoraTypographyRules.isArabic(MentoraThemeRules.foundationLocale(for: .english)),
             "MentoraThemeRules.foundationLocale(for: .english) must keep MentoraTypographyRules.isArabic(_:) false")
+
+        // Direct typo guard on the identifier string itself. test_arabicLocaleForcesWesternNumerals's
+        // digit-rendering assertions cannot serve as an indirect guard on this platform (Apple's ICU
+        // already defaults bare "ar" to Latin digits -- see that test's own correction comment), so
+        // this is the one assertion that would actually catch arabicLocaleIdentifier silently losing
+        // its numbering-system extension (e.g. a typo dropping "-u-nu-latn" entirely).
+        XCTAssertTrue(MentoraThemeRules.arabicLocaleIdentifier.contains("-u-nu-latn"),
+            "arabicLocaleIdentifier must carry the -u-nu-latn numbering-system extension")
     }
 
     // MARK: - 5. Arabic locale forces Western (ASCII) numerals
 
     /// `NumberFormatter` is the real Foundation API that respects a `Locale`'s numbering-system
-    /// extension (`-u-nu-latn`) when formatting -- unlike, e.g., `String(format:)`, which does not
-    /// consult `Locale` for digit shaping at all. A bare `"ar"` locale would render this same integer
-    /// with Eastern Arabic-Indic digits (٠-٩); `arabicLocaleIdentifier`'s `-u-nu-latn` suffix exists
-    /// specifically to prevent that (`design-system/LOCALIZATION.md § 8`).
+    /// extension (`-u-nu-latn`) when formatting. `arabicLocaleIdentifier`'s `-u-nu-latn` suffix exists
+    /// to force Western/ASCII digits (`design-system/LOCALIZATION.md § 8`).
+    ///
+    /// CORRECTION (CI run #24, `ios-ci.yml`, T6 slice 3b): an earlier version of this test asserted
+    /// that bare `"ar"` (no `-u-nu-latn`) renders Eastern Arabic-Indic digits (٠-٩) by default, and used
+    /// that as a negative control. That assumption is FALSE on Apple platforms: Apple's own ICU data
+    /// patches the `ar` locale's default numbering system to `latn`, not `arab` (confirmed against
+    /// `apple-oss-distributions/ICU`'s `ar.txt` across the ICU versions this CI's Xcode/simulator could
+    /// select -- `default{"latn"}`, with `arab` reachable only as the explicit `native` system, never
+    /// the default; the equivalent upstream CLDR change landed independently at CLDR 46). So a bare
+    /// `"ar"` `NumberFormatter` was never going to produce Eastern digits here, regardless of
+    /// `numberStyle` -- the earlier fix attempt (`.none` -> `.decimal`) targeted the wrong mechanism.
+    /// The correct negative control forces the numbering system EXPLICITLY via the same `-u-nu-*`
+    /// extension mechanism `arabicLocaleIdentifier` itself depends on (`"ar-u-nu-arab"`, not bare
+    /// `"ar"`), which is deterministic across ICU/CLDR versions and vendors rather than resting on a
+    /// locale's default numbering-system data (exactly the kind of platform-default assumption that
+    /// just broke). `numberStyle` reverted to `.none` -- it was never the actual issue.
     func test_arabicLocaleForcesWesternNumerals() {
         let value = 1_234_567_890
 
@@ -91,19 +112,22 @@ final class MentoraThemeTests: XCTestCase {
         XCTAssertNil(formatted?.unicodeScalars.first { easternArabicDigits.contains($0) },
             "Formatted output must contain no Eastern Arabic-Indic digit characters")
 
-        // Negative control: proves the `-u-nu-latn` extension is actually doing something, rather
-        // than this test passing merely because the current platform's bare "ar" already renders
-        // ASCII digits. If this ever stops finding an Eastern Arabic-Indic digit, the positive
-        // assertions above are no longer a real regression guard for the identifier itself.
-        let bareArabicFormatter = NumberFormatter()
-        bareArabicFormatter.locale = Locale(identifier: "ar")
-        bareArabicFormatter.numberStyle = .none
-        bareArabicFormatter.usesGroupingSeparator = false
-        let bareFormatted = bareArabicFormatter.string(from: NSNumber(value: value))
-        XCTAssertNotNil(bareFormatted?.unicodeScalars.first { easternArabicDigits.contains($0) },
-            "Plain \"ar\" (no -u-nu-latn) is expected to render Eastern Arabic-Indic digits on this " +
-            "platform -- if it no longer does, this test's positive assertions no longer prove the " +
-            "numbering-system extension is doing anything")
+        // Negative control: proves NumberFormatter actually honors the `-u-nu-*` numbering-system
+        // extension mechanism at all (the same mechanism arabicLocaleIdentifier depends on), rather
+        // than this test passing merely because of some other, unrelated reason. Uses an EXPLICIT
+        // "ar-u-nu-arab" extension rather than relying on bare "ar"'s default numbering system --
+        // that default is ICU/CLDR-version- and vendor-dependent (Apple's ICU defaults bare "ar" to
+        // "latn", not "arab" -- see the correction above), so asserting against it would silently stop
+        // testing anything the moment a platform's default data changes, exactly as just happened here.
+        let arabDigitsFormatter = NumberFormatter()
+        arabDigitsFormatter.locale = Locale(identifier: "ar-u-nu-arab")
+        arabDigitsFormatter.numberStyle = .none
+        arabDigitsFormatter.usesGroupingSeparator = false
+        let arabDigitsFormatted = arabDigitsFormatter.string(from: NSNumber(value: value))
+        XCTAssertNotNil(arabDigitsFormatted?.unicodeScalars.first { easternArabicDigits.contains($0) },
+            "\"ar-u-nu-arab\" is expected to render Eastern Arabic-Indic digits -- if it no longer does, " +
+            "NumberFormatter no longer honors the -u-nu-* extension mechanism at all, and this test's " +
+            "positive assertions above are no longer a real regression guard for arabicLocaleIdentifier")
     }
 
     // MARK: - 6. \.locale / \.layoutDirection propagate through .mentoraTheme(...)
