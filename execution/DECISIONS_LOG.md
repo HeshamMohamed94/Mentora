@@ -5745,3 +5745,213 @@ the dark-mode `.mentoraSurfaceElevated` default and the `shadowColor`→`shadowC
 structural fix. T6 slice 3a is complete and CI-confirmed. Sub-slices 3b (theme-root wiring — the
 only part of slice 3 with real KMP/SKIE risk) and 3c (token gallery + completion-gate script) are
 next, per the architect's 3a/3b/3c split.
+
+## D121 — 2026-09-19 — T6 slice 3b (theme-root wiring) implemented, PENDING CI
+
+Implements the architect's 3-layer split for the design-system runtime's theme root, the only part of
+T6 with real KMP/SKIE risk. The real SKIE-generated Swift shape of the two Kotlin enums involved was
+verified from a CI artifact before writing any switch statement over them (per the resume note after
+D120): `ThemePreference` and `AppLocale` are both plain frozen Swift enums (`.light`/`.dark`/`.system`
+and `.english`/`.arabic` respectively), `Hashable, CaseIterable` — no sealed-class workaround needed,
+unlike `ApiResult` (D115).
+
+**Three-layer split, and why `Theme/` stays free of `AppEnvironment`.** (1) `MentoraThemeRules`
+(`Theme/MentoraTheme.swift`) — a pure enum namespace of static funcs over literal Kotlin enum values,
+no SwiftUI rendering, no SDK calls. (2) `extension View { func mentoraTheme(theme:locale:) }` — a
+value-taking `View` extension, no `@Environment` reads, no controller knowledge, mirroring
+`MentoraElevation.swift`'s existing `View`-extension shape (slice 3a). (3) `MentoraRootView` (private,
+`MentoraApp.swift`) — the one place that reads `@Environment(\.appEnvironment)` and calls
+`.mentoraTheme(...)`. Keeping layers (1)/(2) free of `AppEnvironment` matches every other file in
+`Theme/` (`MentoraTypography.swift`, `MentoraShape.swift`, `MentoraElevation.swift`, none of which know
+`AppEnvironment` exists) and keeps the whole theme layer unit-testable with literal enum values
+(`MentoraThemeTests.swift` constructs zero controllers/SDK instances).
+
+**`LocaleController.currentLocale` made non-optional (`AppLocale?` → `AppLocale`).** Previously nil
+until the async `localeWatcher` `Task`'s body first ran, with no ordering guarantee that happens before
+first paint — a real risk of `MentoraRootView` reading a stale/undefined locale on the first frame.
+Fixed by seeding `currentLocale` SYNCHRONOUSLY in `init`, via `client.currentLocale()` (already-CI-
+compiled, confirmed present at `Support/SharedBridge/MentoraClient.swift:367`, previously uncalled),
+BEFORE `localeWatcher` is created — the identical cold-start-read precedent as `AppEnvironment`'s own
+`IosPreferenceStore().getTheme()` synchronous read for `ThemeController`. `client.currentLocale()`
+goes through `MentoraClient`, not a raw `sdk.user.observeLocale.invoke()` call, per D112's `.invoke`
+boundary. The watcher's first emission re-assigns the identical value on its first tick — harmless,
+since `@Observable` does not dedupe identical writes and no special-casing was added. **Revert path**:
+if this synchronous read is ever found to have an observable cost or side effect on real hardware
+(unverified on this Windows host), reverting to `AppLocale?` and threading the resulting optional
+through `mentoraTheme(theme:locale:)` (already `AppLocale?`-typed) is a small, contained change — no
+other file depends on `currentLocale` being non-optional.
+
+**Known residual window (review-flagged, not fixed here — informational, not blocking):** this closes
+the *undefined-nil-locale* race, but does not close every first-launch mislocale window. Concretely:
+fresh install, Arabic device, unauthenticated. `IosPreferenceStore`'s locale state seeds from a
+persisted default of `AppLocale.English` when nothing is stored yet, so `client.currentLocale()`
+synchronously returns English on a truly fresh install — `MentoraRootView` pins `en`/LTR at first paint
+until `AppEnvironment`'s bootstrap sequence completes `restoreSession()` and then
+`seedInitialLocaleIfNeeded` resolves the real device locale (a keychain + network round trip). Under
+the old `AppLocale?` shape, `nil` left `\.locale` untouched and the tree inherited the OS locale
+directly — for this one fresh-install scenario, `nil` was actually closer to correct. Not fixed in this
+slice because nothing renders text or directional layout yet (`PlaceholderRootView` is a solid-color
+splash — the window is invisible until T7's catalog + T9/T10's real screens exist), and Android has the
+identical shape (`MainActivity.kt` collects the same default-English `StateFlow`, seeded
+asynchronously). To close before it becomes visible: either fall back to
+`LocaleResolverKt.resolveInitialLocale(systemLocales:)` when no locale is yet persisted, or stop gating
+the locale seed behind `restoreSession()` — a decision for whichever of T7/T8 first renders localized
+text, not this slice.
+
+**`.system → nil`, deliberately diverging from Android's `resolveDarkTheme()`.** `ThemePreference.light
+→ .light`, `.dark → .dark`, `.system → nil`. SwiftUI's `.preferredColorScheme(nil)` means "follow the
+OS", which is exactly what System mode means — so this is not a missing mapping, it IS the correct one.
+Android's `ThemeController.kt#resolveDarkTheme()` instead resolves `System` to a concrete `Boolean` via
+`isSystemInDarkTheme()` at read time, collapsing the choice to a snapshot. That resolution logic was
+deliberately NOT ported: collapsing `.system` to a concrete `ColorScheme` here would freeze it at the
+moment `colorScheme(for:)` runs, whereas `nil` keeps `.preferredColorScheme` tracking *live* OS
+appearance changes (e.g. an automatic light/dark switch at sunset) for as long as `.system` stays
+selected. Both `colorScheme(for:)` and the locale/layout-direction switches are exhaustive with
+deliberately NO `default:` clause, so a future Kotlin case addition is a compile error here, not a
+silent fallthrough.
+
+**Arabic locale identifier and layout direction (D4).** `.english → Locale(identifier: "en")`,
+`.arabic → Locale(identifier: "ar-u-nu-latn")` (Western/ASCII numerals per `LOCALIZATION.md § 8`), the
+string held in exactly one named constant, `MentoraThemeRules.arabicLocaleIdentifier` — confirmed by
+grep (see below) that it is never inlined a second time. `MentoraTypography.swift`'s
+`MentoraTypographyRules.isArabic(_:)` doc comment (around what was lines 132-133) previously
+mis-attributed this to "T7"; corrected to attribute it to this slice (T6 slice 3b /
+`MentoraThemeRules.arabicLocaleIdentifier`) — T7 is a separate, later localization-strings task and
+does not set this environment locale. Layout direction is an EXPLICIT 2-case switch
+(`.english → .leftToRight`, `.arabic → .rightToLeft`), deliberately not derived from
+`Locale.Language.characterDirection` — this app supports exactly two locales today, and the explicit
+mapping avoids introducing a second, independent inference path that could in principle diverge from
+Android's own explicit selection for some locale this app doesn't otherwise support.
+
+**Why iOS doesn't need an `isAppearanceLightStatusBars`/`decorFitsSystemWindows` analogue.** Android's
+`MentoraTheme.kt` explicitly sets the status bar's light/dark content style and edge-to-edge decor
+fitting as separate API calls. iOS has no equivalent concept to port: status-bar appearance (light/dark
+content) is derived from the window's `userInterfaceStyle`, which `.preferredColorScheme` applied at
+the true root (`MentoraRootView`, above every other view) already sets for the whole window — there is
+nothing further to call. Recorded here so a future reader doesn't go looking for a missing port.
+
+**D5 — optional-locale handling via `.transformEnvironment`, not `if/else`.** `mentoraTheme(theme:
+locale: AppLocale?)` uses `.transformEnvironment(\.locale) { if let locale { ... } }` and the same
+pattern for `\.layoutDirection`, deliberately not an `if/else` branch (which would create a
+`_ConditionalContent` identity split in the view tree for what is only a missing-value default, not a
+real content difference). `locale: AppLocale?`'s only remaining nil source, now that `currentLocale` is
+non-optional, is the nil-`AppEnvironment` degradation path (`AppEnvironment.swift`'s
+`AppEnvironmentKey` doc comment) — an atypical/unconfirmed launch context, not the normal app-launch
+path. `.preferredColorScheme` needs no equivalent nil-handling since `theme: ThemePreference` is never
+optional and `.system → nil` is already the correct no-op.
+
+**D6 — sheet/fullScreenCover inheritance: corrected after review.** The first draft of this entry (and
+of `MentoraTheme.swift`'s doc comment) asserted as fact that SwiftUI's `\.locale`/`\.layoutDirection`
+environment does NOT propagate into sheets/covers on iOS, and that every future presentation would need
+to re-apply `.mentoraTheme(...)`. **That contradicted `PHASE_5_IOS_SYSTEM_DESIGN.md § 12`**, which
+states the opposite as a deliberate, locked divergence from Android: SwiftUI's environment already
+propagates `\.locale`/`\.layoutDirection` into sheets/alerts presented from the SAME hierarchy (Android
+needed a custom `ContextWrapper`/`CompositionLocal` to cross those boundaries, D93 — iOS genuinely does
+not), with only a **detached**-context presentation flagged as a real open risk to re-check at MC-3.
+`.preferredColorScheme` is a different mechanism (a SwiftUI *preference*, not a plain environment
+value), and § 14 states "sheets/covers must inherit it" as an explicit **MC-3 verification
+requirement**, not yet a proven fact — the iOS form of a real defect class Phase 4 already shipped once
+(illegible status-bar icons from an untold background luminance). Corrected: this slice does not solve
+either case, but no longer misstates them as a settled "every sheet needs a T8 re-application contract"
+— the actual open items are (a) a detached-context locale/direction presentation (rare, avoidable) and
+(b) the § 14 MC-3 status-bar/cover check, both to verify at MC-3, not to build a re-application
+mechanism against pre-emptively. `mentoraTheme(...)` still deliberately takes plain values rather than
+`@Environment` reads, which costs nothing and keeps a future fix cheap IF the MC-3 check ever finds root
+application insufficient for some presentation shape.
+
+**Review round (Opus, before any CI push).** Found no compile-certain error and no functional defect
+in `MentoraTheme.swift`, `LocaleController.swift`, or `MentoraApp.swift` — every one of the architect's
+decisions D1-D7 was independently confirmed as actually built, including tracing the `LocaleController`
+init-ordering/actor-isolation reasoning against real Swift concurrency rules and the KMP-bridge chain
+(`client.currentLocale()` → `MentoraClient.swift:367` → `IosPreferenceStore`'s `MutableStateFlow`)
+against real Kotlin source. Fixed: a missing `import UIKit` in `MentoraThemeTests.swift` (needed for
+`UIView.setNeedsLayout()`/`.layoutIfNeeded()`, the same class of omission a prior slice's review caught
+for a missing `import SwiftUI` — plausible under this project's Swift version but not certain without a
+compiler); the D6 sheet/cover overclaim documented above; the residual first-launch locale window now
+documented above (review judged it non-blocking, since nothing renders text/direction yet, but flagged
+the "eliminates" framing as overclaimed); the gate-pattern test-scope correction above; and an
+overclaimed `.xcstrings`-lookup doc comment in `MentoraTheme.swift` (corrected to point at § 12's own
+MC-2 verification step rather than assert String Catalog lookup already works). Two cheap test-quality
+fixes also applied: `test_localeEnvironmentPropagatesThroughMentoraTheme`'s nil-locale leg now asserts
+the bare-probe harness is actually live first (closing a vacuous-pass risk the two nil comparisons alone
+would not have caught), and `test_arabicLocaleForcesWesternNumerals` gained a negative control asserting
+plain `"ar"` (no `-u-nu-latn`) DOES produce an Eastern Arabic-Indic digit on this platform, so the
+positive assertions are proven to depend on the numbering-system extension rather than passing by
+platform-default coincidence. Not changed: the `EnvironmentProbe`/`EnvironmentSink` side-effecting-body
+pattern the implementer flagged as unprecedented — review reasoned through `View.body`'s `@MainActor`
+isolation and confirmed it is safe (no actor mismatch, no SwiftUI invalidation-graph feedback since
+`EnvironmentSink` is a plain, non-`@Observable` class).
+
+One loose end the review surfaced and this entry now records: a prior `CURRENT_STATUS.md` resume note
+referenced a planned `Support/PreferenceBridge.swift` file for slice 3b. It was never created — the
+master plan's actual T6 file list (`PHASE_5_IOS_IMPLEMENTATION_PLAN.md`) never included it, and D112's
+"route everything through `MentoraClient`" convention makes a separate bridge file unnecessary; the
+existing `ThemeController`/`LocaleController` + `MentoraClient` already cover everything this slice
+needed. The reference was stale, not a missed requirement.
+
+**Files changed:**
+- `mobile/iosApp/iosApp/Support/LocaleController.swift` — `currentLocale` made non-optional, seeded
+  synchronously in `init` before `localeWatcher` starts.
+- `mobile/iosApp/iosApp/Theme/MentoraTheme.swift` (new) — `MentoraThemeRules`, `.mentoraTheme(theme:
+  locale:)`.
+- `mobile/iosApp/iosApp/MentoraApp.swift` — `WindowGroup`'s content changed from `PlaceholderRootView()`
+  to `MentoraRootView()` (new private wrapper); `PlaceholderRootView` itself left byte-identical (its
+  `@Environment` read is a second, independent read of the same key — it does not shadow or consume
+  `MentoraRootView`'s own read).
+- `mobile/iosApp/iosApp/Theme/MentoraTypography.swift` — one doc-comment fix (T7 → T6 slice 3b
+  attribution), no behavior change.
+- `mobile/iosApp/iosAppTests/MentoraThemeTests.swift` (new) — 6 test cases: color-scheme mapping,
+  enum-case-count guard, layout-direction mapping, Arabic-locale language-subtag + cross-slice
+  `isArabic` integration, Arabic Western-numeral formatting (`NumberFormatter`, the real Foundation API
+  that respects a `Locale`'s `-u-nu-latn` numbering-system extension), and a real
+  `UIHostingController`-hosted environment-propagation round-trip for `\.locale`/`\.layoutDirection`
+  across `.arabic`/`.english`/`nil`, reusing `MentoraTypographyGeometryTests.swift`'s established
+  measurement-harness pattern. Deliberately does NOT round-trip `.preferredColorScheme` itself (a
+  SwiftUI *preference*, not a plain environment write — an unattached `UIHostingController` has no
+  window/scene to receive it) — left to code review (W) + the MC-3 live check per the test file's own
+  header comment.
+
+**Self-check performed (Windows-verifiable only — no Swift compiler exists on this host):**
+`node tools/token-pipeline/generate.js` re-run, `git status --porcelain` showed no generated-file
+drift (this slice does not touch the generator, as expected — a pure no-op confirmation). Grepped
+**`mobile/iosApp/iosApp/**` production sources (excluding `iosAppTests/`)** for slice 3c's future gate
+patterns and confirmed each appears ONLY where expected there:
+- `preferredColorScheme(` → `Theme/MentoraTheme.swift` only.
+- `environment(\.locale`/`transformEnvironment(\.locale` → `Theme/MentoraTheme.swift` only.
+- `environment(\.layoutDirection`/`transformEnvironment(\.layoutDirection` → `Theme/MentoraTheme.swift`
+  only.
+- `.mentoraTheme(` → exactly one real call site in production code (`MentoraApp.swift`'s
+  `MentoraRootView`).
+- `Locale(identifier: "ar` → `Theme/MentoraTheme.swift` only.
+
+**Review-flagged correction: these patterns are NOT clean across `iosAppTests/`, only across production
+sources.** `Locale(identifier: "ar-u-nu-latn")` also appears (as a literal, not via the new constant) in
+`MentoraTypographyTests.swift`; `Locale(identifier: "ar")` and `.environment(\.locale,` both appear in
+`MentoraTypographyGeometryTests.swift`. Defensible in tests, but the "never inlined a second time"
+claim on `arabicLocaleIdentifier`'s own doc comment is scoped to production code only, not the whole
+target — noted here so 3c doesn't build a gate that false-positives on the existing, CI-green test
+suite.
+
+**Gate patterns for slice 3c to consume (recorded verbatim here, per the architect's D7 — NOT enforced
+by a script in this slice, that is 3c's own job). Scope: `mobile/iosApp/iosApp/**` production sources
+ONLY — excludes `iosAppTests/`, where several of these patterns legitimately already appear (see above):**
+- `preferredColorScheme(` → only in `Theme/MentoraTheme.swift`
+- `environment(\.locale` and `transformEnvironment(\.locale` → only in `Theme/MentoraTheme.swift`
+  (currently vacuous as a production-code guard, since the real code uses `transformEnvironment`, not
+  plain `.environment` — kept as a forward-looking guard in case that changes)
+- `environment(\.layoutDirection` and `transformEnvironment(\.layoutDirection` → only in
+  `Theme/MentoraTheme.swift` (same vacuous-today caveat)
+- `.mentoraTheme(` → exactly one occurrence in production code (in `MentoraApp.swift`) until T8 adds a
+  sanctioned sheet/cover re-application helper
+- `Locale(identifier: "ar` → only in `Theme/MentoraTheme.swift`
+
+**No `mobile/shared/**` (Kotlin) or `mobile/androidApp/**` file touched.** No `Info.plist` change (no
+`UIUserInterfaceStyle` key added — it would hard-pin appearance and defeat `.preferredColorScheme`, per
+the architect's explicit confirmation). No token gallery, no completion-gate script, no T7
+(localization strings/`.xcstrings`) work — all correctly out of scope for this slice.
+
+**Status: PENDING CI** — not pushed, not compiled; this Windows host has no Swift toolchain. The next
+real `ios-ci.yml` run is this slice's actual verification (compile of `MentoraTheme.swift`,
+`LocaleController.swift`'s non-optional seed, `MentoraApp.swift`'s `MentoraRootView`, and all 6
+`MentoraThemeTests` cases). T6 slice 3c (token gallery + completion-gate script) is next, once this
+slice is real-CI-green.

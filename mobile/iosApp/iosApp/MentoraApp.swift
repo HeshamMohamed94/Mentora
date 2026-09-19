@@ -12,9 +12,35 @@ struct MentoraApp: App {
 
     var body: some Scene {
         WindowGroup {
-            PlaceholderRootView()
+            MentoraRootView()
                 .environment(\.appEnvironment, appEnvironment)
         }
+    }
+}
+
+/// T6 slice 3b (D121) — exists solely so the two `@Observable` reads it needs
+/// (`themeController.theme`, `localeController.currentLocale`) happen inside a real `View` body, so
+/// SwiftUI's Observation tracking invalidates this view (and re-runs `.mentoraTheme(...)`) correctly
+/// when either value changes, and so `.mentoraTheme(...)` sits strictly ABOVE `PlaceholderRootView` in
+/// the tree (per `Theme/MentoraTheme.swift`'s "apply at the true WindowGroup-content root" contract).
+/// Holds no other logic — no branching, no session-state awareness; that all stays inside
+/// `PlaceholderRootView`, untouched by this slice.
+///
+/// `?? .system` is the correct degrade when `appEnvironment` is `nil` (the same atypical/unconfirmed
+/// launch context documented on `AppEnvironmentKey` in `AppEnvironment.swift`) — `.system` follows the
+/// OS, matching this file's existing debug-assert/release-degrade convention rather than forcing an
+/// arbitrary concrete theme. `localeController.currentLocale` degrades to `nil` the same way (no
+/// `AppEnvironment` means no known locale at all), which `.mentoraTheme(...)`'s own doc comment
+/// explains is a real, handled nil-locale contract, not an oversight.
+private struct MentoraRootView: View {
+    @Environment(\.appEnvironment) private var appEnvironment
+
+    var body: some View {
+        PlaceholderRootView()
+            .mentoraTheme(
+                theme: appEnvironment?.themeController.theme ?? .system,
+                locale: appEnvironment?.localeController.currentLocale
+            )
     }
 }
 

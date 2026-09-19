@@ -129,8 +129,11 @@ enum MentoraTypographyRules {
     /// an inherited, DISCLOSED simplification, recorded in `DECISIONS_LOG.md`, not a silent claim of
     /// § 4 compliance.
     ///
-    /// T7 sets the environment locale for Arabic to `ar-u-nu-latn` (`design-system/LOCALIZATION.md § 8`,
-    /// Western numerals); `language.languageCode` on that identifier is still `"ar"`, so this keeps working.
+    /// T6 slice 3b's `MentoraThemeRules.arabicLocaleIdentifier` (`Theme/MentoraTheme.swift`) sets the
+    /// environment locale for Arabic to `ar-u-nu-latn` (`design-system/LOCALIZATION.md § 8`, Western
+    /// numerals); `language.languageCode` on that identifier is still `"ar"`, so this keeps working.
+    /// (T7 is a separate, later task — localization strings/`.xcstrings` catalog — and is not what sets
+    /// this environment locale.)
     static func isArabic(_ locale: Locale) -> Bool {
         locale.language.languageCode?.identifier == "ar"
     }

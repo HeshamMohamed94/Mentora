@@ -11,15 +11,26 @@ import shared
 @MainActor
 @Observable
 final class LocaleController {
-    private(set) var currentLocale: AppLocale?
+    private(set) var currentLocale: AppLocale
 
     private let client: MentoraClient
     private var localeWatcher: Task<Void, Never>?
 
     private static let hasSeededInitialLocaleKey = "com.mentora.ios.hasSeededInitialLocale"
 
+    /// T6 slice 3b (D121): `currentLocale` is seeded SYNCHRONOUSLY here, before `localeWatcher` below
+    /// is created, precisely because `init` gives no ordering guarantee that the watcher's `Task` body
+    /// (a suspending `for await`) actually runs before the first frame renders -- without this line,
+    /// `MentoraRootView` (`MentoraApp.swift`) could read a stale/undefined locale on first paint. This
+    /// is the same cold-start-read precedent as `AppEnvironment`'s own `IosPreferenceStore().getTheme()`
+    /// synchronous read. `client.currentLocale()` goes through `MentoraClient` (not a raw
+    /// `sdk.user.observeLocale.invoke()` call) per D112 -- `.invoke` never appears outside
+    /// `Support/SharedBridge/`. The watcher's first emission below will re-assign this same value
+    /// (`client.localeChanges()` is backed by the identical `StateFlow`) -- harmless, since
+    /// `@Observable` does not dedupe identical assignments and no special-casing is needed.
     init(client: MentoraClient) {
         self.client = client
+        self.currentLocale = client.currentLocale()
         // `observeLocale.invoke()` follows the same façade/use-case shape as `observeAuthState`
         // (`ObserveLocaleUseCase(): StateFlow<AppLocale>` per System Design § 7's table), so it returns
         // a genuine `SkieSwiftStateFlow<AppLocale>` `AsyncSequence` the same way — see `DECISIONS_LOG.md`
