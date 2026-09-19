@@ -16,17 +16,15 @@ import shared
 /// Seam definitions (System Design § 2 item 4 -- per-screen closures/protocols over this client)
 /// are deliberately NOT part of this file; each screen task declares its own narrow seam.
 ///
-/// Slice 1 (CI run #17, green) covered `auth` + `user`; slice 2 adds the remaining 8 façades
-/// (`catalog`, `enrollment`, `learningPaths`, `media`, `progress`, `quiz`, `certificates`,
-/// `aiTutor`) -- all 10 façades / 37 use cases are now named methods here except `aiStream(...)`,
-/// deferred to its own follow-up commit for ordinary slice hygiene, not because its signature is
-/// unknown (see DECISIONS_LOG D116(d)). 24 of the other 25 signatures below were copied from the real
-/// shipped SKIE `.swiftinterface` inside CI's `kmp-swift-interface` artifact
-/// (`shared.xcframework/.../shared.swiftmodule/arm64-apple-ios-simulator.swiftinterface`);
-/// `thumbnailURLString` (non-suspend, absent from the `.swiftinterface`) is instead sourced from
-/// `shared-api.json`/`shared.apinotes` in that same artifact, both stronger evidence than the Kotlin
-/// source or the Kotlin->Obj-C header alone (that header is PRE-SKIE: its Flow return types are wrong,
-/// which is the trap D108 fell into once already).
+/// Slice 1 (CI run #17, green) covered `auth` + `user`; slice 2 (CI run #19, green) added the
+/// remaining 8 façades. All 10 façades / all 37 use cases are now named methods here, including
+/// `aiStream(...)`, whose real signature was confirmed via `shared-api.json` (see DECISIONS_LOG D116
+/// and its `aiStream` follow-up entry) after being deferred from slice 2 for ordinary slice hygiene.
+/// Most signatures were copied from the real shipped SKIE `.swiftinterface` inside CI's
+/// `kmp-swift-interface` artifact; a few non-suspend/Flow-returning ones (absent from the
+/// `.swiftinterface`) came from `shared-api.json`/`shared.apinotes` in that same artifact instead --
+/// never from the Kotlin source alone, and never from the Kotlin->Obj-C header (that header is
+/// PRE-SKIE: its Flow return types are wrong, which is the trap D108 fell into once already).
 ///
 /// Default arguments below are SWIFT-side and ours alone. SKIE 0.9.5 generates no default-argument
 /// overloads (D112), so every `.invoke(...)` call passes every Kotlin parameter explicitly.
@@ -305,10 +303,10 @@ struct MentoraClient {
 
     // MARK: - aiTutor
     //
-    // Phase 6 stays out of scope. This method exposes an AI Tutor use case `shared` has had since
-    // Phase 3 Task 14 EXACTLY as it already exists -- no new AI behavior, no prompt, no model
-    // choice. This is a mechanical bridge, nothing more. `aiStream(...)` (the Flow-returning
-    // send-message use case) is deferred to a follow-up commit -- see DECISIONS_LOG D116 for why.
+    // Phase 6 stays out of scope. These methods expose AI Tutor use cases `shared` has had since
+    // Phase 3 Task 14 EXACTLY as they already exist -- no new AI behavior, no prompt, no model
+    // choice, no streaming/decoding logic on the Swift side. This is a mechanical bridge, nothing
+    // more.
 
     func aiConversation(cursor: String? = nil, limit: Int? = nil) async throws -> AiConversation {
         try ApiResultBridge.unwrap(
@@ -316,10 +314,35 @@ struct MentoraClient {
         )
     }
 
+    /// Kind (c) in System Design § 7: a COLD `Flow<AiStreamResult>`, NOT a suspend call -- no
+    /// `try await`, and nothing happens until the returned sequence is iterated. Same rule as
+    /// `authStates()`: a genuine SKIE `AsyncSequence`, consumed with `for await`. Do NOT wrap it in
+    /// Combine or a hand-rolled bridge -- D108 fix round #4 deleted exactly that mistake once.
+    /// Signature confirmed via `shared-api.json` (swift-api-digester dump), cross-checked by an
+    /// independent code review -- see DECISIONS_LOG D116(d)'s correction and this entry's own note.
+    ///
+    /// Failures arrive IN-BAND, never as a thrown error: local validation failures (blank/too-long
+    /// content, or exactly one of `courseId`/`lessonContextId`) and pre-stream server rejections both
+    /// arrive as `AiStreamResult.PreStreamFailure`; a mid-stream drop arrives as `.StreamFailed`
+    /// carrying the partial text. Callers branch with `onEnum(of:)` over the three cases.
+    /// `courseId` and `lessonContextId` are a strict pair: both, or neither.
+    func aiStream(
+        content: String,
+        courseId: String? = nil,
+        lessonContextId: String? = nil
+    ) -> SkieSwiftFlow<AiStreamResult> {
+        sdk.aiTutor.sendMessage.invoke(
+            content: content,
+            courseId: courseId,
+            lessonContextId: lessonContextId
+        )
+    }
+
     // MARK: - flow/state reads (formerly `FlowBridge.swift`, folded in per D112 Fix 6)
     //
     // Auth-state + locale state reads. The AI-stream Flow adapter (`aiStream(content:...)`, § 7(c))
-    // is deferred to a follow-up commit -- see DECISIONS_LOG D116.
+    // lives with its own façade under `// MARK: - aiTutor` above, grouped by domain rather than by
+    // mechanism.
 
     /// System Design § 2 item 3 / § 7(c). PROVEN real: `SkieSwiftStateFlow<any AuthState>` is a
     /// genuine `AsyncSequence` -- confirmed by a real CI compiler error and already consumed with

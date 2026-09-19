@@ -5468,3 +5468,29 @@ module-qualification) — fixed identically, module-qualifying to `[shared.Categ
 `Category`/`Section`-shaped identifier exists elsewhere in this file (grepped). Not previously catchable
 without a real compiler: `Category` is such a common word that nothing about the Kotlin source or the
 `.swiftinterface` alone would surface an Obj-C-runtime-level name collision.
+
+## D117 — T5 closed out: `aiStream(...)` bridged, all 10 façades / 37 use cases complete
+
+T5 is now feature-complete: all 10 façades, all 37 use cases, are bridged in `MentoraClient.swift`.
+The one deferral from slice 2 — `aiStream(...)`, the Flow-returning send-message use case, isolated
+into its own follow-up commit for ordinary slice hygiene rather than signature uncertainty
+(D116(d)) — is now implemented. Its real signature, confirmed via `shared-api.json` (the
+swift-api-digester dump captured in a prior CI artifact, cross-checked by an independent Opus code
+review):
+
+```
+SendAiTutorMessageUseCase.invoke(content: Swift.String,
+                                 courseId: Swift.String?,
+                                 lessonContextId: Swift.String?)
+    -> shared.SkieSwiftFlow<shared.AiStreamResult>
+```
+
+bridges to `func aiStream(content:courseId:lessonContextId:) -> SkieSwiftFlow<AiStreamResult>` — a
+cold Flow, not a suspend call, following the same `for await` consumption pattern as `authStates()`.
+
+No new test added, matching the `authStates()`/`localeChanges()` precedent from slice 1: this method
+needs a live `MentoraSdk` (the whole Koin graph plus a backend), which isn't available in a unit test;
+its verification is compile (CI) + real screen usage later (T6+/MC-2/MC-3).
+
+**Status: PENDING CI.** No Swift toolchain exists on this Windows host — the next real `ios-ci.yml`
+run is this entry's actual verification, per this project's standing rule.
