@@ -85,6 +85,7 @@ struct Badge: View {
         case .label(let text):
             Text(text)
                 .mentoraFont(.labelMedium)
+                .lineLimit(1)
                 .foregroundStyle(variant.onContainerColor)
                 .padding(.horizontal, MentoraSpacing.space2)
                 .frame(height: 20)

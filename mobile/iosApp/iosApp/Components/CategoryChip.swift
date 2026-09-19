@@ -65,6 +65,7 @@ struct CategoryChip: View {
     var body: some View {
         Text(label)
             .mentoraFont(.labelMedium)
+            .lineLimit(1)
             .foregroundStyle(state.foregroundColor)
             .padding(.horizontal, MentoraSpacing.space3)
             .frame(height: 28)
