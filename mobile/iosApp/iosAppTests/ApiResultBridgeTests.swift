@@ -25,9 +25,7 @@ final class ApiResultBridgeTests: XCTestCase {
             fields: ["email": "REQUIRED"],
             httpStatus: 422
         )
-        let result = failure as! ApiResult<NSString>
-
-        XCTAssertThrowsError(try ApiResultBridge.unwrap(result)) { error in
+        XCTAssertThrowsError(try ApiResultBridge.unwrap(failure)) { error in
             guard let mentoraError = error as? MentoraError else {
                 XCTFail("Expected MentoraError, got \(error)")
                 return
@@ -45,11 +43,12 @@ final class ApiResultBridgeTests: XCTestCase {
         XCTAssertNoThrow(try ApiResultBridge.unwrapVoid(result))
     }
 
-    func testUnwrapVoidThrowsOnFailure() {
-        let failure = ApiResultFailure(code: ApiErrorCode.InternalError(), message: "m", fields: nil, httpStatus: 500)
-        let result = failure as! ApiResult<KotlinUnit>
-        XCTAssertThrowsError(try ApiResultBridge.unwrapVoid(result))
-    }
+    // `unwrapVoid`'s failure path is `unwrap`'s failure path verbatim (`_ = try unwrap(result)`),
+    // covered directly by `testUnwrapFailureThrowsMentoraErrorWithFieldsAndHttpStatus`. Keeping
+    // `unwrapVoid`'s concrete `ApiResult<KotlinUnit>` parameter (reverted, see DECISIONS_LOG D115)
+    // means a dedicated failure test here would need the same kind of force-cast into a mismatched
+    // type that this fix round removed everywhere else -- deleted for the same reason as
+    // `testUnwrapListThrowsOnFailure` above.
 
     func testUnwrapBoolTrue() throws {
         let result: ApiResult<KotlinBoolean> = ApiResultSuccess(data: KotlinBoolean(bool: true))
@@ -74,10 +73,26 @@ final class ApiResultBridgeTests: XCTestCase {
         XCTAssertEqual(items, ["a", "b"])
     }
 
-    func testUnwrapListThrowsOnFailure() {
-        let failure = ApiResultFailure(code: ApiErrorCode.InternalError(), message: "m", fields: nil, httpStatus: 500)
-        let result = failure as! ApiResult<NSArray>
-        XCTAssertThrowsError(try ApiResultBridge.unwrapList(result, as: String.self))
+    // `unwrapList`'s failure path is `unwrap`'s failure path verbatim (`let raw = try unwrap(result)`),
+    // covered directly by `testUnwrapFailureThrowsMentoraErrorWithFieldsAndHttpStatus`. A dedicated
+    // `unwrapList` failure test would require force-casting a bare `ApiResultFailure` into a
+    // mismatched `ApiResult<NSArray>` -- deleted in D115 as a statically false claim about the value.
+    // The genuinely untested branch is D112's element-cast throw, covered here instead.
+    // (Same reasoning applies to `unwrapPage`: its own failure path is skipped for the identical
+    // "already covered by `unwrap`'s own failure test" reason above -- NOT because `.items` is
+    // statically typed by `Element`. It isn't: `CursorPage<Element>.items` erases to `[Any]` just
+    // like `unwrapList`'s `NSArray`, per `ApiResultBridge.swift`'s own doc comment on `unwrapPage`
+    // ("`CursorPage<T>.items` is `NSArray<id>` -> `[Any]` because `CursorPage` is a generic class"),
+    // which is exactly why `unwrapPage`'s own code does `page.items.compactMap { $0 as? Element }`.)
+    func testUnwrapListThrowsWhenAnElementIsNotTheNamedType() {
+        let result: ApiResult<NSArray> = ApiResultSuccess(data: ["a", 1] as NSArray)
+        XCTAssertThrowsError(try ApiResultBridge.unwrapList(result, as: String.self)) { error in
+            guard let mentoraError = error as? MentoraError else {
+                XCTFail("Expected MentoraError, got \(error)")
+                return
+            }
+            XCTAssertEqual(mentoraError.wire, "IOS_BRIDGE_ELEMENT_CAST_FAILED")
+        }
     }
 
     // MARK: - unwrapPage
@@ -113,7 +128,12 @@ final class ApiResultBridgeTests: XCTestCase {
 
     func testUnwrapOptionalFailureThrows() {
         let failure = ApiResultFailure(code: ApiErrorCode.InternalError(), message: "m", fields: nil, httpStatus: 500)
-        let result = failure as! ApiResult<NSString>?
-        XCTAssertThrowsError(try ApiResultBridge.unwrapOptional(result))
+        XCTAssertThrowsError(try ApiResultBridge.unwrapOptional(failure)) { error in
+            guard let mentoraError = error as? MentoraError else {
+                XCTFail("Expected MentoraError, got \(error)")
+                return
+            }
+            XCTAssertEqual(mentoraError.wire, "INTERNAL_ERROR")
+        }
     }
 }

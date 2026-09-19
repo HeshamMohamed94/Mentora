@@ -5006,3 +5006,270 @@ was touched.
 
 **Status.** Not yet re-verified by CI — the next `ios-ci.yml` run is the real check for this fix.
 No Swift compile is possible on this Windows host.
+
+### D115 — 2026-09-19 — CI run #15 crashed the test host on every real `ApiResult.Failure` through the bridge; SKIE's generated `onEnum(of:)` for a generic sealed class is a suspected PRODUCTION bug, not just a test artifact; `unwrap` rewritten around it pending real-CI confirmation
+
+**Context — what CI run #15 actually showed
+(https://github.com/HeshamMohamed94/Mentora/actions/runs/35407721056).** After D114's force-cast fix
+let the 4 previously-compiler-rejected tests compile, `xcodebuild test` ran and the **test host process
+itself crashed** on exactly those same 4 tests — `testUnwrapFailureThrowsMentoraErrorWithFieldsAndHttpStatus`,
+`testUnwrapVoidThrowsOnFailure`, `testUnwrapListThrowsOnFailure`, `testUnwrapOptionalFailureThrows` — the
+only 4 tests in the file that push a real, constructed `ApiResultFailure` through `ApiResultBridge.unwrap`
+(directly or via `unwrapVoid`/`unwrapList`/`unwrapOptional`, all of which call `unwrap` internally).
+xcodebuild's own stdout/log printed zero diagnostic beyond "crashed" — no Swift trap message, no
+`fatalError` text, nothing actionable was visible in the console log CI actually captures.
+
+Crucially, **every structurally-identical `Success`-path test on the exact same generic
+instantiations passed**: `testUnwrapSuccessReturnsValue` (`ApiResult<NSString>`),
+`testUnwrapVoidDoesNotThrowOnSuccess` (`ApiResult<KotlinUnit>`),
+`testUnwrapListDeErasesNSArrayToStringArray` (`ApiResult<NSArray>`), and
+`testUnwrapOptionalSuccessReturnsValue`/`testUnwrapOptionalNilInputReturnsNilWithoutThrowing`
+(`ApiResult<NSString>?`). And `ErrorCopyTests`' bare construction of standalone `ApiErrorCode` cases
+(no `ApiResult` wrapper at all) was completely unaffected.
+
+**Correction (post-review — the original text here overclaimed).** An earlier draft of this entry said
+these two facts "prove the crash variable is whether the value is a `Failure`, not the static type
+argument `T` the D114 force-cast touched." **Both an Opus review and an independent Codex review of
+this fix round caught that this does not follow.** The 4 crashing tests differ from every passing test
+in *two* ways at once, not one: (1) they hold a `Failure` value, **and** (2) they are the only 4 tests
+in the file that execute a D114 `failure as! ApiResult<X>` force-cast — an operation present in zero
+passing tests, introduced in the immediately-preceding commit (`e239ced`), which was also the first
+commit in this project's history in which this file ever compiled at all. Run #15 cannot distinguish
+between "the value is a `Failure`" and "the test performs a force-cast" as the crash variable, because
+every crashing test does both and no test in the run does only one. See the expanded, re-ranked
+hypothesis list in (c) below — **the force-cast itself is now carried as its own hypothesis (H-cast),
+not folded into H3, and this entry no longer asserts H1 (the `onEnum(of:)` theory) as "proven" or even
+as the leading candidate.** D114's own SE-0057/covariance-erasure reasoning about why the plain
+typed-`let` didn't *compile* remains independently correct; what this entry retracts is only the
+further, unsupported claim that D114's runtime behavior (not just its compile-time reasoning) was
+therefore also understood.
+
+**Why this is flagged as a potential PRODUCTION bug, not merely a test-construction artifact.**
+`ApiResultBridge.unwrap` is the single chokepoint every real backend error response passes through
+(`MentoraClient`'s doc comment: "the bridge performs NO error translation beyond code passthrough").
+If the defect is in `unwrap`'s `switch onEnum(of: result) { ... }` dispatch itself — rather than in how
+the *test* constructs a bare `ApiResultFailure(...)` and force-casts it — then any real HTTP error
+returned by the backend (401, 422 validation, 500, network failure mapped to `ApiResult.Failure`) would
+crash the live app the same way it crashed the test host. That risk, not test hygiene, is why this
+investigation and fix round happened before slice 2 of T5 and not after.
+
+**(b) SKIE 0.9.5's generated `onEnum(of:)` for a generic sealed class.** Verified directly from SKIE's
+own source at tag `0.9.5` (`SealedFunctionGeneratorDelegate.kt` + `SealedEnumGeneratorDelegate.kt` +
+`SealedGeneratorExtensionContainer.kt`). For `sealed class ApiResult<out T>` with
+`Success<T> : ApiResult<T>` and `Failure : ApiResult<Nothing>`, the generator emits (signature and body
+shape are literal from the generator):
+
+```swift
+public func onEnum<T, __Sealed: ApiResult<T>>(of sealed: __Sealed) -> /* @frozen */ Sealed<T> {
+    let erased: Any = sealed                                   // emitted only when the sealed class is generic
+    if let erased = erased as? ApiResultSuccess<T> {
+        return Sealed<T>.success(erased)
+    } else if let erased = erased as? ApiResultFailure {       // non-generic: Failure has no type args
+        return Sealed<T>.failure(erased)
+    } else {
+        fatalError("Unknown subtype \(sealed). This error should not happen under normal circumstances since ApiResult is sealed.")
+    }
+}
+```
+
+The `let erased: Any` line carries this verbatim comment in SKIE's own source: *"When the `onEnum(of:)`
+gets specialized, the Swift optimizer sees `sealed` as a specific type. When that specific type isn't
+statically castable to one of the classes in `visibleSealedSubclasses`, Swift optimizer removes that
+code as it's unreachable from its point of view. In certain cases that can result in reaching the
+`fatalError` in Release mode."* — SKIE's own source documents that a value of the wrong static type
+reaching this dispatch can end at the `fatalError`. Also independently verified: SE-0057 (importing
+Obj-C lightweight generics) — type arguments are erased at runtime; `as!` to a specialized imported
+Obj-C generic is permitted and unchecked, while `as?` between two specializations is a compile error,
+which is exactly why SKIE launders through `let erased: Any` (the same pattern D1 below reuses in
+`ApiResultBridge.unwrap`).
+
+Sources: [SKIE `SealedFunctionGeneratorDelegate.kt` @0.9.5](https://raw.githubusercontent.com/touchlab/SKIE/0.9.5/SKIE/kotlin-compiler/core/src/commonMain/kotlin/co/touchlab/skie/phases/features/sealed/SealedFunctionGeneratorDelegate.kt),
+[SKIE `SealedEnumGeneratorDelegate.kt` @0.9.5](https://raw.githubusercontent.com/touchlab/SKIE/0.9.5/SKIE/kotlin-compiler/core/src/commonMain/kotlin/co/touchlab/skie/phases/features/sealed/SealedEnumGeneratorDelegate.kt),
+[SE-0057 Importing Objective-C Lightweight Generics](https://github.com/apple/swift-evolution/blob/master/proposals/0057-importing-objc-generics.md),
+[SKIE issue #199 — `as?` on a sealed subtype returns the wrong non-null instance](https://github.com/touchlab/SKIE/issues/199),
+[SKIE Sealed Classes docs](https://skie.touchlab.co/features/sealed),
+[Touchlab — Sealed Generics and SKIE](https://touchlab.co/sealed-generics-and-skie).
+
+This establishes H1 (below) as a real, sourced *mechanism* that genuinely exists in SKIE's generated
+code — but **an independent Codex review surfaced a fact that weakens H1's standing as the leading
+hypothesis**: SKIE's own project history documents this exact class of covariant-generic dispatch crash
+as **fixed in SKIE 0.8.1**, and the `let erased: Any` laundering line quoted above — present in the
+0.9.5 source this project actually uses — *is that fix/mitigation*, not a live, unpatched defect. The
+`fatalError` comment quoted above describes the *pre-0.8.1* failure mode that `let erased: Any` exists
+to prevent; it is not documented as still reachable in 0.9.5. This does not rule H1 out entirely (the
+mitigation could be incomplete, or the hazard could still apply if the SKIE-generated Swift overlay
+bundled inside `shared.xcframework` was itself built with cross-module optimization independent of this
+app target's own `-configuration Debug` setting — genuinely unknown from this Windows host, since it
+would require inspecting how the XCFramework's Swift module was actually compiled), but it means H1
+should be read as "a mechanism that exists in principle and was directly observed in 0.9.5 source,
+whose real-world applicability to this exact crash is not established" rather than "the leading,
+sourced explanation." See the re-ranking in (c).
+
+**(c) Four ranked hypotheses (revised post-review), and why D112's `link: false` double-linking theory
+is ruled out.** The original version of this entry ranked H1 first and did not list H-cast at all —
+both a primary Opus review and an independent Codex review (dispatched per this project's CLAUDE.md
+routing rules, since Opus flagged a serious/uncertain issue on a critical production path) identified
+this as the entry's central defect. Re-ranked here using both reviews' reasoning:
+
+- **H-cast (real hypothesis, not ruled out — added post-review).** The D114 `failure as! ApiResult<X>`
+  force-cast itself trapped at runtime. Codex's independent technical opinion: for *this specific*
+  cast, H-cast is *unlikely* — the only real runtime check a cast between two specializations of an
+  imported Obj-C lightweight-generic class performs is Obj-C class identity (does the object's actual
+  class descend from the target's erased base class?), and `ApiResultFailure` genuinely IS-A
+  `ApiResult`, so that check succeeds; the generic type argument itself is unchecked/erased per SE-0057.
+  Codex's verdict: "H-cast is effectively ruled out ... lightweight-generic arguments are not checked."
+  Carried here as a real hypothesis rather than fully closed only because neither review had a live
+  compiler to confirm it, and because this project's own standing rule is to never assert an SKIE/Swift
+  API-shape claim as settled without real CI confirmation.
+- **H1 (production bug, mechanism confirmed to exist, applicability unconfirmed).** SKIE's generated
+  `onEnum(of:)` mis-dispatches (or crashes attempting to dispatch) a `Failure` instance when the Swift
+  optimizer has specialized/narrowed its view of the generic call site. The generated-code mechanism is
+  real and sourced (see (b)) — but Codex's research found SKIE documents this exact crash class as
+  **fixed in 0.8.1**, and the mitigation for it is the very `let erased: Any` line present in the 0.9.5
+  source quoted in (b), which weakens H1's standing relative to the original draft of this entry. Codex:
+  "H-onEnum is theoretically possible if the generated module was optimized, but is not the leading
+  explanation for this Debug run." If true regardless, this is live in production today —
+  `ApiResultBridge.unwrap` was the only call path every façade method routed errors through, which is
+  why D1 (below) stops depending on `onEnum(of:)` in that path regardless of whether H1 is ultimately
+  confirmed.
+- **H2 (production bug, at least as plausible as H1 per Codex).** The defect is not in `onEnum(of:)`
+  dispatch itself but in reading back `ApiResultFailure`'s properties afterward — `MentoraError(failure:)`'s
+  `failure.code` / `failure.message` / `failure.fields` (a `Map<String,String>?` bridge) / `failure.httpStatus`
+  reads, or in constructing `ApiResultFailure(...)` itself. Codex's own words: "Failure construction/property
+  bridging remains at least as plausible" as H1. Also a real production path if true, one step further
+  down (or before) `unwrap`'s Failure branch.
+- **H3 (test-construction artifact, not a production bug).** The crash is specific to something about
+  how the *test* builds a bare `ApiResultFailure(...)` value in isolation — as distinct from H-cast (the
+  subsequent force-cast operation) and H2 (ordinary property reads that a real production `Failure`
+  would also undergo) — something no real production call site would ever reproduce in exactly this
+  shape, since real `Failure`s always arrive already correctly typed as `ApiResult<T>` from the Kotlin
+  SDK call that produced them.
+- **D112's `link: false` double-linking concern (the open question from the review-fix round about
+  whether `iosAppTests`'s `MentoraShared` package dependency double-links `shared.xcframework` into the
+  test bundle, causing duplicate Obj-C class registration) is ruled out as the cause here**: the
+  Success-path tests share the exact same class-lookup/registration path (same `ApiResult<T>` base
+  class, same framework, same test bundle) and pass cleanly. A double-linking defect would not
+  selectively spare every `Success` case while crashing every `Failure` case.
+
+**Bottom line carried forward from both reviews: no hypothesis above is confirmed, and none should be
+recorded as confirmed until a future CI run's evidence actually distinguishes them** — see the revised
+diagnostic ladder and the corrected interpretation table in (f). The good news, per both reviews: the
+D1 fix below (stop depending on `onEnum(of:)` and on any force-cast in the production `unwrap` path) is
+independently sound and worth keeping regardless of which hypothesis eventually turns out to be true —
+Opus: "the Swift code rewrite itself is sound and I'd ship `ApiResultBridge.unwrap` as written."
+
+**(d) Decisions taken, each explained.**
+- **D1 — stop routing `unwrap`'s production path through `onEnum(of:)`; check `Failure` first via an
+  `as?` chain through `Any`.** Whichever of H1/H2/H3 turns out to be true, `onEnum(of:)` is the one
+  common suspect step across H1 and (less directly) H2 that the fix can simply stop depending on in
+  production code, at essentially zero cost: `ApiResultFailure` is a non-generic class
+  (`ApiResult.Failure : ApiResult<Nothing>`), so an `as?` check for it is untouched by the Obj-C
+  generic-argument erasure that motivated D114's whole force-cast discussion, and checking it FIRST
+  means the Failure path never touches a generic-specialized cast at all. `guard let success = erased
+  as? ApiResultSuccess<T>` only runs once Failure has already been ruled out. This directly tests H1
+  (if the crash was really in `onEnum(of:)`'s own generated dispatch code, avoiding it removes the
+  crash) without needing to wait on a Kotlin-side change.
+- **D2 — REVERSED post-review: do not genericize `unwrapVoid`; keep its concrete `ApiResult<KotlinUnit>`
+  parameter, delete `testUnwrapVoidThrowsOnFailure` instead.** The original version of this decision
+  genericized `unwrapVoid<T: AnyObject>(_ result: ApiResult<T>)` on the reasoning that its body discards
+  the payload entirely, so the type argument was "not load-bearing." Opus's review caught that this
+  reasoning proves too little: the concrete `ApiResult<KotlinUnit>` parameter is load-bearing as a
+  **compile-time assertion** that this endpoint returns `Unit` — genericizing it means a future slice-2
+  call site (e.g. `unwrapVoid(try await sdk.user.updateProfile.invoke(...))`, which actually returns a
+  `User`) would keep compiling and silently discard a real payload with zero signal, which is exactly
+  the class of "silently misbehave" this bridge exists to prevent (I4). Opus also caught that this
+  decision was inconsistent with D3 immediately below it: D3 deletes `testUnwrapListThrowsOnFailure` on
+  the grounds that `unwrapList`'s failure branch is just `unwrap`'s failure branch, already covered by
+  `testUnwrapFailureThrowsMentoraErrorWithFieldsAndHttpStatus` — the identical argument applies verbatim
+  to `unwrapVoid`, whose entire body is `_ = try unwrap(result)`. Applying D3's own rule consistently:
+  `unwrapVoid` keeps its original concrete signature (reverted), and
+  `testUnwrapVoidThrowsOnFailure` is deleted (its coverage was always redundant with the `unwrap`-level
+  failure test) rather than kept alive by weakening production typing. Zero coverage lost, zero
+  production risk traded away, and now consistent with D3/D4's treatment of every other function in this
+  file. `unwrapList`/`unwrapPage`/`unwrapBool`/`unwrapInt` are unaffected by this reversal.
+- **D3 — delete `testUnwrapListThrowsOnFailure`, replace with an element-cast-failure test.** The
+  deleted test's `let result = failure as! ApiResult<NSArray>` was a D114 force-cast of the same shape
+  now suspected of triggering (or at least co-occurring with) the run #15 crash, and `unwrapList`'s
+  failure branch is just `unwrap`'s failure branch (`let raw = try unwrap(result)`) — already covered by
+  `testUnwrapFailureThrowsMentoraErrorWithFieldsAndHttpStatus` once that test itself no longer force-casts
+  (see step 4a). The replacement test, `testUnwrapListThrowsWhenAnElementIsNotTheNamedType`, exercises a
+  previously-untested real branch (D112's element-cast-count mismatch throw) via the already-proven
+  `Success` path, with no force-cast needed at all.
+- **D4 — no `unwrapPage` failure test added (asymmetry, deliberate).** `unwrapPage` has the identical
+  `let raw = try unwrap(result)`-style failure path, already covered indirectly by the same
+  `unwrap`-level failure test, and a bespoke `unwrapPage` failure test would need the same kind of
+  force-cast into a mismatched `ApiResult<CursorPage<Element>>` that D3 just removed elsewhere — so
+  adding one back here would reintroduce exactly the artifact D3 eliminated, for a branch with no new
+  coverage value. `unwrapPage`'s own element-cast-count-mismatch throw (parallel to `unwrapList`'s) also
+  has no dedicated test, same reasoning, but this was already true before D115 and is not newly
+  introduced by it — it stays flagged for a future round, not fixed here.
+- **D5 — new CI diagnostic step (`Diagnose test-host crashes (console-readable)`, `ios-ci.yml`).** Run
+  #15's console log showed nothing beyond "crashed" — no `fatalError` text, no Swift trap, no signal.
+  The actual termination reason lives in the simulator's `.ips` crash report and in the `.xcresult`
+  bundle `xcodebuild test` already writes via `-resultBundlePath`, neither of which is downloadable or
+  readable from this Windows host. The new step prints both directly into the run's console log (which
+  IS readable from Windows via the Actions UI/API) and is deliberately best-effort by construction
+  (`|| true` / `set +e` / unconditional `exit 0`) so it can never itself fail or mask a real failure
+  (J11(e): report, never gate).
+- **D6 — diagnostic ladder file (`ApiResultFailureInteropTests.swift`), REVISED post-review to add
+  Stage 0 and Stage 4b.** A single crash gives no information about which of the several suspect stages
+  is actually responsible. The original 5-stage ladder (construct → read properties → wrap in
+  `MentoraError` → dispatch a bare `Failure` via `onEnum(of:)` → control dispatch of a `Success`) had a
+  gap both reviews caught independently: **the original Stage 4 does not reproduce the actual crash
+  condition.** `onEnum(of: makeFailure())` passes a value whose *static* type is already `ApiResultFailure`,
+  so SKIE's generic `__Sealed` parameter binds directly to `ApiResultFailure` — but the 4 tests that
+  crashed in run #15 called `onEnum(of:)` (via `unwrap`) on a value **statically typed as a mismatched**
+  `ApiResult<NSString>`/`ApiResult<KotlinUnit>`/`ApiResult<NSArray>` whose *dynamic* type was
+  `ApiResultFailure` — the exact generic-specialization mismatch H1's mechanism (see (b)) requires. A
+  green original-Stage-4 does not refute H1, and a crashing one would not cleanly confirm it either,
+  because it never sets up the mismatch at all. Both Opus and Codex independently converged on the same
+  fix: add a stage that actually holds the `Failure` behind a mismatched static type before dispatching
+  it. Two new stages added:
+  - **Stage 0 — isolates the force-cast operation alone**, with no dispatch afterward: `let mismatched =
+    makeFailure() as! ApiResult<NSString>`, asserting non-nil. If Stage 0 alone crashes, H-cast is
+    confirmed and H1/H2 are not implicated at all.
+  - **Stage 4b — isolates dispatch on a mismatched-but-real static type**: takes the Stage-0-style
+    force-cast result and calls `onEnum(of:)` on *that* (a value statically `ApiResult<NSString>`,
+    dynamically `ApiResultFailure`) — the actual configuration the 4 original crashing tests exercised.
+    If Stage 0 passes but Stage 4b crashes, that isolates the defect specifically to `onEnum(of:)`'s
+    mismatched-static-type dispatch, which is H1's precise mechanism.
+  Each stage adds exactly one step over the previous one so the next CI run's specific pass/crash
+  pattern — not guesswork — pinpoints the failing stage. See the corrected table in (f) below. Codex's
+  own recommendation was followed verbatim: "run the mismatch case under both Debug and Release" was
+  considered but deferred — this project's CI only builds Debug today, and adding a Release CI
+  configuration is out of scope for this fix round; the ladder's result under Debug is still the best
+  evidence available and is recorded as such, not overclaimed as covering Release too.
+
+**(e) Deliberate removal of `assert(...)` in `unwrapList`/`unwrapPage` — a partial walk-back of D112
+review-fix round #2.** D112's review-fix round added `assert(mapped.count == raw.count, ...)` /
+`assert(items.count == page.items.count, ...)` immediately before the equivalent `guard ... else {
+throw ... }` in each function, reasoning that `assert` compiles out entirely under `-O` (Release) and
+so needed a `guard`/`throw` as the real, always-present safety net (I4). That reasoning about Release
+builds was correct and the `guard`/`throw` stays. But CI's `xcodebuild build -configuration Debug` is a
+**Debug** build, where `assert` is very much live — and in Debug, the `assert` fires and **aborts the
+process before the `throw` on the next line is ever reached**. That made the cast-failure branch
+untestable (an `assert`-triggered abort can't be caught by `XCTAssertThrowsError`) and reintroduced,
+in Debug specifically, exactly the same "hard-abort instead of a catchable throw" problem (I4) that
+D112 originally set out to close for Release. Both `assert` lines are removed; the unconditional
+`guard ... else { throw ... }` is now the sole safety net in both configurations, and
+`testUnwrapListThrowsWhenAnElementIsNotTheNamedType` (D3, step 4d) is the first test in this project
+to actually exercise that branch and prove it throws rather than aborts.
+
+**(f) Status: PENDING CI — the next `ios-ci.yml` run (run #16, or whatever the next run number
+actually is) is the real verification, not this document.** How to read it (table REVISED post-review
+to fix the internally-contradictory rows both Opus and Codex flagged in the original version, and to
+cover the new Stage 0/Stage 4b tests):
+
+| Result on the next run | Meaning |
+|---|---|
+| Stage 0 crashes (regardless of anything else) | H-cast confirmed: the force-cast operation itself traps. H1/H2 are not implicated by this result alone. This would also mean Codex's SE-0057-based "H-cast is effectively ruled out" opinion was wrong for this specific case — worth a follow-up note back to future reviews on that point. |
+| Stage 0 passes, Stage 4b crashes | H1 confirmed and precisely isolated: `onEnum(of:)`'s dispatch specifically mishandles a mismatched-static-type value holding a `Failure`. Delete Stage 4b (it calls the confirmed-bad API/configuration on purpose) and record the finding — do not attempt to "fix" `onEnum(of:)` itself, it is SKIE-generated code; the real fix is exactly what D1 already did (never route production code through it in this shape). |
+| `testStage1ConstructsFailure` and/or `testStage2ReadsFailureProperties` crash | H3 — the defect is in constructing/reading a bare `ApiResultFailure` at all, independent of any cast or dispatch. Would need a Kotlin-side follow-up task, not a further Swift-side fix. |
+| `testStage3MentoraErrorFromFailure` crashes (but Stage 1/2 pass) | H2 — the defect is in `MentoraError(failure:)`'s property reads. Fix belongs in `MentoraError.swift`, not `ApiResultBridge.swift`. |
+| Stage 0, Stage 4b, and the original Stage 4 (bare-dispatch) all pass, and the whole suite is green | **None of H-cast/H1/H2/H3 is confirmed by this round.** This is a real, useful result — it means the D1 rewrite is safe to keep regardless of root cause — but per both reviews it must NOT be recorded as "H1 confirmed and fixed" the way the original version of this table said. The honest status is "root cause remains unconfirmed; D1's production fix is validated as safe and sufficient to unblock T5, and the investigation is closed as a known-unresolved-but-mitigated risk unless it recurs." |
+| Everything still crashes (the whole suite, not just the new stages) | The D1 `unwrap` rewrite did not address the real cause, or a new, different defect was introduced by this round's other changes. Read the new diagnostic CI step's printed `.ips` crash report in the console log first — it will name the actual crashing frame directly, which is the next real lead, not another hypothesis. |
+
+No Swift compile/run is possible on this Windows host — as with D113/D114, this entire round is
+authored blind against the real CI-run-#15 evidence, the architect's original research, and two
+independent reviews (Opus primary, Codex second opinion per this project's routing rules for
+critical-production-path findings), and stands or falls on the next real CI run.

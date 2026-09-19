@@ -68,6 +68,19 @@ struct MentoraError: Error {
                              message: "Bridge failed to cast one or more elements for \(context).")
     }
 
+    /// The third failure the bridge itself can originate: an `ApiResult` value that is neither
+    /// `Success` nor `Failure`. Unreachable today (`ApiResult` is a 2-case sealed class in
+    /// `mobile/shared/.../ApiResult.kt`), but `ApiResultBridge.unwrap` no longer routes through
+    /// SKIE's generated `onEnum(of:)`, whose own fall-through is a `fatalError` -- and a bridge
+    /// must throw, never hard-kill the process (I4). See DECISIONS_LOG D115.
+    /// Takes a CLASS NAME only -- never the instance: `ApiResult.Failure.toString()` embeds
+    /// `message` and `fields`, which may carry user-supplied values (AUTH_SECURITY.md).
+    static func unexpectedSubtype(_ className: String) -> MentoraError {
+        logBridgeFailure("unexpectedSubtype", context: className)
+        return MentoraError(code: ApiErrorCode.Unknown(raw: "IOS_BRIDGE_UNEXPECTED_SUBTYPE"),
+                             message: "Bridge received an unrecognized ApiResult subtype: \(className).")
+    }
+
     /// Logs that a bridge-*self-generated* failure occurred -- distinct from an ordinary
     /// backend-reported `ApiResultFailure`, which is never logged here (only these two
     /// bridge-internal cases get this treatment; see `ApiResultBridge.swift`). `NSLog`, not `print`,

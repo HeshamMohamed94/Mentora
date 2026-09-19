@@ -341,6 +341,63 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             2>&1 | tee "${RUNNER_TEMP}/xcodebuild-test.log"
 
+      # D115: CI run #15 crashed the test host on 4 tests with ZERO diagnostic in xcodebuild's
+      # stdout -- the real termination reason lives in the simulator crash report and the
+      # .xcresult, neither of which is readable from the Windows dev host (artifact downloads
+      # are not available there). This step prints both into the console log, which IS readable.
+      # Best-effort by construction: every command is `|| true` and the step always exits 0, so
+      # it can never mask or invent a failure (J11(e): it reports, it does not gate).
+      #
+      # NOTE (D115, security tradeoff, explicitly accepted for now): this step prints raw crash-report
+      # contents to the CI console log, which is PUBLIC (this repo is public). If SKIE's own generated
+      # onEnum(of:) fatalError fallback is ever what's actually crashing, its message interpolates the
+      # Kotlin Failure instance's toString(), which embeds real `message`/`fields` text. Today's test
+      # fixtures are non-sensitive ("m", a placeholder email-required message), so there is no real
+      # exposure yet -- but if this step is ever kept around long-term rather than deleted once D115
+      # closes, revisit whether crash-report content should be redacted or restricted to a
+      # private artifact instead of the public console log.
+      - name: Diagnose test-host crashes (console-readable)
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          echo "=== 1. Duplicate Obj-C class check (project.yml iosAppTests link:false, D112 open question) ==="
+          if [ -f "${RUNNER_TEMP}/xcodebuild-test.log" ]; then
+            if grep -n "is implemented in both" "${RUNNER_TEMP}/xcodebuild-test.log"; then
+              echo "::warning::Duplicate Obj-C class detected -- XcodeGen's link:false did NOT take effect."
+            else
+              echo "OK: no 'is implemented in both' warning -- link:false confirmed working."
+            fi
+          else
+            echo "No xcodebuild-test.log (the test step never ran)."
+          fi
+
+          echo ""
+          echo "=== 2. Simulator crash reports (.ips) -- the actual termination reason ==="
+          mkdir -p "${RUNNER_TEMP}/diagnostics"
+          for DIR in "$HOME/Library/Logs/DiagnosticReports" "/Library/Logs/DiagnosticReports" "$HOME/Library/Developer/CoreSimulator/Devices"/*/data/Library/Logs/DiagnosticReports; do
+            [ -d "$DIR" ] || continue
+            find "$DIR" -type f \( -name '*.ips' -o -name '*.crash' \) -mmin -180 -print 2>/dev/null | while IFS= read -r f; do
+              echo "----------------- $f -----------------"
+              cat "$f"
+              echo ""
+              cp "$f" "${RUNNER_TEMP}/diagnostics/" 2>/dev/null || true
+            done
+          done
+
+          echo ""
+          echo "=== 3. xcresulttool: test results summary ==="
+          xcrun xcresulttool get test-results summary --path "${RUNNER_TEMP}/iosAppTests.xcresult" \
+            || xcrun xcresulttool get --legacy --format json --path "${RUNNER_TEMP}/iosAppTests.xcresult" \
+            || echo "xcresulttool unavailable / bundle missing."
+
+          echo ""
+          echo "=== 4. xcresulttool: per-test detail (failure messages + crash info) ==="
+          xcrun xcresulttool get test-results tests --path "${RUNNER_TEMP}/iosAppTests.xcresult" \
+            || echo "xcresulttool 'tests' subcommand unavailable on this Xcode."
+
+          exit 0
+
       # ---------------------------------------------------------------------------------------
       # The MC-1 artifact that unblocks Windows-side authoring: whatever Swift/Obj-C interface of the
       # shared framework actually exists after this run, plus a `swift-api-digester` dump of the real
@@ -443,6 +500,7 @@ jobs:
             ${{ runner.temp }}/xcodebuild-test.log
             mobile/shared/build/reports/tests/**
             mobile/shared/build/test-results/**
+            ${{ runner.temp }}/diagnostics/**
           retention-days: 7
           if-no-files-found: warn
 
