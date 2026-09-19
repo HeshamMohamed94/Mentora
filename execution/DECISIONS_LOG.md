@@ -5734,7 +5734,14 @@ better design) — recorded here rather than editing the LOCKED doc.
 Generator idempotency and the completion-gate grep (`Font.system(size:`/`UIFontMetrics` absent from
 both new production files) were re-verified after applying all fixes above.
 
-**Status: reviewed, fixes applied, not yet pushed / not yet CI-verified.** Next: push, trigger real
-`ios-ci.yml`, inspect the actual macOS/Xcode build + `xcodebuild test` result before calling slice 3a
-DONE. Slices 3b (theme-root wiring — the only part of slice 3 with real KMP/SKIE risk) and 3c (token
-gallery + completion-gate script) remain unstarted, per the architect's 3a/3b/3c split.
+**Status: DONE — CI run #23 GREEN** (https://github.com/HeshamMohamed94/Mentora/actions/runs/35440525334).
+Pushed as `7bfc4f3` on top of the `d9d97b8` checkpoint. Both real steps passed on the first attempt:
+`xcodebuild - build the app for the Simulator` and `xcodebuild - run the XCTest unit target`
+(covering `MentoraShapeTests` and `MentoraElevationTests`, plus slice 1/2's suites in the same
+target); the crash-diagnostic step was clean; the xcresult-upload-on-failure step correctly skipped
+(no failures). This is the first real compile of slice 3a's Swift code (none of it had compiled on
+the Windows authoring host) and it passed clean, including the two riskiest, review-flagged bits:
+the dark-mode `.mentoraSurfaceElevated` default and the `shadowColor`→`shadowColorAssetName`
+structural fix. T6 slice 3a is complete and CI-confirmed. Sub-slices 3b (theme-root wiring — the
+only part of slice 3 with real KMP/SKIE risk) and 3c (token gallery + completion-gate script) are
+next, per the architect's 3a/3b/3c split.
