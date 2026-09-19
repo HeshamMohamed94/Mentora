@@ -5662,3 +5662,79 @@ first-try pass of every geometric assertion, including the two riskiest ones fla
 fixed double-differential tracking algebra, and the unverified-until-now Arabic-branch 3% tolerance
 on the leading-ratio test (test 4) — neither needed a second round. T6 slice 2 is complete and
 CI-confirmed. Slice 3 (shapes/elevation/theme-root wiring) is next and closes T6.
+
+## D120 — 2026-09-19 — T6 slice 3a (shapes/elevation/generator addendum) implemented and reviewed
+
+Generator addendum (`tools/token-pipeline/generate.js`): purely additive — `iosBorderWidthLines()`
+(new `MentoraBorderWidth` enum) and `iosShadowColorExtensionLines()` (5 `mentoraShadowElevation0..4`
+`Color` accessors appended to the existing extension template). Re-run twice on Windows with zero
+further diff (idempotent) and `git status --porcelain` after regeneration touches only iOS-target
+files — no web/Android drift. New `Theme/MentoraShape.swift` (`InsettableShape`, radius-step-keyed,
+`.sheetTop` using `UnevenRoundedRectangle` for a real top-corners-only bottom-sheet shape, kept
+distinct from `.xlarge`'s all-corners dialog shape per an earlier architect catch that the master
+plan's prose had conflated the two even though `COMPONENTS.md`/`design-tokens.json` specify separate
+shapes) and `Theme/MentoraElevation.swift` (`MentoraElevationLevel` — named to avoid a redeclaration
+collision with the generated `MentoraTokens.swift#MentoraElevation` struct — plus the
+`.mentoraElevation(...)` view modifier). Also deletes `Theme/MentoraTypography.swift`'s now-dead
+`#if DEBUG MentoraScaledSizeProbe`, deferred from D119.
+
+**Self-review, before any Opus pass:** found and fixed one real defect — `MentoraElevationLevel`'s
+`radius`/`y` were hand-re-transcribing literal values that already exist on the generated
+`MentoraTokens.swift#MentoraElevation.level<N>` steps; fixed to delegate to those generated constants
+via a `generatedStep` switch, removing the silent-drift risk if `design-tokens.json`'s elevation
+values ever change.
+
+**Opus review (from scratch — an earlier attempt had been stopped mid-run for a planned shutdown,
+before any findings, per D-adjacent `CURRENT_STATUS.md` resume note) independently re-ran the
+generator on this host and confirmed idempotency/no-drift itself rather than trusting the self-report,
+hand-verified every token value against `design-tokens.json`/theme JSON, confirmed the `.sheetTop`
+vs `.xlarge` geometry distinction and `InsettableShape` conformance are both correct, and confirmed
+the elevation-delegation fix left zero remaining duplicated literals. Found no blocking bugs. Three
+medium findings, all fixed before push:**
+1. `MentoraElevationTests.swift`'s asset-resolution test asserted RGB channels even for `.level0`,
+   whose colorset has alpha 0 — semantically meaningless (an alpha-0 color has no observable hue) and
+   a plausible false-failure if the asset catalog stores the rendition premultiplied. Fixed: RGB
+   assertions now skip whenever the expected alpha is 0; alpha tolerance widened `0.002` → `0.005`
+   (still far inside the smallest real gap between adjacent expected alphas, `0.018`), since the old
+   tolerance left near-zero headroom against 8-bit quantization.
+2. `.mentoraElevation(...)`'s default `fill` was `.mentoraSurfaceDefault`. Per
+   `design-tokens.json#/elevation/darkModeNote` and `DESIGN_SYSTEM.md`, dark surfaces are meant to
+   carry elevation via a lighter surface tone (`surface.elevated`) rather than heavier shadow — shadow
+   alpha is already cut ~30% in dark mode by the generator specifically because tone was supposed to
+   do the rest. With the old default, `surface.default == surface.elevated` in dark mode too
+   (`#191A20` either way), so an elevated dark surface read as visually flat apart from its 1pt
+   border — also a divergence from Android, whose `surfaceElevated` maps to a real M3
+   `surfaceContainerHigh` tone. Fixed: default changed to `.mentoraSurfaceElevated`, a no-op in light
+   mode (both tokens resolve to `#FFFFFF` there) and a real fix in dark mode. Matters beyond this
+   slice since T8's component kit will inherit whatever default ships here.
+3. `shadowColorAssetName` (a string) and `shadowColor` (a hand-written per-case `Color` switch) were
+   two independently maintained mappings over the same five cases — a typo in `shadowColor`'s switch
+   (e.g. `.level2` returning `.mentoraShadowElevation3`) would have been a silent, fully green
+   mis-wire, since the asset-resolution test only exercised `shadowColorAssetName`, not the accessor
+   the production modifier actually uses. Fixed structurally rather than by adding a test: `shadowColor`
+   now reads `Color(shadowColorAssetName)`, so the two can no longer diverge.
+
+Also applied, both flagged low-severity/unverifiable-without-a-compiler by the review: the test
+file's `[MentoraElevationLevel: Double]` opacity dictionaries were retyped as `CGFloat` (removing a
+reliance on SE-0307's implicit CGFloat↔Double conversion in a generic `accuracy:` binding position,
+which has no existing precedent elsewhere in this suite); `UITraitCollection(userInterfaceStyle:)`
+(deprecated on iOS 17, this slice's deployment target) replaced with
+`UITraitCollection(mutations:)` at both call sites.
+
+**Not applied (informational only, correctly deferred):** the `.clipShape` omission from the
+elevation modifier was reviewed and confirmed correct as written (adding one after `.background`
+would clip the background's own shadow away) — its doc comment was expanded to state the caller
+contract (a caller needing clipped content, e.g. `CourseCard`'s thumbnail per `COMPONENTS.md`, applies
+its own `.clipShape(shape)` before this modifier) rather than changing any behavior. The generator's
+`check` script covering only web/Android output paths (not iOS) is real but is exactly what slice 3c's
+completion-gate step is scoped to close. `platform-mapping.md`'s reference to a single `.mentoraShadow`
+accessor is stale against this slice's per-level `mentoraShadowElevation<N>` approach (judged the
+better design) — recorded here rather than editing the LOCKED doc.
+
+Generator idempotency and the completion-gate grep (`Font.system(size:`/`UIFontMetrics` absent from
+both new production files) were re-verified after applying all fixes above.
+
+**Status: reviewed, fixes applied, not yet pushed / not yet CI-verified.** Next: push, trigger real
+`ios-ci.yml`, inspect the actual macOS/Xcode build + `xcodebuild test` result before calling slice 3a
+DONE. Slices 3b (theme-root wiring — the only part of slice 3 with real KMP/SKIE risk) and 3c (token
+gallery + completion-gate script) remain unstarted, per the architect's 3a/3b/3c split.

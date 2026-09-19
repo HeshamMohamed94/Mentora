@@ -20,14 +20,10 @@ enum MentoraElevationLevel: String, CaseIterable {
         "mentoraShadowElevation\(levelNumber)"
     }
 
+    /// Resolved via `shadowColorAssetName` (not a second hand-written per-case switch) so the two
+    /// can never independently drift out of sync -- a mis-wire here would otherwise be silent.
     var shadowColor: Color {
-        switch self {
-        case .level0: return Color.mentoraShadowElevation0
-        case .level1: return Color.mentoraShadowElevation1
-        case .level2: return Color.mentoraShadowElevation2
-        case .level3: return Color.mentoraShadowElevation3
-        case .level4: return Color.mentoraShadowElevation4
-        }
+        Color(shadowColorAssetName)
     }
 
     private var levelNumber: Int {
@@ -60,12 +56,22 @@ enum MentoraElevationLevel: String, CaseIterable {
 
 extension View {
     /// `design-system/platform-mapping.md`'s elevation handle. Composes a background fill, the
-    /// step's shadow, and a 1pt border in one call -- never `.clipShape` here, which would clip the
-    /// background's own shadow away.
+    /// step's shadow, and a 1pt border in one call -- deliberately no `.clipShape` on this call's
+    /// own output; adding one after `.background` here would clip the background's own shadow away.
+    /// A caller whose content must follow the shape (e.g. `CourseCard`'s thumbnail per
+    /// `COMPONENTS.md`'s "top corners clipped to card radius") applies its own
+    /// `.clipShape(shape)` on the content BEFORE calling this modifier, which clips only the
+    /// content and leaves this modifier's background shadow intact.
+    ///
+    /// Defaults to `.mentoraSurfaceElevated`, not `.mentoraSurfaceDefault`: per
+    /// `design-tokens.json#/elevation/darkModeNote` and `DESIGN_SYSTEM.md`, dark surfaces carry
+    /// elevation via a lighter surface tone rather than heavier shadow (shadow alpha is already
+    /// reduced ~30% in dark mode by the generator). `surface.default == surface.elevated` in light
+    /// mode, so this is a no-op there and a real fix in dark mode.
     func mentoraElevation(
         _ level: MentoraElevationLevel,
         in shape: MentoraShape = .large,
-        fill: Color = .mentoraSurfaceDefault,
+        fill: Color = .mentoraSurfaceElevated,
         border: Color = .mentoraBorderDefault
     ) -> some View {
         self
