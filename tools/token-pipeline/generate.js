@@ -763,6 +763,16 @@ function iosColorExtensionLines() {
   });
 }
 
+/** One accessor per elevation step's shadow colorset (mentoraShadowElevation<N>) — driven by the
+ *  same elevationLevels() source-of-truth loop the colorset-writing step above uses, not a
+ *  hand-typed list. */
+function iosShadowColorExtensionLines() {
+  return elevationLevels().map(([step]) => {
+    const name = `mentoraShadowElevation${step}`;
+    return `    static var ${name}: Color { Color("${name}") }`;
+  });
+}
+
 const colorMentoraSwift = `${iosGeneratedHeader}
 import SwiftUI
 
@@ -772,6 +782,13 @@ import SwiftUI
 /// branches on colorScheme for these. Mirrors platform-contract.json#/ios/colorMapping.
 extension Color {
 ${iosColorExtensionLines().join('\n')}
+
+    // elevation.0..4 (design-tokens.json) shadow colors — each backs the generated
+    // \`mentoraShadowElevation<N>\` colorset (MentoraColors.xcassets), whose light/dark values are
+    // elevationShadowBase resolved per theme, with the dark value's opacity already baked down by
+    // the 0.7 dark-mode factor (elevation.darkModeNote) at colorset-generation time. No SwiftUI
+    // view ever branches on colorScheme for shadow strength — it's already resolved here.
+${iosShadowColorExtensionLines().join('\n')}
 }
 `;
 
@@ -795,6 +812,12 @@ function iosElevationLines() {
   return elevationLevels().map(
     ([k, v]) =>
       `    static let level${k} = MentoraElevationStep(radius: ${v.ios.radius}, y: ${v.ios.y}, opacity: ${v.ios.opacity})`
+  );
+}
+
+function iosBorderWidthLines() {
+  return Object.entries(tokens.border.width).map(
+    ([k, v]) => `    static let ${swiftIdentifier(camelPath(k))}: CGFloat = ${v}`
   );
 }
 
@@ -859,6 +882,11 @@ ${iosSpacingLines().join('\n')}
 /// shape.radius (design-tokens.json), as pt.
 enum MentoraRadius {
 ${iosRadiusLines().join('\n')}
+}
+
+/// border.width (design-tokens.json), as pt.
+enum MentoraBorderWidth {
+${iosBorderWidthLines().join('\n')}
 }
 
 /// elevation.0..4 (design-tokens.json), using each step's ios.{radius,y,opacity}.

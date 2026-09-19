@@ -52,6 +52,12 @@ enum MentoraRadius {
     static let full: CGFloat = 999
 }
 
+/// border.width (design-tokens.json), as pt.
+enum MentoraBorderWidth {
+    static let `default`: CGFloat = 1
+    static let focus: CGFloat = 2
+}
+
 /// elevation.0..4 (design-tokens.json), using each step's ios.{radius,y,opacity}.
 enum MentoraElevation {
     static let level0 = MentoraElevationStep(radius: 0, y: 0, opacity: 0)

@@ -239,24 +239,3 @@ extension View {
         modifier(MentoraFontModifier(style: style))
     }
 }
-
-#if DEBUG
-/// Test-only reach-through to the private modifier's resolved `@ScaledMetric` value, so the Dynamic
-/// Type harness (a LATER slice) can read the actual scaled size at an injected content-size category
-/// without duplicating the scaling logic. Not used by any production code path.
-struct MentoraScaledSizeProbe: View {
-    @ScaledMetric private var scaledSize: CGFloat
-    private let onResolve: (CGFloat) -> Void
-
-    init(style: MentoraTextStyle, onResolve: @escaping (CGFloat) -> Void) {
-        _scaledSize = ScaledMetric(wrappedValue: style.metrics.fontSize, relativeTo: style.anchor)
-        self.onResolve = onResolve
-    }
-
-    var body: some View {
-        Color.clear
-            .frame(width: 1, height: 1)
-            .onAppear { onResolve(scaledSize) }
-    }
-}
-#endif

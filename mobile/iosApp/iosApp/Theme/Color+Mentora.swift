@@ -55,4 +55,15 @@ extension Color {
     static var mentoraInfoOnInfoContainer: Color { Color("mentoraInfoOnInfoContainer") }
     static var mentoraOverlayScrim: Color { Color("mentoraOverlayScrim") }
     static var mentoraOverlayChipScrim: Color { Color("mentoraOverlayChipScrim") }
+
+    // elevation.0..4 (design-tokens.json) shadow colors — each backs the generated
+    // `mentoraShadowElevation<N>` colorset (MentoraColors.xcassets), whose light/dark values are
+    // elevationShadowBase resolved per theme, with the dark value's opacity already baked down by
+    // the 0.7 dark-mode factor (elevation.darkModeNote) at colorset-generation time. No SwiftUI
+    // view ever branches on colorScheme for shadow strength — it's already resolved here.
+    static var mentoraShadowElevation0: Color { Color("mentoraShadowElevation0") }
+    static var mentoraShadowElevation1: Color { Color("mentoraShadowElevation1") }
+    static var mentoraShadowElevation2: Color { Color("mentoraShadowElevation2") }
+    static var mentoraShadowElevation3: Color { Color("mentoraShadowElevation3") }
+    static var mentoraShadowElevation4: Color { Color("mentoraShadowElevation4") }
 }
