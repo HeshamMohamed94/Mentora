@@ -225,7 +225,10 @@ final class LocalizationPlumbingTests: XCTestCase {
     }
 
     @MainActor
-    private func measure(_ content: Text) -> CGFloat {
+    private func measure(_ content: some View) -> CGFloat {
+        // `content` may already be an opaque `some View` (e.g. `Text(...).environment(\.locale, ...)`
+        // returns `ModifiedContent<Text, _EnvironmentKeyWritingModifier<Locale>>`, not `Text`), so the
+        // fixedSize modifier is applied here rather than requiring every call site to produce a `Text`.
         let host = UIHostingController(rootView: content.fixedSize(horizontal: true, vertical: true))
         host.view.setNeedsLayout()
         host.view.layoutIfNeeded()
