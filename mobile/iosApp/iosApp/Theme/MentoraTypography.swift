@@ -181,6 +181,17 @@ enum MentoraTypographyRules {
         isArabic ? arabicLetterSpacing : style.metrics.tracking
     }
 
+    /// T8 slice 1: the SIZE-ONLY composition `MentoraFontModifier` feeds to
+    /// `Font.system(size:weight:)` -- extracted as a pure, directly-testable function (rather than
+    /// living only inline inside the `private` `MentoraFontModifier.body`) so
+    /// `MentoraTypographyScaleTests.swift` can assert both "`scale: 1.0` is exactly a no-op" and "a
+    /// real scale produces the exact expected proportional size" as plain arithmetic, without a
+    /// rendered-geometry measurement that would otherwise be contaminated by the deliberately
+    /// UNSCALED `tracking`/`lineSpacing` contributions (see `MentoraFontModifier.scale`'s doc comment).
+    static func scaledFontSize(scaledSize: CGFloat, scale: CGFloat) -> CGFloat {
+        scaledSize * scale
+    }
+
     /// `design-tokens.json#/typography/fontWeight` numeric values -> SwiftUI `Font.Weight`.
     /// The generated metrics carry the NUMBER (400/500/600/700); this is the only place it becomes
     /// a `Font.Weight`.
@@ -215,15 +226,30 @@ private struct MentoraFontModifier: ViewModifier {
 
     private let style: MentoraTextStyle
 
-    init(style: MentoraTextStyle) {
+    /// T8 slice 1 (ADDITIVE): a multiplicative, SIZE-ONLY scale factor -- e.g. `Avatar`'s "label.large
+    /// scaled to avatar size" requirement (`COMPONENTS.md § Avatar`). Defaults to `1.0`, so every one
+    /// of the 16 pre-existing `.mentoraFont(_:)` call sites (all in `Theme/MentoraTokenGallery.swift`)
+    /// needs no change and is PROVABLY a no-op
+    /// (`scaledSize * 1.0 == scaledSize` exactly, for any finite `CGFloat` -- see
+    /// `MentoraTypographyScaleTests.swift`'s `test_scaleOneIsExactlyANoOp`). Deliberately multiplies
+    /// only the FONT SIZE passed to `.font(.system(size:weight:))`, never `tracking`/`lineSpacing`
+    /// (both stay computed from the unscaled `scaledSize`, i.e. the plain Dynamic-Type-resolved token
+    /// size) -- the only sanctioned call site for a non-1.0 scale (`Avatar`'s single-line initials
+    /// label) has no multi-line leading or tracking concern to preserve, so this stays the smallest
+    /// possible additive change rather than re-deriving `MentoraTypographyRules`' leading formula for
+    /// a scaled size it was never designed to model.
+    private let scale: CGFloat
+
+    init(style: MentoraTextStyle, scale: CGFloat = 1.0) {
         self.style = style
+        self.scale = scale
         _scaledSize = ScaledMetric(wrappedValue: style.metrics.fontSize, relativeTo: style.anchor)
     }
 
     func body(content: Content) -> some View {
         let isArabic = MentoraTypographyRules.isArabic(locale)
         return content
-            .font(.system(size: scaledSize,
+            .font(.system(size: MentoraTypographyRules.scaledFontSize(scaledSize: scaledSize, scale: scale),
                           weight: MentoraTypographyRules.weight(for: style)))
             .tracking(MentoraTypographyRules.tracking(for: style, isArabic: isArabic))
             .lineSpacing(MentoraTypographyRules.lineSpacing(for: style,
@@ -241,5 +267,15 @@ extension View {
     /// the layout gives way, per `PHASE_5_IOS_SYSTEM_DESIGN.md §§ 11, 21` and `CONTENT_RESILIENCE.md § 8`.
     func mentoraFont(_ style: MentoraTextStyle) -> some View {
         modifier(MentoraFontModifier(style: style))
+    }
+
+    /// T8 slice 1 (ADDITIVE): same as `.mentoraFont(_:)`, plus a multiplicative, SIZE-ONLY `scale`
+    /// factor applied to the resolved (already Dynamic-Type-scaled) font size -- see
+    /// `MentoraFontModifier.scale`'s doc comment for exactly what does and does not get scaled. Does
+    /// NOT introduce a second `.system(size:` call site (`tools/ios-checks/theme-checks.js` Check A1
+    /// still finds exactly one, inside `MentoraFontModifier.body` -- this overload composes the SAME
+    /// modifier, just with a non-default `scale:` argument).
+    func mentoraFont(_ style: MentoraTextStyle, scale: CGFloat) -> some View {
+        modifier(MentoraFontModifier(style: style, scale: scale))
     }
 }

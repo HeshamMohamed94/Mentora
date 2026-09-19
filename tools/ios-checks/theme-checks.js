@@ -70,6 +70,7 @@ const THEME_ROOT_FILE = path.join(THEME_DIR, 'MentoraTheme.swift');
 const COLOR_MENTORA_FILE = path.join(THEME_DIR, 'Color+Mentora.swift');
 const GALLERY_FILE = path.join(THEME_DIR, 'MentoraTokenGallery.swift');
 const APP_FILE = path.join(PROD_DIR, 'MentoraApp.swift');
+const PREVIEW_HOST_FILE = path.join(PROD_DIR, 'Components', 'Support', 'MentoraPreviewHost.swift');
 
 /**
  * Every deliberate exception to a rule below, named once here with its reason, instead of scattered
@@ -89,6 +90,15 @@ const SANCTIONED_EXCEPTIONS = {
     `Check C4's "exactly one production call site" rule — the gallery is a sanctioned SECOND call site, ` +
     `routing every preview variation through the real .mentoraTheme(theme:locale:) entry point rather ` +
     `than injecting environment values directly.`,
+  previewHostMentoraThemeCallSite:
+    `Components/Support/MentoraPreviewHost.swift's ".mentoraTheme(" call site (T8 slice 1) is exempt ` +
+    `from Check C4's "exactly one production call site" rule — it is the ONE sanctioned place outside ` +
+    `MentoraApp.swift/the gallery allowed to call .mentoraTheme(theme:locale:), so every Components/*.swift ` +
+    `#Preview can vary light/dark and en/ar theming without violating C1/C2/C3 (which ban ` +
+    `preferredColorScheme(/environment(\\.locale/environment(\\.layoutDirection outside ` +
+    `Theme/MentoraTheme.swift and are UNCHANGED by this exception — MentoraPreviewHost routes through ` +
+    `the real .mentoraTheme(theme:locale:) entry point, exactly like the gallery does, rather than ` +
+    `injecting those environment values itself).`,
   colorStringLiteralGeneratedOnly:
     `Color("...") string-literal construction (Check B4) is allowed only in the GENERATED ` +
     `Theme/Color+Mentora.swift — every other file must go through that file's static accessors, never a ` +
@@ -504,26 +514,36 @@ function checkC3_layoutDirectionEnvironmentOnlyInThemeRoot(errors) {
   }
 }
 
-/** C4: ".mentoraTheme(" must appear EXACTLY ONCE outside Theme/MentoraTokenGallery.swift (across all
- *  of PROD except that one file — see SANCTIONED_EXCEPTIONS.galleryMentoraThemeCallSites), and that one
- *  occurrence must be in MentoraApp.swift. Occurrences inside the gallery are unlimited/unchecked. */
+/** C4: ".mentoraTheme(" must appear EXACTLY ONCE outside Theme/MentoraTokenGallery.swift AND
+ *  Components/Support/MentoraPreviewHost.swift (across all of PROD except those two sanctioned files —
+ *  see SANCTIONED_EXCEPTIONS.galleryMentoraThemeCallSites / .previewHostMentoraThemeCallSite), and that
+ *  one occurrence must be in MentoraApp.swift. Occurrences inside either sanctioned file are
+ *  unlimited/unchecked — exactly the same treatment C4 already gave the gallery, extended (T8 slice 1)
+ *  to cover the preview host as the SECOND sanctioned call-site file, per the plan's own "exactly these
+ *  two call sites" instruction. C1/C2/C3/C5 are UNCHANGED by this — they still ban
+ *  preferredColorScheme(/locale-or-layoutDirection-environment-writes/the Arabic locale literal outside
+ *  Theme/MentoraTheme.swift with no carve-out for either sanctioned file, since MentoraPreviewHost (like
+ *  the gallery) routes through the real .mentoraTheme(theme:locale:) entry point rather than writing
+ *  those environment values itself. */
 function checkC4_mentoraThemeCallSite(errors) {
   const matches = scanFiles(getProdFiles(), /\.mentoraTheme\(/);
-  const outsideGallery = matches.filter((m) => !isSameFile(m.file, GALLERY_FILE));
-  if (outsideGallery.length !== 1) {
+  const outsideSanctioned = matches.filter(
+    (m) => !isSameFile(m.file, GALLERY_FILE) && !isSameFile(m.file, PREVIEW_HOST_FILE)
+  );
+  if (outsideSanctioned.length !== 1) {
     errors.push(
-      `C4: expected exactly 1 ".mentoraTheme(" call site outside ${relFile(GALLERY_FILE)}, found ` +
-      `${outsideGallery.length}` +
-      (outsideGallery.length
-        ? `: ${outsideGallery.map((m) => `${relFile(m.file)}:${m.line}`).join(', ')}`
+      `C4: expected exactly 1 ".mentoraTheme(" call site outside ${relFile(GALLERY_FILE)} and ` +
+      `${relFile(PREVIEW_HOST_FILE)}, found ${outsideSanctioned.length}` +
+      (outsideSanctioned.length
+        ? `: ${outsideSanctioned.map((m) => `${relFile(m.file)}:${m.line}`).join(', ')}`
         : '.')
     );
     return;
   }
-  const [only] = outsideGallery;
+  const [only] = outsideSanctioned;
   if (!isSameFile(only.file, APP_FILE)) {
     errors.push(
-      `C4: the one ".mentoraTheme(" call site outside the gallery is at ${relFile(only.file)}:` +
+      `C4: the one ".mentoraTheme(" call site outside the sanctioned files is at ${relFile(only.file)}:` +
       `${only.line}, expected it in ${relFile(APP_FILE)} (MentoraRootView).`
     );
   }
@@ -766,7 +786,7 @@ const CHECKS = [
   { name: 'C1: preferredColorScheme( only in MentoraTheme.swift (PROD)', run: checkC1_preferredColorSchemeOnlyInThemeRoot },
   { name: 'C2: locale environment writes only in MentoraTheme.swift (PROD)', run: checkC2_localeEnvironmentOnlyInThemeRoot },
   { name: 'C3: layoutDirection environment writes only in MentoraTheme.swift (PROD)', run: checkC3_layoutDirectionEnvironmentOnlyInThemeRoot },
-  { name: 'C4: .mentoraTheme( exactly one call site outside the gallery, in MentoraApp.swift', run: checkC4_mentoraThemeCallSite },
+  { name: 'C4: .mentoraTheme( exactly one call site outside the gallery/preview host, in MentoraApp.swift', run: checkC4_mentoraThemeCallSite },
   { name: 'C5: Locale(identifier: "ar literal only in MentoraTheme.swift (PROD)', run: checkC5_arabicLocaleLiteralOnlyInThemeRoot },
   { name: 'D1 (additive): no .minimumScaleFactor( anywhere (PROD)', run: checkD1_noMinimumScaleFactor },
   { name: 'D2 (additive): no .dynamicTypeSize( range argument (PROD)', run: checkD2_noDynamicTypeSizeRange },
