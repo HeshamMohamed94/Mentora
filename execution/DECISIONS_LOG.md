@@ -5574,3 +5574,85 @@ Every step succeeded, including `xcodebuild - run the XCTest unit target` (all 1
 xcresult-upload-on-failure step correctly skipped, matching the established green-run pattern from
 T5. T6 slice 1 (typography) is complete and CI-confirmed. Slice 2 (Dynamic Type geometry tests) is
 next.
+
+## D119 — T6 slice 2 (Dynamic Type geometry-rendering tests) implemented
+
+New file: `iosAppTests/MentoraTypographyGeometryTests.swift` — 7 XCTest cases. Slice 1 proved the
+`MentoraTypographyRules` formulas are correct as pure math; this slice proves those formulas actually
+reach real rendered `Text` geometry end to end (through `MentoraFontModifier`'s `@ScaledMetric` +
+`.tracking` + `.lineSpacing` wiring), by hosting real SwiftUI views via `UIHostingController` and
+measuring their geometry — the first test in this codebase to do so. No `mobile/shared` (Kotlin)
+dependency, no `mobile/androidApp/` file touched (pure SwiftUI geometry, Android reference has no
+bearing here); no change to `Theme/MentoraTypography.swift`, `project.yml`, or `ios-ci.yml` — the
+existing directory-based test-source wiring and the existing `xcodebuild - run the XCTest unit
+target` CI step pick this file up automatically.
+
+**Core design constraint: CI's simulator runtime is not pinned to a fixed OS version** (`ios-ci.yml`
+selects the newest available each run), so any assertion against an absolute font metric (a literal
+point height or pixel width) would be a future flake by construction — SF Pro/SF Arabic metrics
+shift across OS releases. Every assertion in this file is therefore either (a) a ratio or
+differential measured within one run, or (b) an en-vs-ar difference over identical ASCII text in an
+identical font, so every unknown font metric cancels algebraically.
+
+**Documented reinterpretation of one master-plan requirement (needs to be on record, not silently
+substituted).** `PHASE_5_IOS_IMPLEMENTATION_PLAN.md`'s T6 "Tests" bullet requires asserting "the
+leading ratio is preserved" between `.large` and `.accessibility5`. Taken literally — the *measured*
+ratio equals the *token*'s `lineHeightRatio` — this is not achievable from real geometry:
+`naturalLineHeightFactor = 1.2` is only an approximation of SF Pro's real natural leading (~1.19),
+and the substituted SF Arabic face's real factor is materially larger still (already disclosed in
+`MentoraTypography.swift`'s doc comment, D118). Also, `.displayLarge`/`.displayMedium` clamp
+`lineSpacing` to 0 by design, so their rendered ratio is just the font's own natural ratio, not a
+designed value. The safe, intent-preserving substitute implemented here: assert the *measured*
+ratio is scale-invariant between `.large` and `.accessibility5` (within 3%) — precisely the property
+the withdrawn `.lineSpacing(lineHeight - scaledSize)` formula destroyed (a 30-60% collapse at
+accessibility sizes, concretely verified per-style by the reviewer against real SF Pro advance
+widths). This is an autonomous engineering judgment call, made and documented per this project's
+established pattern (see D2's reversal, D115's resolution) rather than paused on — flagged here
+explicitly since an architect review noted it should be on record as a reinterpretation of an
+acceptance-criteria clause, not silently substituted.
+
+**Review round (Opus, before any CI push) found one confirmed blocking bug, fixed before commit:**
+the tracking test's original algebra — `D = W(560 chars) - W(280 chars)` under one locale, compared
+against `280 * tracking` — does NOT isolate tracking from the glyph-advance contribution: doubling
+the run doubles both the advance total and the tracking total, and subtracting removes only one copy
+of each, leaving one full (large, unknown) copy of the advance term behind. Concretely, for
+`bodyMedium` at `.large` this would have asserted `2506 ≈ 70` (off by ~2436 pt against a 4.0 pt
+tolerance) — the test would have failed on every style at every Dynamic Type size on the first real
+CI run. **Fixed** by using a double differential instead:
+`(W_en(560) - W_ar(560)) - (W_en(280) - W_ar(280))`, which cancels the glyph-advance term via the
+en/ar subtraction (identical ASCII glyphs render at an identical advance under both locales — only
+the `isArabic`-gated tracking differs) and cancels the `n`-vs-`n-1` gap-count ambiguity via the same
+subtraction, leaving exactly `280 * tracking`. This is also the *only* assertion in either slice-1 or
+slice-2 that verifies `.tracking(_:)` actually propagates from the modifier into rendered geometry —
+its correctness matters beyond this one test.
+
+Minor fixes also applied from the same review round: a doc comment wrongly attributed
+`UIHostingController` to the `UIKit` module (it's declared in SwiftUI; `import UIKit` is still needed
+for the `UIView.setNeedsLayout()`/`.layoutIfNeeded()` calls on its `.view`) — corrected; the
+`ScaledMetric`-hosting probe view was hoisted from a nested local type to file scope (`ScaledSizeProbe`)
+since a `View` conforming type with a `@ScaledMetric` stored property was otherwise unprecedented in
+this repo and reads more verifiably in isolation; `file:`/`line:` source-location parameters were
+threaded through the harness's wrapper functions (`scaledSize`/`textSize`/`linePitch`) so a CI
+failure points at the actual failing assertion line rather than the harness's own internal call
+site — fixing this introduced (and then fixed, before commit) a duplicate-external-label compile
+error (`line: String` for the sample text vs. `line: UInt` for the source line in `linePitch`),
+resolved by renaming the location parameter's external label to `sourceLine`; test 3's doc comment
+gained a caveat noting `NSParagraphStyle.lineSpacing`'s documented non-negative clamping could mask
+an overlap regression from that test alone, with test 4 named as the robust backstop (verified by
+the reviewer to still catch the same regression at >30% drift either way).
+
+**Accepted, monitored risk (not fixed, by design):** test 4's 3% tolerance on the Arabic branch is
+unverified against real SF Arabic optical-size-boundary metrics (the review could not check this
+without a real device/simulator). If CI run #22 reports Arabic-branch drift between 3% and 10%, that
+is a real font-metric finding to record here, not a reason to silently widen the tolerance (the
+in-file doc comment states this explicitly).
+
+**Out of scope, deferred:** `Theme/MentoraTypography.swift`'s `MentoraScaledSizeProbe` (`#if DEBUG`)
+is now genuinely dead code — this slice's own file-scope `ScaledSizeProbe` measures scaled size
+geometrically instead (deterministic via `sizeThatFits`, vs. the production probe's `onAppear`-based
+reporting, which needs a real attached window and is a flake risk for an unattached
+`UIHostingController`). Deleting the production probe and its now-stale doc comment is left for
+slice 3, since this slice does not otherwise touch any app-target (non-test) file.
+
+**Status: PENDING CI.** No Swift toolchain exists on this Windows host — the next real `ios-ci.yml`
+run is this entry's actual verification.
