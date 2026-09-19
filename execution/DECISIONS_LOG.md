@@ -5654,5 +5654,11 @@ reporting, which needs a real attached window and is a flake risk for an unattac
 `UIHostingController`). Deleting the production probe and its now-stale doc comment is left for
 slice 3, since this slice does not otherwise touch any app-target (non-test) file.
 
-**Status: PENDING CI.** No Swift toolchain exists on this Windows host — the next real `ios-ci.yml`
-run is this entry's actual verification.
+**Status: DONE — CI run #22 GREEN** (https://github.com/HeshamMohamed94/Mentora/actions/runs/35419859729).
+Every step succeeded, including `xcodebuild - run the XCTest unit target` (all 21 cases across both
+slice-1's `MentoraTypographyTests` and this slice's `MentoraTypographyGeometryTests`) and the
+crash-diagnostic step (clean); the xcresult-upload-on-failure step correctly skipped. This is a real,
+first-try pass of every geometric assertion, including the two riskiest ones flagged above: the
+fixed double-differential tracking algebra, and the unverified-until-now Arabic-branch 3% tolerance
+on the leading-ratio test (test 4) — neither needed a second round. T6 slice 2 is complete and
+CI-confirmed. Slice 3 (shapes/elevation/theme-root wiring) is next and closes T6.
