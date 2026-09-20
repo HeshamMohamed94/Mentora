@@ -284,6 +284,9 @@ private fun LearningPathDetailsHero(
  * badge, default treatment" line for that one state) but still renders the plain status TEXT — text
  * alone already satisfies "never color alone" without needing a badge/icon for every state.
  */
+// The U+2066/U+2069 isolate marks below are a deliberate, correct bidi fix (see the comment at the
+// Text call), not spoofing — lint's BidiSpoofing detector cannot distinguish the two.
+@Suppress("BidiSpoofing")
 @Composable
 private fun LearningPathDetailsStatusRow(sequenceNumber: Int, status: CourseSequenceStatus) {
     val extended = MaterialTheme.extendedColors

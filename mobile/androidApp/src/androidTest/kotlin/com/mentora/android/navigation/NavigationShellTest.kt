@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
@@ -191,7 +192,7 @@ class NavigationShellTest {
 
     private fun setContentWithAuthState(initial: AuthState) {
         composeTestRule.setContent {
-            var authState by mutableStateOf(initial)
+            var authState by remember { mutableStateOf(initial) }
             // Exposed to test bodies via a local var isn't possible across the setContent boundary,
             // so tests that need to flip auth state declare it themselves (see test 4) instead of
             // calling this helper. This helper is for the fixed-auth-state tests (1, 2, 3, 5).
@@ -369,7 +370,7 @@ class NavigationShellTest {
     fun guestTriggeringAuthGate_recordsPendingIntent_andReturnsToItAfterAuthentication() {
         lateinit var setAuthState: (AuthState) -> Unit
         composeTestRule.setContent {
-            var authState by mutableStateOf<AuthState>(AuthState.Unauthenticated)
+            var authState by remember { mutableStateOf<AuthState>(AuthState.Unauthenticated) }
             setAuthState = { authState = it }
             val nc = rememberNavController()
             navController = nc

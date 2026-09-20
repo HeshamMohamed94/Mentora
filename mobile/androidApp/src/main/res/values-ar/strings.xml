@@ -4,6 +4,8 @@
          pass (design-review-locked/Mentora Showcase.dc.html § 17, lines 1513-1521), restated in
          ux/MOBILE_UX.md § 1 and design-to-code/shared/navigation.json#/shells/mobileStudentShell/rtlMirroring.
          Not a fresh/independent translation. -->
+    <!-- Phase 7 T0 — brand name, deliberately identical in every locale, not a missing translation. -->
+    <string name="app_name">Mentora</string>
     <string name="nav_home">الرئيسية</string>
     <string name="nav_explore">استكشف</string>
     <string name="nav_my_learning">مساحة التعلّم</string>
