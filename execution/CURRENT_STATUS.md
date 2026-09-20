@@ -1,15 +1,97 @@
 # Mentora — Current Implementation Status
 
-**Last updated:** 2026-09-20 — **SESSION CHECKPOINTED / STOPPED BY EXPLICIT USER REQUEST** (user needed to
-shut down their computer and asked to stop Mentora work to preserve weekly usage — see the exact resume
-point in the "SESSION CHECKPOINT" box immediately below). PHASE 5 — iOS — **IN_PROGRESS**, in the user's
-**parity-focused completion mode** (D132) — T9/T10 complete and real-CI-green, T11 (Component Kit B, 4
-slices) fully implemented and pushed — slices 1-3 confirmed real-CI-green and documented (D134/D135/D136);
-**slice 4 (the final slice, closing out T11) is pushed as commit `adb8876` with its remote CI run
-IN PROGRESS/UNVERIFIED at the moment of this checkpoint — this is the single most important thing to
-check first on resume.** No Mac/Xcode available for interactive testing — see "PHASE 5 — iOS" near the
-end of this file and `DECISIONS_LOG.md` D96/D132/D134/D135/D136 for the full account. Phase 4 — Android —
-**COMPLETE**, all 20 tasks done, approved by the user before Phase 5 began.
+**Last updated:** 2026-09-20 — **PHASE 5 (iOS) — DEFERRED / PARTIALLY IMPLEMENTED**, by explicit user
+project decision (see "PHASE 5 FREEZE" box immediately below) — NOT a task failure, NOT abandoned, and
+NOT to be read as PASS/COMPLETE. iOS is no longer a blocking priority for the remaining Mentora phases
+because no Mac/iPhone is available for meaningful interactive validation. **T11 (Component Kit B, 4
+slices) is fully DONE and real-CI-green — slice 4's previously-unverified CI run (35482199062) has since
+been confirmed `success` (314/314 tests, 0 failures), closing out T11 in full.** T12 onward (T12-T23) are
+NOT started. Phase 4 — Android — **COMPLETE**, all 20 tasks done, approved by the user before Phase 5
+began. **Phases 6-8 now proceed with Website / Android / Backend / KMP shared core as the primary
+supported/demo platforms — see the "PHASE 5 FREEZE" box for the full decision.**
+
+---
+
+## PHASE 5 FREEZE — 2026-09-20 — DEFERRED / PARTIALLY IMPLEMENTED, BY EXPLICIT USER PROJECT DECISION
+
+**Read this box first.** This supersedes the "SESSION CHECKPOINT" box below (kept intact underneath for
+its full historical detail — everything in it is still accurate as a record of what happened, it is just
+no longer the live resume plan). Two things happened back to back: (1) the prior session stopped mid-slice
+to preserve weekly usage (the checkpoint below), and (2) on resume, the user made an explicit **project
+decision** to defer all further iOS implementation, not just pause for usage — because this machine has no
+Mac/iPhone for meaningful interactive validation, and iOS work should not gate the rest of the project.
+
+- **First action on this resume:** `gh run view 35482199062 --json status,conclusion,url` was re-run per
+  the checkpoint's own "EXACT FIRST ACTION ON RESUME" instructions. Result: `"conclusion":"success"`,
+  `"status":"completed"`. Test-count evidence pulled from the run log: `Executed 314 tests, with 0
+  failures (0 unexpected)` — same count as slice 3 (slice 4 added no new tests; `LoadingState`/
+  `EmptyState`/`ErrorState`/`SuccessState`/`MentoraSheet`/`MentoraDialog` are view-only components with no
+  dedicated unit-test file, consistent with several earlier slices). **T11 (Component Kit B) is therefore
+  fully DONE, real-CI-confirmed, all 4 slices — see the updated T11 task-table row.** No D137 narrative
+  write-up beyond this note and the task-table update; no code was touched. See `DECISIONS_LOG.md` D137.
+- **Repository state at this freeze:** `main`, latest commit `6bb0d90` (prior session's checkpoint-doc
+  commit) before this freeze's own doc commit. Working tree was clean and fully in sync with
+  `origin/main` (`git status` empty, `+0/-0` ahead/behind) at the start of this freeze — no uncommitted
+  iOS work existed to preserve or checkpoint beyond what commit `adb8876` (T11 slice 4) already captured.
+  No local background agents, watchers, or polling loops were running (checked: no matching processes, no
+  scheduled cron jobs, no active sub-agents) — the prior checkpoint's `TaskStop` on the CI-watch loop
+  already covered this.
+- **Project decision recorded:** iOS completion and manual iOS validation are **explicitly deferred** and
+  are **NOT blockers** for continuing Mentora's remaining portfolio/demo phases. For **Phases 6-8**, the
+  primary supported/demo platforms are **Website, Android, Backend, and the KMP shared core**. Existing
+  iOS code must remain build-compatible where reasonably possible (i.e. don't gratuitously break
+  `mobile/iosApp/`), but new Phase 6-8 work must **not** be blocked waiting on iOS-specific UI completion
+  or manual iOS validation. Any shared/KMP (`mobile/shared/`) changes made in Phases 6-8 should still
+  avoid unnecessarily breaking the existing iOS integration (i.e. don't remove/rename `expect`/`actual`
+  surface the iOS side depends on without checking), but iOS-side follow-through on such a change is not
+  required to land the Phase 6-8 work itself.
+- **PHASE 5 status is now `DEFERRED / PARTIALLY IMPLEMENTED`** — explicitly NOT `PASS`, NOT `COMPLETE`,
+  NOT `IN_PROGRESS`. It may resume later at the user's own explicit request; nothing about this decision
+  discards, resets, or invalidates any work already done (T1-T11 stand as real, CI-confirmed complete).
+
+### What is complete (Phase 5, as of this freeze)
+
+T1, T1b (compile/unit-test scope), T2, T3, T4a, T4b, T4c, T5, T6, T7, T8, T9, T10, and now **T11 in
+full (all 4 slices)** — see the task table below for each task's own detailed status line. All of this is
+real, CI-confirmed-green on GitHub Actions macOS runners (never simulated/fabricated), with heavy
+independent Opus/Codex review throughout (see `DECISIONS_LOG.md` D96 onward). What is **not** complete
+for the already-DONE tasks: MC-2 (live simulator behavior against a real backend) and MC-3 (visual/RTL/
+Dynamic-Type/VoiceOver verification) remain Mac-gated and unstarted for every task that needs them — this
+was always the plan given no Mac was available, not a new gap introduced by this freeze.
+
+### What is deferred (Phase 5, as of this freeze)
+
+- **T12-T23** (Explore/Learning Paths through the final acceptance audit) — NOT started, zero
+  `Features/Explore/*.swift` or later screen files exist. Some read-only research toward T12 (reading
+  Android's `ExploreViewModel.kt`/`ExploreScreen.kt`) happened in the prior session but was never
+  persisted to any file or doc — a future resume should re-read those Android files fresh rather than
+  assume any prior research context survives.
+- **MC-1 through MC-4** (Mac-dependent manual verification passes) for every task, past and future —
+  blocked on real Mac/iPhone hardware, which does not exist on this project currently.
+- The Phase 5 completion audit, final acceptance sign-off, and the F1 ("all 10 façades exercised")
+  per-façade evidence table (T5 built the bridge for all 10 façades, but F1's own required evidence is a
+  T23 handoff artifact) are all correspondingly deferred along with T12-T23.
+
+### Exact resume point for a future iOS return
+
+1. Re-read this "PHASE 5 FREEZE" box and the "SESSION CHECKPOINT" box below it in full — do not resume
+   from memory of a past conversation.
+2. Confirm nothing has drifted: `git log --oneline -5` should still show `adb8876` (T11 slice 4) as the
+   latest real iOS commit unless further Phase 6-8 work has since touched `mobile/iosApp/` or
+   `mobile/shared/` incidentally.
+3. Next unstarted task is **T12 — Explore + Learning Paths segment**. Re-read Android's real
+   `ui/explore/{ExploreScreen,ExploreViewModel}.kt` fresh (Android is reference-only, not source of truth
+   — see `PHASE_5_IOS_IMPLEMENTATION_PLAN.md` § 1 and D96/D132) and confirm the real Swift-bridged
+   `MentoraClient` catalog/learningPaths surface against a current `kmp-swift-interface` CI artifact before
+   writing any Swift, per this project's established "real API grounding" discipline.
+4. Continue under the same parity-focused completion mode (D132) and tiered review policy already in use
+   for T9-T11, unless the user gives different instructions at that time.
+5. Do **not** treat "iOS was deferred" as license to skip CI/review discipline once resumed — the same
+   real-CI-green, real-review bar applies to any future iOS work as applied to T1-T11.
+
+**macOS CI status at this freeze:** green — the `ios-ci.yml` GitHub Actions macOS workflow is fully
+working end to end (compile, link, `xcodebuild build`, `xcodebuild test`) and its last real run (commit
+`adb8876`, run 35482199062) succeeded. There is no known broken/red CI state being left behind.
 
 ---
 
@@ -1036,7 +1118,11 @@ regression.
 
 ## PHASE 5 — iOS
 
-**Status:** IN_PROGRESS (started 2026-09-18). Planning complete: `execution/PHASE_5_ACCEPTANCE_CRITERIA.md`
+**Status:** **DEFERRED / PARTIALLY IMPLEMENTED** (started 2026-09-18, deferred 2026-09-20 by explicit user
+project decision — see the "PHASE 5 FREEZE" box near the top of this file). T1-T11 are real, CI-confirmed
+DONE; T12-T23 are NOT started and are not currently planned to be worked on. This is not a PASS/COMPLETE
+and not an abandonment — iOS may resume at the user's own future request. Planning complete:
+`execution/PHASE_5_ACCEPTANCE_CRITERIA.md`
 (categories A-J), `execution/PHASE_5_IOS_SYSTEM_DESIGN.md` (24 sections), `execution/PHASE_5_IOS_IMPLEMENTATION_PLAN.md`
 (dependency-ordered task list). Reviewed twice before any code — Opus (7 substantive + 9 minor findings,
 all fixed) then Codex as an independent second opinion (3 more findings, all fixed). See `DECISIONS_LOG.md`
@@ -1067,8 +1153,8 @@ Swift at all).
 | T8 | Component Kit A (atoms — MentoraButton, MentoraIconButton, MentoraTextField, PasswordField, SearchField, MentoraToggle, MentoraSelect, Badge, CategoryChip, MentoraProgressBar, Avatar, MentoraTabs, MentoraSnackbar; `MentoraIcon`, the plan's 14th atom, was already built in T3) | **✅ TASK T8 FULLY COMPLETE — all 7 slices done, real-CI-green.** See "T8 SLICE 1"/"T8 SLICE 2"/"T8 SLICE 3"/"T8 SLICES 4+5"/"T8 SLICES 6+7" sections below. |
 | T9 | Navigation shell (5-tab `TabView`, `TabRouter`, `AuthGate`/B8) | **✅ TASK T9 COMPLETE — mandatory Opus review applied, real-CI-green.** See "T9 — NAVIGATION SHELL" section below. |
 | T10 | Auth screens (Login, Register — B1/B2/B8/B9) | **✅ TASK T10 COMPLETE — mandatory Opus review + a follow-up verification pass applied, real-CI-green.** See "T10 — LOGIN/REGISTER SCREENS" section below. |
-| T11 | Component Kit B (17 composite components, 4 slices) | **IN PROGRESS — slices 1-3 of 4 DONE, CI-green.** Slice 1 = CourseArtwork system. Slice 2 = CourseCard family. Slice 3 = QuestionCard/AnswerOption/AITutorBubble/AITutorQuickAction/CheckoutSummary. See "T11 SLICE 1"/"2"/"3" sections below. Slice 4 not started. |
-| T12-T23 | Remaining screens through final acceptance audit | **NOT STARTED** — parity-focused completion mode (see D132/`execution/DECISIONS_LOG.md`): continuing automatically task-by-task without per-task approval stops, small-batch implementation, tiered review (mandatory for auth/session/architecture/cross-cutting infra, lighter self-review+CI for ordinary screen work), authored on Windows, compiled by CI; live/visual verification still needs a Mac (MC-2/MC-3/MC-4) and is recorded as NOT TESTABLE, never fabricated. |
+| T11 | Component Kit B (17 composite components, 4 slices) | **✅ TASK T11 FULLY COMPLETE — all 4 slices done, real-CI-green.** Slice 1 = CourseArtwork system. Slice 2 = CourseCard family. Slice 3 = QuestionCard/AnswerOption/AITutorBubble/AITutorQuickAction/CheckoutSummary. Slice 4 = LoadingState/EmptyState/ErrorState/SuccessState/MentoraSheet/MentoraDialog — pushed as `adb8876`, CI run 35482199062 confirmed `success` (314/314 tests, 0 failures) at the "PHASE 5 FREEZE" resume (see that box near the top of this file, and D137). See "T11 SLICE 1"/"2"/"3" sections below for slices 1-3's full detail. |
+| T12-T23 | Remaining screens through final acceptance audit | **NOT STARTED — Phase 5 DEFERRED as of 2026-09-20** (see "PHASE 5 FREEZE" box near the top of this file). Was previously planned under the parity-focused completion mode (D132): continuing automatically task-by-task without per-task approval stops, small-batch implementation, tiered review (mandatory for auth/session/architecture/cross-cutting infra, lighter self-review+CI for ordinary screen work), authored on Windows, compiled by CI. That plan still applies if/when the user resumes iOS work; it is not currently active. Live/visual verification still needs a Mac (MC-2/MC-3/MC-4) and is recorded as NOT TESTABLE, never fabricated. |
 
 ## T6 SLICE 3a — DONE, CI-GREEN (2026-09-19)
 
