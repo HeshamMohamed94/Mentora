@@ -6742,3 +6742,13 @@ Both fixes verified: **18-19/19 passed, one self-healing flake** (`helpers.ts`'s
 **Why this belongs in T3 despite being a `backend/` file:** the fix traces directly to I2 (this task's own completion gate literally cannot be met without a runnable jar) and, once found, is exactly the kind of "small number of genuinely trivial errors -> fix mechanically" situation Design 5.3 already sanctioned for CI-precondition work generally. It was not folded in silently: recorded here in full, its own dedicated commit (`0282f91`), git-diff-scoped to exactly one file.
 
 **Next:** T4 -- `android-ci.yml`.
+
+## D152 -- 2026-09-20 -- PHASE 7 T4 done: `android-ci.yml` green on the first real run
+
+**Decision:** wrote `.github/workflows/android-ci.yml` per `PHASE_7_SYSTEM_DESIGN.md` § 5 -- lint, `:shared`+`:androidApp` JVM unit tests, instrumented-source compile-only (D-EMU: instrumented tests stay local/manual, mirroring `ios-ci.yml`'s identical iOS boundary and the already-locked Phase 5 decision that Android's gates stay on the developer's Windows machine), debug APK assembly.
+
+**No lint baseline needed** -- T0's mechanical fixes (D148) already brought `:androidApp:lintDebug` to zero errors, so this workflow's `Lint` step needed no further accommodation.
+
+**Verification, real CI:** run `35532967271` -- <https://github.com/HeshamMohamed94/Mentora/actions/runs/35532967271> -- green in 4m32s on the first attempt, no fix needed. Test-report artifact downloaded and parsed: **`:shared` 249/249, `:androidApp` 241/241** -- the exact T0 baseline, not a reduced set. Debug APK artifact confirmed present and downloadable (available for T11's emulator walk). `connectedDebugAndroidTest` appears nowhere in the file; `ios-ci.yml` untouched.
+
+**Next:** T5 -- `tokens-ci.yml`.
