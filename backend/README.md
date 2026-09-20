@@ -190,6 +190,27 @@ Log in via `POST /api/v1/auth/login` with any of the above (see `architecture/AP
 full request/response shape). These are local-only demo credentials with no special privileges beyond
 their role — never reuse this password for anything real.
 
+## CI
+
+`.github/workflows/backend-ci.yml` (Phase 7) runs on every push/PR touching `backend/**`: it starts
+MongoDB as a real single-node replica set (`docker run mongo:8.0 --replSet rs0 --bind_ip_all`, then
+`rs.initiate()` pinned to `localhost:27017` — a plain `services:` container can't take a `--replSet`
+flag, and this backend's transactions and 7 integration test classes require a real replica set, not
+a standalone `mongod`, the same requirement as the "One-time MongoDB setup" section above), then runs
+`./gradlew --stacktrace --warning-mode all classes testClasses`, `./gradlew --stacktrace test`, and
+`./gradlew --stacktrace assemble` against JDK 21 — compile, then the full test suite, then assemble.
+Test reports are uploaded as a build artifact.
+
+**D-LINT — no backend linter, by decision.** No Kotlin linter (ktlint/detekt/spotless) has existed
+anywhere in this project across every phase, and CI deliberately doesn't introduce one now — doing
+so would produce a large, untriaged violation set with no traceability to any specific acceptance
+requirement. `--warning-mode all` surfaces Gradle/Kotlin warnings in the job log without gating on
+them. See `execution/DECISIONS_LOG.md` D147/D149 for the full reasoning.
+
+This workflow never starts the Website or an Android/iOS client and proves nothing about
+cross-client behavior — see `web-ci.yml`'s E2E job and `execution/PHASE_7_IMPLEMENTATION_PLAN.md`
+T10/T11 for that. It never deploys, signs, or publishes anything (ADR-012).
+
 ## Project layout (backend-only, Phase 1)
 
 ```

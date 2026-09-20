@@ -6940,3 +6940,21 @@ Two independent, differently-targeted window-flag-level mechanisms producing a *
 **Files touched: none.** Both fix attempts were fully reverted; the codebase is byte-identical to before this investigation began.
 
 **T11 is now fully closed.** Next: T12 -- demo-environment and documentation accuracy pass.
+
+## D161 -- 2026-09-21 -- PHASE 7 T12 done: demo-environment and documentation accuracy pass, all 3 READMEs updated command-for-command against the real workflow files, I6 re-confirmed clean
+
+**Decision:** brought the runnable-demo documentation into exact agreement with what Phase 7 actually built.
+
+**`start-mentora.ps1`/`stop-mentora.ps1` re-read end to end and confirmed still accurate** -- Phase 7 touched `backend/gradlew`'s exec bit, `backend/build.gradle.kts`'s shadowJar config, `MentoraNavHost.kt`, and five new CI workflow files, none of which either script invokes or depends on (`start-mentora.ps1` runs `.\gradlew.bat run`/`npm run dev` directly; `stop-mentora.ps1` only tracks PIDs by port). Confirmed by reading both scripts in full, not assumed.
+
+**`backend/README.md`** -- added a **CI** section describing `backend-ci.yml` command-for-command (the `docker run mongo:8.0 --replSet rs0` + pinned `rs.initiate()` replica-set start, then `classes testClasses` / `test` / `assemble`), read side-by-side against the actual workflow file, plus the D-LINT no-backend-linter note with its reasoning.
+
+**`web/README.md`** -- added a **CI** section describing both `web-ci.yml` jobs (`web-static`'s lint/typecheck-only scope and why it has no build step, per D150; `web-e2e`'s full local-stack-plus-real-build run), stated plainly that CI runs **chromium only** and why (D64), that Firefox/WebKit stay local/manual, and repeated the existing local test-data-pollution warning with a note that `web-e2e`'s own CI database is isolated and never touches a local dev database. Added a one-line pointer to `tokens-ci.yml` in the existing "Generate tokens" section, since T5 shipped it.
+
+**`mobile/androidApp/README.md`** -- added a **CI** section describing `android-ci.yml` command-for-command (`lintDebug` -> `:shared:testDebugUnitTest :androidApp:testDebugUnitTest` -> `compileDebugAndroidTestKotlin` -> `assembleDebug`), stated the **D-EMU** decision (instrumented tests are local-only, by explicit decision, with the reasoning) and that the debug APK is downloadable from the workflow artifact.
+
+**I6 re-confirmed clean** -- `grep -rniE "deploy|app store|play store|firebase hosting|vercel|heroku|aws|azure|gcp|kubernetes|docker (push|publish)|codesign|provisioning profile|testflight"` across all 5 workflow files and the 3 edited READMEs returned only pre-existing, benign hits: explicit "never deploys, signs, or publishes" statements already in every workflow's own header, a reference to the existing LOCAL-ONLY `architecture/DEPLOYMENT.md` design doc, an Xcode build-setting comment ("deployment target = iOS 17.0", unrelated to cloud deployment), and a security-rationale comment about "a real HTTPS deployment" (not an actual step). No cloud/hosting/app-store step exists anywhere.
+
+**Files touched.** `backend/README.md`, `web/README.md`, `mobile/androidApp/README.md` only -- `git status --porcelain` confirms exactly these 3 files, no source file, matching the plan's completion gate.
+
+**T12 done. Next:** T13 -- final acceptance audit (A-J, criterion by criterion) + `PHASE_HANDOFF.md` Phase 7 entry. Standing constraint restated: **Phase 8 must not begin without the user's own separate, explicit approval.**

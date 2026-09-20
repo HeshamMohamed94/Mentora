@@ -124,6 +124,35 @@ mongosh mongodb://localhost:27017/mentora?replicaSet=rs0
 > // ...and similarly for progress/certificates/quizAttempts/refreshTokens/demoPurchases/media, then courses and users last
 ```
 
+## CI
+
+`.github/workflows/web-ci.yml` (Phase 7) runs two jobs on every push/PR touching `web/**`,
+`backend/**`, or `design-system/**`:
+
+- **`web-static`** — `npm ci`, `npm run lint`, `npm run lint:logical-properties`,
+  `npm run validate:design-to-code`, `npm run typecheck`. Fast, no backend needed. Deliberately has
+  **no `npm run build` step** — the landing page is ISR (`export const revalidate = 300`) and
+  `next build` performs one real, live server-side fetch during its initial prerender pass even for
+  an "ISR" route, so a real build needs a live backend (see `execution/DECISIONS_LOG.md` D150).
+- **`web-e2e`** — starts MongoDB as a real replica set + the backend (same as `backend-ci.yml`),
+  builds the backend's fat jar (`./gradlew buildFatJar`), seeds demo data, starts it, then builds
+  the site for real (`npm run build`, the one real production build in this project's CI) and runs
+  the Playwright suite against it: `npx playwright test --project=chromium`.
+
+**CI runs `chromium` only** (D64, D-E2E-BROWSER) — WebKit is known-red for the real, investigated,
+non-product reason described above (Secure/SameSite cookie handling over plain-HTTP `localhost`);
+Firefox is green locally but roughly doubles the job's wall-clock for near-zero marginal signal
+beyond what chromium already proves. **Firefox/WebKit remain local/manual only** — run them
+yourself with the commands above, don't expect either in a CI run.
+
+The same test-data-pollution warning above applies doubly to a local E2E run against your own dev
+database (`*@e2e.mentora.test` accounts, `E2E ...`-titled courses accumulate) — `web-e2e`'s own run
+is isolated to a fresh CI-only MongoDB container and never touches your local dev database.
+
+Design-token drift has its own separate, fifth workflow, `.github/workflows/tokens-ci.yml` — see
+"Generate tokens / design-to-code artifacts" above; it regenerates every token output from
+`design-system/design-tokens.json`/`themes/*.json` and fails if the committed files disagree.
+
 ## Project layout (Phase 2, web-only)
 
 ```

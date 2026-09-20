@@ -96,6 +96,29 @@ D84/D89/D92): a handful of screenshot/pixel-capture-based component tests can fl
 contention on a long-running emulator session. Confirmed pattern: kill and relaunch the AVD fresh, then
 re-run — this has cleanly resolved every occurrence so far without a code change.
 
+## CI
+
+`.github/workflows/android-ci.yml` (Phase 7) runs on every push/PR touching `mobile/shared/**`,
+`mobile/androidApp/**`, or the Gradle build files: `./gradlew :androidApp:lintDebug`, then
+`./gradlew :shared:testDebugUnitTest :androidApp:testDebugUnitTest`, then
+`./gradlew :androidApp:compileDebugAndroidTestKotlin` (compiles the instrumented test sources —
+catches them rotting into non-compiling code — but does not run them), then
+`./gradlew :androidApp:assembleDebug`. The resulting debug APK is uploaded as a build artifact —
+**downloadable from the workflow run** if you want a CI-built APK instead of building one locally.
+
+**D-EMU — instrumented tests stay local-only, by explicit decision, never run in CI.** Reasons: (1)
+consistency with `ios-ci.yml`'s own "those stay human, on a real Mac" boundary and this phase's own
+locked criterion permitting it; (2) a cold emulator boot plus 106 instrumented tests is the most
+flake-prone thing a hosted runner could do; (3) several instrumented tests need a live backend
+provisioned too, which is exactly what the manual emulator walk
+(`execution/PHASE_7_IMPLEMENTATION_PLAN.md` T11) already does for real, live, with an actual account.
+See `execution/DECISIONS_LOG.md` D147/D152 for the full reasoning. Run them yourself with the
+"Instrumented tests" section above.
+
+No lint baseline exists — `:androidApp:lintDebug` passes with zero errors as of Phase 7 (T0's
+mechanical fixes, D148); this workflow will fail the build if that regresses rather than silently
+tolerating a growing violation count.
+
 ## Project layout (Phase 4, Android-only)
 
 ```
