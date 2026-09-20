@@ -1,0 +1,99 @@
+# Mentora — Design Token Pipeline CI (Phase 7, Task T5)
+#
+# WHAT THIS IS. The fifth CI workflow `architecture/IMPLEMENTATION_ROADMAP.md` § M16 names ("all
+# five GitHub Actions workflows"), not individually listed in `execution/PHASE_7_ACCEPTANCE_CRITERIA.md`
+# § I but added per the D147 resolution of `execution/PHASE_7_SYSTEM_DESIGN.md` § 6/§ 11 finding F2:
+# it traces to a literal locked M16 deliverable, costs ~10 lines of Node and seconds of runtime, and
+# closes a real, previously uncovered gap — `web/styles/tokens.css`, `web/styles/tailwind-theme.css`,
+# and `web/src/lib/design-tokens.generated.ts` had no drift gate at all (Android already has one via
+# its own `MentoraTokens` drift unit test, and iOS is partly covered by `tools/ios-checks/theme-checks.js`).
+#
+# WHAT THIS IS. Regenerates every token output from `design-system/design-tokens.json` and
+# `design-system/themes/*.json` via `tools/token-pipeline/generate.js`, then fails if the regenerated
+# output differs from what is actually committed (per `architecture/adr/ADR-011`: generated files are
+# never hand-edited, so any drift is either a stale commit or a hand-edit that must be reverted).
+#
+# WHAT THIS IS NOT. It never touches Android or iOS build/test tasks (those are `android-ci.yml`/
+# `ios-ci.yml`'s own jobs), never deploys, signs, or publishes anything (ADR-012, criterion I6).
+#
+# SECRETS: none. No `secrets.*` reference appears anywhere in this file.
+#
+# ACTION VERSIONS resolved against the GitHub API on 2026-09-20: checkout v7, setup-node v7.
+
+name: Design Token Pipeline CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'design-system/design-tokens.json'
+      - 'design-system/themes/*.json'
+      - 'tools/token-pipeline/generate.js'
+      - 'web/styles/tokens.css'
+      - 'web/styles/tailwind-theme.css'
+      - 'web/src/lib/design-tokens.generated.ts'
+      - 'mobile/androidApp/src/main/kotlin/com/mentora/android/theme/MentoraTokens.kt'
+      - 'mobile/iosApp/iosApp/Theme/**'
+      - '.github/workflows/tokens-ci.yml'
+      - '!**/*.md'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'design-system/design-tokens.json'
+      - 'design-system/themes/*.json'
+      - 'tools/token-pipeline/generate.js'
+      - 'web/styles/tokens.css'
+      - 'web/styles/tailwind-theme.css'
+      - 'web/src/lib/design-tokens.generated.ts'
+      - 'mobile/androidApp/src/main/kotlin/com/mentora/android/theme/MentoraTokens.kt'
+      - 'mobile/iosApp/iosApp/Theme/**'
+      - '.github/workflows/tokens-ci.yml'
+      - '!**/*.md'
+
+concurrency:
+  group: tokens-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  tokens:
+    name: Regenerate tokens and fail on drift
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      - name: Regenerate every token output
+        run: node tools/token-pipeline/generate.js
+
+      - name: Fail if the committed output drifted
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! git diff --quiet; then
+            echo "::error::Generated token output differs from what is committed. Run 'node tools/token-pipeline/generate.js' locally and commit the result (ADR-011: generated, never hand-edited)."
+            git --no-pager diff --stat
+            git --no-pager diff
+            exit 1
+          fi
+          echo "OK: every generated token output matches the committed state."
+
+      - name: Job summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Design Token Pipeline CI summary"
+            echo ""
+            echo "Regenerated web/Android/iOS token outputs from \`design-system/design-tokens.json\`"
+            echo "and \`design-system/themes/*.json\`, then diffed against the committed state."
+          } >> "$GITHUB_STEP_SUMMARY"
