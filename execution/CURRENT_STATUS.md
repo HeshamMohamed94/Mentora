@@ -1,12 +1,89 @@
 # Mentora — Current Implementation Status
 
-**Last updated:** 2026-09-20 (PHASE 5 — iOS — **IN_PROGRESS**, now in the user's **parity-focused completion
-mode** (D132) — T9/T10 complete and real-CI-green, T11 (Component Kit B) in progress with slice 1 of 4
-(CourseArtwork) done and real-CI-green, continuing automatically per task/slice through the rest of the
-plan without per-task approval stops (tiered review policy applies). No Mac/Xcode available for
-interactive testing — see "PHASE 5 — iOS" near the end of this file and `DECISIONS_LOG.md` D96/D132/D134
-for the full account. Phase 4 — Android — **COMPLETE**, all 20 tasks done, approved by the user before
-Phase 5 began.)
+**Last updated:** 2026-09-20 — **SESSION CHECKPOINTED / STOPPED BY EXPLICIT USER REQUEST** (user needed to
+shut down their computer and asked to stop Mentora work to preserve weekly usage — see the exact resume
+point in the "SESSION CHECKPOINT" box immediately below). PHASE 5 — iOS — **IN_PROGRESS**, in the user's
+**parity-focused completion mode** (D132) — T9/T10 complete and real-CI-green, T11 (Component Kit B, 4
+slices) fully implemented and pushed — slices 1-3 confirmed real-CI-green and documented (D134/D135/D136);
+**slice 4 (the final slice, closing out T11) is pushed as commit `adb8876` with its remote CI run
+IN PROGRESS/UNVERIFIED at the moment of this checkpoint — this is the single most important thing to
+check first on resume.** No Mac/Xcode available for interactive testing — see "PHASE 5 — iOS" near the
+end of this file and `DECISIONS_LOG.md` D96/D132/D134/D135/D136 for the full account. Phase 4 — Android —
+**COMPLETE**, all 20 tasks done, approved by the user before Phase 5 began.
+
+---
+
+## SESSION CHECKPOINT — 2026-09-20 — STOPPED BY EXPLICIT USER REQUEST (preserve weekly usage)
+
+**Read this box first if resuming after this checkpoint.** The user explicitly asked to stop all Mentora
+work immediately (computer shutdown, preserving weekly Claude usage) — NOT a task failure, NOT a natural
+stopping point in the plan, just an intentional pause. Nothing was lost: the working tree was clean and
+fully pushed to `origin/main` at the moment of this request; no WIP/checkpoint commit was needed.
+
+- **Branch:** `main`. **Latest local commit:** `adb8876` — "Phase 5 T11 slice 4 (final):
+  LoadingState/EmptyState/ErrorState/SuccessState/MentoraSheet/MentoraDialog". **origin/main
+  relationship:** even (`+0 -0` ahead/behind) — fully pushed, nothing local-only.
+- **Working tree at checkpoint:** clean (`git status --porcelain` empty). No uncommitted changes existed.
+- **Current task/slice:** Phase 5, Task **T11** (Component Kit B), **slice 4 of 4 — the FINAL slice**.
+  Slices 1-3 are fully done, real-CI-confirmed-green, and documented (D134, D135, D136). Slice 4
+  (`LoadingState`/`EmptyState`/`ErrorState`/`SuccessState`/`MentoraSheet`/`MentoraDialog`) was
+  implemented, self-verified (all 6 `npm run check` Node gates passed locally before commit), committed
+  as `adb8876`, and pushed to `origin/main` — but its remote CI run was **NOT waited on or confirmed**
+  before this checkpoint, per the user's explicit "do NOT wait around consuming time/tokens for CI
+  completion" instruction.
+- **Remote CI run for commit `adb8876` (UNVERIFIED at checkpoint time):** run ID **35482199062**,
+  https://github.com/HeshamMohamed94/Mentora/actions/runs/35482199062 — status was `in_progress` (build
+  had already compiled successfully and was mid-way through the XCTest unit target) at the moment this
+  checkpoint was written. This run was intentionally NOT waited on, NOT polled further, and NOT stopped
+  — it may finish (green or red) on GitHub's own infrastructure independent of this session ending. The
+  local background shell that had been polling it (`gh run watch`-equivalent loop) was explicitly
+  stopped via `TaskStop` as part of this checkpoint, per the user's "stop all local background agents,
+  polling commands, shell jobs" instruction — this does NOT cancel the actual remote GitHub Actions run,
+  only the local session's own watcher.
+- **Review status:** T11 is ordinary Component Kit B work under the tiered review policy (not
+  mandatory-review) — self-review + Node gates + CI is the applicable bar, already applied to slices 1-3;
+  slice 4 received the same self-review + local Node-gate pass before push, but has NOT yet had its CI
+  result confirmed (see above).
+- **Docs status:** D134 (slice 1), D135 (slice 2), D136 (slice 3) are all written and pushed. **No
+  DECISIONS_LOG.md entry (would be D137) or "T11 SLICE 4" CURRENT_STATUS section exists yet for slice 4**
+  — deliberately not written at this checkpoint, since D-numbered entries in this project always record
+  a CONFIRMED CI-green outcome with real test-count evidence, and slice 4's CI was never confirmed. Do
+  not write D137 from assumption on resume — verify the real run result first.
+- **What was NOT started:** T11's own closing "parity matrix update"/task-table completion note was not
+  yet written (still correctly shows "slices 1-3 of 4 DONE" as of this checkpoint, since slice 4 isn't
+  confirmed). T12 (Explore + Learning Paths segment) was NOT started — no `Features/Explore/*.swift`
+  files exist. Some read-only research toward T12 happened this session (Android's real
+  `ExploreViewModel.kt`/`ExploreScreen.kt` were read for future grounding) but **zero Swift code for T12
+  was written** — this research is not persisted anywhere except this conversation's own history, so a
+  fresh resume should re-read those Android files again rather than assume prior context survives.
+
+### EXACT FIRST ACTION ON INTENTIONAL RESUME
+
+1. Run `gh run view 35482199062 --json status,conclusion,url` to see whether the slice-4 CI run finished
+   while this session was stopped, and what it concluded.
+   - **If `conclusion: "success"`:** pull test-count evidence
+     (`gh run view 35482199062 --log 2>&1 | grep -iE "Executed [0-9]+ tests, with 0 failures.*seconds$"`),
+     then write **D137** (T11 slice 4 completion) following the exact same structure as D134/D135/D136,
+     update `CURRENT_STATUS.md`'s T11 task-table row to "T11 COMPLETE — all 4 slices done" plus a new
+     "T11 SLICE 4" section, commit and push those two docs, and — since that closes out Task T11 in
+     full — also produce T11's own closing note before moving to T12.
+   - **If `conclusion: "failure"`:** inspect the real failure log directly
+     (`gh run view 35482199062 --log-failed`) per this project's own standing "never blindly retry" rule,
+     diagnose the actual root cause, fix it, re-run the 6 local Node gates, commit the fix, push, and
+     watch the new run through to a real confirmed conclusion before writing any docs.
+   - **If still `in_progress` / `queued`:** just wait for it normally (watch + independently re-verify,
+     the same pattern used for every other CI run this whole task).
+2. Once T11 is fully closed out (slice 4 confirmed + documented), proceed to **T12 — Explore + Learning
+   Paths segment** per the parity-focused completion mode's "continue automatically" instruction — this
+   is a real screen task (not component work), involving actual KMP `sdk.catalog`/`sdk.learningPaths`
+   calls, search debounce, cursor paging, and locale-change reload; Android's real
+   `ui/explore/{ExploreScreen,ExploreViewModel}.kt` are the reference files to read again first (their
+   content is summarized in this session's own transcript but not persisted to any file), and the real
+   Swift-bridged `MentoraClient` catalog/learningPaths surface should be confirmed against a real
+   `kmp-swift-interface` CI artifact before writing any Swift, per this project's own established "real
+   API grounding" discipline (already applied for T10's auth API surface).
+3. Do NOT start Phase 6 under any circumstance without the user's own explicit decision, per the
+   phase's own standing hard boundary.
 
 ---
 
