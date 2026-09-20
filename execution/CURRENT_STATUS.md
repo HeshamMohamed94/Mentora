@@ -988,7 +988,8 @@ Swift at all).
 | T7 | Localization foundation: `Localizable.xcstrings` (en+ar, 279 keys), locale/direction environment, `MentoraStrings`, formatters, Node parity+specifier lint | **✅ TASK T7 FULLY COMPLETE — all 4 slices done, real-CI-green.** See "T7 SLICE 1/2/3/4" sections below. |
 | T8 | Component Kit A (atoms — MentoraButton, MentoraIconButton, MentoraTextField, PasswordField, SearchField, MentoraToggle, MentoraSelect, Badge, CategoryChip, MentoraProgressBar, Avatar, MentoraTabs, MentoraSnackbar; `MentoraIcon`, the plan's 14th atom, was already built in T3) | **✅ TASK T8 FULLY COMPLETE — all 7 slices done, real-CI-green.** See "T8 SLICE 1"/"T8 SLICE 2"/"T8 SLICE 3"/"T8 SLICES 4+5"/"T8 SLICES 6+7" sections below. |
 | T9 | Navigation shell (5-tab `TabView`, `TabRouter`, `AuthGate`/B8) | **✅ TASK T9 COMPLETE — mandatory Opus review applied, real-CI-green.** See "T9 — NAVIGATION SHELL" section below. |
-| T10-T23 | Auth/registration through final acceptance audit | **NOT STARTED** — parity-focused completion mode (see D132/`execution/DECISIONS_LOG.md`): continuing automatically task-by-task without per-task approval stops, small-batch implementation, tiered review (mandatory for auth/session/architecture/cross-cutting infra, lighter self-review+CI for ordinary screen work), authored on Windows, compiled by CI; live/visual verification still needs a Mac (MC-2/MC-3/MC-4) and is recorded as NOT TESTABLE, never fabricated. |
+| T10 | Auth screens (Login, Register — B1/B2/B8/B9) | **✅ TASK T10 COMPLETE — mandatory Opus review + a follow-up verification pass applied, real-CI-green.** See "T10 — LOGIN/REGISTER SCREENS" section below. |
+| T11-T23 | Component Kit B through final acceptance audit | **NOT STARTED** — parity-focused completion mode (see D132/`execution/DECISIONS_LOG.md`): continuing automatically task-by-task without per-task approval stops, small-batch implementation, tiered review (mandatory for auth/session/architecture/cross-cutting infra, lighter self-review+CI for ordinary screen work), authored on Windows, compiled by CI; live/visual verification still needs a Mac (MC-2/MC-3/MC-4) and is recorded as NOT TESTABLE, never fabricated. |
 
 ## T6 SLICE 3a — DONE, CI-GREEN (2026-09-19)
 
@@ -1636,3 +1637,71 @@ PASSED, 261/261 tests — up from T8's 241, 0 failures, 0 unexpected). `:shared:
 **TASK T9 IS NOW FULLY COMPLETE.** Next task: **T10 — Auth screens** (Login/Register), which the tiered
 review policy marks mandatory-review (auth/session logic). Per the parity-focused completion mode's
 explicit "continue automatically" instruction, T10 begins now without stopping for per-task approval.
+
+## T10 — LOGIN/REGISTER SCREENS — DONE, CI-GREEN (2026-09-20)
+
+**Task:** Phase 5, Task T10 (Login/Register screens). `PHASE_5_ACCEPTANCE_CRITERIA.md` B1, B2, B8, B9,
+I4, H1. Second task under the parity-focused completion mode (D133) — mandatory-review category
+(auth/session logic).
+
+**What was built:** `Features/Auth/LoginModel.swift`/`LoginView.swift` (Login surfaces every failure as
+one generic, non-field-specific message per B1, with `RATE_LIMITED_AUTH` still getting its own distinct
+copy per B9 via `ErrorCopy.key(for:)`) — `Features/Auth/RegisterModel.swift`/`RegisterView.swift`
+(Register routes `shared`'s `EmailValidator`/`PasswordValidator`-driven field failures to inline field
+errors exactly matching Android's `mapRegisterFailure`, the D51 pattern) — 2 new test files. `Navigation/AuthGate.swift`
+edited: the T9 placeholder `LoginSheetPlaceholderView` replaced by a real `AuthFlowView` (a local,
+sheet-scoped `NavigationStack`). Neither model navigates on success — `AuthGate`'s own
+`.onChange(of: isAuthenticated)` watcher stays the sole reactor (B8), unchanged from T9. Every real
+Kotlin-bridged API used (`EmailValidator`/`PasswordValidator`/`SessionUser`/`Role`) was confirmed
+directly against the actual CI-captured `kmp-swift-interface` artifact before implementation began, not
+guessed.
+
+**Mandatory Opus review plus a follow-up verification pass on the fixes found and fixed 8 real issues
+(counting the follow-up pass's own 2 findings on the first round's fixes) — see `DECISIONS_LOG.md` D133
+for the full account of each. Most consequential:**
+1. **A likely CI compile break**: `PasswordField` had no explicit `init`, defaulting to a `private`
+   implicit memberwise initializer — this exact bug class already had 6 defensive precedents elsewhere
+   in this kit, but this one atom was missed, and T10 was the first task to ever construct it
+   cross-file. Fixed, and CONFIRMED correct by the next real CI compile (not merely argued).
+2. **A real KMP-parity violation**: `RegisterModel` originally called `EmailValidator`/`PasswordValidator`
+   directly from Swift, duplicating validation `RegisterUseCase.kt` (`shared`) already performs before
+   any network call, and constituting an undisclosed 7th non-façade `shared` entry point beyond
+   criterion A2's stated-exhaustive 6. Removed entirely — the existing `fields`-based routing already
+   handles both the local-Kotlin and server failure cases identically.
+3. **A missing VoiceOver announcement for submit failures** (a real, specified `ACCESSIBILITY.md`/
+   `SCREEN_UX_SPECS.md` requirement) — added via the same `UIAccessibility.post` pattern
+   `MentoraSnackbar.swift` already established, later corrected to a single combined announcement when
+   Register's email and password errors both fire from one failure (the first attempt's two separate
+   `.onChange` handlers could drop one of the two messages).
+4. **A real close-button defect**: `RegisterView`'s own "Close" affordance silently popped back to Login
+   instead of dismissing the sheet (`DismissAction` is context-sensitive to a pushed `NavigationStack`
+   level) — fixed by reading `dismiss()` once at `AuthFlowView`'s own sheet-root level and threading it
+   down as an explicit `onClose` closure to both screens.
+5. Stale errors persisting through edits (fixed with `didSet` clearing mirroring Android's
+   `onEmailChange`/`onPasswordChange` exactly — verified against the actual Swift `ObservationMacros`
+   source that this does not break `@Observable` tracking), a `canSubmit`/`submit()` guard mismatch on
+   whitespace-only input, and a missing form-width cap (`ux/SCREEN_UX_SPECS.md`'s locked "centered form
+   card" rule).
+
+**Two gaps disclosed rather than fixed, per the parity-focused completion mode's own instruction:** a
+narrow repeat-identical-failure re-announcement edge case (device/simulator-unconfirmable from this
+Windows host), and Register's missing "focus moves to the first invalid field" half of its live-region
+requirement (the live-region half is built; the focus-move half needs its own `@FocusState` wiring
+verified live at MC-3).
+
+**Verified before push:** all 6 Node gates run clean via `npm run check`, both before and after the full
+two-round fix cycle; `git status --porcelain` scope matched the expected 8-file list exactly; zero new
+`Localizable.xcstrings` keys (every key used was confirmed pre-existing before implementation began);
+every `Components/*.swift` symbol referenced (`MentoraIconButton`'s real init, color/icon/shape tokens)
+confirmed real against current definitions.
+
+**CI: DONE — GREEN on the first attempt after the full two-round review-fix cycle**,
+https://github.com/HeshamMohamed94/Mentora/actions/runs/35479005842 (commit `80a1049`, all 6 Node gates
+PASSED, 282/282 tests — up from T9's 261, 0 failures, 0 unexpected). This is the first real compile of
+`PasswordField`'s new explicit `init` and of every other fix in this task — the compile-risk theory in
+finding 1 is now CONFIRMED correct. `:shared:testDebugUnitTest`/`:androidApp:testDebugUnitTest`
+unaffected — zero `mobile/shared`/`mobile/androidApp` files touched.
+
+**TASK T10 IS NOW FULLY COMPLETE.** Next task: **T11 — Component Kit B** (cards, state patterns, sheets,
+artwork). Per the parity-focused completion mode's explicit "continue automatically" instruction, T11
+begins now without stopping for per-task approval.
