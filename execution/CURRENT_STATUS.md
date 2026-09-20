@@ -25,6 +25,54 @@ as the primary supported/demo platforms.
 
 ---
 
+## PHASE 7 — FULL INTEGRATION — 2026-09-20 — KICKOFF (T0 IN PROGRESS)
+
+**Do not mark Phase 7 PASS/COMPLETE until T13's acceptance audit says so.** Full detail lives in
+`execution/PHASE_7_ACCEPTANCE_CRITERIA.md` (the A-J checklist plus scope-reconciliation § H),
+`execution/PHASE_7_SYSTEM_DESIGN.md` (12 sections — CI workflow specifics, the C4 bug root cause/fix,
+the cross-client verification methodology), and `execution/PHASE_7_IMPLEMENTATION_PLAN.md` (the T0-T13
+task sequence, D147) — this section is a pointer and status summary, not a duplicate of their content.
+
+**What Phase 7 is:** not new feature work — cross-client verification that the already-built backend/
+Website/Android/KMP-shared-core stack is genuinely consistent (same data, same behavior, per
+`PRODUCT_SPEC.md § 10`) across the portfolio-priority flow (Discovery → Course Details → Demo Checkout
+→ Purchase Success → Course Player → Progress → Quiz → AI Tutor → Certificate), in English/Arabic,
+LTR/RTL, Light/Dark; standing up the three (four, including the flagged `tokens-ci.yml`) CI workflows
+already mandated by the locked `IMPLEMENTATION_ROADMAP.md § M16` but never built (only `ios-ci.yml`
+exists today); and fixing one already-disclosed cross-cutting Android bug (D144/C4). **iOS is explicitly
+excluded** (Phase 5 remains frozen); **no real AI provider credential is used, requested, or required**
+(D146 stands).
+
+### Task status (T0-T13, per `PHASE_7_IMPLEMENTATION_PLAN.md`)
+
+| # | Task | Host | Status |
+|---|---|---|---|
+| T0 | Baseline green-run + CI precondition audit (no code change) | W | IN PROGRESS |
+| T1 | `backend-ci.yml` | CI | NOT STARTED |
+| T2 | `web-ci.yml` job `web-static` | CI | NOT STARTED |
+| T3 | `web-ci.yml` job `web-e2e` | CI | NOT STARTED |
+| T4 | `android-ci.yml` | CI | NOT STARTED |
+| T5 | `tokens-ci.yml` (flagged, kept per D147) | CI | NOT STARTED |
+| T6 | C4 fix — Android Course Details / Learning Path Details auth-state staleness | W | NOT STARTED |
+| T7 | Review checkpoint (Opus; Codex only if warranted) | W | NOT STARTED |
+| T8 | Cross-client parity harness (`tools/cross-client-check/`) | W | NOT STARTED |
+| T9 | Static confirmations (A6, C3, D2, F2, I4) | W | NOT STARTED |
+| T10 | Website portfolio-priority flow walk (EN/AR, Light/Dark) | M | NOT STARTED |
+| T11 | Android portfolio-priority flow walk (emulator, incl. C4 live repro) | M | NOT STARTED |
+| T12 | Demo-environment + documentation accuracy pass | D | NOT STARTED |
+| T13 | Final acceptance audit + `PHASE_HANDOFF.md` entry | W/D | NOT STARTED |
+
+**Four judgment calls already resolved (D147):** the `isEnrolled` pagination divergence (Web page-1-only
+vs. Android full-paging) is recorded as a disclosed, accepted divergence, not fixed, per criterion A6;
+the fifth M16 workflow (`tokens-ci.yml`) will be built; the G1/G2 localization/theme walk uses the
+reduced en-Light + ar-Dark matrix plus targeted high-risk-screen spot-checks (mirroring the Phase 4 D94
+precedent); WebKit stays out of CI (already covered by D64).
+
+**iOS:** not touched, not affected, not resumed. No file under `mobile/iosApp/` or `.github/workflows/
+ios-ci.yml` will be modified by Phase 7 (H1).
+
+---
+
 ## PHASE 6 — AI TUTOR INTEGRATION — 2026-09-20 — IMPLEMENTATION COMPLETE (LIVE PROVIDER VERIFICATION DEFERRED BY USER DECISION, D146)
 
 **Do not mark Phase 6 PASS/COMPLETE until T9's acceptance audit says so.** Full detail lives in
