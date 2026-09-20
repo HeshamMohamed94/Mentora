@@ -136,6 +136,10 @@ fun MentoraNavHost(
             previous !is AuthState.Authenticated && isAuthenticatedNow -> {
                 // Login/Register success — consume the pending intent (guest enroll/follow gate) if
                 // one was recorded, else land on Home (plain login, no specific prior intent).
+                // Real, reproduced bug this closes (T11 fix-up) — see clearAllTabBackStacks' own
+                // kdoc: without this, a tab visited by a PREVIOUS account can resurrect that
+                // account's stale data under this new one the first time this session switches to it.
+                clearAllTabBackStacks(navController)
                 val intent = pendingNavIntent
                 pendingNavIntent = null
                 if (intent != null) {
@@ -151,12 +155,14 @@ fun MentoraNavHost(
             }
 
             previous is AuthState.Authenticated && !isAuthenticatedNow -> {
-                // Logout — reset back to guest mode.
+                // Logout — reset back to guest mode. Same clearAllTabBackStacks reasoning as above:
+                // this account's own tab visits must not be resurrectable under whoever logs in next.
                 pendingNavIntent = null
                 navController.navigate(TabGraph.ExploreGraph) {
                     popUpTo(navController.graph.id) { inclusive = true }
                 }
                 anchorTab = TabGraph.ExploreGraph
+                clearAllTabBackStacks(navController)
             }
         }
     }
@@ -620,6 +626,40 @@ fun MentoraNavHost(
             }
         }
     }
+}
+
+/**
+ * Purges any SAVED state (ViewModelStore/SavedStateHandle) for every bottom-nav tab's root
+ * destination from [NavHostController]'s own saved-back-stack registry — a mechanism entirely
+ * separate from popping the CURRENT back stack. [onTabTapped]'s switch-tab branch below
+ * intentionally saves a tab's state (`popUpTo<T> { saveState = true }`) so switching back to it
+ * later restores exactly where the user left off (`restoreState = true`) — correct UX in general,
+ * but that saved state is keyed purely by DESTINATION ROUTE, with no notion of WHICH ACCOUNT was
+ * signed in when it was saved.
+ *
+ * **Real, reproduced bug this closes (T11 fix-up).** Neither of [MentoraNavHost]'s two
+ * full-stack-reset branches above (`popUpTo(navController.graph.id) { inclusive = true }`, with no
+ * `saveState`) touches this SEPARATE saved-state registry — they only clear the CURRENT back stack.
+ * Concretely: Account A visits My Learning, then switches to another tab (saving My Learning's
+ * `MyLearningViewModel` instance, already holding Account A's fetched progress, via the normal
+ * `saveState = true` tab-switch above); Account A logs out; Account B logs in; the very first time
+ * Account B's session switches to the My Learning tab, `restoreState = true` finds — and restores —
+ * that SAME saved entry, resurrecting Account A's already-populated `MyLearningViewModel` (its
+ * `init` never re-runs for a restored instance) under Account B's identity. Confirmed live on a real
+ * emulator: Account B's My Learning list showed Account A's real per-course completion percentage,
+ * while every other screen (Profile's own aggregate counts, `AuthState.Authenticated.user`) correctly
+ * showed Account B's own identity and data throughout — this is a Navigation-state-restoration gap,
+ * not a stale auth token (the session/token layer was independently verified correct). See
+ * `execution/DECISIONS_LOG.md` D159 for the full investigation. Called at both full-stack-reset sites
+ * (and the pending-intent login branch, which does not otherwise reset anything) so no tab can ever
+ * carry a previous identity's saved ViewModelStore into a new one.
+ */
+private fun clearAllTabBackStacks(navController: NavHostController) {
+    navController.clearBackStack<Destination.Home>()
+    navController.clearBackStack<Destination.Explore>()
+    navController.clearBackStack<Destination.MyLearning>()
+    navController.clearBackStack<Destination.AiTutor>()
+    navController.clearBackStack<Destination.Profile>()
 }
 
 /** Tap-active-tab-pops-to-root vs. switch-tab, per `ux/MOBILE_UX.md § 1`. The switch-tab branch is
