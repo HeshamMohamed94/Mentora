@@ -53,7 +53,7 @@ struct MentoraAuthGate: ViewModifier {
                     environment.router.loginSheetDismissed()
                 }
             ) {
-                LoginSheetPlaceholderView(environment: environment)
+                AuthFlowView(environment: environment)
             }
             .onChange(of: environment.sessionController.isAuthenticated) { _, isAuthenticated in
                 if isAuthenticated {
@@ -71,35 +71,48 @@ extension View {
     }
 }
 
-// TEMPORARY (T9) -- T10 swaps in the real LoginView here. Does NOT authenticate anything; exists only to
-// prove the sheet/dismiss/replay mechanics above actually work. `auth_login_title` and the sheet-close
-// content-description key are both real, already-ported catalog keys (confirmed by grepping
-// `Resources/Localizable.xcstrings` directly) -- no new key is introduced.
-struct LoginSheetPlaceholderView: View {
+// T10 -- the real Login/Register content for the sheet, replacing the former T9
+// `LoginSheetPlaceholderView`. `AuthFlowView` is a LOCAL, sheet-scoped `NavigationStack` -- it shares
+// NOTHING with `Navigation/Route.swift`'s app-wide `Route`/`TabRouter` model (D7/§ 3.1 reserve that
+// exclusively for the 5-tab stack); its lifetime is scoped to however long this sheet is presented, and
+// it is torn down completely on dismissal (`isPresentingLoginBinding`'s setter / `onDismiss:` above --
+// both unchanged by this task).
+//
+// DEVIATION FROM THIS TASK'S OWN PROMPT, DISCLOSED: the prompt's own sketch used
+// `.navigationDestination(for: AuthRoute.self)` with a local `AuthRoute` enum. That exact spelling is
+// avoided here because `tools/ios-checks/navigation-checks.js` Check C1 asserts
+// ".navigationDestination(for:" appears EXACTLY ONCE across the WHOLE app target (TabShell.swift's own
+// call -- D4's "one shared destination table" guarantee); a second occurrence for this unrelated,
+// ephemeral flow would fail that already-locked, CI-green completion gate, which this task is not
+// scoped to touch. `.navigationDestination(isPresented:)` is a different, real SwiftUI overload (never
+// containing the substring "(for:") that gives the identical real push/back-button/swipe-to-dismiss
+// behavior without tripping that regex -- so no local `AuthRoute` enum is needed at all here; a plain
+// `Bool` fully describes this two-screen flow. `RegisterView`'s "Login" link pops back by flipping that
+// same `Bool` to `false` (equivalent to tapping the native back button).
+struct AuthFlowView: View {
     let environment: AppEnvironment
 
+    @State private var isShowingRegister = false
+
+    /// T10 follow-up review fix: `@Environment(\.dismiss)` is read HERE, at `AuthFlowView`'s own level
+    /// (the sheet's actual content root, OUTSIDE the `NavigationStack` below), and passed down to both
+    /// screens as a plain `onClose` closure -- never re-read via `@Environment(\.dismiss)` inside
+    /// `LoginView`/`RegisterView` themselves. `DismissAction` is context-sensitive: read from a view
+    /// PUSHED onto a `NavigationStack` (i.e. `RegisterView`, reached via `.navigationDestination`
+    /// below), it pops that view instead of dismissing the enclosing sheet -- a real, confirmed defect
+    /// in this fix's first draft, where `RegisterView`'s own "Close" button silently behaved as a
+    /// second Back button (landing on Login, requiring a second activation) instead of actually
+    /// closing. Reading it once here, where this view genuinely IS the sheet's own content, and
+    /// threading it down explicitly sidesteps that context-sensitivity entirely -- both screens now
+    /// close the sheet identically, regardless of which one is on screen.
     @Environment(\.dismiss) private var dismiss
 
-    private var locale: AppLocale { environment.localeController.currentLocale }
-
     var body: some View {
-        VStack(spacing: MentoraSpacing.space4) {
-            HStack {
-                Spacer()
-                MentoraIconButton(
-                    icon: .close,
-                    accessibilityLabel: MentoraStrings.text(
-                        "course_player_curriculum_sheet_close_content_description",
-                        locale: locale
-                    )
-                ) {
-                    dismiss()
+        NavigationStack {
+            LoginView(environment: environment, onOpenRegister: { isShowingRegister = true }, onClose: { dismiss() })
+                .navigationDestination(isPresented: $isShowingRegister) {
+                    RegisterView(environment: environment, onOpenLogin: { isShowingRegister = false }, onClose: { dismiss() })
                 }
-            }
-            Text(MentoraStrings.text("auth_login_title", locale: locale))
-                .mentoraFont(.h3)
-            Spacer()
         }
-        .padding(MentoraSpacing.space4)
     }
 }

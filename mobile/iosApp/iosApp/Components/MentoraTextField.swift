@@ -478,6 +478,28 @@ struct PasswordField: View {
 
     @State private var isVisible: Bool = false
 
+    /// T10 review fix: explicit, unconditionally-`internal` init -- same reason as `MentoraTextField`/
+    /// `MentoraButton`/`MentoraIconButton` above: a `@State private var` stored property makes the
+    /// implicit memberwise initializer `private`, which only became a real problem the moment a
+    /// `Features/` file (T10's `LoginView`/`RegisterView`) tried to construct this cross-file for the
+    /// first time -- this file's own `#Preview` block never noticed, since `private` is still visible
+    /// from within the same file.
+    init(
+        text: Binding<String>,
+        label: String,
+        showPasswordLabel: String,
+        hidePasswordLabel: String,
+        helperText: String? = nil,
+        errorText: String? = nil
+    ) {
+        self._text = text
+        self.label = label
+        self.showPasswordLabel = showPasswordLabel
+        self.hidePasswordLabel = hidePasswordLabel
+        self.helperText = helperText
+        self.errorText = errorText
+    }
+
     var body: some View {
         MentoraTextField(
             text: $text,
