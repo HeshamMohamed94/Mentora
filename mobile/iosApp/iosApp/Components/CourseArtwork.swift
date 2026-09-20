@@ -376,7 +376,16 @@ struct CourseArtworkWithChip: View {
     let accessibilityLabel: String
     var mediaId: String? = nil
     var thumbnailUrl: String? = nil
-    var thumbnailShape: (any Shape)? = nil
+    /// CI FIX: `AnyShape` (iOS 17's type-erased `Shape` wrapper), never `any Shape` -- an existential
+    /// `any Shape` does NOT itself conform to `Shape` (`Shape: Animatable`, and `Animatable` has an
+    /// associated type, so the existential can't satisfy `.clipShape<S: Shape>(_:)`'s generic
+    /// constraint), which is exactly the "type 'any View' cannot conform to 'View'" compile error real
+    /// CI caught here. `AnyShape` IS a concrete type that itself conforms to plain `Shape` (just not
+    /// `InsettableShape` -- see `Theme/MentoraShape.swift`'s own header comment on that exact
+    /// distinction, which is why `MentoraShape` itself is a concrete `InsettableShape` struct rather
+    /// than an `AnyShape`-erased one) -- sufficient here, since this property is only ever consumed by
+    /// `.clipShape(_:)`, which requires `Shape`, not `InsettableShape`.
+    var thumbnailShape: AnyShape? = nil
 
     var body: some View {
         content
