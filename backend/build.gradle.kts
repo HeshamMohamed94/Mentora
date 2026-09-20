@@ -20,6 +20,16 @@ tasks.register<JavaExec>("seedDemoData") {
     mainClass.set("com.mentora.backend.SeedDataKt")
 }
 
+// Phase 7 T3 finding (execution/DECISIONS_LOG.md D151): shadowJar's default merge strategy keeps
+// only ONE arbitrary META-INF/services/io.ktor.server.config.ConfigLoader entry when multiple
+// dependency jars provide one, instead of merging them - so the fat jar silently ended up only able
+// to load YAML config, never our own HOCON application.conf, and EngineMain failed at startup with
+// "Neither port nor sslPort specified" (application.conf was never even read). mergeServiceFiles()
+// combines every META-INF/services/* provider-configuration file instead of overwriting.
+tasks.withType<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar> {
+    mergeServiceFiles()
+}
+
 repositories {
     mavenCentral()
 }
