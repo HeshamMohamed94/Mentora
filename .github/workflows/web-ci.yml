@@ -1,9 +1,10 @@
 # Mentora — Web CI (Phase 7, Task T2/T3)
 #
 # WHAT THIS IS. The automated gate for `web/` — a Next.js 15 app. Two jobs: `web-static` (ESLint,
-# the repo's own RTL/logical-properties gate, design-to-code drift validation, TypeScript, a
-# production build — fast, always informative) and `web-e2e` (the full local stack — MongoDB +
-# backend + Website — with the real Playwright suite run against it, per
+# the repo's own RTL/logical-properties gate, design-to-code drift validation, TypeScript — fast, no
+# backend needed, see the no-build-step note below) and `web-e2e` (the full local stack — MongoDB +
+# backend + Website, including the one real production build this file performs — with the real
+# Playwright suite run against it, per
 # `architecture/DEPLOYMENT.md § 5`'s explicit requirement for CI-provisioned E2E). Splitting them
 # means a lint/type error fails in minutes instead of tens of minutes, and a real E2E failure is
 # never confused with a static one. Covers criterion I2 — a locked M16 deliverable never built until
@@ -22,6 +23,13 @@
 #
 # AI TUTOR / SECRETS: `AI_PROVIDER_API_KEY` is explicitly empty (D146, stub mode) in the E2E job. No
 # `secrets.*` reference appears anywhere in this file.
+#
+# WHY THIS FILE'S PATH FILTERS INCLUDE `backend/**` (T7 review finding, MEDIUM 1). `web-e2e` is the
+# only workflow that actually PACKAGES AND RUNS the backend fat jar (`backend-ci.yml` only compiles/
+# tests/assembles it, never launches it — exactly the gap that let the D151 shadowJar bug ship
+# unnoticed for as long as it did). Without this, a `backend/**`-only change would trigger
+# `backend-ci.yml` (stays green) but never `web-ci.yml`, so a jar-runnability regression would only
+# surface later, misattributed to whatever unrelated `web/**` commit happened to trigger this file next.
 #
 # ACTION VERSIONS resolved against the GitHub API on 2026-09-20: checkout v7, setup-node v7,
 # setup-java v6, upload-artifact v7, gradle/actions v6.
@@ -46,6 +54,7 @@ on:
     branches: [main]
     paths:
       - 'web/**'
+      - 'backend/**'
       - 'design-system/**'
       - 'design-to-code/**'
       - 'tools/token-pipeline/generate.js'
@@ -56,6 +65,7 @@ on:
     branches: [main]
     paths:
       - 'web/**'
+      - 'backend/**'
       - 'design-system/**'
       - 'design-to-code/**'
       - 'tools/token-pipeline/generate.js'
@@ -72,7 +82,7 @@ permissions:
 
 jobs:
   web-static:
-    name: Web lint + type-check + build
+    name: Web lint + type-check
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:

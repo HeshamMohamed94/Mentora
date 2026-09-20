@@ -12,6 +12,7 @@ import com.mentora.shared.domain.model.Category
 import com.mentora.shared.domain.model.Course
 import com.mentora.shared.domain.model.Enrollment
 import com.mentora.shared.settings.AppLocale
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -127,9 +128,18 @@ class CourseDetailsViewModel(
         loadCourse()
     }
 
+    // T7 review finding (MEDIUM 2, Phase 7): loadCourse() can be triggered from three independent
+    // sources (init, onRetry, onAuthenticationChanged) with no cancellation of a still-in-flight
+    // prior call — a slower guest-mode load resolving AFTER a faster authenticated one would
+    // silently overwrite it with a stale result, recreating C4's own symptom. Tracking the Job and
+    // cancelling any prior one before starting a new load makes only the LATEST call's result ever
+    // land, regardless of completion order.
+    private var loadJob: Job? = null
+
     private fun loadCourse() {
+        loadJob?.cancel()
         _uiState.update { it.copy(course = CourseLoadState.Loading) }
-        viewModelScope.launch {
+        loadJob = viewModelScope.launch {
             when (val result = getCourseDetails(courseId)) {
                 is ApiResult.Success -> {
                     val course = result.data

@@ -79,9 +79,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if ! git diff --quiet; then
+          # git status --porcelain (not `git diff --quiet`, T7 review finding LOW 3) so this also
+          # catches drift that takes the form of a brand-new, entirely untracked generated file (a
+          # future new theme file or platform target) — `git diff` alone only sees modifications to
+          # files already tracked and would pass vacuously on that kind of drift.
+          if [ -n "$(git status --porcelain)" ]; then
             echo "::error::Generated token output differs from what is committed. Run 'node tools/token-pipeline/generate.js' locally and commit the result (ADR-011: generated, never hand-edited)."
-            git --no-pager diff --stat
+            git status --porcelain
             git --no-pager diff
             exit 1
           fi

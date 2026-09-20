@@ -11,6 +11,7 @@ import com.mentora.shared.domain.model.CourseProgress
 import com.mentora.shared.domain.model.LearningPathCourse
 import com.mentora.shared.domain.model.LearningPathDetail
 import com.mentora.shared.settings.AppLocale
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -142,11 +143,17 @@ class LearningPathDetailsViewModel(
     fun onRetry() = loadPath()
 
     /** Phase 7 C4 / D144 fix — see `CourseDetailsViewModel.onAuthenticationChanged`'s own kdoc for
-     *  the full root-cause account; identical pattern, identical guard against a redundant reload. */
+     *  the full root-cause account; identical pattern, identical guard against a redundant reload.
+     *  T7 review finding (LOW 7): reuses the SAME `followInFlight` guard `reloadOnLocaleChange`
+     *  already uses above, for the identical reason — `loadPath()` resets `path` to `Loading`, which
+     *  would silently drop an outstanding follow/unfollow call's own result. Currently unreachable
+     *  (a follow can only be in flight once already authenticated), but "currently unreachable" is
+     *  exactly the reasoning that produced D144 in the first place — kept consistent on purpose. */
     fun onAuthenticationChanged(value: Boolean) {
         if (value == isAuthenticated) return
         isAuthenticated = value
-        loadPath()
+        val current = _uiState.value.path as? LearningPathLoadState.Success
+        if (current?.followInFlight != true) loadPath()
     }
 
     /** In-flight guard — a double-tap while a follow/unfollow call is already outstanding is a no-op,
@@ -185,9 +192,13 @@ class LearningPathDetailsViewModel(
         }
     }
 
+    // T7 review finding (MEDIUM 2, Phase 7) — see CourseDetailsViewModel.loadJob's identical comment.
+    private var loadJob: Job? = null
+
     private fun loadPath() {
+        loadJob?.cancel()
         _uiState.update { it.copy(path = LearningPathLoadState.Loading) }
-        viewModelScope.launch {
+        loadJob = viewModelScope.launch {
             when (val result = getLearningPathDetail(pathId)) {
                 is ApiResult.Success -> {
                     val detail = result.data
