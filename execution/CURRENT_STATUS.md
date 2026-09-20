@@ -48,7 +48,7 @@ excluded** (Phase 5 remains frozen); **no real AI provider credential is used, r
 | # | Task | Host | Status |
 |---|---|---|---|
 | T0 | Baseline green-run + CI precondition audit | W | **DONE** — `4f95453`/`a54277f` (D148). Baseline: backend 127/127, `:shared` 249/249, `:androidApp` JVM 241/241, Android lint 0 errors (was 17, fixed mechanically), Playwright chromium 19/19 real (2 genuine defects found+fixed: video-position-save `keepalive`, an ambiguous AR locator) |
-| T1 | `backend-ci.yml` | CI | NOT STARTED |
+| T1 | `backend-ci.yml` | CI | **DONE** — `1f467d5`+`a4a906c` (D149). Green on first real fix: [run 35530971377](https://github.com/HeshamMohamed94/Mentora/actions/runs/35530971377), 127/127, 0 failures. Found+fixed real infra bug: `backend/gradlew` was missing its executable bit in git |
 | T2 | `web-ci.yml` job `web-static` | CI | NOT STARTED |
 | T3 | `web-ci.yml` job `web-e2e` | CI | NOT STARTED |
 | T4 | `android-ci.yml` | CI | NOT STARTED |

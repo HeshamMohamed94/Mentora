@@ -6707,4 +6707,12 @@ Both fixes verified: **18-19/19 passed, one self-healing flake** (`helpers.ts`'s
 
 **T0 is now CLOSED.** Every precondition has a definite, resolved answer; no source file was changed beyond the two commits above; the regression baseline for the rest of Phase 7 is: backend 127/127, `:shared` 249/249, `:androidApp` JVM 241/241, Android lint 0 errors, Playwright chromium 19/19 (real, not assumed).
 
-**Next:** T1 -- `backend-ci.yml`.
+## D149 -- 2026-09-20 -- PHASE 7 T1 done: `backend-ci.yml` green on the first real run after one real infra fix
+
+**Decision:** wrote `.github/workflows/backend-ci.yml` exactly per `PHASE_7_SYSTEM_DESIGN.md` section 3 -- triggers, MongoDB-as-replica-set via `docker run` (not a `services:` container, which cannot accept `--replSet`), JDK 21 + Gradle, compile/test/assemble as separate steps, the D-LINT decision (no backend linter) restated in the file's own header, `AI_PROVIDER_API_KEY` explicitly empty (D146).
+
+**Real infra bug found and fixed on the first CI attempt (`35530893631`, exit 126, "Permission denied" on `./gradlew`):** `backend/gradlew` was committed as file mode `100644` (not executable) in git, unlike `mobile/gradlew` (`100755`) -- this never surfaced before because every prior backend command in this project ran on Windows, where the executable bit is meaningless. Fixed with `git update-index --chmod=+x backend/gradlew`, its own one-line commit (`a4a906c`).
+
+**Verification, real CI, not assumed:** run `35530971377` -- <https://github.com/HeshamMohamed94/Mentora/actions/runs/35530971377> -- green in 4m17s. Test-report artifact downloaded and its actual JUnit XML parsed: **127/127, 0 failures, 0 errors** -- the exact T0 baseline, not a reduced set. MongoDB reached PRIMARY (visible in the replica-set step's own log). No `secrets.*` reference in the file (verified by re-reading it in full). `git diff --stat` across both of this task's commits touches exactly `.github/workflows/backend-ci.yml` and `backend/gradlew` -- nothing else.
+
+**Next:** T2 -- `web-ci.yml` job `web-static`.
