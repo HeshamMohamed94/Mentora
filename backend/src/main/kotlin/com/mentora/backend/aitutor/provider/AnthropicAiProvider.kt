@@ -71,7 +71,11 @@ class AnthropicAiProvider(
 
                 while (firstText == null) {
                     when (val event = sse.next()) {
-                        is AnthropicEvent.TextDelta -> firstText = event.text
+                        // Codex second opinion, finding 2: an empty text delta must not count as
+                        // "the first token" — otherwise a message_stop right after it would report a
+                        // successful completion with zero actual assistant text (violates the
+                        // pre-stream contract's "no usable response" guarantee).
+                        is AnthropicEvent.TextDelta -> if (event.text.isNotEmpty()) firstText = event.text
                         is AnthropicEvent.InputUsage -> inputTokens = event.inputTokens ?: inputTokens
                         is AnthropicEvent.OutputUsage -> Unit
                         is AnthropicEvent.Error -> throw mapAnthropicFailure(errorType = event.type)
@@ -128,10 +132,21 @@ class AnthropicAiProvider(
         return usage
     }
 
-    /** Reads a bounded amount of a non-2xx body and maps it per PHASE_6_SYSTEM_DESIGN.md § 11. */
+    /**
+     * Reads a bounded amount of a non-2xx body and maps it per PHASE_6_SYSTEM_DESIGN.md § 11.
+     *
+     * Codex second opinion, finding 1: the body read is a suspending call, so a plain
+     * `catch (Exception)` around it would also catch a real `CancellationException` (e.g. the
+     * client disconnected while this was reading) and convert it into an ordinary "couldn't parse
+     * the error body" case — breaking cancellation semantics the same way F4 already fixed in
+     * [complete]'s own catch chain, just at a different suspension point. Caught and rethrown
+     * unmodified before the recovery catches below.
+     */
     private suspend fun mapHttpError(response: HttpResponse): ApiException {
         val bodyText = try {
             response.bodyAsChannel().readRemaining(MAX_ERROR_BODY_BYTES).readString()
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             ""
         }

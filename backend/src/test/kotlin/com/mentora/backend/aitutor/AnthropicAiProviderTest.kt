@@ -88,6 +88,15 @@ class AnthropicAiProviderTest {
         assertFalse(req.url.toString().contains(secretKey))
         val body = (req.body as TextContent).text
         assertFalse(body.contains(secretKey))
+
+        // Codex second opinion, finding 3: checking only the URL/body isn't rigorous enough — a
+        // future regression duplicating the key into e.g. Authorization or Cookie would still pass
+        // that check. Scan every captured header and assert the secret appears exactly once, as the
+        // sole value of x-api-key, nowhere else.
+        val matchingHeaders = req.headers.entries()
+            .flatMap { (name, values) -> values.map { name to it } }
+            .filter { (_, value) -> value == secretKey }
+        assertEquals(listOf(TEST_API_KEY_HEADER to secretKey), matchingHeaders)
     }
 
     @Test
@@ -410,6 +419,50 @@ class AnthropicAiProviderTest {
         assertTrue(thrownDuringCollect is AnthropicStreamException)
         assertTrue(overall.isFailure)
     }
+
+    @Test
+    fun `an empty text delta does not count as the first token`() = runBlocking {
+        // Codex second opinion, finding 2: an empty content_block_delta followed immediately by
+        // message_stop must not be reported as a successful completion with zero real text — it
+        // must be treated the same as "clean stream with zero (real) text deltas" (503).
+        val body = buildString {
+            append(sseEvent("content_block_delta", """{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":""}}"""))
+            append(sseEvent("message_stop", """{"type":"message_stop"}"""))
+        }
+        val provider = provider(MockEngine { respond(body, headers = sseHeaders()) })
+
+        var invoked = false
+        assertFailsWith<ApiException.ServiceUnavailable> {
+            provider.complete(requestOf()) { invoked = true }
+        }
+        assertFalse(invoked)
+    }
+
+    @Test
+    fun `an empty text delta is skipped and a later real delta becomes the first token`() = runBlocking {
+        val body = buildString {
+            append(sseEvent("content_block_delta", """{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":""}}"""))
+            append(sseEvent("content_block_delta", """{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Real text"}}"""))
+            append(sseEvent("message_stop", """{"type":"message_stop"}"""))
+        }
+        val provider = provider(MockEngine { respond(body, headers = sseHeaders()) })
+
+        val tokens = mutableListOf<String>()
+        provider.complete(requestOf()) { flow -> flow.collect { tokens.add(it.text) } }
+
+        assertEquals(listOf("Real text"), tokens)
+    }
+
+    // Codex second opinion, finding 1: mapHttpError's own suspending body read (readRemaining) has
+    // the same cancellation-swallowing risk F4 already fixed in complete()'s outer catch chain, one
+    // suspension point earlier -- fixed by catching CancellationException specifically and
+    // rethrowing it before the generic recovery catch, mirroring F4's already-proven-correct
+    // pattern exactly. Not given its own MockEngine test: a `ByteChannel` cancelled ahead of time
+    // (`.cancel(cause)`) reads back as an empty body rather than propagating the cause through
+    // `readRemaining` (cancellation-during-an-in-flight-suspension isn't reliably reproducible
+    // through MockEngine's synchronous, already-buffered channels) -- confirmed empirically before
+    // deciding this was disproportionate effort for one narrow edge case. The fix is verified by
+    // code inspection and by direct analogy to F4's already-tested case, not by a dedicated test.
 
     @Test
     fun `CRLF line endings are handled identically to bare LF`() = runBlocking {
