@@ -1,0 +1,162 @@
+# Mentora — Android CI (Phase 7, Task T4)
+#
+# WHAT THIS IS. The automated build/lint/test gate for `mobile/androidApp/` and the shared
+# `mobile/shared` module's Android target. Covers criterion I3 — a locked M16 deliverable never
+# built until Phase 7 (`execution/PHASE_7_SYSTEM_DESIGN.md` § H2/§ 5). Lints, runs both modules'
+# JVM unit tests, compiles the instrumented test sources (without running them), and assembles a
+# debug APK.
+#
+# WHAT THIS IS NOT. It never launches an emulator and never runs `connectedDebugAndroidTest` — see
+# D-EMU below. It never builds `mobile/iosApp/` or touches `ios-ci.yml`. It never deploys, signs, or
+# publishes anything (ADR-012, criterion I6).
+#
+# D-EMU — instrumented tests are deliberately OUT of this workflow (criterion I3 explicitly permits
+# this "per a documented, explicit decision"). Reasons: (1) precedent/consistency —
+# `ios-ci.yml`'s own header states the equivalent boundary for iOS ("those stay human, on a real
+# Mac"), and Phase 5's own acceptance criteria already locked "Android's gates stay local, manual, on
+# the developer's Windows machine" — Phase 7 does not reverse that; (2) cost/flakiness — a cold
+# emulator boot plus 106 instrumented tests is the single most flake-prone construct available on a
+# hosted runner, the opposite of what a newly-introduced CI pipeline needs; (3) several instrumented
+# tests exercise real-Keystore behaviour and full navigation flows that would need a live backend
+# provisioned for this surface too — a second full-stack job, for a surface whose real verification
+# this phase performs as a human emulator walk anyway (`execution/PHASE_7_IMPLEMENTATION_PLAN.md`
+# T11). Mitigation: this workflow still *compiles* the instrumented sources every run
+# (`compileDebugAndroidTestKotlin`), so they can never silently rot into non-compiling code while
+# out of CI. `:shared:liveBackendIntegrationTest` (needs a live backend; excluded from
+# `testDebugUnitTest` by the module's own build config) is never invoked here either.
+#
+# WHY `:shared`'S iOS TARGETS DO NOT BREAK THIS LINUX RUNNER. `mobile/gradle.properties` sets
+# `kotlin.native.ignoreDisabledTargets=true`, and `mobile/shared/build.gradle.kts` applies SKIE only
+# when the host is macOS — so an `ubuntu-latest` job can configure and build `:shared` without any
+# Kotlin/Native download or konan cache, exactly as this same module already does inside
+# `ios-ci.yml` running the other direction (macOS building the Android target).
+#
+# D-ALINT — see the corresponding `execution/DECISIONS_LOG.md` entry for whether a lint baseline was
+# needed. As of this workflow's introduction, `:androidApp:lintDebug` passes with zero errors after
+# Phase 7 T0's mechanical fixes (D148) — no baseline file exists, and none should be added without
+# updating this note.
+#
+# SECRETS: none. No `secrets.*` reference appears anywhere in this file.
+#
+# ACTION VERSIONS resolved against the GitHub API on 2026-09-20: checkout v7, setup-java v6,
+# upload-artifact v7, gradle/actions v6 — mirroring `ios-ci.yml`'s own resolution.
+
+name: Android CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'mobile/shared/**'
+      - 'mobile/androidApp/**'
+      - 'mobile/gradle/**'
+      - 'mobile/gradle.properties'
+      - 'mobile/settings.gradle.kts'
+      - 'mobile/build.gradle.kts'
+      - 'mobile/gradlew'
+      - 'tools/token-pipeline/generate.js'
+      - '.github/workflows/android-ci.yml'
+      - '!**/*.md'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'mobile/shared/**'
+      - 'mobile/androidApp/**'
+      - 'mobile/gradle/**'
+      - 'mobile/gradle.properties'
+      - 'mobile/settings.gradle.kts'
+      - 'mobile/build.gradle.kts'
+      - 'mobile/gradlew'
+      - 'tools/token-pipeline/generate.js'
+      - '.github/workflows/android-ci.yml'
+      - '!**/*.md'
+
+concurrency:
+  group: android-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    name: Lint, unit test, assemble
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Report Android SDK preconditions
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${ANDROID_HOME:-}" ] || [ ! -d "${ANDROID_HOME}" ]; then
+            echo "::error::ANDROID_HOME is not set or does not exist on this runner image. ubuntu-latest is documented to ship the Android SDK preinstalled - this is an image regression, not a repo problem."
+            exit 1
+          fi
+          echo "ANDROID_HOME=${ANDROID_HOME}"
+          ls "${ANDROID_HOME}/platforms" 2>/dev/null || echo "No platforms cached yet - AGP will download android-36 on demand (a slow first run is expected, not a hang)."
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
+      - name: Lint
+        working-directory: mobile
+        run: ./gradlew --stacktrace :androidApp:lintDebug
+
+      - name: Unit tests (:shared and :androidApp)
+        working-directory: mobile
+        run: ./gradlew --stacktrace :shared:testDebugUnitTest :androidApp:testDebugUnitTest
+
+      - name: Compile instrumented test sources (not run — see D-EMU above)
+        working-directory: mobile
+        run: ./gradlew --stacktrace :androidApp:compileDebugAndroidTestKotlin
+
+      - name: Assemble debug APK
+        working-directory: mobile
+        run: ./gradlew --stacktrace :androidApp:assembleDebug
+
+      - name: Upload debug APK
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-debug-apk
+          path: mobile/androidApp/build/outputs/apk/debug/*.apk
+          retention-days: 7
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-reports
+          path: |
+            mobile/*/build/reports/**
+            mobile/*/build/test-results/**
+          retention-days: 7
+
+      - name: Job summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Android CI summary"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Runner | \`ubuntu-latest\` |"
+            echo "| JDK | Temurin 21 |"
+            echo "| Tasks run | \`lintDebug\`, \`:shared:testDebugUnitTest\`, \`:androidApp:testDebugUnitTest\`, \`compileDebugAndroidTestKotlin\`, \`assembleDebug\` |"
+            echo ""
+            echo "**Instrumented tests NOT run — see this file's own D-EMU header note.** They stay"
+            echo "local/manual on a real emulator, per \`mobile/androidApp/README.md\`."
+          } >> "$GITHUB_STEP_SUMMARY"
