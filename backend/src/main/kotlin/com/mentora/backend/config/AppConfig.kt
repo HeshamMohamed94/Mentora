@@ -59,7 +59,10 @@ data class AppConfig(
                 mediaStorageRoot = optional("MEDIA_STORAGE_ROOT", "storage/media"),
                 corsAllowedOrigins = optional("CORS_ALLOWED_ORIGINS", "http://localhost:3000")
                     .split(",").map { it.trim() }.filter { it.isNotEmpty() },
-                aiProviderApiKey = env["AI_PROVIDER_API_KEY"]?.takeIf { it.isNotBlank() },
+                // F5: trim before the blank-check so a stray leading/trailing whitespace or control
+                // character (copy-paste, shell `export`) never reaches the HTTP client's header-setting
+                // code, which would otherwise throw an exception embedding the raw header value.
+                aiProviderApiKey = env["AI_PROVIDER_API_KEY"]?.trim()?.takeIf { it.isNotBlank() },
                 aiProviderModel = optional("AI_PROVIDER_MODEL", "claude-sonnet-4-5"),
                 logLevel = optional("LOG_LEVEL", "DEBUG"),
                 aiTutorMessagesPerMinute = optional("AI_TUTOR_MESSAGES_PER_MINUTE", "20").toInt(),

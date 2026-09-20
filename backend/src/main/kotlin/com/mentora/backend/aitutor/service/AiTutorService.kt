@@ -95,12 +95,17 @@ class AiTutorService(
             historyTurns = normalizedHistory.size
             appendMessage(conversationId, "user", content, request.lessonContextId)
 
+            // F1: the new user turn is folded into the same normalization pass as the rest of the
+            // history (merging into a trailing same-role turn if one exists) before it ever reaches
+            // the provider — never appended separately, which is what let two adjacent `user` turns
+            // reach Anthropic after a retry.
+            val turns = AiPromptBuilder.appendUserTurn(normalizedHistory, content)
+
             val providerStartedAt = System.currentTimeMillis()
             usage = provider.complete(
                 AiCompletionRequest(
                     systemPrompt = systemPrompt,
-                    history = normalizedHistory,
-                    userMessage = content,
+                    history = turns,
                     maxResponseTokens = appConfig.aiProviderMaxResponseTokens,
                 ),
             ) { tokens ->
@@ -118,18 +123,24 @@ class AiTutorService(
             throw e
         } catch (e: ApiException.Internal) {
             // Design § 11 buckets 7-10 — a real misconfiguration (bad key/model/prompt), never transient.
+            // F3: the client-visible `message` is now generic ("Something went wrong.") for this
+            // call site; the operator-facing diagnostic hint (status/error.type/env-var name) lives
+            // on `cause` instead, so pull it from there for the log — don't lose it, just don't
+            // expose it in the HTTP response.
             outcome = "provider_misconfigured"
             level = Level.ERROR
-            errorMessage = e.message
+            errorMessage = e.cause?.message ?: e.message
             throw e
         } catch (e: Throwable) {
             // Anything else: an unrecognized provider failure, a mid-stream abort after the first
             // token was already emitted (§ 11 row 12), or a pre-provider failure (validation/
             // enrollment/lesson lookup) — none of those are the "AI Tutor provider" failing per se,
             // but this log line's job is only ever-fires-once observability, not a full error taxonomy.
+            // F5: an arbitrary third-party exception's `message` isn't guaranteed to be free of
+            // unexpected content (Design § 21) — log only the exception's type name here.
             outcome = "stream_failed"
             level = Level.WARN
-            errorMessage = e.message
+            errorMessage = e::class.simpleName
             throw e
         } finally {
             logMessageOutcome(

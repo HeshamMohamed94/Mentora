@@ -28,18 +28,33 @@ object AiPromptBuilder {
      * Design § 4.4, applied in this exact order (step 1 is re-applied after step 4, since
      * budget-trimming can expose a new leading `assistant` turn):
      * 1. drop leading `assistant` turns
-     * 2. merge consecutive same-role turns (joined with a blank line)
-     * 3. drop blank-content turns
+     * 2. drop blank-content turns
+     * 3. merge consecutive same-role turns (joined with a blank line)
      * 4. enforce a 12,000-character total budget, dropping the *oldest* turns first (never
      *    mid-turn truncation)
      * 5. re-apply step 1
+     *
+     * F1 fix: blank-dropping must happen *before* merging, not after — otherwise a blank turn
+     * sitting between two same-role turns gets dropped only after the merge pass already ran,
+     * leaving the two same-role turns adjacent and unmerged (the exact shape Anthropic rejects).
      */
     fun normalizeHistory(history: List<AiHistoryTurn>): List<AiHistoryTurn> {
-        val merged = mergeConsecutive(dropLeadingAssistant(history))
-            .filter { it.content.trim().isNotEmpty() }
-        val budgeted = applyBudget(merged)
+        val cleaned = mergeConsecutive(
+            dropLeadingAssistant(history).filter { it.content.trim().isNotEmpty() },
+        )
+        val budgeted = applyBudget(cleaned)
         return dropLeadingAssistant(budgeted)
     }
+
+    /**
+     * F1 fix: appends the new user turn to an already-[normalizeHistory]-d history, merging it
+     * into a trailing turn of the same role if one exists, so the boundary between "last
+     * persisted turn" and "the new message" is never left as two adjacent same-role turns (e.g. a
+     * user retrying after a prior attempt's turn was persisted but never answered). This is the
+     * exact combined, fully-normalized sequence that must be sent to the provider.
+     */
+    fun appendUserTurn(normalizedHistory: List<AiHistoryTurn>, content: String): List<AiHistoryTurn> =
+        mergeConsecutive(normalizedHistory + AiHistoryTurn("user", content))
 
     private fun dropLeadingAssistant(history: List<AiHistoryTurn>): List<AiHistoryTurn> =
         history.dropWhile { it.role == "assistant" }

@@ -155,14 +155,18 @@ Never mix languages within one response unless the student did."""
     }
 
     @Test
-    fun `normalizeHistory drops blank-content turns`() {
+    fun `normalizeHistory drops blank-content turns and merges what the drop exposes`() {
+        // F1 fix: dropping the blank assistant turn exposes two adjacent "user" turns — those must
+        // now be merged into one, since two consecutive same-role turns is exactly the shape
+        // Anthropic rejects. (Previously this scenario's "correct" behavior was asserted as two
+        // adjacent, unmerged "user" turns — that was itself the bug.)
         val history = listOf(
             AiHistoryTurn("user", "hello"),
             AiHistoryTurn("assistant", "   "),
             AiHistoryTurn("user", "still here"),
         )
         val normalized = AiPromptBuilder.normalizeHistory(history)
-        assertEquals(listOf("user" to "hello", "user" to "still here"), normalized.map { it.role to it.content })
+        assertEquals(listOf("user" to "hello\n\nstill here"), normalized.map { it.role to it.content })
     }
 
     @Test
@@ -178,6 +182,41 @@ Never mix languages within one response unless the student did."""
         assertEquals(1, normalized.size)
         assertEquals("user", normalized[0].role)
         assertEquals("c".repeat(7_000), normalized[0].content)
+    }
+
+    @Test
+    fun `appendUserTurn merges the new user message into a trailing user turn from a prior failed attempt`() {
+        // F1's exact bug scenario: the conversation's persisted history ends in a "user" turn (a
+        // message that was appended but never answered, e.g. because the prior attempt failed
+        // before the assistant reply was persisted). The new message the student sends on retry is
+        // also role "user" — these must never reach the provider as two adjacent same-role turns.
+        val normalizedHistory = AiPromptBuilder.normalizeHistory(
+            listOf(
+                AiHistoryTurn("user", "first attempt, never answered"),
+            ),
+        )
+        val turns = AiPromptBuilder.appendUserTurn(normalizedHistory, "retrying the same question")
+
+        assertEquals(1, turns.size)
+        assertEquals("user", turns[0].role)
+        assertEquals("first attempt, never answered\n\nretrying the same question", turns[0].content)
+        for (i in 1 until turns.size) {
+            assertTrue(turns[i - 1].role != turns[i].role, "adjacent same-role turns at $i")
+        }
+    }
+
+    @Test
+    fun `appendUserTurn does not merge when the trailing history turn is from the assistant`() {
+        val normalizedHistory = AiPromptBuilder.normalizeHistory(
+            listOf(
+                AiHistoryTurn("user", "hi"),
+                AiHistoryTurn("assistant", "hello"),
+            ),
+        )
+        val turns = AiPromptBuilder.appendUserTurn(normalizedHistory, "another question")
+
+        assertEquals(listOf("user" to "hi", "assistant" to "hello", "user" to "another question"),
+            turns.map { it.role to it.content })
     }
 
     @Test

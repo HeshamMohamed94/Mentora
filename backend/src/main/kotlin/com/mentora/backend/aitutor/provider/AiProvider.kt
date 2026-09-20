@@ -16,10 +16,15 @@ interface AiProvider {
     ): AiUsage
 }
 
+/**
+ * [history] is the complete, already-normalized turn sequence to send — including the new user
+ * turn (F1: normalization/merging of the new message against the trailing history turn happens
+ * once, before this request is built, via `AiPromptBuilder.appendUserTurn`; this provider never
+ * appends a turn of its own, so it can never re-introduce an adjacent same-role pair).
+ */
 data class AiCompletionRequest(
     val systemPrompt: String,
     val history: List<AiHistoryTurn>,
-    val userMessage: String,
     val maxResponseTokens: Int,
 )
 

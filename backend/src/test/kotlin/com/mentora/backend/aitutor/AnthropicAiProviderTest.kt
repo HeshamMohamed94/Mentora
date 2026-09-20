@@ -4,6 +4,7 @@ import com.mentora.backend.aitutor.provider.AiCompletionRequest
 import com.mentora.backend.aitutor.provider.AiHistoryTurn
 import com.mentora.backend.aitutor.provider.AiToken
 import com.mentora.backend.aitutor.provider.AnthropicAiProvider
+import com.mentora.backend.aitutor.provider.AnthropicStreamException
 import com.mentora.backend.common.ApiException
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
@@ -16,6 +17,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.TextContent
 import io.ktor.http.headersOf
 import io.ktor.utils.io.ByteReadChannel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
@@ -126,7 +128,7 @@ class AnthropicAiProviderTest {
     }
 
     @Test
-    fun `401 authentication_error maps to Internal and never invokes onStream`() = runBlocking {
+    fun `401 authentication_error maps to Internal, client message is generic, hint lives on cause`() = runBlocking {
         val provider = provider(MockEngine {
             respond(errorBody("authentication_error", "bad key"), status = HttpStatusCode.Unauthorized, headers = jsonHeaders())
         })
@@ -136,11 +138,14 @@ class AnthropicAiProviderTest {
             provider.complete(requestOf()) { invoked = true }
         }
         assertFalse(invoked)
-        assertTrue(error.message.contains("AI_PROVIDER_API_KEY"))
+        // F3: no diagnostic detail on the client-visible message — only on `cause`, for logging.
+        assertEquals("Something went wrong.", error.message)
+        assertFalse(error.message.contains("AI_PROVIDER_API_KEY"))
+        assertTrue(error.cause?.message.orEmpty().contains("AI_PROVIDER_API_KEY"))
     }
 
     @Test
-    fun `404 not_found_error maps to Internal and never invokes onStream`() = runBlocking {
+    fun `404 not_found_error maps to Internal, client message is generic, hint lives on cause`() = runBlocking {
         val provider = provider(MockEngine {
             respond(errorBody("not_found_error", "no such model"), status = HttpStatusCode.NotFound, headers = jsonHeaders())
         })
@@ -150,7 +155,9 @@ class AnthropicAiProviderTest {
             provider.complete(requestOf()) { invoked = true }
         }
         assertFalse(invoked)
-        assertTrue(error.message.contains("AI_PROVIDER_MODEL"))
+        assertEquals("Something went wrong.", error.message)
+        assertFalse(error.message.contains("AI_PROVIDER_MODEL"))
+        assertTrue(error.cause?.message.orEmpty().contains("AI_PROVIDER_MODEL"))
     }
 
     @Test
@@ -292,6 +299,131 @@ class AnthropicAiProviderTest {
         assertFalse(invoked)
     }
 
+    @Test
+    fun `a real CancellationException propagates unmodified instead of becoming ServiceUnavailable`() = runBlocking {
+        // F4: simulates a client disconnect during the request — a real CancellationException must
+        // never be swallowed/converted by the provider's broad connection-failure catch clause.
+        val provider = provider(MockEngine { throw CancellationException("client disconnected") })
+
+        var invoked = false
+        assertFailsWith<CancellationException> {
+            provider.complete(requestOf()) { invoked = true }
+        }
+        assertFalse(invoked)
+    }
+
+    @Test
+    fun `clean channel EOF without a message_stop event mid-stream is a failure, not a success`() = runBlocking {
+        // F2: two real deltas stream, then the channel just ends (no message_stop, no error event)
+        // — this must NOT be treated as a successful completion, since the response may be truncated.
+        val body = buildString {
+            append(sseEvent("content_block_delta", """{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"partial"}}"""))
+            append(sseEvent("content_block_delta", """{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" answer"}}"""))
+        }
+        val provider = provider(MockEngine { respond(sse(body), headers = sseHeaders()) })
+
+        var invoked = false
+        val collected = mutableListOf<String>()
+        var thrownDuringCollect: Throwable? = null
+
+        val overall = runCatching {
+            provider.complete(requestOf()) { flow ->
+                invoked = true
+                try {
+                    flow.collect { collected.add(it.text) }
+                } catch (e: Throwable) {
+                    thrownDuringCollect = e
+                    throw e
+                }
+            }
+        }
+
+        assertTrue(invoked)
+        assertEquals(listOf("partial", " answer"), collected)
+        assertTrue(thrownDuringCollect is ApiException.ServiceUnavailable)
+        assertTrue(overall.isFailure)
+    }
+
+    @Test
+    fun `a ping event with a syntactically valid but non-object payload is ignored, not a crash`() = runBlocking {
+        // F7: `data: [1,2,3]` is valid JSON but not a JSON object — this must be silently ignored
+        // for an ignorable event type like `ping`, not crash the whole request with an uncaught
+        // IllegalArgumentException.
+        val body = buildString {
+            append(sseEvent("message_start", """{"type":"message_start","message":{"usage":{"input_tokens":5}}}"""))
+            append(sseEvent("content_block_delta", """{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Hi"}}"""))
+            append(sseEvent("ping", "[1,2,3]"))
+            append(sseEvent("content_block_delta", """{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"!"}}"""))
+            append(sseEvent("message_stop", """{"type":"message_stop"}"""))
+        }
+        val provider = provider(MockEngine { respond(body, headers = sseHeaders()) })
+
+        val tokens = mutableListOf<String>()
+        val usage = provider.complete(requestOf()) { flow -> flow.collect { tokens.add(it.text) } }
+
+        assertEquals(listOf("Hi", "!"), tokens)
+        assertEquals(5, usage.inputTokens)
+    }
+
+    @Test
+    fun `malformed content_block_delta before the first token maps to ServiceUnavailable`() = runBlocking {
+        // F9: exercises AnthropicStreamException's pre-first-token path — a content_block_delta
+        // missing its required `delta` field fails to decode.
+        val body = sseEvent("content_block_delta", """{"type":"content_block_delta","index":0}""")
+        val provider = provider(MockEngine { respond(body, headers = sseHeaders()) })
+
+        var invoked = false
+        assertFailsWith<ApiException.ServiceUnavailable> {
+            provider.complete(requestOf()) { invoked = true }
+        }
+        assertFalse(invoked)
+    }
+
+    @Test
+    fun `malformed content_block_delta mid-stream invokes onStream, emits the prior token, then throws`() = runBlocking {
+        // F9: the mid-stream counterpart — the malformed event arrives after a real token, so it
+        // must propagate raw as AnthropicStreamException rather than being converted to a clean 503.
+        val body = buildString {
+            append(sseEvent("content_block_delta", """{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"A"}}"""))
+            append(sseEvent("content_block_delta", """{"type":"content_block_delta","index":0}"""))
+        }
+        val provider = provider(MockEngine { respond(body, headers = sseHeaders()) })
+
+        var invoked = false
+        val collected = mutableListOf<String>()
+        var thrownDuringCollect: Throwable? = null
+
+        val overall = runCatching {
+            provider.complete(requestOf()) { flow ->
+                invoked = true
+                try {
+                    flow.collect { collected.add(it.text) }
+                } catch (e: Throwable) {
+                    thrownDuringCollect = e
+                    throw e
+                }
+            }
+        }
+
+        assertTrue(invoked)
+        assertEquals(listOf("A"), collected)
+        assertTrue(thrownDuringCollect is AnthropicStreamException)
+        assertTrue(overall.isFailure)
+    }
+
+    @Test
+    fun `CRLF line endings are handled identically to bare LF`() = runBlocking {
+        // F9: the implementation plan explicitly calls for \r\n SSE framing coverage.
+        val provider = provider(MockEngine { respond(sse(happyPathEvents().replace("\n", "\r\n")), headers = sseHeaders()) })
+
+        val tokens = mutableListOf<String>()
+        val usage = provider.complete(requestOf()) { flow -> flow.collect { tokens.add(it.text) } }
+
+        assertEquals(listOf("Hello", " there", "!"), tokens)
+        assertEquals(25, usage.inputTokens)
+        assertEquals(12, usage.outputTokens)
+    }
+
     // ---- fixtures ----
 
     private fun provider(engine: MockEngine, apiKey: String = "test-key-not-a-real-credential", model: String = "test-model") =
@@ -308,14 +440,16 @@ class AnthropicAiProviderTest {
             model = model,
         )
 
+    // F1: AiCompletionRequest.history is now the complete turn sequence (history + the new user
+    // message) — this fixture folds `userMessage` into `history` as the trailing turn so every
+    // existing caller below keeps behaving exactly as before.
     private fun requestOf(
         history: List<AiHistoryTurn> = emptyList(),
         userMessage: String = "Hello",
         maxResponseTokens: Int = 512,
     ) = AiCompletionRequest(
         systemPrompt = "You are Mentora's AI Tutor.",
-        history = history,
-        userMessage = userMessage,
+        history = history + AiHistoryTurn("user", userMessage),
         maxResponseTokens = maxResponseTokens,
     )
 

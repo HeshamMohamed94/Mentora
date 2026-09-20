@@ -203,6 +203,28 @@ class AiTutorIntegrationTest {
     }
 
     @Test
+    fun `retrying after a pre-stream failure never sends two adjacent same-role turns to the provider`() = testApplication {
+        // F1: the first attempt persists a "user" turn but fails before any assistant reply is
+        // persisted (Design § 1.3). The retry's request to the provider must never contain that
+        // stale "user" turn directly adjacent to the new "user" message.
+        val provider = FailOnceThenCaptureAiProvider()
+        application { module(config(), provider) }
+        val student = register("retry-student@example.com", "Student").data().string("accessToken")
+
+        assertEquals(HttpStatusCode.ServiceUnavailable, postMessage("""{"content":"First attempt"}""", student).status)
+        assertEquals(HttpStatusCode.OK, postMessage("""{"content":"Second attempt"}""", student).status)
+
+        val turns = requireNotNull(provider.captured).history
+        for (i in 1 until turns.size) {
+            assertTrue(turns[i - 1].role != turns[i].role, "adjacent same-role turns: ${turns.map { it.role }}")
+        }
+        // The two turns must have been merged into one, not left as two adjacent "user" turns.
+        assertEquals(listOf("user"), turns.map { it.role })
+        assertTrue(turns.single().content.contains("First attempt"))
+        assertTrue(turns.single().content.contains("Second attempt"))
+    }
+
+    @Test
     fun `enrolled course context is injected into the system prompt`() = testApplication {
         val capturing = CapturingAiProvider()
         application { module(config(), capturing) }
@@ -243,6 +265,21 @@ class AiTutorIntegrationTest {
                 },
             )
             return AiUsage(null, null)
+        }
+    }
+
+    /** F1: throws [ApiException.ServiceUnavailable] on its first call (simulating a failed first
+     * attempt), then captures the [AiCompletionRequest] of every subsequent call and completes
+     * like a trivial stub — used to prove a retry never sends two adjacent same-role turns. */
+    private class FailOnceThenCaptureAiProvider : AiProvider {
+        private var callCount = 0
+        var captured: AiCompletionRequest? = null
+        override suspend fun complete(request: AiCompletionRequest, onStream: suspend (Flow<AiToken>) -> Unit): AiUsage {
+            callCount++
+            if (callCount == 1) throw ApiException.ServiceUnavailable()
+            captured = request
+            onStream(flow { emit(AiToken("ok")) })
+            return AiUsage(1, 1)
         }
     }
 
