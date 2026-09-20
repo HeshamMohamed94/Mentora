@@ -38,8 +38,8 @@ history normalization), and verify — not rebuild the clients.
 | T3 | `AiPromptBuilder` (prompt text, enrolled-course context, history normalization) | **DONE** — `a172682`, closes the "What should I learn next?" gap for real |
 | T4 | Observability logging (`aiTutor.message`) + 3 failure-path integration tests | **DONE** — `6960127` |
 | T5 | **Mandatory review checkpoint** — Opus (full diff) + independent Codex second opinion (provider/key boundary only) | **DONE, CLOSED** — see D141/D142. Opus found F1 (HIGH — a retry after any provider failure could permanently brick a conversation by sending two adjacent same-role turns to Anthropic) and F2 (MEDIUM-HIGH — a clean stream EOF without `message_stop` could persist a truncated answer as if it were complete), both fixed (`c11080e`), plus 5 smaller findings (F3-F5/F7/F9) fixed and 2 (F6/F8) deliberately deferred as low-severity/non-blocking. Codex's independent pass then found 2 more genuine defects the Opus round missed (a second cancellation-swallowing path inside the non-2xx error-body reader; an empty text delta could satisfy the "first token received" check), both fixed (`0196bde`). **127/127 tests green.** |
-| T6 | Documentation + config surface (`.env.example`, `backend/README.md`, `INTEGRATION_CONTRACT.md`, this file, `DECISIONS_LOG.md`) | **IN PROGRESS — this update** |
-| T7 | Cross-platform verification without a key (Android + Website against stub mode and a forced provider failure) | NOT STARTED |
+| T6 | Documentation + config surface (`.env.example`, `backend/README.md`, `INTEGRATION_CONTRACT.md`, this file, `DECISIONS_LOG.md`) | **DONE** — `82e2bb4` (D143) |
+| T7 | Cross-platform verification without a key (Android + Website against stub mode and a forced provider failure) | **DONE** — Website + Android both PASS, zero `web/`/`mobile/` files changed |
 | — | **GATE:** the user supplies a real `AI_PROVIDER_API_KEY` (and confirms the exact Anthropic model id) | **NOT MET — this environment's `AI_PROVIDER_API_KEY` remains unset** |
 | T8 | Live runtime verification against the real Anthropic API | **BLOCKED** on the gate above |
 | T9 | Final acceptance audit (A-J) + Phase 6 handoff | NOT STARTED |
@@ -64,6 +64,36 @@ in the prompt-injection mitigation (F6); mid-stream failures are logged as the s
 
 **iOS:** not touched, not affected. No file under `mobile/` was modified by Phase 6 — confirmed at
 every task's completion gate (`git diff --stat` scope check).
+
+**T7 verification — DONE, both primary mobile/web demo targets, 2026-09-20. Zero `web/` or `mobile/`
+file changed on either platform (verify-only, as expected).**
+
+*Website* (self-performed via Chrome browser automation against the locally-running stub-mode
+backend): entry point/navigation, first-open welcome + quick actions, three-dot "Thinking" loading
+state, all 5 quick actions round-trip successfully, a real backend outage produces the clean generic
+error bubble ("Something went wrong sending your message. Try again.") with the user's own message
+preserved in history (no crash, no raw error code), and — after restarting the backend — clicking "Try
+again" succeeds and the conversation continues normally. Arabic/RTL (`/ar/app/ai-tutor`): title, quick
+actions, input placeholder, and the send-arrow direction all correctly localized/mirrored. Light/Dark:
+dark theme renders with correct contrast on both user and assistant bubbles in both English and
+Arabic. All PASS.
+
+*Android* (delegated to a background agent: real debug APK on an emulator, `student2@mentora.dev`,
+against the same stub-mode backend via the existing `10.0.2.2:8080` config, no config changes needed):
+B4 (first-open welcome bubble + 5 quick-action chips, not a full-screen empty state) PASS; B6 (all 5
+quick actions incl. "What should I learn next?") PASS; B2 (three-dot "Thinking" pulse, observed live in
+a screenshot, not just inferred from code) PASS; B3 (killed backend mid-send → permanent user bubble +
+inline error + Retry card, message never lost; restarted backend → Retry succeeds; a second,
+independent error also retried correctly, confirming per-turn retry isolation) PASS; F2 (Arabic/RTL:
+title, quick actions, placeholder, bubble alignment, nav order all correctly mirrored) PASS; F3
+(Dark theme, combined with Arabic: fully dark-themed, correctly tinted, no default-Android unstyled
+elements) PASS; E3 (`AI_TUTOR_UNAVAILABLE`) verified structurally by code (falls through to the same
+generic `Unknown`-error/Retry path already directly observed live in B3 for connection failure) rather
+than by forcing a real 503, which the agent correctly treated as out of this verify-only pass's scope.
+One incidental, unrelated finding **outside AI Tutor / outside Phase 6 scope**, not investigated
+further: on Course Details, the "Login to Enroll" CTA doesn't immediately refresh to "Enroll" right
+after logging in via the auth-gate flow (stale auth-state read on that screen) — worth a look in a
+future pass, not a Phase 6 blocker.
 
 ---
 
