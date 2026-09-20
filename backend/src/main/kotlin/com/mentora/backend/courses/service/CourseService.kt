@@ -72,6 +72,9 @@ data class CourseListQuery(
     val category: String?, val level: String?, val language: String?, val maxPrice: String?,
     val keyword: String?, val page: PageRequest,
 )
+/** Narrow, read-only shape for the AI Tutor's `<enrolled_courses>` prompt block (Design § 4.3, C4) —
+ * title and level only, never price/instructor/rating/thumbnail/curriculum. */
+data class CourseBrief(val title: String, val level: String)
 
 class CourseService(
     private val repository: CourseRepository,
@@ -110,6 +113,11 @@ class CourseService(
 
     private suspend fun isEnrolled(principal: MentoraPrincipal?, courseId: ObjectId): Boolean =
         principal != null && enrollments.find(principal.userId, courseId) != null
+
+    /** AI Tutor's `<enrolled_courses>` prompt block (Design § 4.3) — one bulk read, no N+1, and
+     * deliberately narrow (C4): title and level only, no instructor-name join. */
+    suspend fun enrolledCourseBriefs(ids: List<ObjectId>): List<CourseBrief> =
+        repository.findByIds(ids).map { CourseBrief(it.title, it.level) }
 
     suspend fun create(principal: MentoraPrincipal, request: CreateCourseRequest): CourseResponse {
         val categoryId = objectId(request.categoryId, "categoryId")

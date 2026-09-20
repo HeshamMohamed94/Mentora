@@ -43,8 +43,6 @@ data class AiConversationResponse(
     val nextCursor: String? = null,
 )
 
-data class LessonContext(val title: String, val description: String)
-
 class AiTutorService(
     private val repository: AiTutorRepository,
     private val enrollment: EnrollmentService,
@@ -67,16 +65,17 @@ class AiTutorService(
         respond: suspend (Flow<AiToken>) -> Unit,
     ) {
         val content = validatedContent(request)
-        resolveLessonContext(principal, request)
+        val lessonContext = resolveLessonContext(principal, request)
         val conversation = repository.findOrCreate(principal.userId, Clock.System.now())
         val conversationId = requireNotNull(conversation.id)
         val history = repository.recent(conversationId, HISTORY_LIMIT)
             .map { AiHistoryTurn(it.role, it.content) }
+        val systemPrompt = AiPromptBuilder.buildSystemPrompt(enrolledCourses(principal), lessonContext)
         appendMessage(conversationId, "user", content, request.lessonContextId)
         provider.complete(
             AiCompletionRequest(
-                systemPrompt = SYSTEM_PROMPT,
-                history = history,
+                systemPrompt = systemPrompt,
+                history = AiPromptBuilder.normalizeHistory(history),
                 userMessage = content,
                 maxResponseTokens = appConfig.aiProviderMaxResponseTokens,
             ),
@@ -102,14 +101,24 @@ class AiTutorService(
     private suspend fun resolveLessonContext(
         principal: MentoraPrincipal,
         request: SendAiMessageRequest,
-    ): LessonContext? {
+    ): AiPromptBuilder.LessonContext? {
         val courseId = request.courseId ?: return null
         val lessonId = requireNotNull(request.lessonContextId)
         enrollment.requireEnrollment(principal.userId, objectId(courseId))
         val course = courses.get(courseId, principal)
         val lesson = course.sections.flatMap { it.lessons }.firstOrNull { it.lessonId == lessonId }
             ?: throw ApiException.NotFound("LESSON_NOT_FOUND", "The lesson was not found.")
-        return LessonContext(lesson.title, lesson.description)
+        return AiPromptBuilder.LessonContext(lesson.title, lesson.description)
+    }
+
+    /** Injected on every message, global and lesson-context mode alike (Design § 4.3) — Android
+     * renders all five quick actions in lesson-context mode too, so gating this on mode would
+     * silently degrade "What should I learn next?" there. */
+    private suspend fun enrolledCourses(principal: MentoraPrincipal): List<AiPromptBuilder.EnrolledCourse> {
+        val enrollments = enrollment.list(principal, PageRequest(cursor = null, limit = ENROLLED_COURSE_LIMIT))
+        if (enrollments.items.isEmpty()) return emptyList()
+        return courses.enrolledCourseBriefs(enrollments.items.map { ObjectId(it.courseId) })
+            .map { AiPromptBuilder.EnrolledCourse(it.title, it.level) }
     }
 
     private suspend fun appendMessage(
@@ -140,7 +149,6 @@ class AiTutorService(
     private companion object {
         const val MAX_CONTENT_LENGTH = 4_000
         const val HISTORY_LIMIT = 20
-        const val SYSTEM_PROMPT = "You are Mentora's helpful AI Tutor. Explain concepts clearly and support learning. " +
-            "You are read-and-explain-only: never claim to modify enrollment, progress, quiz, or account state."
+        const val ENROLLED_COURSE_LIMIT = 20
     }
 }

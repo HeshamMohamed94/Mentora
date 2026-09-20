@@ -4,6 +4,7 @@ import com.mongodb.client.model.Filters.and
 import com.mongodb.client.model.Filters.eq
 import com.mongodb.client.model.Filters.exists
 import com.mongodb.client.model.Filters.gt
+import com.mongodb.client.model.Filters.`in`
 import com.mongodb.client.model.Filters.lte
 import com.mongodb.client.model.Filters.or
 import com.mongodb.client.model.Filters.text
@@ -91,6 +92,9 @@ class CourseRepository(database: MongoDatabase) {
     }
 
     suspend fun findById(id: ObjectId): CourseDocument? = courses.find(eq("_id", id)).firstOrNull()
+
+    suspend fun findByIds(ids: List<ObjectId>): List<CourseDocument> =
+        if (ids.isEmpty()) emptyList() else courses.find(`in`("_id", ids)).toList()
 
     suspend fun listPublished(filter: PublishedCourseFilter): List<CourseDocument> {
         val filters = buildList<Bson> {
