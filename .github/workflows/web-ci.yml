@@ -1,0 +1,100 @@
+# Mentora — Web CI (Phase 7, Task T2/T3)
+#
+# WHAT THIS IS. The automated gate for `web/` — a Next.js 15 app. Two jobs: `web-static` (ESLint,
+# the repo's own RTL/logical-properties gate, design-to-code drift validation, TypeScript, a
+# production build — fast, always informative) and `web-e2e` (the full local stack — MongoDB +
+# backend + Website — with the real Playwright suite run against it, per
+# `architecture/DEPLOYMENT.md § 5`'s explicit requirement for CI-provisioned E2E). Splitting them
+# means a lint/type error fails in minutes instead of tens of minutes, and a real E2E failure is
+# never confused with a static one. Covers criterion I2 — a locked M16 deliverable never built until
+# Phase 7 (`execution/PHASE_7_SYSTEM_DESIGN.md` § H2/§ 4).
+#
+# WHAT THIS IS NOT. It never drives Android or iOS, never deploys, signs, or publishes anything
+# (ADR-012, criterion I6).
+#
+# D-E2E-BROWSER — chromium only. WebKit is known-red for a real, investigated, non-product reason
+# (`execution/DECISIONS_LOG.md` D64): it applies a stricter Secure/SameSite policy over plain-HTTP
+# `localhost` than Chromium/Firefox's "localhost is trustworthy" relaxation, so the session cookie is
+# rejected and every authenticated flow bounces to /login. Firefox is green but roughly doubles this
+# job's wall-clock for near-zero marginal signal beyond what chromium already proves. Firefox/WebKit
+# remain local/manual (`web/README.md`) — this is a stated, deliberate narrowing, not a silently
+# reduced suite.
+#
+# AI TUTOR / SECRETS: `AI_PROVIDER_API_KEY` is explicitly empty (D146, stub mode) in the E2E job. No
+# `secrets.*` reference appears anywhere in this file.
+#
+# ACTION VERSIONS resolved against the GitHub API on 2026-09-20: checkout v7, setup-node v7.
+#
+# NOTE: this file currently has ONE job (`web-static`) — Phase 7 Task T2. The `web-e2e` job (Task T3)
+# is added in a follow-up commit once T2 is confirmed green, per PHASE_7_IMPLEMENTATION_PLAN.md.
+
+name: Web CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'web/**'
+      - 'design-system/**'
+      - 'design-to-code/**'
+      - 'tools/token-pipeline/generate.js'
+      - 'tools/design-to-code/**'
+      - '.github/workflows/web-ci.yml'
+      - '!**/*.md'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'web/**'
+      - 'design-system/**'
+      - 'design-to-code/**'
+      - 'tools/token-pipeline/generate.js'
+      - 'tools/design-to-code/**'
+      - '.github/workflows/web-ci.yml'
+      - '!**/*.md'
+
+concurrency:
+  group: web-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  web-static:
+    name: Web lint + type-check + build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: web
+    env:
+      API_BASE_URL: 'http://localhost:8080'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: Logical-properties check (RTL gate — no physical-direction CSS)
+        run: npm run lint:logical-properties
+
+      - name: Design-to-code validation
+        run: npm run validate:design-to-code
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Production build
+        run: npm run build
