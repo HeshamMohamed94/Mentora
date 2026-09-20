@@ -6762,3 +6762,17 @@ Both fixes verified: **18-19/19 passed, one self-healing flake** (`helpers.ts`'s
 **Gate proven non-vacuous, not just "it passed" -- a deliberate local experiment, as the plan required:** temporarily changed `design-system/design-tokens.json`'s primary button height from 48 to 49, re-ran `node tools/token-pipeline/generate.js`, and confirmed a real, non-empty `git diff` appeared (`design-system/design-tokens.json` and `web/styles/tokens.css` both showed the expected 1-line change) -- proving the exact failure condition `tokens-ci.yml` checks for genuinely occurs and would genuinely fail the workflow, not merely that the workflow happens to pass on an already-clean tree. Reverted with `git checkout --` and regenerated again to confirm a clean, zero-diff state was fully restored (`git status` empty).
 
 **Next:** T6 -- the C4 fix (Android Course Details / Learning Path Details auth-state staleness).
+
+## D154 -- 2026-09-20 -- PHASE 7 T6 done: the C4 auth-state staleness bug is fixed (root cause confirmed, live repro deferred to T11)
+
+**Decision:** implemented the minimal fix `PHASE_7_SYSTEM_DESIGN.md` section 7 designed: `CourseDetailsViewModel`'s and `LearningPathDetailsViewModel`'s `isAuthenticated` constructor parameter became a private mutable field with a new `onAuthenticationChanged(value)` method (equality-guarded against a redundant reload); `CourseDetailsScreen`/`LearningPathDetailsScreen` push the live value in via `LaunchedEffect(isAuthenticated)`; `MentoraNavHost`'s stale kdoc/comments (which claimed every auth-state transition resets the whole nav stack -- true for two of three transitions, false for the pending-intent login branch that this exact bug depends on) were corrected to state the real invariant.
+
+**Scope discipline, verified mechanically, not just claimed:** `git status` after this task shows exactly 7 files, every one under `mobile/androidApp/src/` -- no `mobile/shared/`, `backend/`, or `web/` file touched. `MentoraNavHost.kt`'s own changes are comment-only, confirmed by re-reading the diff.
+
+**Tests:** 5 new JVM unit tests (3 in `CourseDetailsViewModelTest`, 2 in `LearningPathDetailsViewModelTest`, exactly per Design 7.5's spec) -- guest-then-authenticated CTA transitions (both not-enrolled and already-enrolled outcomes), and the equality-guard's no-redundant-reload behavior. **Every existing test in both files passes completely unmodified** -- 246 total (241 + 5), 0 failures, 0 errors; `:shared` unaffected at 249/249. `:androidApp:lintDebug` still 0 errors after the change.
+
+**Verification, real CI:** run `35533679621` -- <https://github.com/HeshamMohamed94/Mentora/actions/runs/35533679621> -- green.
+
+**C4 is NOT yet marked fully done.** Per Design 7.5's own explicit rule ("a unit test alone does not close C4, because the defect was a navigation-lifetime defect, not a pure-logic defect"), the real completion gate is a live emulator repro -- guest taps "Login to Enroll", logs in, lands on Checkout, presses back, and the CTA must now read "Enroll" (not the stale "Login to Enroll"). That live proof is deferred to T11, exactly as the plan specifies; this task only makes the fix itself real, tested, and CI-green.
+
+**Next:** T7 -- the mandatory review checkpoint (Opus; `codex-reviewer` only if warranted).
