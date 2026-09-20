@@ -6716,3 +6716,15 @@ Both fixes verified: **18-19/19 passed, one self-healing flake** (`helpers.ts`'s
 **Verification, real CI, not assumed:** run `35530971377` -- <https://github.com/HeshamMohamed94/Mentora/actions/runs/35530971377> -- green in 4m17s. Test-report artifact downloaded and its actual JUnit XML parsed: **127/127, 0 failures, 0 errors** -- the exact T0 baseline, not a reduced set. MongoDB reached PRIMARY (visible in the replica-set step's own log). No `secrets.*` reference in the file (verified by re-reading it in full). `git diff --stat` across both of this task's commits touches exactly `.github/workflows/backend-ci.yml` and `backend/gradlew` -- nothing else.
 
 **Next:** T2 -- `web-ci.yml` job `web-static`.
+
+## D150 -- 2026-09-20 -- PHASE 7 T2 done: `web-static` green after correcting a real design assumption (the app's build genuinely needs a live backend)
+
+**Decision:** wrote `.github/workflows/web-ci.yml` with its first job, `web-static` (ESLint, the repo's own logical-properties/RTL gate, design-to-code validation, TypeScript), per `PHASE_7_SYSTEM_DESIGN.md` § 4.1.
+
+**Real finding, corrected on the first CI run (`35531340028`, exit 1, `TypeError: fetch failed` / `ECONNREFUSED` while prerendering `/en`):** the System Design's own assumption that `web-static`'s `npm run build` step needs no backend was wrong. `web/src/app/[locale]/(public)/page.tsx` (the landing page) is ISR (`export const revalidate = 300`), explicitly *not* fully static, per its own comment ("a build-time-frozen featured-courses list would go stale the moment an Instructor publishes/unpublishes a course"). Next.js still performs one real, live, server-side fetch to the backend during `next build`'s initial prerender pass for an ISR route -- this was never exercised before because this project never had CI for `web/`, and every local `npm run build` this session ran happened to have a backend already running from an adjacent task (T0's Playwright precondition check), masking the dependency.
+
+**Resolution:** dropped the `Production build` step from `web-static` entirely rather than starting a throwaway backend just for it (which would duplicate `web-e2e`'s own "build the site against a live backend" step and defeat `web-static`'s "fast, no live client" purpose). The real production build is exercised for real exactly once, in `web-e2e` (T3), which already needs a live backend for its own Playwright run. **No product code was touched** -- this is a pure CI-configuration correction, and it makes `web-static`'s scope *more* honestly "static-analysis-only" than the original design's mixed framing, not less thorough overall (the build still gets exercised once, for real, per push).
+
+**Verification:** run `35531472308` -- <https://github.com/HeshamMohamed94/Mentora/actions/runs/35531472308> -- green, all 4 static checks passed (ESLint: 0 errors, 1 known pre-existing `<img>` warning per D0-somewhere-earlier; logical-properties: clean; design-to-code: 37 screens/6 patterns/11 shared files validated; typecheck: clean).
+
+**Next:** T3 -- `web-ci.yml` job `web-e2e`.
