@@ -56,7 +56,7 @@ excluded** (Phase 5 remains frozen); **no real AI provider credential is used, r
 | T6 | C4 fix — Android Course Details / Learning Path Details auth-state staleness | W | **Fix DONE, live repro PENDING (T11)** — `0e0b233` (D154). 5 new tests, 246 total (241+5), 0 failures. Green: [run 35533679621](https://github.com/HeshamMohamed94/Mentora/actions/runs/35533679621) |
 | T7 | Review checkpoint (Opus; Codex only if warranted) | W | **DONE** (D155). No HIGH findings; 2 MEDIUM fixed (web-ci.yml missing `backend/**` path filter; a load-race in both C4-fixed ViewModels), 5 LOW fixed, 3 recorded/deferred. Codex second opinion not warranted, per reviewer's own recommendation |
 | T8 | Cross-client parity harness (`tools/cross-client-check/`) | W | **DONE** (D156). All 8 design-named assertion groups (reported as 9 lines — E2/A3 split for clarity) PASS on 3 consecutive real runs against the live local stack; A4 genuinely exercised (all lessons completed before the quiz attempt), not left NOT-EXERCISED |
-| T9 | Static confirmations (A6, C3, D2, F2, I4) | W | NOT STARTED |
+| T9 | Static confirmations (A6, C3, D2, F2, I4) | W | **DONE** (D157). All 5 confirmed clean; F1 (`isEnrolled` pagination divergence between Web `?limit=100` and Android's full-pagination) recorded as a disclosed, accepted limitation, not fixed in Phase 7 |
 | T10 | Website portfolio-priority flow walk (EN/AR, Light/Dark) | M | NOT STARTED |
 | T11 | Android portfolio-priority flow walk (emulator, incl. C4 live repro) | M | NOT STARTED |
 | T12 | Demo-environment + documentation accuracy pass | D | NOT STARTED |
