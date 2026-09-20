@@ -41,9 +41,12 @@ export function useUpdatePosition(courseId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ lessonId, positionSeconds }: { lessonId: string; positionSeconds: number }) =>
+      // keepalive: true lets this request survive a same-tab navigation immediately after — the
+      // real-world case this exists for (pause, then immediately leave), not just a test artifact.
       apiFetch<ProgressResponse>(`/courses/${courseId}/lessons/${lessonId}/position`, {
         method: "POST",
         body: JSON.stringify({ positionSeconds }),
+        keepalive: true,
       }),
     onSuccess: (progress) => {
       queryClient.setQueryData(["progress", courseId], progress);

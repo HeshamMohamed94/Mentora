@@ -30,7 +30,11 @@ test.describe("Start / Resume Course", () => {
     });
     await playButton.click();
     await expect(page.getByRole("button", { name: "Pause", exact: true })).toBeVisible();
+    const positionSaved = page.waitForResponse(
+      (res) => res.url().includes("/lessons/") && res.url().includes("/position") && res.request().method() === "POST",
+    );
     await page.getByRole("button", { name: "Pause", exact: true }).click(); // reports position ~8s
+    await positionSaved; // the save is fire-and-forget in the app; wait for it before "leaving"
 
     // Simulate a real "leave and come back later" resume, not an in-memory navigation.
     await page.goto("/en/app/my-learning");

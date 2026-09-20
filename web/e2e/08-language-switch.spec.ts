@@ -17,7 +17,7 @@ test.describe("Language switch EN <-> AR", () => {
     await page.waitForURL(/\/ar\/app\/settings/);
 
     await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
-    await expect(page.getByText("الإعدادات")).toBeVisible(); // settings.title AR
+    await expect(page.getByRole("heading", { name: "الإعدادات" })).toBeVisible(); // settings.title AR
 
     await page.goto("/ar/app");
     await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
@@ -29,7 +29,7 @@ test.describe("Language switch EN <-> AR", () => {
     await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible(); // session fully settled
     await page.goto("/ar/app/settings");
     await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
-    await expect(page.getByText("الإعدادات")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "الإعدادات" })).toBeVisible();
 
     await page.getByRole("combobox", { name: "اللغة" }).click();
     await page.getByRole("option", { name: "English" }).click();
