@@ -1,6 +1,15 @@
 package com.mentora.backend
 
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
+import com.mentora.backend.aitutor.provider.AiCompletionRequest
+import com.mentora.backend.aitutor.provider.AiProvider
+import com.mentora.backend.aitutor.provider.AiToken
+import com.mentora.backend.aitutor.provider.AiUsage
 import com.mentora.backend.aitutor.provider.StubAiProvider
+import com.mentora.backend.aitutor.service.AiTutorService
+import com.mentora.backend.common.ApiException
 import com.mentora.backend.config.AppConfig
 import com.mongodb.client.model.Filters.eq
 import com.mongodb.client.model.Updates.set
@@ -17,6 +26,8 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -27,7 +38,9 @@ import org.bson.Document
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.slf4j.LoggerFactory
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -135,10 +148,122 @@ class AiTutorIntegrationTest {
         assertEquals(HttpStatusCode.TooManyRequests, postMessage("""{"content":"Daily excess"}""", student).status)
     }
 
-    private suspend fun ApplicationTestBuilder.course(categoryId: String, instructor: String): Pair<String, String> {
+    @Test
+    fun `pre-stream provider failure returns 503 and persists no assistant message`() = testApplication {
+        application { module(config(), FailBeforeStreamAiProvider()) }
+        val student = register("prestream-student@example.com", "Student").data().string("accessToken")
+
+        val logger = LoggerFactory.getLogger(AiTutorService::class.java) as Logger
+        val appender = ListAppender<ILoggingEvent>()
+        appender.start()
+        logger.addAppender(appender)
+        val response = try {
+            postMessage("""{"content":"Will the tutor answer this?"}""", student)
+        } finally {
+            logger.detachAppender(appender)
+        }
+
+        assertEquals(HttpStatusCode.ServiceUnavailable, response.status)
+        assertEquals("AI_TUTOR_UNAVAILABLE", response.errorCode())
+
+        val conversation = client.get(CONVERSATION) { bearerAuth(student) }.data()
+        val messages = conversation.getValue("messages").jsonArray.map { it.jsonObject }
+        assertEquals(listOf("user"), messages.map { it.string("role") })
+
+        // A10: the aiTutor.message log line fires exactly once, is categorized by the failure
+        // bucket, and never carries the user's message content.
+        val logLines = appender.list.map { it.formattedMessage }
+        val logLine = logLines.singleOrNull { it.startsWith("aiTutor.message") }
+        assertNotNull(logLine)
+        assertTrue(logLine.contains("outcome=provider_unavailable"))
+        assertFalse(logLine.contains("Will the tutor answer this?"))
+    }
+
+    @Test
+    fun `mid-stream provider failure truncates the response and persists no assistant message`() = testApplication {
+        application { module(config(), FailMidStreamAiProvider()) }
+        val student = register("midstream-student@example.com", "Student").data().string("accessToken")
+
+        // The flow emits two tokens, then throws, mid-write. Under `testApplication`'s in-process test
+        // host, `respondTextWriter`'s body is buffered synchronously rather than streamed over a real
+        // socket, so the exception is caught by StatusPages BEFORE anything reaches the test client,
+        // and the client observes a clean 500 rather than a truncated 200 body (a test-host artifact —
+        // a real Netty deployment would have already flushed the 200 + partial chunks by this point,
+        // per Design § 1.4's "MID-STREAM failure" note). Either way, the response is NOT the clean
+        // success it would be had the stream completed, and the invariant this test exists to prove —
+        // no assistant message is ever persisted for an incomplete stream (A7) — is server-side and
+        // unaffected by which HTTP status the client happens to observe.
+        val response = postMessage("""{"content":"Tell me something long"}""", student)
+        assertEquals(HttpStatusCode.InternalServerError, response.status)
+        runCatching { response.bodyAsText() }
+
+        val conversation = client.get(CONVERSATION) { bearerAuth(student) }.data()
+        val messages = conversation.getValue("messages").jsonArray.map { it.jsonObject }
+        assertEquals(listOf("user"), messages.map { it.string("role") })
+    }
+
+    @Test
+    fun `enrolled course context is injected into the system prompt`() = testApplication {
+        val capturing = CapturingAiProvider()
+        application { module(config(), capturing) }
+        val admin = provision("context-admin@example.com", "admin", "Admin")
+        val instructor = provision("context-instructor@example.com", "instructor", "Instructor")
+        val student = register("context-student@example.com", "Student").data().string("accessToken")
+        val categoryId = postJson("/api/v1/categories", """{"name":"Context"}""", admin).data().string("id")
+
+        val (enrolledCourseIdA, _) = course(categoryId, instructor, title = "Astonishing Astrophysics")
+        val (enrolledCourseIdB, _) = course(categoryId, instructor, title = "Bewildering Botany")
+        val (_, _) = course(categoryId, instructor, title = "Curious Chemistry")
+        checkout(enrolledCourseIdA, student)
+        checkout(enrolledCourseIdB, student)
+
+        assertEquals(HttpStatusCode.OK, postMessage("""{"content":"What should I learn next?"}""", student).status)
+
+        val systemPrompt = requireNotNull(capturing.captured).systemPrompt
+        assertTrue(systemPrompt.contains("Astonishing Astrophysics"))
+        assertTrue(systemPrompt.contains("Bewildering Botany"))
+        assertFalse(systemPrompt.contains("Curious Chemistry"))
+    }
+
+    /** Throws before ever invoking [onStream] — Design § 1.3's pre-stream failure path. */
+    private class FailBeforeStreamAiProvider : AiProvider {
+        override suspend fun complete(request: AiCompletionRequest, onStream: suspend (Flow<AiToken>) -> Unit): AiUsage {
+            throw ApiException.ServiceUnavailable()
+        }
+    }
+
+    /** Emits two tokens, then throws out of the flow — Design § 11 row 12's mid-stream failure. */
+    private class FailMidStreamAiProvider : AiProvider {
+        override suspend fun complete(request: AiCompletionRequest, onStream: suspend (Flow<AiToken>) -> Unit): AiUsage {
+            onStream(
+                flow {
+                    emit(AiToken("partial "))
+                    emit(AiToken("text"))
+                    throw RuntimeException("simulated mid-stream failure")
+                },
+            )
+            return AiUsage(null, null)
+        }
+    }
+
+    /** Captures the [AiCompletionRequest] it was given, then completes like a trivial stub. */
+    private class CapturingAiProvider : AiProvider {
+        var captured: AiCompletionRequest? = null
+        override suspend fun complete(request: AiCompletionRequest, onStream: suspend (Flow<AiToken>) -> Unit): AiUsage {
+            captured = request
+            onStream(flow { emit(AiToken("ok")) })
+            return AiUsage(1, 1)
+        }
+    }
+
+    private suspend fun ApplicationTestBuilder.course(
+        categoryId: String,
+        instructor: String,
+        title: String = "Tutor course",
+    ): Pair<String, String> {
         val courseId = postJson(
             "/api/v1/courses",
-            """{"title":"Tutor course","description":"Details","categoryId":"$categoryId","level":"beginner","contentLanguage":"en","priceDisplay":{"amount":100,"currency":"EGP"},"thumbnailMediaId":"000000000000000000000001"}""",
+            """{"title":"$title","description":"Details","categoryId":"$categoryId","level":"beginner","contentLanguage":"en","priceDisplay":{"amount":100,"currency":"EGP"},"thumbnailMediaId":"000000000000000000000001"}""",
             instructor,
         ).data().string("id")
         val sectionId = postJson("/api/v1/courses/$courseId/sections", """{"title":"Section"}""", instructor)
@@ -181,6 +306,8 @@ class AiTutorIntegrationTest {
     }
     private suspend fun HttpResponse.data(): JsonObject =
         Json.parseToJsonElement(bodyAsText()).jsonObject.getValue("data").jsonObject
+    private suspend fun HttpResponse.errorCode(): String =
+        Json.parseToJsonElement(bodyAsText()).jsonObject.getValue("error").jsonObject.string("code")
     private fun JsonObject.string(name: String) = getValue(name).jsonPrimitive.content
 
     companion object {
