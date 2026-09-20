@@ -6845,3 +6845,38 @@ Both fixes verified: **18-19/19 passed, one self-healing flake** (`helpers.ts`'s
 **Files touched.** `execution/DECISIONS_LOG.md` (this entry, including the F1 decision) and `execution/CURRENT_STATUS.md` (T9 row) only -- no production source file changed, per the plan's completion gate.
 
 **T9 done. Next:** T10 -- Website portfolio-priority flow walk (self-performed Chrome browser automation), EN + AR, the reduced en-Light + ar-Dark matrix.
+
+## D158 -- 2026-09-20 -- PHASE 7 T10 done: Website flow walk, all 18 step-checks + C2 + F1 PASS; 1 new UI-polish finding recorded, correctly scoped out of Phase 7
+
+**Decision:** ran the Website portfolio-priority flow walk via live Chrome browser automation (mechanism M-WEB, the same one Phase 6 T7 used) against the local stack, as the seeded `student1@mentora.dev` account (deliberately the same account T11 will log into on Android, per the plan). `backend> ./gradlew seedDemoData` was re-run immediately before, output captured verbatim:
+
+```
+> Task :seedDemoData
+All demo seed data already exists; no changes made.
+Demo accounts (password for all: MentoraDemo1):
+  admin: admin@mentora.dev / MentoraDemo1
+  instructor: instructor1@mentora.dev / MentoraDemo1
+  instructor: instructor2@mentora.dev / MentoraDemo1
+  student: student1@mentora.dev / MentoraDemo1
+  student: student2@mentora.dev / MentoraDemo1
+  student: student3@mentora.dev / MentoraDemo1
+BUILD SUCCESSFUL in 10s
+```
+
+**Matrix used: en-Light (full 9-step run) + ar-Dark (full 9-step run)**, per the already-decided reduced matrix (System Design § 8.2, F4) -- stated explicitly, not silently reduced further.
+
+**Step-by-step results (Discovery -> Course Details -> Demo Checkout -> Purchase Success -> Course Player -> Progress -> Quiz -> AI Tutor -> Certificate, plus C2 and F1):** all 9 steps **PASS** on en-Light; all 9 steps **PASS** on ar-Dark (Purchase Success not re-triggered on the ar-Dark pass -- the account was already enrolled and D1's idempotent-checkout behavior was already proven server-side in T8 -- marked N/A, not skipped-and-hidden). **C2** (guest auth-gate): PASS -- a logged-out guest hitting a gated checkout URL is redirected to `/login?redirect=%2Fapp%2Fcheckout%2F...` and, after login, lands exactly on that original checkout URL, not the homepage. **F1** (cheap AI Tutor re-confirm, stub mode): PASS on both runs -- quick actions render, a "..." thinking indicator appears before the response, in both English and Arabic.
+
+**RTL mirroring, concretely observed on ar-Dark (not just asserted "looked fine"):** nav/sidebar swapped to the right in the app shell, left in the public course-details header; Course Player's curriculum sidebar moved left with Previous/Next buttons swapped and arrow directions correctly flipped; quiz progress bar fills right-to-left; AI Tutor's own message bubbles moved left, AI responses stayed right, quick-action pills fully localized; Certificates grid re-ordered right-to-left; embedded English content (this course's `contentLanguage` is `en` -- course/lesson titles) correctly stayed LTR within the RTL page rather than being force-flipped, including correct bidi placement of the Arabic-context question mark around English quiz prompts. No broken or overlapping layout observed anywhere across either run.
+
+**One real, reproducible new finding -- triaged as bucket (c) per the plan's own FAIL-triage rule, recorded and NOT fixed, correctly kept out of Phase 7 scope per acceptance criterion J5 ("every fix traceable to a genuine cross-client inconsistency or a locked-but-undone M16 deliverable -- not new feature work"):**
+
+> **Quiz Results answer-breakdown: misleading badge placement.** `web/src/components/screens/quiz-results-screen.tsx` (lines 88-101) renders one `AnswerOption` per choice (correctly: only the objectively-correct option and the user's own wrong selection, if any, get a `stateLabel`) followed immediately by a separate `Badge` summarizing whether the user's answer to THAT question was correct/incorrect overall. With most seed questions having only 2 options and zero vertical spacing between the last `AnswerOption` and the `Badge`, the badge visually reads as attached to the second (usually unselected, wrong) option -- e.g. "PUT [Correct]" directly above "POST" with a "Correct" banner touching it, even though POST is the wrong answer. Reproduced identically on all 3 seeded quiz questions, in both en-Light and ar-Dark (confirmed not RTL-specific -- same component, same bug). The underlying DATA is correct -- T8's cross-client harness already proved `isCorrect` is properly stripped pre-attempt and the attempt breakdown itself is accurate -- this is purely a CSS spacing/grouping issue on one results screen. This is genuinely new (T8/T9 never touched this screen; not present in any prior DECISIONS_LOG entry). **Not fixed in Phase 7** -- it is single-client UI polish, not a cross-client inconsistency and not a locked M16 deliverable, so fixing it would itself violate J5. Left as an open, disclosed finding for a future pass.
+
+**One non-FAIL observation, noted for context, not chased further:** clicking "Continue" on the quiz-results screen for a course that was ALREADY fully completed before this session (certificate originally issued 2026-09-06) routed back to the course player instead of a "course completed" success screen -- plausibly a `progressQuery` staleness quirk specific to re-submitting a quiz attempt on an already-complete course, an edge case this walk incidentally created by re-passing an already-passed quiz. The Certificates page itself still correctly lists the certificate regardless. Not pursued further (out of today's scope); flagged here in case it recurs during T11 or T13.
+
+**No product code was touched or committed by this task** -- consistent with its own "Files touched: None" gate, since the one real finding above was correctly triaged as (c), not (a).
+
+**Seeded account (`student1@mentora.dev`) final state, confirmed for T11's cross-client spot-check:** enrolled in "Building Reliable REST APIs" (`6a9d9739fed989695b05c6af`), all 12 lessons completed (100%), quiz passed (100%, re-submitted harmlessly twice this session -- once en, once ar), certificate for this course present (originally issued 2026-09-06, pre-existing -- not newly issued by this walk). Account also already held 2 other pre-existing certificates (Practical MongoDB, UX Fundamentals) and 3 total completed courses from before this session. Left exactly as-is -- not logged out, no cache cleared -- ready for T11 to log into the same account and confirm parity.
+
+**T10 done. Next:** T11 -- Android portfolio-priority flow walk on a real emulator (delegated to a background QA agent), including the mandatory C4 live repro.
