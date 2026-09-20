@@ -1,12 +1,15 @@
 # Mentora — Current Implementation Status
 
-**Last updated:** 2026-09-20 — **PHASE 6 (AI Tutor Integration) — IN PROGRESS.** Backend work (T1-T5 of
-6) is DONE: the real `AnthropicAiProvider` is implemented, mandatory two-round review (Opus + an
-independent Codex second opinion) found and fixed 9 real defects across both rounds, and 127/127
-backend tests are green. Remaining: T6 (this documentation pass, in progress now), T7 (cross-platform
-verification without a key), then a hard gate on the user supplying a real `AI_PROVIDER_API_KEY` before
-T8 (live runtime verification) and T9 (final acceptance audit) can close the phase. See the "PHASE 6"
-section below for full detail — do not treat Phase 6 as complete until T9 says so.
+**Last updated:** 2026-09-20 — **PHASE 6 (AI Tutor Integration) — T1-T7 and T9 COMPLETE; T8 BLOCKED.**
+The real `AnthropicAiProvider` is implemented, independently reviewed twice (Opus + Codex, 9 real defects
+found and fixed across both rounds), cross-platform-verified live on Website + Android against stub
+mode (zero client code changed), documented, and passed its T9 final acceptance audit — 127/127 backend
+tests green, clean git state, every criterion PASS or PASS-STRUCTURAL except seven items (A1/A3/B1/C3/
+D3/F4/G4) that are genuinely **NOT TESTABLE** without a real `AI_PROVIDER_API_KEY` (currently unset in
+this environment, never fabricated or simulated). See the "PHASE 6" section below,
+`execution/PHASE_6_ACCEPTANCE_CRITERIA.md` (the final matrix), and `execution/PHASE_HANDOFF.md`'s Phase
+6 entry for full detail. **Phase 6 acceptance is NOT READY only because of the T8 gate — every other
+item is genuinely done. Phase 7 must NOT begin without the user's separate, explicit approval.**
 
 Phase 5 (iOS) remains **DEFERRED / PARTIALLY IMPLEMENTED** by explicit user decision (see "PHASE 5
 FREEZE" below) — NOT a task failure, NOT abandoned, NOT PASS/COMPLETE. T1-T11 done and CI-confirmed;
@@ -42,7 +45,7 @@ history normalization), and verify — not rebuild the clients.
 | T7 | Cross-platform verification without a key (Android + Website against stub mode and a forced provider failure) | **DONE** — Website + Android both PASS, zero `web/`/`mobile/` files changed |
 | — | **GATE:** the user supplies a real `AI_PROVIDER_API_KEY` (and confirms the exact Anthropic model id) | **NOT MET — this environment's `AI_PROVIDER_API_KEY` remains unset** |
 | T8 | Live runtime verification against the real Anthropic API | **BLOCKED** on the gate above |
-| T9 | Final acceptance audit (A-J) + Phase 6 handoff | NOT STARTED |
+| T9 | Final acceptance audit (A-J) + Phase 6 handoff | **DONE** — D144 addendum; see `PHASE_6_ACCEPTANCE_CRITERIA.md`'s final matrix and `PHASE_HANDOFF.md`'s Phase 6 entry. Every criterion PASS/PASS-STRUCTURAL/N-A/ACCEPTED-GAP except A1/A3/B1/C3/D3/F4/G4, all NOT TESTABLE solely on the T8 gate. |
 
 **What's structurally verified vs. what genuinely needs the key (I3 — never conflate the two):**
 everything in T1-T6 is fully implementation-complete and test-verified without any real credential —
