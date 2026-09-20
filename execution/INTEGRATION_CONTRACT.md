@@ -41,7 +41,7 @@ Error:
 
 `VALIDATION_ERROR` (400) · `AUTH_INVALID_CREDENTIALS` / `AUTH_TOKEN_EXPIRED` / `AUTH_TOKEN_INVALID` (401) · `FORBIDDEN_ROLE` / `FORBIDDEN_NOT_OWNER` / `FORBIDDEN_NOT_ENROLLED` / `FORBIDDEN_CSRF` (403) · `COURSE_NOT_FOUND` / `LESSON_NOT_FOUND` / `CERTIFICATE_NOT_FOUND` (404) · `EMAIL_ALREADY_REGISTERED` / `ALREADY_ENROLLED` / `CATEGORY_IN_USE` (409) · `RATE_LIMITED_AUTH` / `RATE_LIMITED_AI_TUTOR` (429) · `INTERNAL_ERROR` (500).
 
-**As-built additions:** `FORBIDDEN_CSRF` (403) — missing/invalid `X-Requested-With: mentora-web` header on a cookie-authenticated state-changing request (`AUTH_SECURITY.md § 10`). `MEDIA_NOT_FOUND` (404) — a media id that doesn't exist, or a `lessonVideo`-kind id requested through the public `/file` route. Neither is in `API_CONTRACT.md`'s original example list; both are added as same-family codes since that list is illustrative, not exhaustive. Web clients (Phase 2) must send the CSRF header on every `POST`/`PATCH`/`PUT`/`DELETE`.
+**As-built additions:** `FORBIDDEN_CSRF` (403) — missing/invalid `X-Requested-With: mentora-web` header on a cookie-authenticated state-changing request (`AUTH_SECURITY.md § 10`). `MEDIA_NOT_FOUND` (404) — a media id that doesn't exist, or a `lessonVideo`-kind id requested through the public `/file` route. `AI_TUTOR_UNAVAILABLE` (503, Phase 6) — the real Anthropic provider was unreachable, timed out, rate-limited/overloaded on its own end, or produced no usable response; always transient/upstream, never the student's fault, and never persists a partial/garbled assistant message (see § 8 below). None of the three is in `API_CONTRACT.md`'s original example list; all are added as same-family codes since that list is illustrative, not exhaustive. Web clients (Phase 2) must send the CSRF header on every `POST`/`PATCH`/`PUT`/`DELETE`. **`AI_TUTOR_UNAVAILABLE` needs no client change** — every client already falls through to generic "Something went wrong — try again" + Retry copy for an unrecognized code (KMP's `ApiErrorCode.Unknown`, Android's `ApiErrorCopy`'s `Unknown` branch, Web's `errorMessage()` default branch), which is exactly the intended treatment.
 
 ## 5. Roles
 
@@ -86,6 +86,16 @@ See `architecture/API_CONTRACT.md § 7` for the full conceptual list (auth, user
 
 ## 8. AI Tutor (Phase 1 boundary; Phase 6 completes it) — as-built
 
+**Phase 6 update:** the concrete `AiProvider` binding is now real (`AnthropicAiProvider`, calling the
+Anthropic Claude Messages API) whenever `AI_PROVIDER_API_KEY` is configured — see `backend/README.md`'s
+"AI Tutor provider" section and `execution/PHASE_6_SYSTEM_DESIGN.md`. **Confirmed exactly as predicted
+below: the request/response shape, streaming mechanism, enrollment gate, and rate limits did not
+change — only the Koin binding did**, plus one additive error code (`AI_TUTOR_UNAVAILABLE`, § 4). The
+"global mode enrolled-course-list system-prompt content" this section already anticipated is now real:
+every message (global *and* lesson-context mode) has the student's own enrolled courses (title + level
+only) injected into the system prompt server-side, so "What should I learn next?" can recommend from
+real data — this is prompt content only, invisible on the wire, and requires no client change either.
+
 - `GET /api/v1/ai-tutor/conversation` (`Role.student`) — lazily creates the student's single conversation on
   first call. Cursor-paginated (`cursor`/`limit`, oldest-first), but the shape doesn't fit the plain list-page
   pattern (it also needs the conversation id), so it responds `{ conversationId, messages: [...], nextCursor }`
@@ -98,13 +108,14 @@ See `architecture/API_CONTRACT.md § 7` for the full conceptual list (auth, user
   upload (§ 7 above, D21). An unenrolled student sending lesson context gets `403 FORBIDDEN_NOT_ENROLLED`; a
   `lessonContextId` that doesn't belong to the given `courseId` gets `404 LESSON_NOT_FOUND`. `content` is
   capped at 4000 characters (`400` if blank or over). **Response is a streamed `text/plain` body** (not the
-  JSON envelope, not SSE-framed) — plain incremental chunks as the (Phase 1: stub) provider produces them.
-  **Phase 1 streams a fixed placeholder response, not a real LLM completion** (D4/D30) — both the user's and
-  the assistant's messages are persisted regardless (the assistant one only after the stream completes
-  successfully; a mid-stream failure leaves no partial assistant message). Contract (request/response shape,
-  streaming mechanism, enrollment gate, rate limit) does not change in Phase 6 — only the `AiProvider` Koin
-  binding does, and Phase 6 is expected to add the "global mode" enrolled-course-list system-prompt content
-  that Phase 1 deliberately omits (D30).
+  JSON envelope, not SSE-framed) — plain incremental chunks as the active provider produces them. **Wire
+  format is identical in both provider modes** (D4/D30/D140): stub mode streams a fixed placeholder
+  sentence; Anthropic mode (Phase 6, when `AI_PROVIDER_API_KEY` is configured) streams the real model's
+  answer token-by-token. Both the user's and the assistant's messages are persisted regardless — the
+  assistant one only after the stream completes successfully; a mid-stream **or pre-stream** provider
+  failure leaves no partial/garbled assistant message (the pre-stream case, new in Phase 6, surfaces as a
+  normal `503 AI_TUTOR_UNAVAILABLE` JSON error before any streaming ever begins — see § 4 and
+  `PHASE_6_SYSTEM_DESIGN.md § 1`).
 - Rate-limited per-user on two independent, configurable caps (`AI_TUTOR_MESSAGES_PER_MINUTE`/`AI_TUTOR_MESSAGES_PER_DAY`
   env vars, defaulting to 20/minute and 200/day) — either one alone returns `429` when exceeded.
 - No AI provider key, SDK, or network call ever exists in any client codebase — enforced structurally, not just by convention.

@@ -1,14 +1,69 @@
 # Mentora — Current Implementation Status
 
-**Last updated:** 2026-09-20 — **PHASE 5 (iOS) — DEFERRED / PARTIALLY IMPLEMENTED**, by explicit user
-project decision (see "PHASE 5 FREEZE" box immediately below) — NOT a task failure, NOT abandoned, and
-NOT to be read as PASS/COMPLETE. iOS is no longer a blocking priority for the remaining Mentora phases
-because no Mac/iPhone is available for meaningful interactive validation. **T11 (Component Kit B, 4
-slices) is fully DONE and real-CI-green — slice 4's previously-unverified CI run (35482199062) has since
-been confirmed `success` (314/314 tests, 0 failures), closing out T11 in full.** T12 onward (T12-T23) are
-NOT started. Phase 4 — Android — **COMPLETE**, all 20 tasks done, approved by the user before Phase 5
-began. **Phases 6-8 now proceed with Website / Android / Backend / KMP shared core as the primary
-supported/demo platforms — see the "PHASE 5 FREEZE" box for the full decision.**
+**Last updated:** 2026-09-20 — **PHASE 6 (AI Tutor Integration) — IN PROGRESS.** Backend work (T1-T5 of
+6) is DONE: the real `AnthropicAiProvider` is implemented, mandatory two-round review (Opus + an
+independent Codex second opinion) found and fixed 9 real defects across both rounds, and 127/127
+backend tests are green. Remaining: T6 (this documentation pass, in progress now), T7 (cross-platform
+verification without a key), then a hard gate on the user supplying a real `AI_PROVIDER_API_KEY` before
+T8 (live runtime verification) and T9 (final acceptance audit) can close the phase. See the "PHASE 6"
+section below for full detail — do not treat Phase 6 as complete until T9 says so.
+
+Phase 5 (iOS) remains **DEFERRED / PARTIALLY IMPLEMENTED** by explicit user decision (see "PHASE 5
+FREEZE" below) — NOT a task failure, NOT abandoned, NOT PASS/COMPLETE. T1-T11 done and CI-confirmed;
+T12-T23 NOT started; not touched during Phase 6. Phase 4 — Android — **COMPLETE**. Phases 6-8 proceed
+with Website / Android / Backend / KMP shared core as the primary supported/demo platforms.
+
+---
+
+## PHASE 6 — AI TUTOR INTEGRATION — 2026-09-20 — IN PROGRESS
+
+**Do not mark Phase 6 PASS/COMPLETE until T9's acceptance audit says so.** Full detail lives in
+`execution/PHASE_6_ACCEPTANCE_CRITERIA.md` (the A-J checklist), `execution/PHASE_6_SYSTEM_DESIGN.md`,
+and `execution/PHASE_6_IMPLEMENTATION_PLAN.md` (the T1-T9 task sequence) — this section is a pointer
+and status summary, not a duplicate of their content.
+
+**Recovery finding that shaped the whole phase (D139):** this was never a blank-slate build. The AI
+Tutor architecture and provider choice (Anthropic Claude API, ADR-009) were already locked, and the
+backend `aitutor` module plus the KMP/Android/Website clients were already fully built and
+live-verified against `StubAiProvider` in Phases 1-4. The real remaining scope was: implement
+`AnthropicAiProvider` for real, close two disclosed gaps (no enrolled-course context in the prompt; no
+history normalization), and verify — not rebuild the clients.
+
+### Task status (T1-T9, per `PHASE_6_IMPLEMENTATION_PLAN.md`)
+
+| # | Task | Status |
+|---|---|---|
+| T1 | Provider-boundary foundation (`AiProvider` reshaped to `suspend` + scoped streaming callback) | **DONE** — `1bf26c4`, behavior-preserving, 6/6 `AiTutorIntegrationTest` unmodified |
+| T2 | Real `AnthropicAiProvider` (Ktor CIO client, manual SSE parsing, full § 11 error mapping) | **DONE** — `24d159b`, 14 new `MockEngine` unit tests |
+| T3 | `AiPromptBuilder` (prompt text, enrolled-course context, history normalization) | **DONE** — `a172682`, closes the "What should I learn next?" gap for real |
+| T4 | Observability logging (`aiTutor.message`) + 3 failure-path integration tests | **DONE** — `6960127` |
+| T5 | **Mandatory review checkpoint** — Opus (full diff) + independent Codex second opinion (provider/key boundary only) | **DONE, CLOSED** — see D141/D142. Opus found F1 (HIGH — a retry after any provider failure could permanently brick a conversation by sending two adjacent same-role turns to Anthropic) and F2 (MEDIUM-HIGH — a clean stream EOF without `message_stop` could persist a truncated answer as if it were complete), both fixed (`c11080e`), plus 5 smaller findings (F3-F5/F7/F9) fixed and 2 (F6/F8) deliberately deferred as low-severity/non-blocking. Codex's independent pass then found 2 more genuine defects the Opus round missed (a second cancellation-swallowing path inside the non-2xx error-body reader; an empty text delta could satisfy the "first token received" check), both fixed (`0196bde`). **127/127 tests green.** |
+| T6 | Documentation + config surface (`.env.example`, `backend/README.md`, `INTEGRATION_CONTRACT.md`, this file, `DECISIONS_LOG.md`) | **IN PROGRESS — this update** |
+| T7 | Cross-platform verification without a key (Android + Website against stub mode and a forced provider failure) | NOT STARTED |
+| — | **GATE:** the user supplies a real `AI_PROVIDER_API_KEY` (and confirms the exact Anthropic model id) | **NOT MET — this environment's `AI_PROVIDER_API_KEY` remains unset** |
+| T8 | Live runtime verification against the real Anthropic API | **BLOCKED** on the gate above |
+| T9 | Final acceptance audit (A-J) + Phase 6 handoff | NOT STARTED |
+
+**What's structurally verified vs. what genuinely needs the key (I3 — never conflate the two):**
+everything in T1-T6 is fully implementation-complete and test-verified without any real credential —
+the entire backend suite runs against mocked HTTP (`MockEngine`) or the stub provider, by design, per
+this codebase's existing testing convention. **A1 (real call), A3 (real Anthropic SSE end-to-end), B1
+(a real streamed answer), C3 (real recommendation quality against real enrollments), D3 (real Arabic/
+English behavior), F4/G4 (Android/Web against the real provider) remain genuinely unverified** and
+cannot be claimed done until T8 runs against a real key. No successful provider call has been
+fabricated or simulated as if it were real anywhere in this project's documentation.
+
+**Known, accepted, non-blocking gaps carried into Phase 6 (not new, not this phase's to fix):** no
+docked/contextual AI Tutor panel inside Course Player on Web or Android (full-screen/full-tab chat
+only — accepted since Phase 2/4); Website's AI Tutor is global-mode-only (never sends
+`courseId`/`lessonContextId`). Two low-severity findings from T5's review deliberately deferred: no
+data-not-instructions guard on the `<enrolled_courses>` prompt block, and case-sensitive tag matching
+in the prompt-injection mitigation (F6); mid-stream failures are logged as the same
+`outcome=provider_unavailable` bucket as pre-stream ones rather than a distinct `stream_failed` with a
+`partialChars` count (F8).
+
+**iOS:** not touched, not affected. No file under `mobile/` was modified by Phase 6 — confirmed at
+every task's completion gate (`git diff --stat` scope check).
 
 ---
 

@@ -81,6 +81,42 @@ Every other variable in `.env.example` has a working local default — see that 
 each one does. `.env` is never committed (see `.gitignore`); `.env.example` is the source of truth for
 which variables exist.
 
+## AI Tutor provider
+
+The AI Tutor (`/api/v1/ai-tutor/*`) runs in one of two modes, selected entirely by whether
+`AI_PROVIDER_API_KEY` is set — there is no separate feature flag:
+
+- **STUB mode (default, `AI_PROVIDER_API_KEY` unset/blank).** The endpoint is fully real —
+  authentication, per-user rate limiting, MongoDB persistence, the enrollment gate for
+  lesson-context questions — but every reply is fixed placeholder text, no network call is ever
+  made, and it costs nothing. This is the right mode for ordinary local development.
+- **ANTHROPIC mode (`AI_PROVIDER_API_KEY` set to a real key).** Every AI Tutor message becomes a
+  real, streaming, **billable** call to the Anthropic Claude Messages API
+  (`AI_PROVIDER_MODEL`, default `claude-sonnet-4-5` — must be a currently-valid Anthropic model id,
+  or every message fails with a 500). Cost exposure is bounded by the existing per-user rate limits
+  (`AI_TUTOR_MESSAGES_PER_MINUTE`/`_PER_DAY`) and `AI_PROVIDER_MAX_RESPONSE_TOKENS`, all in
+  `.env.example`.
+
+The backend **always starts** regardless of which mode is active — a missing/invalid key never
+crashes the app, it just falls back to stub mode. The active mode is always printed at startup:
+
+```
+AI Tutor provider mode: STUB — AI_PROVIDER_API_KEY is not set, so AI Tutor replies are placeholder text. ...
+```
+or
+```
+AI Tutor provider mode: ANTHROPIC (model=claude-sonnet-4-5, maxResponseTokens=1024)
+```
+
+**No client ever holds or sees a provider key.** Web, Android, and the KMP shared module talk only
+to Mentora's own backend endpoint over the same authenticated connection as everything else — the
+`AiProvider` interface and the Anthropic-specific request/SSE-parsing code
+(`aitutor/provider/Anthropic*.kt`) are the only places in the entire codebase that reference the key
+or talk to `api.anthropic.com`, per `architecture/adr/ADR-009-ai-provider-abstraction.md`.
+
+Architecture and implementation detail: `architecture/AI_TUTOR_ARCHITECTURE.md`,
+`execution/PHASE_6_SYSTEM_DESIGN.md`, `execution/PHASE_6_ACCEPTANCE_CRITERIA.md`.
+
 ## A known local Gradle quirk on Windows
 
 If a Gradle command fails with something like
