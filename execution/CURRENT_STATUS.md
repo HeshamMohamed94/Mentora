@@ -58,7 +58,7 @@ excluded** (Phase 5 remains frozen); **no real AI provider credential is used, r
 | T8 | Cross-client parity harness (`tools/cross-client-check/`) | W | **DONE** (D156). All 8 design-named assertion groups (reported as 9 lines — E2/A3 split for clarity) PASS on 3 consecutive real runs against the live local stack; A4 genuinely exercised (all lessons completed before the quiz attempt), not left NOT-EXERCISED |
 | T9 | Static confirmations (A6, C3, D2, F2, I4) | W | **DONE** (D157). All 5 confirmed clean; F1 (`isEnrolled` pagination divergence between Web `?limit=100` and Android's full-pagination) recorded as a disclosed, accepted limitation, not fixed in Phase 7 |
 | T10 | Website portfolio-priority flow walk (EN/AR, Light/Dark) | M | **DONE** (D158). en-Light + ar-Dark matrix, all 18 step-checks + C2 + F1 PASS. 1 new UI-polish finding (quiz-results badge placement) recorded, correctly out of scope per J5, not fixed |
-| T11 | Android portfolio-priority flow walk (emulator, incl. C4 live repro) | M | NOT STARTED |
+| T11 | Android portfolio-priority flow walk (emulator, incl. C4 live repro) | M | **SUBSTANTIALLY DONE, 1 ITEM OPEN** (D159). C4 live repro PASS, all A1-A4 spot-checks match T10 exactly, 1 real cross-account data-leak bug found+fixed live (`ca47fa1`). Instrumented suite 106 tests: 1 transient failure (passes on retry), 2 consistent `AppDialog` scrim-test failures (matches D82's HIGH-severity mechanism) under active investigation before T13 can close |
 | T12 | Demo-environment + documentation accuracy pass | D | NOT STARTED |
 | T13 | Final acceptance audit + `PHASE_HANDOFF.md` entry | W/D | NOT STARTED |
 
