@@ -6752,3 +6752,13 @@ Both fixes verified: **18-19/19 passed, one self-healing flake** (`helpers.ts`'s
 **Verification, real CI:** run `35532967271` -- <https://github.com/HeshamMohamed94/Mentora/actions/runs/35532967271> -- green in 4m32s on the first attempt, no fix needed. Test-report artifact downloaded and parsed: **`:shared` 249/249, `:androidApp` 241/241** -- the exact T0 baseline, not a reduced set. Debug APK artifact confirmed present and downloadable (available for T11's emulator walk). `connectedDebugAndroidTest` appears nowhere in the file; `ios-ci.yml` untouched.
 
 **Next:** T5 -- `tokens-ci.yml`.
+
+## D153 -- 2026-09-20 -- PHASE 7 T5 done: `tokens-ci.yml` green, gate empirically proven non-vacuous
+
+**Decision:** wrote `.github/workflows/tokens-ci.yml` per `PHASE_7_SYSTEM_DESIGN.md` § 6 -- regenerate every token output, fail on any `git diff`. Kept per D147's resolution of finding F2 (M16's literal "all five workflows"), not dropped for a strict section-I reading.
+
+**Verification, real CI:** run `35533281195` -- <https://github.com/HeshamMohamed94/Mentora/actions/runs/35533281195> -- green in 11s on the first attempt (T0/D148 already confirmed zero pre-existing drift, so no fix was needed).
+
+**Gate proven non-vacuous, not just "it passed" -- a deliberate local experiment, as the plan required:** temporarily changed `design-system/design-tokens.json`'s primary button height from 48 to 49, re-ran `node tools/token-pipeline/generate.js`, and confirmed a real, non-empty `git diff` appeared (`design-system/design-tokens.json` and `web/styles/tokens.css` both showed the expected 1-line change) -- proving the exact failure condition `tokens-ci.yml` checks for genuinely occurs and would genuinely fail the workflow, not merely that the workflow happens to pass on an already-clean tree. Reverted with `git checkout --` and regenerated again to confirm a clean, zero-diff state was fully restored (`git status` empty).
+
+**Next:** T6 -- the C4 fix (Android Course Details / Learning Path Details auth-state staleness).

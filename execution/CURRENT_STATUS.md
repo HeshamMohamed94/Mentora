@@ -52,7 +52,7 @@ excluded** (Phase 5 remains frozen); **no real AI provider credential is used, r
 | T2 | `web-ci.yml` job `web-static` | CI | **DONE** — `1bf5116`+`6f5933c` (D150). Green: [run 35531472308](https://github.com/HeshamMohamed94/Mentora/actions/runs/35531472308). Real finding: dropped the build step (the app's landing page is ISR and needs a live backend even at build time — that verification happens once, for real, in T3 instead) |
 | T3 | `web-ci.yml` job `web-e2e` | CI | **DONE** — `a78f74d`+`0282f91` (D151). Green twice consecutively, 19/19 both times, no flake: [run 1](https://github.com/HeshamMohamed94/Mentora/actions/runs/35532267141), [run 2](https://github.com/HeshamMohamed94/Mentora/actions/runs/35532576017). Real finding: the backend fat jar was never actually runnable (shadowJar service-file merge bug) — every prior run in this project used `./gradlew run`, never the packaged jar |
 | T4 | `android-ci.yml` | CI | **DONE** — `8050095` (D152). Green on first attempt: [run 35532967271](https://github.com/HeshamMohamed94/Mentora/actions/runs/35532967271), `:shared` 249/249, `:androidApp` 241/241 |
-| T5 | `tokens-ci.yml` (flagged, kept per D147) | CI | NOT STARTED |
+| T5 | `tokens-ci.yml` (flagged, kept per D147) | CI | **DONE** — `022b567` (D153). Green: [run 35533281195](https://github.com/HeshamMohamed94/Mentora/actions/runs/35533281195). Gate empirically proven non-vacuous (a deliberate local drift test caught a real diff) |
 | T6 | C4 fix — Android Course Details / Learning Path Details auth-state staleness | W | NOT STARTED |
 | T7 | Review checkpoint (Opus; Codex only if warranted) | W | NOT STARTED |
 | T8 | Cross-client parity harness (`tools/cross-client-check/`) | W | NOT STARTED |
