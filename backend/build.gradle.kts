@@ -50,6 +50,10 @@ dependencies {
     implementation("io.ktor:ktor-server-auto-head-response:$ktorVersion")
     implementation("io.ktor:ktor-server-config-yaml:$ktorVersion")
 
+    // Ktor client (AI Tutor: real Anthropic provider — PHASE_6_SYSTEM_DESIGN.md § 3.2)
+    implementation("io.ktor:ktor-client-core:$ktorVersion")
+    implementation("io.ktor:ktor-client-cio:$ktorVersion")
+
     // Kotlinx
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinxSerializationVersion")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
@@ -79,6 +83,7 @@ dependencies {
     testImplementation("org.testcontainers:testcontainers:1.20.4")
     testImplementation("org.testcontainers:junit-jupiter:1.20.4")
     testImplementation("org.testcontainers:mongodb:1.20.4")
+    testImplementation("io.ktor:ktor-client-mock:$ktorVersion")
 }
 
 kotlin {

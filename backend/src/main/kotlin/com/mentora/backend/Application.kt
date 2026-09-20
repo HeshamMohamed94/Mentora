@@ -4,6 +4,7 @@ import com.mentora.backend.admin.adminModule
 import com.mentora.backend.admin.routes.adminRoutes
 import com.mentora.backend.admin.service.AdminService
 import com.mentora.backend.aitutor.aiTutorModule
+import com.mentora.backend.aitutor.configureAiTutorHttpClientLifecycle
 import com.mentora.backend.aitutor.provider.AiProvider
 import com.mentora.backend.aitutor.repository.ensureAiTutorIndexes
 import com.mentora.backend.aitutor.routes.aiTutorRoutes
@@ -94,10 +95,11 @@ internal fun Application.module(appConfig: AppConfig, aiProviderOverride: AiProv
         modules(
             configKoinModule(appConfig), databaseKoinModule, authModule, usersModule, categoriesModule,
             coursesModule, enrollmentModule, progressModule, quizModule, certificatesModule, learningPathsModule,
-            mediaModule, instructorModule, adminModule, aiTutorModule(aiProviderOverride),
+            mediaModule, instructorModule, adminModule, aiTutorModule(appConfig, aiProviderOverride),
         )
     }
     configureDatabaseLifecycle()
+    configureAiTutorHttpClientLifecycle(appConfig, aiProviderOverride)
 
     configureMonitoring()
     configureSerialization()
