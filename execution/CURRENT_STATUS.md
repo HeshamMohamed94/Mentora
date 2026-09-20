@@ -1,11 +1,12 @@
 # Mentora — Current Implementation Status
 
-**Last updated:** 2026-09-19 (PHASE 5 — iOS — **IN_PROGRESS**, now in the user's **parity-focused completion
-mode** (D132) — T9 (Navigation shell) complete and real-CI-green, T10 next, continuing automatically per
-task through the rest of the plan without per-task approval stops (tiered review policy applies). No
-Mac/Xcode available for interactive testing — see "PHASE 5 — iOS" near the end of this file and
-`DECISIONS_LOG.md` D96/D132 for the full account. Phase 4 — Android — **COMPLETE**, all 20 tasks done,
-approved by the user before Phase 5 began.)
+**Last updated:** 2026-09-20 (PHASE 5 — iOS — **IN_PROGRESS**, now in the user's **parity-focused completion
+mode** (D132) — T9/T10 complete and real-CI-green, T11 (Component Kit B) in progress with slice 1 of 4
+(CourseArtwork) done and real-CI-green, continuing automatically per task/slice through the rest of the
+plan without per-task approval stops (tiered review policy applies). No Mac/Xcode available for
+interactive testing — see "PHASE 5 — iOS" near the end of this file and `DECISIONS_LOG.md` D96/D132/D134
+for the full account. Phase 4 — Android — **COMPLETE**, all 20 tasks done, approved by the user before
+Phase 5 began.)
 
 ---
 
@@ -989,7 +990,8 @@ Swift at all).
 | T8 | Component Kit A (atoms — MentoraButton, MentoraIconButton, MentoraTextField, PasswordField, SearchField, MentoraToggle, MentoraSelect, Badge, CategoryChip, MentoraProgressBar, Avatar, MentoraTabs, MentoraSnackbar; `MentoraIcon`, the plan's 14th atom, was already built in T3) | **✅ TASK T8 FULLY COMPLETE — all 7 slices done, real-CI-green.** See "T8 SLICE 1"/"T8 SLICE 2"/"T8 SLICE 3"/"T8 SLICES 4+5"/"T8 SLICES 6+7" sections below. |
 | T9 | Navigation shell (5-tab `TabView`, `TabRouter`, `AuthGate`/B8) | **✅ TASK T9 COMPLETE — mandatory Opus review applied, real-CI-green.** See "T9 — NAVIGATION SHELL" section below. |
 | T10 | Auth screens (Login, Register — B1/B2/B8/B9) | **✅ TASK T10 COMPLETE — mandatory Opus review + a follow-up verification pass applied, real-CI-green.** See "T10 — LOGIN/REGISTER SCREENS" section below. |
-| T11-T23 | Component Kit B through final acceptance audit | **NOT STARTED** — parity-focused completion mode (see D132/`execution/DECISIONS_LOG.md`): continuing automatically task-by-task without per-task approval stops, small-batch implementation, tiered review (mandatory for auth/session/architecture/cross-cutting infra, lighter self-review+CI for ordinary screen work), authored on Windows, compiled by CI; live/visual verification still needs a Mac (MC-2/MC-3/MC-4) and is recorded as NOT TESTABLE, never fabricated. |
+| T11 | Component Kit B (17 composite components, 4 slices) | **IN PROGRESS — slice 1 of 4 DONE, CI-green.** Slice 1 = CourseArtwork system (`CourseMotif`/`CourseArtwork`/`CourseThumbnail`/`CourseArtworkWithChip`). See "T11 SLICE 1 — COURSEARTWORK" section below. Slices 2-4 not started. |
+| T12-T23 | Remaining screens through final acceptance audit | **NOT STARTED** — parity-focused completion mode (see D132/`execution/DECISIONS_LOG.md`): continuing automatically task-by-task without per-task approval stops, small-batch implementation, tiered review (mandatory for auth/session/architecture/cross-cutting infra, lighter self-review+CI for ordinary screen work), authored on Windows, compiled by CI; live/visual verification still needs a Mac (MC-2/MC-3/MC-4) and is recorded as NOT TESTABLE, never fabricated. |
 
 ## T6 SLICE 3a — DONE, CI-GREEN (2026-09-19)
 
@@ -1705,3 +1707,40 @@ unaffected — zero `mobile/shared`/`mobile/androidApp` files touched.
 **TASK T10 IS NOW FULLY COMPLETE.** Next task: **T11 — Component Kit B** (cards, state patterns, sheets,
 artwork). Per the parity-focused completion mode's explicit "continue automatically" instruction, T11
 begins now without stopping for per-task approval.
+
+---
+
+## T11 SLICE 1 — COURSEARTWORK — DONE, CI-GREEN (2026-09-20)
+
+Full account in `DECISIONS_LOG.md` D134. Ordinary component work under the tiered review policy (not
+mandatory-review) — grounded directly in `design-to-code/shared/artwork.json` (the governed 5-motif
+spec) and Android's own already-CI-green `CourseArtwork.kt`/`CourseArtworkTest.kt`/
+`CourseArtworkHashTest.kt`, front-loading correctness rather than relying on a review pass to catch drift.
+
+**Built:** `Components/CourseArtwork.swift` (new) — `CourseMotif` enum (5 cases, values transcribed
+verbatim from `artwork.json`), `courseArtworkHash(seed:)` (32-bit wrapping arithmetic replicating
+Kotlin's `Int` overflow / JS `>>> 0` truncation over `seed.utf16`), `motifFor(seed:)`, `CourseArtwork`
+(gradient+icon view), `CourseThumbnail` (`AsyncImage` with `CourseArtwork` fallback), `CourseArtworkWithChip`
+(+ `CategoryChip` overlay). Two deliberate simplifications carried over from Android's own disclosed
+comment: no fine CSS texture layers, 135deg gradient approximated as a diagonal. `iosAppTests/
+CourseArtworkTests.swift` (new) — determinism/range tests + a golden-vector test porting Android's
+independently-Node-computed `CourseArtworkHashTest.kt` values exactly, proving iOS and Android agree on
+the same real formula.
+
+**Design-system discovery:** `theme-checks.js` B1/B2 bans every raw system color name across ALL
+production Swift (including `Theme/`) with no carve-out for spec-literal hex values — worked around with
+a private `Color(mentoraArtworkHex:)` initializer for every literal color including white.
+
+**Real CI compile failure caught and fixed:** run 35480156929 (commit `d92b6be`) failed with
+`type 'any View' cannot conform to 'View'` — `thumbnailShape: (any Shape)?` passed to `.clipShape(_:)`,
+which requires a concrete `S: Shape`; an existential `any Shape` can't satisfy that (`Shape: Animatable`
+has an associated type). Fixed by changing the property to `AnyShape` (iOS 17's concrete type-erased
+`Shape` wrapper, which does conform to plain `Shape`) — committed as `bdf60d9`, confirmed CI-green next
+run, no other change needed.
+
+**CI: DONE — GREEN**, https://github.com/HeshamMohamed94/Mentora/actions/runs/35480420960 (commit
+`bdf60d9`, all 6 Node gates PASSED, 285/285 tests — up from T10's 282, +3 for `CourseArtworkTests`, 0
+failures, 0 unexpected).
+
+**Next:** T11 slice 2 (CourseCard + CourseProgressCard + LearningPathCard + CertificateCard + StatCard),
+continuing automatically.
