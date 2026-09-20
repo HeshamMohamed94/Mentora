@@ -1,6 +1,13 @@
 # Mentora — Current Implementation Status
 
-**Last updated:** 2026-09-20 — **PHASE 6 (AI Tutor Integration) — IMPLEMENTATION COMPLETE. LIVE PROVIDER
+**Last updated:** 2026-09-21 — **PHASE 7 (Full Integration) — COMPLETE.** T0-T13 all done. Every A-J
+acceptance-criteria row is PASS, PASS-with-a-disclosed-exception, or an explicitly recorded accepted
+gap (`execution/PHASE_7_ACCEPTANCE_CRITERIA.md`'s final matrix, `execution/PHASE_HANDOFF.md`'s Phase 7
+entry). All 5 GitHub Actions workflows (backend/web/android/tokens/iOS CI) are real and green. The
+disclosed cross-client C4 bug is fixed and live-verified on a real device. **Phase 8 must not begin
+without the user's own separate, explicit approval.** See the "PHASE 7" section below for full detail.
+
+Previously, 2026-09-20 — **PHASE 6 (AI Tutor Integration) — IMPLEMENTATION COMPLETE. LIVE PROVIDER
 VERIFICATION DEFERRED BY USER DECISION (D146).** The real `AnthropicAiProvider` is implemented,
 independently reviewed twice (Opus + Codex, 9 real defects found and fixed across both rounds),
 cross-platform-verified live on Website + Android against stub mode (zero client code changed),
@@ -25,9 +32,9 @@ as the primary supported/demo platforms.
 
 ---
 
-## PHASE 7 — FULL INTEGRATION — 2026-09-20 — T0-T6 DONE, T7 (REVIEW) IN PROGRESS
+## PHASE 7 — FULL INTEGRATION — 2026-09-21 — COMPLETE (T0-T13 ALL DONE)
 
-**Do not mark Phase 7 PASS/COMPLETE until T13's acceptance audit says so.** Full detail lives in
+**T13's acceptance audit has run — Phase 7 is COMPLETE.** Full detail lives in
 `execution/PHASE_7_ACCEPTANCE_CRITERIA.md` (the A-J checklist plus scope-reconciliation § H),
 `execution/PHASE_7_SYSTEM_DESIGN.md` (12 sections — CI workflow specifics, the C4 bug root cause/fix,
 the cross-client verification methodology), and `execution/PHASE_7_IMPLEMENTATION_PLAN.md` (the T0-T13
@@ -60,7 +67,7 @@ excluded** (Phase 5 remains frozen); **no real AI provider credential is used, r
 | T10 | Website portfolio-priority flow walk (EN/AR, Light/Dark) | M | **DONE** (D158). en-Light + ar-Dark matrix, all 18 step-checks + C2 + F1 PASS. 1 new UI-polish finding (quiz-results badge placement) recorded, correctly out of scope per J5, not fixed |
 | T11 | Android portfolio-priority flow walk (emulator, incl. C4 live repro) | M | **DONE** (D159/D160). C4 live repro PASS, all A1-A4 spot-checks match T10 exactly, 1 real cross-account data-leak bug found+fixed live (`ca47fa1`). Instrumented suite: 1 transient rate-limit failure (passes on retry), 2 consistent `AppDialog` scrim-test failures confirmed real via cold-reboot isolation, 2 bounded fix attempts failed and were cleanly reverted (no code left changed) — but `AppDialog` has ZERO real screen consumers today, so ZERO current demo/user-visible impact; recorded as an accepted, unresolved, dormant defect (D160) |
 | T12 | Demo-environment + documentation accuracy pass | D | **DONE** (D161). start/stop scripts re-confirmed accurate; CI sections added to all 3 READMEs, verified command-for-command against the real workflow files; I6 re-confirmed clean |
-| T13 | Final acceptance audit + `PHASE_HANDOFF.md` entry | W/D | NOT STARTED |
+| T13 | Final acceptance audit + `PHASE_HANDOFF.md` entry | W/D | **DONE** (D162). Full A-J matrix closed, all PASS/PASS-with-disclosed-exception/accepted-gap. J1 fresh suite re-run: backend 127/127, `:shared` 249/249, `:androidApp` JVM 246/246 (exceeds baseline), lint 0 errors, Playwright chromium 19/19 — zero regressions. All 5 workflows confirmed green (J2). `PHASE_HANDOFF.md` Phase 7 entry added. **PHASE 7 COMPLETE — Phase 8 requires the user's own separate, explicit approval** |
 
 **Four judgment calls already resolved (D147):** the `isEnrolled` pagination divergence (Web page-1-only
 vs. Android full-paging) is recorded as a disclosed, accepted divergence, not fixed, per criterion A6;
@@ -454,12 +461,12 @@ Allowed phase states: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `COMPLETE`.
 | Phase | Status | Notes |
 |---|---|---|
 | PHASE 1 — Backend Foundation & API | **COMPLETE** | Started 2026-09-05, completed 2026-09-06, approved by the user 2026-09-06. See `PHASE_HANDOFF.md` for the full write-up. |
-| PHASE 2 — Website | **IN_PROGRESS** | Started 2026-09-06. See task breakdown below. |
+| PHASE 2 — Website | **COMPLETE** | Started 2026-09-06. Superseded by later phases' own status text above (this row was stale — corrected at Phase 7 T13, D162). See `PHASE_HANDOFF.md` for the full write-up. |
 | PHASE 3 — KMP Shared Mobile Core | **COMPLETE** | Started 2026-09-12, completed 2026-09-12, pending explicit user approval before Phase 4 begins. See `PHASE_HANDOFF.md` for the full write-up and the task breakdown near the end of this file. |
 | PHASE 4 — Android | **COMPLETE** | Started 2026-09-13, completed 2026-09-15, pending explicit user approval before Phase 5 begins. See `PHASE_HANDOFF.md` for the full write-up and `execution/PHASE_4_ANDROID_PLAN.md` / the task breakdown near the end of this file for detail. |
-| PHASE 5 — iOS | **IN_PROGRESS** | Started 2026-09-18. Acceptance criteria, system design, and a 23-task implementation plan authored and reviewed twice (Opus + Codex) before any code — see `PHASE_5_ACCEPTANCE_CRITERIA.md`/`PHASE_5_IOS_SYSTEM_DESIGN.md`/`PHASE_5_IOS_IMPLEMENTATION_PLAN.md` and `DECISIONS_LOG.md` D96. No Mac/Xcode on this machine; **D100 (2026-09-18) added Task T4c — a GitHub Actions `macos-15` CI pipeline (`.github/workflows/ios-ci.yml`) — as the compile/unit-test authority**, so T4b onward is authored on Windows in small slices and compiled by CI rather than blocked. Live/visual/accessibility acceptance still requires a real Mac (MC-2/MC-3/MC-4). See "PHASE 5 — Task Breakdown" near the end of this file. |
-| PHASE 6 — AI Tutor Integration | NOT_STARTED | Blocked on Phases 2, 4, 5 (client shells) + Phase 1 (aitutor scaffold). |
-| PHASE 7 — Full Integration | NOT_STARTED | Blocked on all prior phases. |
+| PHASE 5 — iOS | **DEFERRED / PARTIALLY IMPLEMENTED** | Started 2026-09-18. T1-T11 done, CI-confirmed (`ios-ci.yml`). T12-T23 NOT started. Frozen by explicit user decision (see "PHASE 5 FREEZE" section, and the top banner above) — not a task failure, not abandoned, not to be resumed during Phase 6/7/8. |
+| PHASE 6 — AI Tutor Integration | **IMPLEMENTATION COMPLETE** | Real `AnthropicAiProvider` implemented, reviewed twice (Opus + Codex), documented. Live provider runtime verification DEFERRED BY EXPLICIT USER DECISION (D146) — not a blocker. See the top banner above and `PHASE_HANDOFF.md`'s Phase 6 entry. |
+| PHASE 7 — Full Integration | **COMPLETE** | Started 2026-09-20, completed 2026-09-21. All 5 CI workflows real and green; the disclosed C4 cross-client bug fixed and live-verified; full A-J acceptance audit closed (T13). **Phase 8 must not begin without the user's own separate, explicit approval.** See the "PHASE 7" section above and `PHASE_HANDOFF.md`'s Phase 7 entry. |
 | PHASE 8 — QA, Polish & Portfolio Demo | NOT_STARTED | Blocked on Phase 7. |
 
 ---
