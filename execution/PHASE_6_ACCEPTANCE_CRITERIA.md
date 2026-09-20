@@ -1,14 +1,21 @@
 # Phase 6 — AI Tutor Integration — Acceptance Criteria
 
-**Status:** FINAL — T9 acceptance audit, 2026-09-20. Originally authored as a draft at Phase 6 kickoff,
-before any Phase 6 code change; every row below has now been updated in place to its final, real,
-end-of-phase state (T1-T7 complete; T8 genuinely blocked on a missing external credential, per § I3 —
-never simulated). Derived from already-locked authoritative sources, not invented from scratch — see
-"Authority sources" below. Reconciles one stale table in `MASTER_IMPLEMENTATION_PLAN.md` (noted in § H).
+**Status:** CLOSED — T9 acceptance audit, 2026-09-20, updated 2026-09-20 for the Phase 6 closure decision
+(D146). Originally authored as a draft at Phase 6 kickoff, before any Phase 6 code change; every row
+below has now been updated in place to its final, real, end-of-phase state. **T8 (live runtime
+verification against the real Anthropic API) is DEFERRED BY EXPLICIT USER/PROJECT DECISION, not merely
+blocked** — the user explicitly chose not to configure a real `AI_PROVIDER_API_KEY` or spend time/cost on
+live Anthropic verification for this local portfolio/demo project (D146). This is a deliberate scope
+decision, not an unresolved gap: it does not get silently upgraded to PASS, and it is not expected to be
+resolved later as part of this project's ordinary progress. Derived from already-locked authoritative
+sources, not invented from scratch — see "Authority sources" below. Reconciles one stale table in
+`MASTER_IMPLEMENTATION_PLAN.md` (noted in § H).
 
 **Legend:** PASS (implemented + test-verified), PASS-STRUCTURAL (implemented + verified against a
 mock/fake, but the specific real-provider runtime behavior is genuinely untestable without a key),
-NOT TESTABLE (blocked solely on the T8 gate — real `AI_PROVIDER_API_KEY`), N/A, ACCEPTED GAP.
+NOT TESTABLE — real AI provider credential intentionally not configured by user decision (D146; formerly
+"blocked on the T8 gate" — reworded, not weakened, after the user's explicit closure decision), N/A,
+ACCEPTED GAP.
 
 ## Authority sources (read in full before writing this checklist)
 
@@ -38,9 +45,9 @@ NOT TESTABLE (blocked solely on the T8 gate — real `AI_PROVIDER_API_KEY`), N/A
 
 | # | Criterion | Status |
 |---|---|---|
-| A1 | Real `AiProvider` implementation (`AnthropicAiProvider`) calling the Anthropic Messages API, bound via Koin in place of `StubAiProvider` when a key is configured | **PASS-STRUCTURAL** — `provider/AnthropicAiProvider.kt` (T2, `24d159b`), mode-selected in `AiTutorModule.aiTutorModule()` via `AppConfig.aiProviderMode()`. Test: 22 `MockEngine` unit tests (`AnthropicAiProviderTest.kt`). A real call against `api.anthropic.com` is **NOT TESTABLE** without a key (T8 gate). |
+| A1 | Real `AiProvider` implementation (`AnthropicAiProvider`) calling the Anthropic Messages API, bound via Koin in place of `StubAiProvider` when a key is configured | **PASS-STRUCTURAL** — `provider/AnthropicAiProvider.kt` (T2, `24d159b`), mode-selected in `AiTutorModule.aiTutorModule()` via `AppConfig.aiProviderMode()`. Test: 22 `MockEngine` unit tests (`AnthropicAiProviderTest.kt`). A real call against `api.anthropic.com` is **NOT TESTABLE — real AI provider credential intentionally not configured by user decision (D146)**. |
 | A2 | Request/response model unchanged: `AiCompletionRequest`/`AiToken` (provider-agnostic, per ADR-009) — no route/schema change | **PASS** — verified: `AiTutorRoutes.kt`'s wire contract untouched; `AiCompletionRequest` was reshaped (T1) but is an internal service/provider boundary type, not client-visible. |
-| A3 | Streaming: Anthropic's SSE stream is consumed and re-emitted as the existing `Flow<AiToken>`, preserving the existing chunked `text/plain` wire contract to clients (§ D4/D30) | **PASS-STRUCTURAL** — `AnthropicSse.kt` parses Anthropic's real SSE framing into `AiToken`s delivered through the `onStream` callback (design reshaped to suspend+callback in T1/D140 §1.3 specifically so provider failures surface before `respondTextWriter` opens — zero wire-format change to clients). Test: SSE-parsing unit tests (happy path, CRLF framing, malformed events) + integration tests. Real end-to-end Anthropic stream: **NOT TESTABLE** (T8 gate). |
+| A3 | Streaming: Anthropic's SSE stream is consumed and re-emitted as the existing `Flow<AiToken>`, preserving the existing chunked `text/plain` wire contract to clients (§ D4/D30) | **PASS-STRUCTURAL** — `AnthropicSse.kt` parses Anthropic's real SSE framing into `AiToken`s delivered through the `onStream` callback (design reshaped to suspend+callback in T1/D140 §1.3 specifically so provider failures surface before `respondTextWriter` opens — zero wire-format change to clients). Test: SSE-parsing unit tests (happy path, CRLF framing, malformed events) + integration tests. Real end-to-end Anthropic stream: **NOT TESTABLE — deferred by user decision (D146)**. |
 | A4 | Authenticated, rate-limited, CSRF-checked endpoint (already implemented) continues to pass with the real provider bound | **PASS-STRUCTURAL** — full `AiTutorIntegrationTest` suite (auth/rate-limit/CSRF, 10 cases) exercises the endpoint with the real service wiring and fakes standing in for the provider; the full request path with the *real* provider selected is T8's job. |
 | A5 | Input validation (length cap, paired courseId/lessonContextId) unchanged and still enforced ahead of any provider call | **PASS** (pre-existing, unmodified, `AiTutorService.validatedContent`, `MAX_CONTENT_LENGTH = 4000`). |
 | A6 | Timeout handling: a bounded per-request timeout to the provider, mapped to a client-visible retryable error, never a hang | **PASS-STRUCTURAL** — `AiTutorModule.kt` installs Ktor's `HttpTimeout` plugin with `requestTimeoutMillis = appConfig.aiProviderTimeoutSeconds * 1000L` (config-driven, `AI_PROVIDER_TIMEOUT_SECONDS`, range 5-600s). A timeout throws the same `HttpRequestTimeoutException` path already covered by the generic connection-failure catch (`AnthropicAiProvider.kt:127-129`) — pre-stream maps to `ApiException.ServiceUnavailable`, mid-stream rethrows into the stream-failure path. No test simulates an actual multi-second hang (impractical with `MockEngine`), but the exact catch branch it would hit is exercised by the existing connection-failure test. |
@@ -54,7 +61,7 @@ NOT TESTABLE (blocked solely on the T8 gate — real `AI_PROVIDER_API_KEY`), N/A
 
 | # | Criterion | Status |
 |---|---|---|
-| B1 | User submits a question → real AI response streams back through the existing endpoint | **PASS-STRUCTURAL** — flow fully real end-to-end (auth → validation → prompt build → provider → stream → persistence) against stub/fakes on both Web and Android (T7, D144). A real Anthropic-backed answer is **NOT TESTABLE** without a key (T8 gate). |
+| B1 | User submits a question → real AI response streams back through the existing endpoint | **PASS-STRUCTURAL** — flow fully real end-to-end (auth → validation → prompt build → provider → stream → persistence) against stub/fakes on both Web and Android (T7, D144). A real Anthropic-backed answer is **NOT TESTABLE — deferred by user decision (D146)**. |
 | B2 | Loading ("Thinking") state | **PASS** — re-confirmed live on both Web and Android during T7 (D144): three-dot pulsing indicator observed directly in screenshots on both platforms, not just inferred from code. |
 | B3 | Error/retry state, preserving the user's own message for retry | **PASS** — re-confirmed live on both Web and Android during T7 (D144) with a real killed-backend outage: user's message persists in history, clean generic error + Retry control appears, and Retry succeeds once the backend is back up; Android additionally confirmed per-turn retry isolation (a second, independent error also retried correctly). |
 | B4 | Empty/first-open state (lightweight welcome + quick actions, not a full `EmptyState`) | **PASS** — re-confirmed live on both Web and Android during T7 (D144). |
@@ -67,7 +74,7 @@ NOT TESTABLE (blocked solely on the T8 gate — real `AI_PROVIDER_API_KEY`), N/A
 |---|---|---|
 | C1 | General/global tutoring mode (no lesson context) | DONE |
 | C2 | Lesson-context mode: `courseId`+`lessonContextId` resolved server-side to title/description, enrollment-gated | DONE (backend; Android wires it from Course Player's "Ask AI Tutor" link — confirmed full-tab-switch only, no docked panel, D92) |
-| C3 | "What should I learn next?" scoped to the student's own enrollments only, never a platform-wide catalog scan | **PASS-STRUCTURAL** — closed for real in T3 (`a172682`): `CourseRepository.findByIds`/`CourseService.enrolledCourseBriefs` resolve only the calling principal's own enrollment IDs, injected into the prompt via `AiPromptBuilder.buildSystemPrompt`'s `<enrolled_courses>` block. Test: `AiTutorServiceTest` (4 mockk tests) proves the id set traces only to the principal's own enrollments on every call. The actual *quality* of a real Anthropic-generated recommendation is **NOT TESTABLE** without a key (T8 gate, C3 listed explicitly there). |
+| C3 | "What should I learn next?" scoped to the student's own enrollments only, never a platform-wide catalog scan | **PASS-STRUCTURAL** — closed for real in T3 (`a172682`): `CourseRepository.findByIds`/`CourseService.enrolledCourseBriefs` resolve only the calling principal's own enrollment IDs, injected into the prompt via `AiPromptBuilder.buildSystemPrompt`'s `<enrolled_courses>` block. Test: `AiTutorServiceTest` (4 mockk tests) proves the id set traces only to the principal's own enrollments on every call. The actual *quality* of a real Anthropic-generated recommendation is **NOT TESTABLE — deferred by user decision (D146)**. |
 | C4 | No unnecessary application data sent to the AI provider (only resolved lesson title/description + trimmed history + the message) | **PASS** — verified by reading `AnthropicAiProvider`'s request builder directly: it sends only `AiCompletionRequest.systemPrompt`/`history`/`maxResponseTokens`, nothing else; the T2 "exact 5-key request body" test pins the wire shape so nothing extra can be smuggled in without breaking that test. |
 | C5 | Known, accepted, out-of-scope gap: no docked/contextual AI Tutor panel inside Course Player on Web or Android (full-tab/full-screen chat only) | ACCEPTED GAP, carried forward — not a Phase 6 blocker unless the user says otherwise |
 
@@ -77,7 +84,7 @@ NOT TESTABLE (blocked solely on the T8 gate — real `AI_PROVIDER_API_KEY`), N/A
 |---|---|---|
 | D1 | System/instruction prompt owned and constructed entirely server-side | DONE (`AiTutorService.SYSTEM_PROMPT`) — content itself may be revisited for C3's enrolled-course-list addition |
 | D2 | Product behavior encoded: read/explain-only, never claims to modify enrollment/progress/quiz/account state | DONE |
-| D3 | Language handling: model responds in the language of the student's message; UI locale may be hinted for ambiguous short messages (`AI_TUTOR_ARCHITECTURE.md § 8`) | **PASS-STRUCTURAL** — `AiPromptBuilder.buildSystemPrompt` includes the explicit language rule ("respond in the language of the student's message") per System Design § 4. Whether a real Anthropic response actually honors it in practice is **NOT TESTABLE** without a key (T8 gate, D3 listed explicitly there). |
+| D3 | Language handling: model responds in the language of the student's message; UI locale may be hinted for ambiguous short messages (`AI_TUTOR_ARCHITECTURE.md § 8`) | **PASS-STRUCTURAL** — `AiPromptBuilder.buildSystemPrompt` includes the explicit language rule ("respond in the language of the student's message") per System Design § 4. Whether a real Anthropic response actually honors it in practice is **NOT TESTABLE — deferred by user decision (D146)**. |
 | D4 | Context boundaries: lesson content injected as clearly-delimited reference data, not as instructions (basic prompt-injection mitigation) | **PASS** — `AiPromptBuilder.sanitize()` neutralizes both `<lesson_context>` and `<enrolled_courses>` tag pairs in user-controlled course/lesson titles before they're wrapped in those same delimiter tags (the `<enrolled_courses>` gap was found and closed during T3's own pre-commit review, not by a later reviewer). Test: dedicated `AiPromptBuilderTest` cases for both tag families. Two lower-severity injection-hardening gaps (no explicit "data, not instructions" preamble; case-sensitive tag matching) were found in the T5 review and deliberately deferred as low-severity/non-blocking (F6, D141) — recorded, not silently dropped. |
 | D5 | Prompt ownership centralized in one place (`AiTutorService`); no client owns or can override the system prompt | DONE |
 
@@ -96,7 +103,7 @@ NOT TESTABLE (blocked solely on the T8 gate — real `AI_PROVIDER_API_KEY`), N/A
 | F1 | AI Tutor integrated using Design System v1.3.2, existing nav, KMP shared layer, real local backend | DONE (Phase 4 Task 17, D92) |
 | F2 | English/Arabic, LTR/RTL | DONE (D92 confirms Arabic + RTL verified) |
 | F3 | Light/Dark | **PASS** — re-confirmed live during T7 (D144): AI Tutor screen renders fully dark-themed and consistent with the rest of the app (correct contrast, no default-Android unstyled elements), combined with Arabic in the same pass. |
-| F4 | Genuine re-verification against the REAL provider (not just re-trusting the stub-era pass) | **NOT TESTABLE** — hard-blocked on the T8 gate (real `AI_PROVIDER_API_KEY`). Everything re-testable without a key (B2-B6, F2, F3, E3) has been genuinely re-verified live on a real device/emulator (T7, D144), not re-trusted from the stub era. |
+| F4 | Genuine re-verification against the REAL provider (not just re-trusting the stub-era pass) | **NOT TESTABLE — real AI provider credential intentionally not configured by user decision (D146)**. Everything re-testable without a key (B2-B6, F2, F3, E3) has been genuinely re-verified live on a real device/emulator (T7, D144), not re-trusted from the stub era. |
 
 ## G. Website
 
@@ -105,7 +112,7 @@ NOT TESTABLE (blocked solely on the T8 gate — real `AI_PROVIDER_API_KEY`), N/A
 | G1 | AI Tutor integrated using existing website architecture, Design System v1.3.2, real backend | DONE (Phase 2 Task 9, D50-range) |
 | G2 | English/Arabic, RTL | DONE |
 | G3 | Light/Dark where supported | DONE (inherited theming) |
-| G4 | Genuine re-verification against the REAL provider | **NOT TESTABLE** — hard-blocked on the T8 gate. Everything re-testable without a key (B2-B6, G2, G3, E3, plus outage/retry behavior) has been genuinely re-verified live in a real browser (T7, D144), not re-trusted from the stub era. |
+| G4 | Genuine re-verification against the REAL provider | **NOT TESTABLE — real AI provider credential intentionally not configured by user decision (D146)**. Everything re-testable without a key (B2-B6, G2, G3, E3, plus outage/retry behavior) has been genuinely re-verified live in a real browser (T7, D144), not re-trusted from the stub era. |
 
 ## H. Security / Configuration
 
@@ -123,7 +130,7 @@ NOT TESTABLE (blocked solely on the T8 gate — real `AI_PROVIDER_API_KEY`), N/A
 |---|---|---|
 | I1 | No production hosting requirements introduced | N/A by design — nothing in this phase touches deployment target |
 | I2 | External AI provider dependency clearly documented | **PASS** — T6 (`82e2bb4`) added the "AI Tutor provider" section to `backend/README.md` (both modes, the always-on startup log, the no-client-key structural guarantee); `.env.example`/`INTEGRATION_CONTRACT.md` updated to match. |
-| I3 | If a real credential is unavailable: distinguish "implementation complete" vs. "structurally complete" vs. "runtime verification unavailable" — never fabricate a successful provider call | **PASS (constraint honored throughout)** — every PASS above that touches the real provider is explicitly marked PASS-STRUCTURAL or NOT TESTABLE, never a bare PASS; A1/A3/B1/C3/D3/F4/G4 are the specific items still gated on T8. No successful provider call was fabricated, simulated, or implied anywhere in this project's documentation or test suite. |
+| I3 | If a real credential is unavailable: distinguish "implementation complete" vs. "structurally complete" vs. "runtime verification unavailable" — never fabricate a successful provider call | **PASS (constraint honored throughout)** — every PASS above that touches the real provider is explicitly marked PASS-STRUCTURAL or NOT TESTABLE, never a bare PASS; A1/A3/B1/C3/D3/F4/G4 are the specific items affected, all now explicitly **deferred by user decision (D146)** rather than merely blocked. No successful provider call was fabricated, simulated, or implied anywhere in this project's documentation or test suite. |
 
 ## J. Quality
 
@@ -154,6 +161,26 @@ NOT TESTABLE (blocked solely on the T8 gate — real `AI_PROVIDER_API_KEY`), N/A
   F4, G4** — all gated on the single unmet precondition in § I3 (`AI_PROVIDER_API_KEY` remains unset).
   No other open item, defect, or regression exists. See `DECISIONS_LOG.md` D144 and `PHASE_HANDOFF.md`'s
   Phase 6 entry for the full account.
+
+## PHASE 6 CLOSURE DECISION (2026-09-20, D146)
+
+**Real Anthropic live-provider runtime verification (T8) is DEFERRED BY EXPLICIT USER/PROJECT DECISION.**
+This is a local portfolio/demo project; the user chose not to spend time, credentials, or API cost on
+live Anthropic verification at this time. This supersedes the earlier framing of T8 as merely "blocked" —
+it is now a deliberate, permanent-until-reopened scope decision, not a pending precondition this project
+is waiting to satisfy. No AI provider secret was created, requested, exposed, or configured to reach this
+decision, and none of the seven affected criteria (A1, A3, B1, C3, D3, F4, G4) were reclassified as PASS —
+each remains explicitly **NOT TESTABLE — real AI provider credential intentionally not configured by user
+decision**, or PASS-STRUCTURAL where mock/fake/integration evidence genuinely exists. No evidence was
+weakened or fabricated to reach this closure.
+
+**PHASE 6 IMPLEMENTATION: COMPLETE** (for the portfolio/demo scope this project targets).
+**LIVE PROVIDER VERIFICATION: DEFERRED BY USER DECISION** (not a blocker for Phases 7-8).
+
+This is not "PHASE 6 ACCEPTANCE: PASS" against the checklist's original acceptance contract, which
+explicitly required real-provider verification (§ I3) — that contract's live-provider clauses are now
+knowingly, permanently waived by the party with authority to waive them. See `DECISIONS_LOG.md` D146 and
+`PHASE_HANDOFF.md`'s Phase 6 entry for the full account.
 
 ## Reconciliation note vs. `MASTER_IMPLEMENTATION_PLAN.md`
 

@@ -1,24 +1,31 @@
 # Mentora — Current Implementation Status
 
-**Last updated:** 2026-09-20 — **PHASE 6 (AI Tutor Integration) — T1-T7 and T9 COMPLETE; T8 BLOCKED.**
-The real `AnthropicAiProvider` is implemented, independently reviewed twice (Opus + Codex, 9 real defects
-found and fixed across both rounds), cross-platform-verified live on Website + Android against stub
-mode (zero client code changed), documented, and passed its T9 final acceptance audit — 127/127 backend
-tests green, clean git state, every criterion PASS or PASS-STRUCTURAL except seven items (A1/A3/B1/C3/
-D3/F4/G4) that are genuinely **NOT TESTABLE** without a real `AI_PROVIDER_API_KEY` (currently unset in
-this environment, never fabricated or simulated). See the "PHASE 6" section below,
-`execution/PHASE_6_ACCEPTANCE_CRITERIA.md` (the final matrix), and `execution/PHASE_HANDOFF.md`'s Phase
-6 entry for full detail. **Phase 6 acceptance is NOT READY only because of the T8 gate — every other
-item is genuinely done. Phase 7 must NOT begin without the user's separate, explicit approval.**
+**Last updated:** 2026-09-20 — **PHASE 6 (AI Tutor Integration) — IMPLEMENTATION COMPLETE. LIVE PROVIDER
+VERIFICATION DEFERRED BY USER DECISION (D146).** The real `AnthropicAiProvider` is implemented,
+independently reviewed twice (Opus + Codex, 9 real defects found and fixed across both rounds),
+cross-platform-verified live on Website + Android against stub mode (zero client code changed),
+documented, and passed its T9 final acceptance audit — 127/127 backend tests green, clean git state,
+every criterion PASS or PASS-STRUCTURAL except seven items (A1/A3/B1/C3/D3/F4/G4) that remain honestly
+**NOT TESTABLE — real AI provider credential intentionally not configured by user decision**. This is a
+local portfolio/demo project; the user explicitly chose not to spend time, credentials, or API cost on
+live Anthropic verification, and this is now a deliberate, accepted scope decision, not a blocker — it
+is **not** the same as "PHASE 6 ACCEPTANCE: PASS" against the original acceptance contract, which
+explicitly required real-provider checks (§ I3 of the acceptance criteria); that framing is preserved
+honestly, never weakened or fabricated. No AI provider secret was ever created, requested, exposed, or
+configured. See `execution/PHASE_6_ACCEPTANCE_CRITERIA.md` (the final matrix) and
+`execution/PHASE_HANDOFF.md`'s Phase 6 entry for full detail, and `DECISIONS_LOG.md` D146 for the closure
+decision itself. **Per this same user decision, Phase 7 ("Full Integration") is now underway** — see the
+"PHASE 7" section below.
 
 Phase 5 (iOS) remains **DEFERRED / PARTIALLY IMPLEMENTED** by explicit user decision (see "PHASE 5
-FREEZE" below) — NOT a task failure, NOT abandoned, NOT PASS/COMPLETE. T1-T11 done and CI-confirmed;
-T12-T23 NOT started; not touched during Phase 6. Phase 4 — Android — **COMPLETE**. Phases 6-8 proceed
-with Website / Android / Backend / KMP shared core as the primary supported/demo platforms.
+FREEZE" below) — NOT a task failure, NOT abandoned, NOT PASS/COMPLETE, and NOT to be resumed during
+Phase 7. T1-T11 done and CI-confirmed; T12-T23 NOT started; not touched during Phase 6 or Phase 7.
+Phase 4 — Android — **COMPLETE**. Phases 7-8 proceed with Website / Android / Backend / KMP shared core
+as the primary supported/demo platforms.
 
 ---
 
-## PHASE 6 — AI TUTOR INTEGRATION — 2026-09-20 — IN PROGRESS
+## PHASE 6 — AI TUTOR INTEGRATION — 2026-09-20 — IMPLEMENTATION COMPLETE (LIVE PROVIDER VERIFICATION DEFERRED BY USER DECISION, D146)
 
 **Do not mark Phase 6 PASS/COMPLETE until T9's acceptance audit says so.** Full detail lives in
 `execution/PHASE_6_ACCEPTANCE_CRITERIA.md` (the A-J checklist), `execution/PHASE_6_SYSTEM_DESIGN.md`,
@@ -43,18 +50,21 @@ history normalization), and verify — not rebuild the clients.
 | T5 | **Mandatory review checkpoint** — Opus (full diff) + independent Codex second opinion (provider/key boundary only) | **DONE, CLOSED** — see D141/D142. Opus found F1 (HIGH — a retry after any provider failure could permanently brick a conversation by sending two adjacent same-role turns to Anthropic) and F2 (MEDIUM-HIGH — a clean stream EOF without `message_stop` could persist a truncated answer as if it were complete), both fixed (`c11080e`), plus 5 smaller findings (F3-F5/F7/F9) fixed and 2 (F6/F8) deliberately deferred as low-severity/non-blocking. Codex's independent pass then found 2 more genuine defects the Opus round missed (a second cancellation-swallowing path inside the non-2xx error-body reader; an empty text delta could satisfy the "first token received" check), both fixed (`0196bde`). **127/127 tests green.** |
 | T6 | Documentation + config surface (`.env.example`, `backend/README.md`, `INTEGRATION_CONTRACT.md`, this file, `DECISIONS_LOG.md`) | **DONE** — `82e2bb4` (D143) |
 | T7 | Cross-platform verification without a key (Android + Website against stub mode and a forced provider failure) | **DONE** — Website + Android both PASS, zero `web/`/`mobile/` files changed |
-| — | **GATE:** the user supplies a real `AI_PROVIDER_API_KEY` (and confirms the exact Anthropic model id) | **NOT MET — this environment's `AI_PROVIDER_API_KEY` remains unset** |
-| T8 | Live runtime verification against the real Anthropic API | **BLOCKED** on the gate above |
-| T9 | Final acceptance audit (A-J) + Phase 6 handoff | **DONE** — D144 addendum; see `PHASE_6_ACCEPTANCE_CRITERIA.md`'s final matrix and `PHASE_HANDOFF.md`'s Phase 6 entry. Every criterion PASS/PASS-STRUCTURAL/N-A/ACCEPTED-GAP except A1/A3/B1/C3/D3/F4/G4, all NOT TESTABLE solely on the T8 gate. |
+| — | **CLOSURE DECISION (D146):** the user explicitly DEFERRED real `AI_PROVIDER_API_KEY` configuration — a local portfolio/demo project, not worth the time/cost of live Anthropic verification right now | **RECORDED — not a blocker; do not ask for a key again; no key created/requested/exposed/configured** |
+| T8 | Live runtime verification against the real Anthropic API | **DEFERRED BY USER DECISION (D146)** — not attempted, not simulated, not required for Phase 7-8 |
+| T9 | Final acceptance audit (A-J) + Phase 6 handoff | **DONE** — D144/D146; see `PHASE_6_ACCEPTANCE_CRITERIA.md`'s final matrix and `PHASE_HANDOFF.md`'s Phase 6 entry. Every criterion PASS/PASS-STRUCTURAL/N-A/ACCEPTED-GAP except A1/A3/B1/C3/D3/F4/G4, all honestly NOT TESTABLE — real AI provider credential intentionally not configured by user decision. |
 
 **What's structurally verified vs. what genuinely needs the key (I3 — never conflate the two):**
-everything in T1-T6 is fully implementation-complete and test-verified without any real credential —
+everything in T1-T7 is fully implementation-complete and test-verified without any real credential —
 the entire backend suite runs against mocked HTTP (`MockEngine`) or the stub provider, by design, per
 this codebase's existing testing convention. **A1 (real call), A3 (real Anthropic SSE end-to-end), B1
 (a real streamed answer), C3 (real recommendation quality against real enrollments), D3 (real Arabic/
-English behavior), F4/G4 (Android/Web against the real provider) remain genuinely unverified** and
-cannot be claimed done until T8 runs against a real key. No successful provider call has been
-fabricated or simulated as if it were real anywhere in this project's documentation.
+English behavior), F4/G4 (Android/Web against the real provider) remain genuinely unverified** — not
+because anything is unfinished, but because the user has explicitly decided (D146) not to configure a
+real credential for this local portfolio/demo project. This is now a **closed, accepted scope decision**,
+not an open item awaiting resolution. No successful provider call has been fabricated or simulated as if
+it were real anywhere in this project's documentation, and none of these seven items were reclassified
+as PASS to manufacture a false "done."
 
 **Known, accepted, non-blocking gaps carried into Phase 6 (not new, not this phase's to fix):** no
 docked/contextual AI Tutor panel inside Course Player on Web or Android (full-screen/full-tab chat
