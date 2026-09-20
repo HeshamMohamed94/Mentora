@@ -4,17 +4,17 @@ import com.mentora.backend.aitutor.provider.AiCompletionRequest
 import com.mentora.backend.aitutor.provider.AiHistoryTurn
 import com.mentora.backend.aitutor.provider.AiProvider
 import com.mentora.backend.aitutor.provider.AiToken
-import com.mentora.backend.aitutor.provider.LessonContext
 import com.mentora.backend.aitutor.repository.AiMessageDocument
 import com.mentora.backend.aitutor.repository.AiTutorRepository
 import com.mentora.backend.common.ApiException
 import com.mentora.backend.common.MentoraPrincipal
 import com.mentora.backend.common.PageRequest
 import com.mentora.backend.common.toPage
+import com.mentora.backend.config.AppConfig
 import com.mentora.backend.courses.service.CourseService
 import com.mentora.backend.enrollment.service.EnrollmentService
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.onEach
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
@@ -43,11 +43,14 @@ data class AiConversationResponse(
     val nextCursor: String? = null,
 )
 
+data class LessonContext(val title: String, val description: String)
+
 class AiTutorService(
     private val repository: AiTutorRepository,
     private val enrollment: EnrollmentService,
     private val courses: CourseService,
     private val provider: AiProvider,
+    private val appConfig: AppConfig,
 ) {
     suspend fun conversation(principal: MentoraPrincipal, page: PageRequest): AiConversationResponse {
         val conversation = repository.findOrCreate(principal.userId, Clock.System.now())
@@ -57,16 +60,31 @@ class AiTutorService(
         )
     }
 
-    suspend fun prepareMessage(principal: MentoraPrincipal, request: SendAiMessageRequest): Flow<AiToken> {
+    suspend fun streamMessage(
+        principal: MentoraPrincipal,
+        request: SendAiMessageRequest,
+        requestId: String,
+        respond: suspend (Flow<AiToken>) -> Unit,
+    ) {
         val content = validatedContent(request)
-        val lessonContext = resolveLessonContext(principal, request)
+        resolveLessonContext(principal, request)
         val conversation = repository.findOrCreate(principal.userId, Clock.System.now())
         val conversationId = requireNotNull(conversation.id)
         val history = repository.recent(conversationId, HISTORY_LIMIT)
             .map { AiHistoryTurn(it.role, it.content) }
         appendMessage(conversationId, "user", content, request.lessonContextId)
-        val completion = provider.complete(AiCompletionRequest(SYSTEM_PROMPT, lessonContext, history, content))
-        return assistantCompletion(completion, conversationId, request.lessonContextId)
+        provider.complete(
+            AiCompletionRequest(
+                systemPrompt = SYSTEM_PROMPT,
+                history = history,
+                userMessage = content,
+                maxResponseTokens = appConfig.aiProviderMaxResponseTokens,
+            ),
+        ) { tokens ->
+            val assistant = StringBuilder()
+            respond(tokens.onEach { assistant.append(it.text) })
+            appendMessage(conversationId, "assistant", assistant.toString(), request.lessonContextId)
+        }
     }
 
     private fun validatedContent(request: SendAiMessageRequest): String {
@@ -107,19 +125,6 @@ class AiTutorService(
             lessonContextId = lessonContextId,
             createdAt = Clock.System.now(),
         ))
-    }
-
-    private fun assistantCompletion(
-        completion: Flow<AiToken>,
-        conversationId: ObjectId,
-        lessonContextId: String?,
-    ): Flow<AiToken> = flow {
-            val assistant = StringBuilder()
-            completion.collect { token ->
-                assistant.append(token.text)
-                emit(token)
-            }
-            appendMessage(conversationId, "assistant", assistant.toString(), lessonContextId)
     }
 
     private fun objectId(value: String) = try {

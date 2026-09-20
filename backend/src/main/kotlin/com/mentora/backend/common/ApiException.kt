@@ -51,6 +51,13 @@ sealed class ApiException(
     class RateLimited(rateLimitCode: String, message: String = "Too many requests. Please slow down.") :
         ApiException(HttpStatusCode.TooManyRequests, rateLimitCode, message)
 
+    /** The AI Tutor provider is unreachable, timed out, overloaded, or produced no usable response —
+     * PHASE_6_SYSTEM_DESIGN.md § 11. Always a transient/upstream condition, never a client mistake. */
+    class ServiceUnavailable(
+        code: String = "AI_TUTOR_UNAVAILABLE",
+        message: String = "The AI Tutor is temporarily unavailable. Please try again.",
+    ) : ApiException(HttpStatusCode.ServiceUnavailable, code, message)
+
     class Internal(message: String = "Something went wrong.", cause: Throwable? = null) :
         ApiException(HttpStatusCode.InternalServerError, "INTERNAL_ERROR", message) {
         init {

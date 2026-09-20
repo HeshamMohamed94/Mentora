@@ -23,6 +23,8 @@ data class AppConfig(
     val logLevel: String,
     val aiTutorMessagesPerMinute: Int = 20,
     val aiTutorMessagesPerDay: Int = 200,
+    val aiProviderMaxResponseTokens: Int = 1024,
+    val aiProviderTimeoutSeconds: Int = 120,
 ) {
     companion object {
         fun load(): AppConfig {
@@ -36,6 +38,16 @@ data class AppConfig(
                     )
 
             fun optional(key: String, default: String): String = env[key]?.takeIf { it.isNotBlank() } ?: default
+
+            fun rangedInt(key: String, default: Int, range: IntRange): Int {
+                val value = optional(key, default.toString()).toInt()
+                if (value !in range) {
+                    throw IllegalStateException(
+                        "Invalid configuration value for $key: $value. Must be in $range."
+                    )
+                }
+                return value
+            }
 
             return AppConfig(
                 mongoUri = optional("MONGODB_URI", "mongodb://localhost:27017/mentora?replicaSet=rs0"),
@@ -52,6 +64,8 @@ data class AppConfig(
                 logLevel = optional("LOG_LEVEL", "DEBUG"),
                 aiTutorMessagesPerMinute = optional("AI_TUTOR_MESSAGES_PER_MINUTE", "20").toInt(),
                 aiTutorMessagesPerDay = optional("AI_TUTOR_MESSAGES_PER_DAY", "200").toInt(),
+                aiProviderMaxResponseTokens = rangedInt("AI_PROVIDER_MAX_RESPONSE_TOKENS", 1024, 1..8192),
+                aiProviderTimeoutSeconds = rangedInt("AI_PROVIDER_TIMEOUT_SECONDS", 120, 5..600),
             )
         }
     }
@@ -60,6 +74,9 @@ data class AppConfig(
     fun redactedSummary(): String = "AppConfig(mongoDatabaseName=$mongoDatabaseName, " +
         "mediaStorageRoot=$mediaStorageRoot, corsAllowedOrigins=$corsAllowedOrigins, " +
         "aiProviderConfigured=${aiProviderApiKey != null}, logLevel=$logLevel)"
+
+    /** One decision point, reused by both the DI binding and the startup log — PHASE_6_SYSTEM_DESIGN.md § 19.2. */
+    fun aiProviderMode(): String = if (aiProviderApiKey != null) "anthropic" else "stub"
 }
 
 /**

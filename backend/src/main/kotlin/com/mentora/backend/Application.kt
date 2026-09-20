@@ -4,6 +4,7 @@ import com.mentora.backend.admin.adminModule
 import com.mentora.backend.admin.routes.adminRoutes
 import com.mentora.backend.admin.service.AdminService
 import com.mentora.backend.aitutor.aiTutorModule
+import com.mentora.backend.aitutor.provider.AiProvider
 import com.mentora.backend.aitutor.repository.ensureAiTutorIndexes
 import com.mentora.backend.aitutor.routes.aiTutorRoutes
 import com.mentora.backend.aitutor.service.AiTutorService
@@ -76,15 +77,24 @@ fun main(args: Array<String>) = EngineMain.main(args)
 
 fun Application.module() = module(AppConfig.load())
 
-internal fun Application.module(appConfig: AppConfig) {
+internal fun Application.module(appConfig: AppConfig, aiProviderOverride: AiProvider? = null) {
     log.info("Starting Mentora backend with {}", appConfig.redactedSummary())
+    log.info(
+        "AI Tutor provider mode: {}",
+        when (appConfig.aiProviderMode()) {
+            "anthropic" -> "ANTHROPIC (model=${appConfig.aiProviderModel}, " +
+                "maxResponseTokens=${appConfig.aiProviderMaxResponseTokens})"
+            else -> "STUB — AI_PROVIDER_API_KEY is not set, so AI Tutor replies are placeholder text. " +
+                "Set AI_PROVIDER_API_KEY in backend/.env for real responses (architecture/DEPLOYMENT.md § 4)."
+        },
+    )
 
     install(Koin) {
         slf4jLogger()
         modules(
             configKoinModule(appConfig), databaseKoinModule, authModule, usersModule, categoriesModule,
             coursesModule, enrollmentModule, progressModule, quizModule, certificatesModule, learningPathsModule,
-            mediaModule, instructorModule, adminModule, aiTutorModule,
+            mediaModule, instructorModule, adminModule, aiTutorModule(aiProviderOverride),
         )
     }
     configureDatabaseLifecycle()

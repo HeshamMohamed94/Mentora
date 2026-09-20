@@ -196,6 +196,7 @@ class AiTutorIntegrationTest {
             corsAllowedOrigins = listOf("http://localhost:3000"), aiProviderApiKey = null,
             aiProviderModel = "test-model", logLevel = "DEBUG",
             aiTutorMessagesPerMinute = messagesPerMinute, aiTutorMessagesPerDay = messagesPerDay,
+            aiProviderMaxResponseTokens = 1024, aiProviderTimeoutSeconds = 120,
         )
     }
 }

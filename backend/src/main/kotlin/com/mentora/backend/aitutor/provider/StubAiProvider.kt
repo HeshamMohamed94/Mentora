@@ -5,12 +5,20 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 
 class StubAiProvider : AiProvider {
-    override fun complete(request: AiCompletionRequest): Flow<AiToken> = flow {
-        PLACEHOLDER.split(" ").forEachIndexed { index, word ->
-            if (index > 0) emit(AiToken(" "))
-            emit(AiToken(word))
-            delay(30)
-        }
+    override suspend fun complete(
+        request: AiCompletionRequest,
+        onStream: suspend (Flow<AiToken>) -> Unit,
+    ): AiUsage {
+        onStream(
+            flow {
+                PLACEHOLDER.split(" ").forEachIndexed { index, word ->
+                    if (index > 0) emit(AiToken(" "))
+                    emit(AiToken(word))
+                    delay(30)
+                }
+            },
+        )
+        return AiUsage(null, null)
     }
 
     companion object {

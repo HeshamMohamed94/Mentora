@@ -5,6 +5,7 @@ import com.mentora.backend.aitutor.service.SendAiMessageRequest
 import com.mentora.backend.common.PageRequest
 import com.mentora.backend.common.Role
 import com.mentora.backend.common.mentoraPrincipal
+import com.mentora.backend.common.requestId
 import com.mentora.backend.common.requireCsrfHeader
 import com.mentora.backend.common.requireRole
 import com.mentora.backend.common.respondData
@@ -33,11 +34,12 @@ fun Route.aiTutorRoutes(service: AiTutorService) {
                     post("/messages") {
                         val principal = call.mentoraPrincipal().also { it.requireRole(Role.student) }
                         call.requireCsrfHeader()
-                        val tokens = service.prepareMessage(principal, call.receive<SendAiMessageRequest>())
-                        call.respondTextWriter(ContentType.Text.Plain.withCharset(Charsets.UTF_8)) {
-                            tokens.collect { token ->
-                                write(token.text)
-                                flush()
+                        service.streamMessage(principal, call.receive<SendAiMessageRequest>(), call.requestId()) { tokens ->
+                            call.respondTextWriter(ContentType.Text.Plain.withCharset(Charsets.UTF_8)) {
+                                tokens.collect { token ->
+                                    write(token.text)
+                                    flush()
+                                }
                             }
                         }
                     }
