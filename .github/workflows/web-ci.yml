@@ -27,6 +27,14 @@
 #
 # NOTE: this file currently has ONE job (`web-static`) — Phase 7 Task T2. The `web-e2e` job (Task T3)
 # is added in a follow-up commit once T2 is confirmed green, per PHASE_7_IMPLEMENTATION_PLAN.md.
+#
+# WHY THERE IS NO `npm run build` STEP HERE (a real finding, not the original T2 design — see
+# execution/DECISIONS_LOG.md D150). The landing page (`web/src/app/[locale]/(public)/page.tsx`) is
+# ISR (`export const revalidate = 300`), not fully static, and Next.js still performs one real,
+# live, server-side fetch to the backend during `next build`'s initial prerender pass — so `web-ci`
+# cannot run a real `next build` without a live backend. `web-static` has no backend and is meant to
+# stay fast; the actual production build is exercised for real by the `web-e2e` job below (which
+# already needs the site built against its own live backend anyway), not duplicated here.
 
 name: Web CI
 
@@ -68,8 +76,6 @@ jobs:
     defaults:
       run:
         working-directory: web
-    env:
-      API_BASE_URL: 'http://localhost:8080'
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -95,6 +101,3 @@ jobs:
 
       - name: Type-check
         run: npm run typecheck
-
-      - name: Production build
-        run: npm run build
