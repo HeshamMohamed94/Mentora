@@ -238,4 +238,64 @@ class CourseDetailsViewModelTest {
 
         assertEquals("Design", viewModel.uiState.value.categories.first { it.id == "cat-1" }.name)
     }
+
+    // ---- Phase 7 C4 / D144: auth-state staleness fix ----
+
+    @Test
+    fun guestThenAuthenticated_ctaRefreshesFromLoginToEnrollToEnroll() = runTest(testDispatcher) {
+        var listEnrollmentsCallCount = 0
+        val viewModel = buildViewModel(
+            isAuthenticated = false,
+            listEnrollments = { _, _ ->
+                listEnrollmentsCallCount++
+                ApiResult.Success(CursorPage(items = emptyList(), nextCursor = null))
+            },
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertEquals(CourseDetailsCtaState.LoginToEnroll, (viewModel.uiState.value.course as CourseLoadState.Success).cta)
+        assertEquals(0, listEnrollmentsCallCount)
+
+        viewModel.onAuthenticationChanged(true)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val success = viewModel.uiState.value.course as CourseLoadState.Success
+        assertEquals(CourseDetailsCtaState.Enroll, success.cta)
+        assertEquals(1, listEnrollmentsCallCount)
+    }
+
+    @Test
+    fun guestThenAuthenticated_andAlreadyEnrolled_ctaBecomesContinueLearning() = runTest(testDispatcher) {
+        val viewModel = buildViewModel(
+            courseId = "course-1",
+            isAuthenticated = false,
+            listEnrollments = { _, _ ->
+                ApiResult.Success(CursorPage(items = listOf(enrollment("course-1")), nextCursor = null))
+            },
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertEquals(CourseDetailsCtaState.LoginToEnroll, (viewModel.uiState.value.course as CourseLoadState.Success).cta)
+
+        viewModel.onAuthenticationChanged(true)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val success = viewModel.uiState.value.course as CourseLoadState.Success
+        assertTrue(success.isEnrolled)
+        assertEquals(CourseDetailsCtaState.ContinueLearning, success.cta)
+    }
+
+    @Test
+    fun onAuthenticationChanged_withTheSameValue_doesNotReload() = runTest(testDispatcher) {
+        var callCount = 0
+        val viewModel = buildViewModel(
+            isAuthenticated = false,
+            getCourseDetails = { callCount++; ApiResult.Success(course(it)) },
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertEquals(1, callCount)
+
+        viewModel.onAuthenticationChanged(false)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(1, callCount)
+    }
 }

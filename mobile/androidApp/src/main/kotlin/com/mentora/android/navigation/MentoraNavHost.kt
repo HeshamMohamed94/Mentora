@@ -264,10 +264,12 @@ fun MentoraNavHost(
         CourseDetailsScreen(
             courseId = courseId,
             sdk = sdk,
-            // T10 — a plain snapshot of the live AuthState at push time (never re-read reactively
-            // inside the screen itself): every full auth-state TRANSITION already resets the entire
-            // nav stack above (this LaunchedEffect(authState)), so this destination never stays
-            // mounted across one — see CourseDetailsViewModel's own kdoc.
+            // T10 — the live AuthState at this composition. Only the no-pending-intent login branch
+            // and the logout branch above reset the whole nav stack; the pending-intent login branch
+            // (this screen's own onEnrollRequiringAuth → requireAuth → GateToLogin path) pops only
+            // the Login entry, so this destination CAN stay mounted across a guest→authenticated
+            // transition. CourseDetailsScreen handles that itself via onAuthenticationChanged (Phase 7
+            // C4 / D144) — this parameter is not a one-time snapshot the screen can treat as frozen.
             isAuthenticated = authState is AuthState.Authenticated,
             onEnrollRequiringAuth = { requireAuth(Destination.DemoCheckout(courseId)) },
             // T6 fix-up (Finding 5): Course Player is enrollment-gated per
@@ -294,6 +296,11 @@ fun MentoraNavHost(
         LearningPathDetailsScreen(
             pathId = pathId,
             sdk = sdk,
+            // The re-push above lands on a FRESH instance of this destination once authenticated,
+            // which masks the pending-intent stack-reset gap for the visible screen — but the
+            // original guest-mode entry still sits underneath and is reached by one system-back
+            // press. onAuthenticationChanged (Phase 7 C4 / D144) protects that stale entry too, the
+            // same as CourseDetailsScreen.
             isAuthenticated = authState is AuthState.Authenticated,
             onFollowRequiringAuth = { requireAuth(Destination.LearningPathDetails(pathId)) },
             onOpenCourseDetails = { courseId -> navController.navigate(Destination.CourseDetails(courseId)) },

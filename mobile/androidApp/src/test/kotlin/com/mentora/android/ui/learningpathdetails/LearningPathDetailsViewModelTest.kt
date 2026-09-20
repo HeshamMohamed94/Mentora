@@ -356,4 +356,38 @@ class LearningPathDetailsViewModelTest {
         success = viewModel.uiState.value.path as LearningPathLoadState.Success
         assertNull(success.followError)
     }
+
+    // ---- Phase 7 C4 / D144: auth-state staleness fix ----
+
+    @Test
+    fun guestThenAuthenticated_reloadsAndStartsCallingGetCourseProgress() = runTest(testDispatcher) {
+        var progressCallCount = 0
+        val viewModel = buildViewModel(
+            isAuthenticated = false,
+            getCourseProgress = { progressCallCount++; ApiResult.Success(progress(it, percent = 0)) },
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertEquals(0, progressCallCount)
+
+        viewModel.onAuthenticationChanged(true)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(progressCallCount > 0)
+    }
+
+    @Test
+    fun onAuthenticationChanged_withTheSameValue_doesNotReload() = runTest(testDispatcher) {
+        var loadCount = 0
+        val viewModel = buildViewModel(
+            isAuthenticated = false,
+            getLearningPathDetail = { loadCount++; ApiResult.Success(pathDetail(it)) },
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertEquals(1, loadCount)
+
+        viewModel.onAuthenticationChanged(false)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(1, loadCount)
+    }
 }

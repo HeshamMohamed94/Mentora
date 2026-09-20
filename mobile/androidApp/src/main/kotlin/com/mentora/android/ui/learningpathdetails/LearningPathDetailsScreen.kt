@@ -115,6 +115,9 @@ fun LearningPathDetailsScreen(
     val viewModel: LearningPathDetailsViewModel = viewModel(
         factory = LearningPathDetailsViewModel.Factory(sdk, pathId, isAuthenticated),
     )
+    // Phase 7 C4 / D144 fix — see CourseDetailsScreen's identical LaunchedEffect for the full
+    // root-cause account. A no-op when nothing actually changed.
+    LaunchedEffect(isAuthenticated) { viewModel.onAuthenticationChanged(isAuthenticated) }
     val uiState by viewModel.uiState.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }

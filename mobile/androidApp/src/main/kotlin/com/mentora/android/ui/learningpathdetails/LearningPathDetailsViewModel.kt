@@ -75,10 +75,11 @@ data class LearningPathDetailsUiState(
  * T16 — Learning Path Details' ViewModel. Same lambda-constructor seam as every prior task's
  * ViewModel (`sdk.learningPaths`/`sdk.progress`'s constructors are `internal` to `:shared`).
  *
- * **[isAuthenticated] is a plain snapshot at construction**, same rationale as
- * `CourseDetailsViewModel`'s own identical parameter (see that class's kdoc) — every full auth-state
- * TRANSITION already resets the entire nav stack in `MentoraNavHost`, so this screen never stays
- * mounted across one.
+ * **[isAuthenticated] is seeded from construction but kept live via [onAuthenticationChanged]**, same
+ * fix and rationale as `CourseDetailsViewModel`'s own identical parameter (see that class's kdoc) —
+ * the auth-gate's pending-intent login path resets only the `Login` back-stack entry, not the whole
+ * stack, so this screen's own ViewModel instance can survive a guest→authenticated transition
+ * (Phase 7 C4 / `execution/DECISIONS_LOG.md` D144).
  *
  * **Deriving Completed/Current/Upcoming (`ux/SCREEN_UX_SPECS.md § 5`, the task's own pre-made design
  * decision).** [getCourseProgress] is called once per course in [LearningPathDetail.courses] — small
@@ -102,7 +103,7 @@ data class LearningPathDetailsUiState(
  */
 class LearningPathDetailsViewModel(
     private val pathId: String,
-    private val isAuthenticated: Boolean,
+    isAuthenticated: Boolean,
     private val getLearningPathDetail: suspend (String) -> ApiResult<LearningPathDetail>,
     private val followLearningPath: suspend (String) -> ApiResult<Boolean>,
     private val unfollowLearningPath: suspend (String) -> ApiResult<Boolean>,
@@ -114,6 +115,8 @@ class LearningPathDetailsViewModel(
 
     private val _uiState = MutableStateFlow(LearningPathDetailsUiState())
     val uiState: StateFlow<LearningPathDetailsUiState> = _uiState.asStateFlow()
+
+    private var isAuthenticated: Boolean = isAuthenticated
 
     init {
         loadPath()
@@ -137,6 +140,14 @@ class LearningPathDetailsViewModel(
     }
 
     fun onRetry() = loadPath()
+
+    /** Phase 7 C4 / D144 fix — see `CourseDetailsViewModel.onAuthenticationChanged`'s own kdoc for
+     *  the full root-cause account; identical pattern, identical guard against a redundant reload. */
+    fun onAuthenticationChanged(value: Boolean) {
+        if (value == isAuthenticated) return
+        isAuthenticated = value
+        loadPath()
+    }
 
     /** In-flight guard — a double-tap while a follow/unfollow call is already outstanding is a no-op,
      *  never a second concurrent call. [isAuthenticated] gates whether this is even reachable: the

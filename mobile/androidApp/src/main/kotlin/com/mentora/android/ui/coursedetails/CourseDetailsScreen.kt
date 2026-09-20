@@ -21,6 +21,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -98,6 +99,11 @@ fun CourseDetailsScreen(
     val viewModel: CourseDetailsViewModel = viewModel(
         factory = CourseDetailsViewModel.Factory(sdk, courseId, isAuthenticated),
     )
+    // Phase 7 C4 / D144 fix — this screen's back-stack entry (and this ViewModel instance) can
+    // survive a guest→authenticated transition via the auth-gate's pending-intent login path, which
+    // resets only the Login entry, not the whole stack. Pushes the live value in on every
+    // recomposition; a no-op when nothing actually changed (see the ViewModel's own equality guard).
+    LaunchedEffect(isAuthenticated) { viewModel.onAuthenticationChanged(isAuthenticated) }
     val uiState by viewModel.uiState.collectAsState()
 
     CourseDetailsScreenContent(

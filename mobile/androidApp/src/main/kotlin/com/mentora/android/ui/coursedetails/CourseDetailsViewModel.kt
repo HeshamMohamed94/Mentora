@@ -67,12 +67,15 @@ const val CourseDetailsEnrollmentPageLimit: Int = 100
  * test otherwise). [Factory] wires the lambdas to the real `sdk.catalog`/`sdk.enrollment`/`sdk.media`
  * use cases in production.
  *
- * [courseId]/[isAuthenticated] are both captured once at construction. [isAuthenticated] is a plain
- * snapshot of the live `AuthState` at the moment
- * [MentoraNavHost][com.mentora.android.navigation.MentoraNavHost] pushed this destination — correct
- * because every full auth-state TRANSITION (login/logout) already resets the entire nav stack in
- * `MentoraNavHost` (see that file's kdoc), so this screen never stays mounted across one; there is no
- * "guest opened this screen, then logged in without leaving it" case to handle.
+ * [courseId] is captured once at construction. [isAuthenticated] is seeded from the live `AuthState`
+ * at construction time but is NOT assumed to stay correct forever — `MentoraNavHost`'s pending-intent
+ * login branch (guest taps "Login to Enroll" → Login → back to this screen's own destination via
+ * `popUpTo<Destination.Login>`) pops only the `Login` entry, so THIS screen's own back-stack entry —
+ * and therefore this ViewModel instance — survives the guest→authenticated transition. Only the
+ * no-pending-intent login branch and the logout branch reset the whole nav stack (see
+ * `MentoraNavHost`'s own comment); the auth-gate path deliberately does not, so this class owns its
+ * own [onAuthenticationChanged] update path instead of relying on being freshly reconstructed
+ * (Phase 7 C4 / `execution/DECISIONS_LOG.md` D144).
  *
  * **G4 — deriving `isEnrolled`, since neither [Course] nor `CourseSummary` carry that field (never
  * implemented anywhere in the backend).** [isEnrolledIn] pages FULLY through `GET /api/v1/enrollments`
@@ -85,7 +88,7 @@ const val CourseDetailsEnrollmentPageLimit: Int = 100
  */
 class CourseDetailsViewModel(
     private val courseId: String,
-    private val isAuthenticated: Boolean,
+    isAuthenticated: Boolean,
     private val getCourseDetails: suspend (String) -> ApiResult<Course>,
     private val listEnrollments: suspend (String?, Int?) -> ApiResult<CursorPage<Enrollment>>,
     private val listCategories: suspend () -> ApiResult<List<Category>>,
@@ -96,6 +99,8 @@ class CourseDetailsViewModel(
 
     private val _uiState = MutableStateFlow(CourseDetailsUiState())
     val uiState: StateFlow<CourseDetailsUiState> = _uiState.asStateFlow()
+
+    private var isAuthenticated: Boolean = isAuthenticated
 
     init {
         loadCourse()
@@ -109,6 +114,18 @@ class CourseDetailsViewModel(
     }
 
     fun onRetry() = loadCourse()
+
+    /** Phase 7 C4 / D144 fix. The auth-gate login path (`MentoraNavHost`'s pending-intent branch)
+     *  pops ONLY the `Login` entry, so this screen's own back-stack entry — and therefore this
+     *  ViewModel instance — survives the guest→authenticated transition. The construction-time
+     *  snapshot is NOT sufficient on its own; the call site pushes the live value in via
+     *  `LaunchedEffect(isAuthenticated)`. The equality guard makes this a no-op on first composition
+     *  (when the pushed value matches what the constructor already saw), so there is no double-fetch. */
+    fun onAuthenticationChanged(value: Boolean) {
+        if (value == isAuthenticated) return
+        isAuthenticated = value
+        loadCourse()
+    }
 
     private fun loadCourse() {
         _uiState.update { it.copy(course = CourseLoadState.Loading) }
