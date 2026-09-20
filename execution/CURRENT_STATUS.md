@@ -990,7 +990,7 @@ Swift at all).
 | T8 | Component Kit A (atoms — MentoraButton, MentoraIconButton, MentoraTextField, PasswordField, SearchField, MentoraToggle, MentoraSelect, Badge, CategoryChip, MentoraProgressBar, Avatar, MentoraTabs, MentoraSnackbar; `MentoraIcon`, the plan's 14th atom, was already built in T3) | **✅ TASK T8 FULLY COMPLETE — all 7 slices done, real-CI-green.** See "T8 SLICE 1"/"T8 SLICE 2"/"T8 SLICE 3"/"T8 SLICES 4+5"/"T8 SLICES 6+7" sections below. |
 | T9 | Navigation shell (5-tab `TabView`, `TabRouter`, `AuthGate`/B8) | **✅ TASK T9 COMPLETE — mandatory Opus review applied, real-CI-green.** See "T9 — NAVIGATION SHELL" section below. |
 | T10 | Auth screens (Login, Register — B1/B2/B8/B9) | **✅ TASK T10 COMPLETE — mandatory Opus review + a follow-up verification pass applied, real-CI-green.** See "T10 — LOGIN/REGISTER SCREENS" section below. |
-| T11 | Component Kit B (17 composite components, 4 slices) | **IN PROGRESS — slice 1 of 4 DONE, CI-green.** Slice 1 = CourseArtwork system (`CourseMotif`/`CourseArtwork`/`CourseThumbnail`/`CourseArtworkWithChip`). See "T11 SLICE 1 — COURSEARTWORK" section below. Slices 2-4 not started. |
+| T11 | Component Kit B (17 composite components, 4 slices) | **IN PROGRESS — slices 1-2 of 4 DONE, CI-green.** Slice 1 = CourseArtwork system. Slice 2 = CourseCard/CourseProgressCard/LearningPathCard/CertificateCard/StatCard. See "T11 SLICE 1"/"T11 SLICE 2" sections below. Slices 3-4 not started. |
 | T12-T23 | Remaining screens through final acceptance audit | **NOT STARTED** — parity-focused completion mode (see D132/`execution/DECISIONS_LOG.md`): continuing automatically task-by-task without per-task approval stops, small-batch implementation, tiered review (mandatory for auth/session/architecture/cross-cutting infra, lighter self-review+CI for ordinary screen work), authored on Windows, compiled by CI; live/visual verification still needs a Mac (MC-2/MC-3/MC-4) and is recorded as NOT TESTABLE, never fabricated. |
 
 ## T6 SLICE 3a — DONE, CI-GREEN (2026-09-19)
@@ -1744,3 +1744,28 @@ failures, 0 unexpected).
 
 **Next:** T11 slice 2 (CourseCard + CourseProgressCard + LearningPathCard + CertificateCard + StatCard),
 continuing automatically.
+
+---
+
+## T11 SLICE 2 — COURSECARD/COURSEPROGRESSCARD/LEARNINGPATHCARD/CERTIFICATECARD/STATCARD — DONE, CI-GREEN (2026-09-20)
+
+Full account in `DECISIONS_LOG.md` D135. Ported directly from Android's own already-CI-green
+`CourseCard.kt`/`CourseProgressCard.kt`/`LearningPathCard.kt`/`CertificateCard.kt`/`StatCard.kt`.
+
+**Built:** `Components/CourseCard.swift` (`CourseMetaRow`, `BaseCourseCard` shell shared with
+`CourseProgressCard`, `CourseCardRules.effectiveProgress`, `CourseCard`), `Components/
+CourseProgressCard.swift`, `Components/LearningPathCard.swift`, `Components/CertificateCard.swift`
+(+ reusable `CertificatePreviewPlaceholder`), `Components/StatCard.swift`. `iosAppTests/
+CourseCardTests.swift` (pure-logic coverage; Android has no dedicated unit tests for any of these 5).
+
+**Self-verify caught 2 real localization-gate violations before any push:** `Text("★")` (Check B1) fixed
+with `Text(verbatim: "★")`; `Text("\(studentCount)")` (Check B2, interpolation) fixed with
+`Text(String(studentCount))`. Also disclosed: `resumeLabel`/`viewLabel`/`shareLabel` are REQUIRED params
+here (no default) since `Components/*.swift` has no `AppEnvironment` to resolve `MentoraStrings` from —
+unlike Android's `stringResource(...)` default. Zero new localization keys added.
+
+**CI: DONE — GREEN**, https://github.com/HeshamMohamed94/Mentora/actions/runs/35481265220 (commit
+`81e194c`, all 6 Node gates PASSED, 292/292 tests — up from slice 1's 285, +7, 0 failures, 0 unexpected).
+
+**Next:** T11 slice 3 (QuestionCard + AnswerOption + AITutorBubble + AITutorQuickAction +
+CheckoutSummary), continuing automatically.
