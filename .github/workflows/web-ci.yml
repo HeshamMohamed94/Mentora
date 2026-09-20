@@ -23,12 +23,14 @@
 # AI TUTOR / SECRETS: `AI_PROVIDER_API_KEY` is explicitly empty (D146, stub mode) in the E2E job. No
 # `secrets.*` reference appears anywhere in this file.
 #
-# ACTION VERSIONS resolved against the GitHub API on 2026-09-20: checkout v7, setup-node v7.
+# ACTION VERSIONS resolved against the GitHub API on 2026-09-20: checkout v7, setup-node v7,
+# setup-java v6, upload-artifact v7, gradle/actions v6.
 #
-# NOTE: this file currently has ONE job (`web-static`) — Phase 7 Task T2. The `web-e2e` job (Task T3)
-# is added in a follow-up commit once T2 is confirmed green, per PHASE_7_IMPLEMENTATION_PLAN.md.
+# WHY MONGODB IS STARTED WITH `docker run`, NOT A `services:` CONTAINER (web-e2e job) — see
+# `backend-ci.yml`'s own header for the full account (multi-document transactions, no `command:` key
+# on service containers, the `rs.initiate` host-pin requirement).
 #
-# WHY THERE IS NO `npm run build` STEP HERE (a real finding, not the original T2 design — see
+# WHY THERE IS NO `npm run build` STEP IN `web-static` (a real finding, not the original T2 design — see
 # execution/DECISIONS_LOG.md D150). The landing page (`web/src/app/[locale]/(public)/page.tsx`) is
 # ISR (`export const revalidate = 300`), not fully static, and Next.js still performs one real,
 # live, server-side fetch to the backend during `next build`'s initial prerender pass — so `web-ci`
@@ -101,3 +103,154 @@ jobs:
 
       - name: Type-check
         run: npm run typecheck
+
+  web-e2e:
+    name: Playwright E2E (chromium) against a real local stack
+    needs: web-static
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      MONGODB_URI: 'mongodb://localhost:27017/mentora?replicaSet=rs0'
+      MONGODB_DATABASE: mentora
+      JWT_SIGNING_SECRET: ci-only-not-a-real-secret-signing-key-at-least-32-bytes
+      MEDIA_STORAGE_ROOT: storage/media
+      CORS_ALLOWED_ORIGINS: 'http://localhost:3000'
+      AI_PROVIDER_API_KEY: ''
+      API_BASE_URL: 'http://localhost:8080'
+      E2E_BASE_URL: 'http://localhost:3000'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Start MongoDB as a single-node replica set (rs0)
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run -d --name mentora-mongo -p 27017:27017 \
+            mongo:8.0 --replSet rs0 --bind_ip_all
+          echo "Waiting for mongod to accept connections..."
+          for i in $(seq 1 60); do
+            if docker exec mentora-mongo mongosh --quiet --eval 'db.adminCommand({ping:1})' >/dev/null 2>&1; then
+              break
+            fi
+            sleep 2
+          done
+          docker exec mentora-mongo mongosh --quiet --eval \
+            'rs.initiate({_id:"rs0",members:[{_id:0,host:"localhost:27017"}]})'
+          echo "Waiting for PRIMARY..."
+          STATE=""
+          for i in $(seq 1 60); do
+            STATE="$(docker exec mentora-mongo mongosh --quiet --eval 'try{rs.status().myState}catch(e){-1}' | tr -d '[:space:]')"
+            [ "${STATE}" = "1" ] && break
+            sleep 2
+          done
+          if [ "${STATE}" != "1" ]; then
+            echo "::error::MongoDB replica set rs0 never reached PRIMARY (myState=${STATE})."
+            docker logs mentora-mongo || true
+            exit 1
+          fi
+          docker exec mentora-mongo mongosh --quiet --eval 'rs.status().set'
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
+      - name: Build the backend fat jar
+        working-directory: backend
+        run: ./gradlew --stacktrace buildFatJar
+
+      - name: Seed demo data
+        working-directory: backend
+        run: ./gradlew --stacktrace seedDemoData
+
+      - name: Start the backend
+        working-directory: backend
+        shell: bash
+        run: |
+          set -euo pipefail
+          nohup java -jar build/libs/mentora-backend.jar > "$RUNNER_TEMP/backend.log" 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:8080/healthz >/dev/null 2>&1; then
+              echo "Backend up after ${i}s"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::Backend did not become healthy within the timeout."
+          cat "$RUNNER_TEMP/backend.log" || true
+          exit 1
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install
+        working-directory: web
+        run: npm ci
+
+      - name: Install Playwright browsers (chromium)
+        working-directory: web
+        run: npx playwright install --with-deps chromium
+
+      - name: Build the site
+        working-directory: web
+        run: npm run build
+
+      - name: Start the site
+        working-directory: web
+        shell: bash
+        run: |
+          set -euo pipefail
+          nohup npx next start -p 3000 > "$RUNNER_TEMP/web.log" 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:3000/en >/dev/null 2>&1; then
+              echo "Web up after ${i}s"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::Website did not become healthy within the timeout."
+          cat "$RUNNER_TEMP/web.log" || true
+          exit 1
+
+      - name: Run the suite
+        working-directory: web
+        run: npx playwright test --project=chromium
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: web-e2e-report
+          path: |
+            web/playwright-report/**
+            web/test-results/**
+            ${{ runner.temp }}/backend.log
+            ${{ runner.temp }}/web.log
+          retention-days: 7
+
+      - name: Job summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Web E2E summary"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Stack | Next.js 15 (production build) + Ktor backend (stub AI provider) + MongoDB rs0 |"
+            echo "| Browser project | chromium only |"
+            echo ""
+            echo "**firefox/webkit not run in CI — see \`execution/DECISIONS_LOG.md\` D64.** They remain"
+            echo "local/manual, per \`web/README.md\`."
+          } >> "$GITHUB_STEP_SUMMARY"
