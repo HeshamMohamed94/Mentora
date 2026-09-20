@@ -1,0 +1,181 @@
+# Mentora — Backend CI (Phase 7, Task T1)
+#
+# WHAT THIS IS. The automated build/test gate for `backend/` — a Ktor/Kotlin server backed by
+# MongoDB. It compiles the main and test source sets, runs the full backend test suite (127 tests
+# as of Phase 7 T0), and assembles the application. It exists because this locked M16 deliverable
+# (`architecture/IMPLEMENTATION_ROADMAP.md`) was never built in Phases 1-6 — only `ios-ci.yml`
+# existed before this file (`execution/PHASE_7_SYSTEM_DESIGN.md` § H2/§ 3).
+#
+# WHAT THIS IS NOT. It never starts the Website or an Android/iOS client, never drives a browser or
+# emulator, and proves nothing about cross-client behaviour — that is `web-ci.yml`'s E2E job and the
+# manual walks in `execution/PHASE_7_IMPLEMENTATION_PLAN.md` T10/T11. It never deploys, signs, or
+# publishes anything (ADR-012, criterion I6).
+#
+# WHY MONGODB IS STARTED WITH `docker run`, NOT A `services:` CONTAINER. This backend uses
+# multi-document transactions and 7 of its integration test classes hardcode
+# `mongodb://localhost:27017/?replicaSet=rs0` directly in source — a standalone MongoDB cannot run
+# transactions at all, and there is no skip/assume guard, so these suites fail outright (not skip)
+# without a real replica set. GitHub Actions `services:` containers accept no `command:` key, so
+# `--replSet rs0` can never be passed to one — the replica set is therefore started with an explicit
+# `docker run` step below and initiated with `rs.initiate()`, pinning the member host to
+# `localhost:27017` (a bare `rs.initiate()` records the container's own hostname, which the runner's
+# driver then cannot resolve, hanging until timeout instead of failing clearly).
+#
+# D-LINT — the backend "lint" tier. No Kotlin linter (ktlint/detekt/spotless) has existed anywhere in
+# this project across six completed phases and roughly a hundred backend source files. This workflow
+# deliberately does not introduce one: doing so now would produce a large, untriaged violation set
+# with no traceability to any Phase 7 acceptance-criteria row (`PHASE_7_ACCEPTANCE_CRITERIA.md` J5's
+# scope-discipline rule). `--warning-mode all` on the compile step surfaces Gradle/Kotlin warnings in
+# the job log without gating on them. If a linter is ever wanted, it belongs to a future testing-
+# hardening phase, not this one. See `execution/DECISIONS_LOG.md` D147/D149 for the full account.
+#
+# AI TUTOR / SECRETS: `AI_PROVIDER_API_KEY` is set to the empty string EXPLICITLY below — this keeps
+# the backend in STUB mode (per `execution/DECISIONS_LOG.md` D146, live Anthropic verification is
+# deferred by user decision) and makes any future accidental secret injection here a visible diff
+# rather than a silent one. No `secrets.*` reference appears anywhere in this file. `JWT_SIGNING_SECRET`
+# below is a fixed, non-secret, CI-only placeholder — it signs nothing that leaves this ephemeral
+# runner and must never be a real credential.
+#
+# ACTION VERSIONS resolved against the GitHub API on 2026-09-20 (mirroring `ios-ci.yml`'s own
+# resolution): checkout v7, setup-java v6, upload-artifact v7, gradle/actions v6. If a major tag has
+# moved on since, update deliberately rather than floating.
+
+name: Backend CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
+      - '!**/*.md'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
+      - '!**/*.md'
+
+concurrency:
+  group: backend-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Compile, test, assemble
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # Read by seedDemoData / a started application only — the TESTS do NOT read this, they
+      # hardcode mongodb://localhost:27017/?replicaSet=rs0 in source (see the header above). Set
+      # here so nothing in this job can silently target a different database than the one the
+      # replica-set step below creates.
+      MONGODB_URI: 'mongodb://localhost:27017/mentora?replicaSet=rs0'
+      MONGODB_DATABASE: mentora
+      # Non-secret, CI-only, deliberately in plaintext: this value signs nothing that leaves this
+      # ephemeral runner. A real secret must never appear here (criterion I6 / AUTH_SECURITY.md).
+      JWT_SIGNING_SECRET: ci-only-not-a-real-secret-signing-key-at-least-32-bytes
+      MEDIA_STORAGE_ROOT: storage/media
+      CORS_ALLOWED_ORIGINS: 'http://localhost:3000'
+      # Explicitly empty: STUB provider mode, per DECISIONS_LOG.md D146 and criterion F2. No Phase 7
+      # workflow may ever reference a real provider credential.
+      AI_PROVIDER_API_KEY: ''
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Start MongoDB as a single-node replica set (rs0)
+        shell: bash
+        run: |
+          set -euo pipefail
+          # NOT a `services:` container: GitHub Actions service containers have no `command:` key,
+          # so `--replSet rs0` cannot be passed and the set can never be initiated. This backend's
+          # integration tests hardcode mongodb://localhost:27017/?replicaSet=rs0 (7 test classes) and
+          # its checkout/progress/quiz/certificate paths use multi-document transactions, which a
+          # standalone mongod cannot run at all. See backend/README.md "One-time MongoDB setup".
+          docker run -d --name mentora-mongo -p 27017:27017 \
+            mongo:8.0 --replSet rs0 --bind_ip_all
+          echo "Waiting for mongod to accept connections..."
+          for i in $(seq 1 60); do
+            if docker exec mentora-mongo mongosh --quiet --eval 'db.adminCommand({ping:1})' >/dev/null 2>&1; then
+              break
+            fi
+            sleep 2
+          done
+          # The member host MUST be pinned to localhost:27017. A bare rs.initiate() records the
+          # CONTAINER's hostname as the member address; the driver on the runner host then discovers
+          # an unresolvable host and hangs until timeout instead of failing clearly.
+          docker exec mentora-mongo mongosh --quiet --eval \
+            'rs.initiate({_id:"rs0",members:[{_id:0,host:"localhost:27017"}]})'
+          echo "Waiting for PRIMARY..."
+          STATE=""
+          for i in $(seq 1 60); do
+            STATE="$(docker exec mentora-mongo mongosh --quiet --eval 'try{rs.status().myState}catch(e){-1}' | tr -d '[:space:]')"
+            [ "${STATE}" = "1" ] && break
+            sleep 2
+          done
+          if [ "${STATE}" != "1" ]; then
+            echo "::error::MongoDB replica set rs0 never reached PRIMARY (myState=${STATE}). Backend integration tests hardcode replicaSet=rs0 and cannot run without it."
+            docker logs mentora-mongo || true
+            exit 1
+          fi
+          docker exec mentora-mongo mongosh --quiet --eval 'rs.status().set'
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
+      - name: Compile (main + test)
+        working-directory: backend
+        run: ./gradlew --stacktrace --warning-mode all classes testClasses
+
+      - name: Test
+        working-directory: backend
+        run: ./gradlew --stacktrace test
+
+      - name: Assemble
+        working-directory: backend
+        run: ./gradlew --stacktrace assemble
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: backend-test-reports
+          path: |
+            backend/build/reports/tests/**
+            backend/build/test-results/**
+          retention-days: 7
+
+      - name: MongoDB logs on failure
+        if: failure()
+        run: docker logs mentora-mongo || true
+
+      - name: Job summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Backend CI summary"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Runner | \`ubuntu-latest\` |"
+            echo "| JDK | Temurin 21 |"
+            echo "| MongoDB | \`mongo:8.0\`, single-node replica set \`rs0\` |"
+            echo "| Tasks run | \`classes testClasses\`, \`test\`, \`assemble\` |"
+            echo ""
+            echo "**NOT covered by this workflow:** Website, Android, iOS, any live client, any browser or"
+            echo "emulator. See \`execution/PHASE_7_IMPLEMENTATION_PLAN.md\` T10/T11 for those."
+          } >> "$GITHUB_STEP_SUMMARY"
