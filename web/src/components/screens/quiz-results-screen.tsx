@@ -98,7 +98,9 @@ export function QuizResultsScreen({ courseId }: { courseId: string }) {
                   />
                 );
               })}
-              <Badge variant={breakdown.isCorrect ? "success" : "error"}>{breakdown.isCorrect ? t("correct") : t("incorrect")}</Badge>
+              <span className="self-start">
+                <Badge variant={breakdown.isCorrect ? "success" : "error"}>{breakdown.isCorrect ? t("correct") : t("incorrect")}</Badge>
+              </span>
             </QuestionCard>
           );
         })}
