@@ -115,15 +115,33 @@ object AiPromptBuilder {
     }
 
     /**
-     * Basic, standard prompt-injection mitigation (Design § 4.2) — not a complete defence. Any
-     * occurrence of either structural tag pair this prompt uses (`<lesson_context>` and
-     * `<enrolled_courses>`) inside injected text is neutralized by escaping its angle brackets so
-     * it can never open/close a real block — applied to both lesson title/description AND course
-     * titles, since a course title is instructor-authored content with the same trust level as a
-     * lesson title/description, not student-controlled. Matching is case-insensitive: an exact-case
-     * literal match is not a meaningful defense on its own, since an attacker can trivially bypass
-     * it with e.g. `<LESSON_CONTEXT>` or `<Enrolled_Courses>`. The result is then truncated to
-     * [maxLength] characters with a trailing ellipsis marker when it was cut.
+     * Basic, standard prompt-injection mitigation (Design § 4.2) — not a complete defence, and not
+     * intended as one. Any occurrence of either structural tag pair this prompt uses
+     * (`<lesson_context>` and `<enrolled_courses>`) inside injected text is neutralized by escaping
+     * its angle brackets so it can never open/close a real block — applied to both lesson
+     * title/description AND course titles, since a course title is instructor-authored content with
+     * the same trust level as a lesson title/description, not student-controlled. Matching is
+     * case-insensitive and tolerates internal whitespace and a trailing attribute list (e.g.
+     * `< /  Lesson_Context  foo="bar">`), since an attacker can trivially bypass an exact literal
+     * match otherwise.
+     *
+     * Threat model (Phase 8 A5, Codex second-opinion review): this neutralizes the specific
+     * structural tags this prompt itself defines. It does NOT and cannot prevent a plain-language
+     * override attempt embedded in a course/lesson title or description (e.g. "ignore the
+     * instructions above"), nor Unicode look-alike characters — no string-sanitization pass can, since
+     * an LLM does not enforce a hard boundary between "data" and "instructions" the way a
+     * parser does. The `<enrolled_courses>`/`<lesson_context>` preamble text is defense-in-depth
+     * on top of this, not a substitute for it. This is accepted as a disclosed residual risk, not
+     * fixed further in Phase 8 (a real structural fix — e.g. moving untrusted content to a
+     * separate, non-privileged channel — is an architecture change, out of a QA/polish phase's
+     * scope). The accepted assumption is that instructors are trusted, vetted platform accounts
+     * (the same trust tier already granted course-authoring/publishing privileges elsewhere in this
+     * app), not anonymous public actors — this mitigation exists as a courtesy safeguard against
+     * accidental tag-like text, not as a defense against a deliberately adversarial instructor
+     * account, which this app's trust model does not otherwise defend against either.
+     *
+     * The result is then truncated to [maxLength] characters with a trailing ellipsis marker when
+     * it was cut.
      */
     private fun sanitize(value: String, maxLength: Int): String {
         val neutralized = INJECTION_TAG_PATTERN.replace(value) { match ->
@@ -133,7 +151,7 @@ object AiPromptBuilder {
     }
 
     private val INJECTION_TAG_PATTERN =
-        Regex("</?(?:lesson_context|enrolled_courses)>", RegexOption.IGNORE_CASE)
+        Regex("""<\s*/?\s*(?:lesson_context|enrolled_courses)\s*(?:[^>]*)?>""", RegexOption.IGNORE_CASE)
 
     private const val PERSONA = """You are Mentora's AI Tutor. You explain and teach: clarify concepts, walk
 through examples, and support the student's learning in a clear, encouraging way.
