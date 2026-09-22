@@ -212,7 +212,11 @@ class AnthropicAiProviderTest {
     }
 
     @Test
-    fun `SSE error after two deltas invokes onStream, emits the two tokens, then throws`() = runBlocking {
+    fun `SSE error after two deltas invokes onStream, emits the two tokens, then throws raw (F8)`() = runBlocking {
+        // F8 (Phase 8 A5): a mid-stream provider error must propagate raw (AnthropicStreamException),
+        // not be mapped to ApiException.ServiceUnavailable — the response was already committed to the
+        // caller, so AiTutorService must be able to bucket this as a distinct outcome=stream_failed
+        // rather than conflating it with a genuine pre-stream outcome=provider_unavailable outage.
         val body = buildString {
             append(sseEvent("content_block_delta", """{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"A"}}"""))
             append(sseEvent("content_block_delta", """{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"B"}}"""))
@@ -238,7 +242,7 @@ class AnthropicAiProviderTest {
 
         assertTrue(invoked)
         assertEquals(listOf("A", "B"), collected)
-        assertTrue(thrownDuringCollect is ApiException.ServiceUnavailable)
+        assertTrue(thrownDuringCollect is AnthropicStreamException)
         assertTrue(overall.isFailure)
     }
 
@@ -325,6 +329,9 @@ class AnthropicAiProviderTest {
     fun `clean channel EOF without a message_stop event mid-stream is a failure, not a success`() = runBlocking {
         // F2: two real deltas stream, then the channel just ends (no message_stop, no error event)
         // — this must NOT be treated as a successful completion, since the response may be truncated.
+        // F8 (Phase 8 A5): and it must throw raw (AnthropicStreamException), not
+        // ApiException.ServiceUnavailable, for the same outcome=stream_failed reasoning as the SSE
+        // mid-stream error case above.
         val body = buildString {
             append(sseEvent("content_block_delta", """{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"partial"}}"""))
             append(sseEvent("content_block_delta", """{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" answer"}}"""))
@@ -349,7 +356,7 @@ class AnthropicAiProviderTest {
 
         assertTrue(invoked)
         assertEquals(listOf("partial", " answer"), collected)
-        assertTrue(thrownDuringCollect is ApiException.ServiceUnavailable)
+        assertTrue(thrownDuringCollect is AnthropicStreamException)
         assertTrue(overall.isFailure)
     }
 

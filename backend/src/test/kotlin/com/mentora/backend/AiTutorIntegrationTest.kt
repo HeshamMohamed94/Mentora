@@ -184,6 +184,11 @@ class AiTutorIntegrationTest {
         application { module(config(), FailMidStreamAiProvider()) }
         val student = register("midstream-student@example.com", "Student").data().string("accessToken")
 
+        val logger = LoggerFactory.getLogger(AiTutorService::class.java) as Logger
+        val appender = ListAppender<ILoggingEvent>()
+        appender.start()
+        logger.addAppender(appender)
+
         // The flow emits two tokens, then throws, mid-write. Under `testApplication`'s in-process test
         // host, `respondTextWriter`'s body is buffered synchronously rather than streamed over a real
         // socket, so the exception is caught by StatusPages BEFORE anything reaches the test client,
@@ -193,13 +198,26 @@ class AiTutorIntegrationTest {
         // success it would be had the stream completed, and the invariant this test exists to prove —
         // no assistant message is ever persisted for an incomplete stream (A7) — is server-side and
         // unaffected by which HTTP status the client happens to observe.
-        val response = postMessage("""{"content":"Tell me something long"}""", student)
+        val response = try {
+            postMessage("""{"content":"Tell me something long"}""", student)
+        } finally {
+            logger.detachAppender(appender)
+        }
         assertEquals(HttpStatusCode.InternalServerError, response.status)
         runCatching { response.bodyAsText() }
 
         val conversation = client.get(CONVERSATION) { bearerAuth(student) }.data()
         val messages = conversation.getValue("messages").jsonArray.map { it.jsonObject }
         assertEquals(listOf("user"), messages.map { it.string("role") })
+
+        // F8 (Phase 8 A5): a mid-stream failure must be bucketed as its own distinct outcome, not
+        // conflated with a pre-stream outcome=provider_unavailable outage — see the pre-stream
+        // test above for the counterpart assertion.
+        val logLines = appender.list.map { it.formattedMessage }
+        val logLine = logLines.singleOrNull { it.startsWith("aiTutor.message") }
+        assertNotNull(logLine)
+        assertTrue(logLine.contains("outcome=stream_failed"))
+        assertFalse(logLine.contains("outcome=provider_unavailable"))
     }
 
     @Test

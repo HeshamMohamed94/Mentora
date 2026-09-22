@@ -97,13 +97,27 @@ class AnthropicAiProvider(
                                 is AnthropicEvent.TextDelta -> emit(AiToken(event.text))
                                 is AnthropicEvent.InputUsage -> inputTokens = event.inputTokens ?: inputTokens
                                 is AnthropicEvent.OutputUsage -> outputTokens = event.outputTokens ?: outputTokens
-                                is AnthropicEvent.Error -> throw ApiException.ServiceUnavailable()
+                                // F8 (Phase 8 A5): mid-stream, this must propagate raw rather than being
+                                // mapped to ApiException.ServiceUnavailable — the response has already
+                                // been committed to the caller (§ 11 row 12), same as the malformed
+                                // content_block_delta / generic Exception cases below already do via
+                                // `firstTokenEmitted`. Reaching AiTutorService as a raw (non-ApiException)
+                                // Throwable is what lets it log as the distinct outcome=stream_failed
+                                // bucket instead of being conflated with a genuine pre-stream
+                                // outcome=provider_unavailable outage.
+                                is AnthropicEvent.Error -> throw AnthropicStreamException(
+                                    "Provider reported an error mid-stream (type=${event.type}).",
+                                )
                                 AnthropicEvent.MessageStop -> return@flow
-                                // F2: mid-stream, the channel closing WITHOUT a message_stop means the
+                                // F2/F8: mid-stream, the channel closing WITHOUT a message_stop means the
                                 // connection ended before Anthropic told us it was actually done — the
                                 // text collected so far may be truncated, so this is a stream failure,
                                 // not a successful completion (never persist it as a complete answer).
-                                AnthropicEvent.ChannelExhausted -> throw ApiException.ServiceUnavailable()
+                                // Propagates raw for the same outcome=stream_failed reason as the Error
+                                // case immediately above.
+                                AnthropicEvent.ChannelExhausted -> throw AnthropicStreamException(
+                                    "Stream channel closed before a message_stop event arrived.",
+                                )
                                 AnthropicEvent.Ignored -> Unit
                             }
                         }
