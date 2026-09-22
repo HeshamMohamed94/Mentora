@@ -67,7 +67,7 @@ Instructor/Admin Web only).
 ```
 cd mobile
 ./gradlew.bat :shared:testDebugUnitTest           # KMP shared-module unit tests — must stay 249/249 (Phase 3 regression guard, unchanged by any Phase 4 task)
-./gradlew.bat :androidApp:testDebugUnitTest       # androidApp JVM unit tests (ViewModels, pure logic) — 241/241 as of Task 19
+./gradlew.bat :androidApp:testDebugUnitTest       # androidApp JVM unit tests (ViewModels, pure logic) — 246/246 as of Phase 8 B2
 ./gradlew.bat :androidApp:compileDebugKotlin :androidApp:compileDebugUnitTestKotlin :androidApp:compileDebugAndroidTestKotlin   # compile-only check, fast
 ```
 

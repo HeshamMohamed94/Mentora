@@ -76,7 +76,7 @@ Claude (this session) is Lead/Supervisor: reads locked docs, plans, breaks down 
 
 ## Sequencing Rule
 
-Do not start the next phase until the previous phase is `COMPLETE` and its `PHASE_HANDOFF.md` entry is complete, unless the user explicitly approves parallel work. Current sequencing: **Phase 1 is IN_PROGRESS; Phases 2–8 are NOT_STARTED.**
+Do not start the next phase until the previous phase is `COMPLETE` and its `PHASE_HANDOFF.md` entry is complete, unless the user explicitly approves parallel work. Current sequencing: **Phases 1–7 are COMPLETE; Phase 8 is IN_PROGRESS.**
 
 ## Local Toolchain (confirmed at Phase 1 start — see DECISIONS_LOG)
 
