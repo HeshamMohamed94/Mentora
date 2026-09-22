@@ -62,7 +62,7 @@ These ten flows are the CI-blocking Playwright suite — a merge to `main` that 
 
 ## 7. Test Data
 
-A `infra/docker/mongo-init` seed script (also reused by CI's ephemeral Testcontainers/CI-Mongo setup) provisions: a small set of categories, several courses in both `en`/`ar` content languages and a mix of Draft/Published status, at least one course with a quiz and one without, a Learning Path, and one seeded account per role (Student/Instructor/Admin) — this is the same seed data used for local development and CI, so "works in CI" and "works when I run it locally" never silently diverge.
+A `infra/docker/mongo-init` seed script (also reused by CI's real local MongoDB replica-set instance, not Testcontainers — see § 1) provisions: a small set of categories, several courses in both `en`/`ar` content languages and a mix of Draft/Published status, at least one course with a quiz and one without, a Learning Path, and one seeded account per role (Student/Instructor/Admin) — this is the same seed data used for local development and CI, so "works in CI" and "works when I run it locally" never silently diverge.
 
 ## 8. What's Deliberately Not Built
 

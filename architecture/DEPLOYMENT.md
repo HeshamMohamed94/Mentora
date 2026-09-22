@@ -84,7 +84,7 @@ One repository, path-filtered workflows (avoids running, e.g., the Android build
 
 | Workflow | Triggers on changes under | Steps |
 |---|---|---|
-| `backend.yml` | `backend/` | lint → unit tests → Testcontainers integration tests → build (no deploy step) |
+| `backend.yml` | `backend/` | lint → unit tests → integration tests against a real local MongoDB instance → build (no deploy step) |
 | `web.yml` | `web/` | lint → type-check → unit/component tests → Playwright E2E (§ [`TESTING_STRATEGY.md § 6`](./TESTING_STRATEGY.md)) against a CI-provisioned backend+Mongo (no deploy step) |
 | `android.yml` | `mobile/shared/`, `mobile/androidApp/` | build → unit tests → (optionally) Compose UI tests on an emulator → assemble a debug APK as a build artifact (no store-release step) |
 | `ios.yml` | `mobile/shared/`, `mobile/iosApp/` | build (macOS GitHub-hosted runner) → unit tests (no TestFlight/App Store step) |

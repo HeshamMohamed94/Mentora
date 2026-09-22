@@ -34,7 +34,7 @@
 
 **Acceptance criteria:** `/healthz` returns `200` locally and against a deliberately-broken Mongo URI returns `503` naming the failure; a malformed request to any (placeholder) route returns the fixed error envelope from [`API_CONTRACT.md § 3`](./API_CONTRACT.md), not a raw stack trace.
 
-**Tests:** integration test hitting `/healthz` with Testcontainers Mongo up and (separately) down.
+**Tests:** integration test hitting `/healthz` with the real local MongoDB instance up and (separately) down.
 
 **Repository area:** `backend/`.
 

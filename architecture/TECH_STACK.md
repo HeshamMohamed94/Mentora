@@ -114,7 +114,7 @@ Full boundary definition (what's shared, what's platform-specific, and why) is i
 
 ## 13. Testing
 
-**Decision:** JUnit5 + MockK + Testcontainers (backend), kotlin.test (KMP shared), Compose UI testing (Android), XCTest (iOS), Vitest/React Testing Library + Playwright (Web). Full detail in [`TESTING_STRATEGY.md`](./TESTING_STRATEGY.md).
+**Decision:** JUnit5 + MockK + a real local MongoDB instance (backend, not Testcontainers), kotlin.test (KMP shared), Compose UI testing (Android), XCTest (iOS), Vitest/React Testing Library + Playwright (Web). Full detail in [`TESTING_STRATEGY.md`](./TESTING_STRATEGY.md).
 
 ---
 
