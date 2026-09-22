@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "lint:logical-properties": "node scripts/check-logical-properties.js",
+    "check:translation-parity": "node scripts/check-translation-parity.js",
     "typecheck": "tsc --noEmit",
     "generate-tokens": "node ../tools/token-pipeline/generate.js",
     "validate:design-to-code": "node ../tools/design-to-code/validate.js",

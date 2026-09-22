@@ -108,6 +108,9 @@ jobs:
       - name: Logical-properties check (RTL gate — no physical-direction CSS)
         run: npm run lint:logical-properties
 
+      - name: Translation-key parity check (en.json ↔ ar.json)
+        run: npm run check:translation-parity
+
       - name: Design-to-code validation
         run: npm run validate:design-to-code
 
