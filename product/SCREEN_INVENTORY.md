@@ -1,6 +1,6 @@
 # Mentora — Screen Inventory (MVP)
 
-**29 unique MVP screens.** "Platform: Both" means one screen concept shared by Web and Mobile (per [`INFORMATION_ARCHITECTURE.md`](./INFORMATION_ARCHITECTURE.md)), not a duplicate build — content/state is identical, layout adapts per the design system's responsive rules. Design system components referenced are named exactly as in [`../design-system/COMPONENTS.md`](../design-system/COMPONENTS.md), which is now **v1.2** — the seven components this inventory originally flagged as proposed (VideoPlayer/PlaybackControls, Checkout/OrderSummary, SuccessState, Toggle/Switch, FileUpload, ReorderableList/DragHandle, DataTable) were added there and are referenced below as real, specified components, each marked *(added DS v1.2)* on first use per screen.
+**29 unique MVP screens.** "Platform: Both" means one screen concept shared by Web and Mobile (per [`INFORMATION_ARCHITECTURE.md`](./INFORMATION_ARCHITECTURE.md)), not a duplicate build — content/state is identical, layout adapts per the design system's responsive rules. Design system components referenced are named exactly as in [`../design-system/COMPONENTS.md`](../design-system/COMPONENTS.md), part of the Design System which is now **v1.3.2** — the seven components this inventory originally flagged as proposed (VideoPlayer/PlaybackControls, Checkout/OrderSummary, SuccessState, Toggle/Switch, FileUpload, ReorderableList/DragHandle, DataTable) were added there and are referenced below as real, specified components, each marked *(added DS v1.2)* on first use per screen.
 
 ---
 
