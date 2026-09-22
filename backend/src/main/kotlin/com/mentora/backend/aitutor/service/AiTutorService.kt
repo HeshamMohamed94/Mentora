@@ -115,8 +115,10 @@ class AiTutorService(
                 appendMessage(conversationId, "assistant", assistant.toString(), request.lessonContextId)
             }
         } catch (e: ApiException.ServiceUnavailable) {
-            // Design § 11 buckets 1-6, 11 (pre-first-token) and row 12 when the flow itself maps a
-            // mid-stream malformed-event to this type — always transient/upstream, never Mentora's fault.
+            // Design § 11 buckets 1-6, 11 (pre-first-token) — always transient/upstream, never
+            // Mentora's fault. Post-A5, no mid-stream path maps to this type: a malformed-delta or
+            // other mid-stream provider failure now propagates raw and lands in the `catch (e: Throwable)`
+            // `stream_failed` bucket below instead (see AnthropicAiProvider.kt).
             outcome = "provider_unavailable"
             level = Level.WARN
             errorMessage = e.message
