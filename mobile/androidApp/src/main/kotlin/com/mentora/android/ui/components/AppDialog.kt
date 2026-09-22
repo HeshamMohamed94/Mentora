@@ -78,9 +78,21 @@ const val AppDialogSurfaceTestTag = "mentora-app-dialog-surface"
  * window's own WindowManager-allocated frame is still fit to the "safe" content area by default (unlike
  * an Activity window), so `WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS` is also set (this one *is*
  * safe to set imperatively — Compose doesn't manage or reset this flag) to actually extend the window's
- * bounds behind the bars. Tapping the scrim calls [onDismissRequest]; the card itself consumes its own
- * taps (a no-op `clickable`) so a tap inside the dialog doesn't fall through to the scrim's dismiss
- * handler.
+ * bounds behind the bars.
+ *
+ * **Phase 8 A1 addendum.** On a newer platform/emulator system image than this fix was originally
+ * verified against (D82), `FLAG_LAYOUT_NO_LIMITS` + `decorFitsSystemWindows = false` alone stopped being
+ * sufficient: `adb shell dumpsys window windows` on a live failing run showed this Dialog window's own
+ * `WindowManager.LayoutParams` still carrying `fitTypes=STATUS_BARS NAVIGATION_BARS CAPTION_BAR` (frame
+ * top inset ~35px, not 0) even with both of those set, while the host Activity's own window (which has no
+ * `fitTypes` at all) sat fully edge-to-edge behind it — explaining why the status-bar strip showed the
+ * host window's bare background (`Theme.Material.Light`'s default `#FAFAFA`) instead of this dialog's
+ * scrim. `FLAG_LAYOUT_IN_SCREEN`/`FLAG_LAYOUT_INSET_DECOR` (present on that Activity window's own flags
+ * but absent from a Dialog's by default) plus explicit `LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS` (API 30+)
+ * are the legacy pre-insets-API window-layout controls that still influence `fitInsetsTypes` computation
+ * on this platform version — setting them here (also imperative-safe, not reset by Compose) is what
+ * closes the gap. Tapping the scrim calls [onDismissRequest]; the card itself consumes its own taps (a
+ * no-op `clickable`) so a tap inside the dialog doesn't fall through to the scrim's dismiss handler.
  *
  * **Motion (disclosed partial implementation).** Open animates scale 0.95->1 + fade over
  * `motion.duration.normal` + `easing.decelerate`, driven by an internal `visible` flag set true in a
@@ -142,6 +154,25 @@ fun AppDialog(
             // FLAG_LAYOUT_NO_LIMITS is also required so the full-screen scrim Box below can cover the
             // status/nav bar strips too, instead of leaving them at the bare, undimmed platform default.
             window?.setFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS, WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS)
+            // Phase 8 A1 fix attempt: `adb shell dumpsys window windows` on a live failing run showed
+            // this Dialog window's own WindowManager.LayoutParams still carrying
+            // `fitTypes=STATUS_BARS NAVIGATION_BARS CAPTION_BAR` (frame top inset ~35px, not 0) despite
+            // decorFitsSystemWindows=false + FLAG_LAYOUT_NO_LIMITS above — while the host Activity's own
+            // window (frame [0,0]-[1080,2400], no fitTypes at all) sits fully edge-to-edge behind it.
+            // FLAG_LAYOUT_IN_SCREEN/FLAG_LAYOUT_INSET_DECOR (present on that Activity window's own flags
+            // but absent from a Dialog's by default) plus explicit
+            // LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS are the legacy pre-insets-API window-layout controls
+            // that still influence fitInsetsTypes computation on this platform version; setting them
+            // here is this session's one bounded, evidence-driven fix attempt for the regression.
+            window?.setFlags(
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_LAYOUT_INSET_DECOR,
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_LAYOUT_INSET_DECOR,
+            )
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                window?.attributes = window?.attributes?.apply {
+                    layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+                }
+            }
         }
 
         Box(
