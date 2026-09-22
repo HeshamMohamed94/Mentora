@@ -19,7 +19,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -72,7 +71,7 @@ const val AppDialogSurfaceTestTag = "mentora-app-dialog-surface"
  * window draws edge-to-edge under the system status/nav bars, letting the full-screen scrim Box cover
  * those strips too instead of leaving them at the bare, undimmed platform default — set via that
  * *property* (not a raw `WindowCompat.setDecorFitsSystemWindows(window, false)` call from the
- * `SideEffect` below) because Compose's own `AndroidDialog_androidKt` reapplies
+ * `LaunchedEffect` below) because Compose's own `AndroidDialog_androidKt` reapplies
  * `window.setDecorFitsSystemWindows` from this property on every update, which silently stomps a manual
  * override back to `true` on the very next recomposition. Even with that property set, a *Dialog*
  * window's own WindowManager-allocated frame is still fit to the "safe" content area by default (unlike
@@ -132,8 +131,8 @@ fun AppDialog(
     Dialog(
         onDismissRequest = onDismissRequest,
         // decorFitsSystemWindows = false here (Compose's own official DialogProperties channel for
-        // this), NOT a raw WindowCompat.setDecorFitsSystemWindows(window, false) call from a SideEffect
-        // below — Compose's own AndroidDialog_androidKt reapplies `window.setDecorFitsSystemWindows`
+        // this), NOT a raw WindowCompat.setDecorFitsSystemWindows(window, false) call from a
+        // LaunchedEffect below — Compose's own AndroidDialog_androidKt reapplies `window.setDecorFitsSystemWindows`
         // from this property on every update, which would silently stomp a manual override back to this
         // property's own default (true) on the very next recomposition (confirmed via
         // `adb shell dumpsys window windows`: a manual override left the dialog window's own
@@ -142,7 +141,10 @@ fun AppDialog(
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
         val view = LocalView.current
-        SideEffect {
+        // LaunchedEffect(Unit), not SideEffect: none of this reads a value produced in composition
+        // scope (the animated alpha/scale below are read later, in the graphicsLayer block, not
+        // here), so this only needs to run once per dialog window, not on every recomposition.
+        LaunchedEffect(Unit) {
             val window = (view.parent as? DialogWindowProvider)?.window
             // Zero the platform's own FLAG_DIM_BEHIND dim — without this, the custom scrim Box below is
             // drawn ON TOP OF the platform's still-active ~60%-black dim rather than replacing it. See
