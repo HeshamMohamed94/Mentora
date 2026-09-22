@@ -81,6 +81,24 @@ class AdminIntegrationTest {
     }
 
     @Test
+    fun `course search finds a title beyond the default page limit even when a common word is shared`() = testApplication {
+        // Phase 8 B1 regression (D-10): the old `$text` filter OR-matched any shared word (e.g.
+        // "Course") across every course, then paginated by `_id` ascending with no relevance sort -
+        // so a just-created course whose title also happens to share a common word with 20+ older
+        // courses was silently dropped past page 1, even though it was the only genuine title match.
+        application { module(config()) }
+        val admin = provision("search-page-admin@example.com", "admin", "Admin")
+        val instructor = provision("search-page-instructor@example.com", "instructor", "Instructor")
+        val categoryId = category("Search Paging", admin)
+        repeat(25) { i -> course("Course Number $i", categoryId, instructor, published = true) }
+        val targetId = course("Course Zephyr", categoryId, instructor, published = true)
+
+        val filtered = client.get("/api/v1/admin/courses?q=Course%20Zephyr") { bearerAuth(admin) }.page()
+        assertEquals(listOf(targetId), filtered.map { it.string("id") })
+        assertEquals(listOf("Course Zephyr"), filtered.map { it.string("title") })
+    }
+
+    @Test
     fun `users and instructors stay role scoped and include their aggregates`() = testApplication {
         application { module(config()) }
         val admin = provision("roles-admin@example.com", "admin", "Admin Account")

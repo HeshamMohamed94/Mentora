@@ -11,7 +11,6 @@ import com.mongodb.client.model.Filters.gt
 import com.mongodb.client.model.Filters.`in`
 import com.mongodb.client.model.Filters.or
 import com.mongodb.client.model.Filters.regex
-import com.mongodb.client.model.Filters.text
 import com.mongodb.client.model.Sorts.ascending
 import com.mongodb.kotlin.client.coroutine.MongoDatabase
 import kotlinx.coroutines.flow.toList
@@ -39,7 +38,7 @@ class AdminRepository(database: MongoDatabase) {
     )
 
     suspend fun listCourses(query: String?, page: PageRequest): List<CourseDocument> {
-        val filters = pageFilters(page, query?.takeIf { it.isNotBlank() }?.let(::text))
+        val filters = pageFilters(page, query?.takeIf { it.isNotBlank() }?.let(::courseSearch))
         val matches = if (filters.isEmpty()) courses.find() else courses.find(and(filters))
         return matches.sort(ascending("_id")).limit(page.limit + 1).toList()
     }
@@ -73,5 +72,16 @@ class AdminRepository(database: MongoDatabase) {
     private fun userSearch(query: String): Bson {
         val escapedQuery = Pattern.quote(query)
         return or(regex("name", escapedQuery, "i"), regex("email", escapedQuery, "i"))
+    }
+
+    /** Substring match on `title`/`description`, deliberately NOT MongoDB `$text` search: `$text`
+     * ranks by relevance score, but this list is paginated by sorting on `_id` ascending (§ Pagination
+     * contract) with no relevance sort applied — combined with `$text`'s broad OR-across-terms
+     * matching, that silently dropped genuinely-relevant results (e.g. a just-created course) past
+     * the first page whenever the catalog held more matches than the page limit (Phase 8 B1, D-10).
+     * `userSearch` above already uses this same regex pattern for the identical reason. */
+    private fun courseSearch(query: String): Bson {
+        val escapedQuery = Pattern.quote(query)
+        return or(regex("title", escapedQuery, "i"), regex("description", escapedQuery, "i"))
     }
 }
