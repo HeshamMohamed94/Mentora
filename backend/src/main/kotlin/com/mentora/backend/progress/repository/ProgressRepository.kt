@@ -85,6 +85,19 @@ class ProgressRepository(database: MongoDatabase) {
         FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER),
     ))
 
+    /** Non-transactional counterpart to the [ClientSession] overload above — used only to backfill
+     *  `courseCompletedAt` standalone when the transactional certificate-issuance path aborted on a
+     *  duplicate-key certificate conflict (Phase 8 A4: [CertificateService]'s recovery branch). Never
+     *  used on the normal first-completion path. */
+    suspend fun markCourseCompleted(
+        userId: ObjectId, courseId: ObjectId, now: Instant,
+    ): ProgressDocument = requireNotNull(progress.findOneAndUpdate(
+        filter(userId, courseId), combine(
+            set("courseCompletedAt", now), set("updatedAt", now),
+        ),
+        FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER),
+    ))
+
     private fun filter(userId: ObjectId, courseId: ObjectId) =
         and(eq("userId", userId), eq("courseId", courseId))
 }

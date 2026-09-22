@@ -74,6 +74,19 @@ class CertificateService(
             }
         } catch (error: MongoWriteException) {
             if (error.error.category != ErrorCategory.DUPLICATE_KEY) throw error
+            // A certificate for this (user, course) pair already exists, so the certificate insert
+            // above failed its unique-index check and the whole transaction — including this
+            // attempt's `markCourseCompleted` — was rolled back together with it. This is reachable
+            // without any client misbehavior: SeedData.kt's `ensureCurriculum` clears `progress`
+            // rows when a course's curriculum is rebuilt but deliberately leaves `certificates`
+            // untouched (by design — a certificate must stay a permanent record even if the
+            // curriculum it was earned against changes shape), so a student who already held a
+            // certificate can naturally re-walk the (new) lessons/quiz and land back here. Without
+            // this recovery, `courseCompletedAt` would be stuck unset forever even though the
+            // student has, in every real sense, completed the course again — the exact Phase 8 A4
+            // "re-passing an already-passed quiz doesn't route to the completion screen" defect.
+            // Safe to backfill standalone: idempotent, and no certificate write is attempted here.
+            progress.markCourseCompleted(principal.userId, objectCourseId, now)
         }
     }
 

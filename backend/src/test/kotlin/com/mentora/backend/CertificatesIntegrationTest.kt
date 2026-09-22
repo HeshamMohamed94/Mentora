@@ -26,6 +26,7 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.bson.Document
+import org.bson.types.ObjectId
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -83,6 +84,33 @@ class CertificatesIntegrationTest {
 
         complete(fixture, fixture.lessonIds.last())
         submitPassing(fixture)
+        assertEquals(1L, certificateCount())
+    }
+
+    @Test
+    fun `courseCompletedAt is backfilled when progress is reset but a certificate already exists`() = testApplication {
+        // Reproduces Phase 8 A4: SeedData.kt's `ensureCurriculum` clears `progress` rows (but never
+        // `certificates`) when a published course's curriculum is rebuilt, so a student who already
+        // held a certificate can naturally re-walk the lessons/quiz and land in
+        // CertificateService.checkAndIssueIfComplete's duplicate-key path a second time. Before the
+        // fix this left `courseCompletedAt` permanently unset even though the student had, in every
+        // real sense, completed the course again -- the root cause of the "re-passing an
+        // already-passed quiz doesn't route to the completion screen" quirk.
+        application { module(config()) }
+        val fixture = fixture("recompletion", withQuiz = true)
+        checkout(fixture.courseId, fixture.student)
+        fixture.lessonIds.forEach { complete(fixture, it) }
+        submitPassing(fixture)
+        assertEquals(1, certificates(fixture.student).size)
+        assertNotNull(progress(fixture).data().getValue("courseCompletedAt"))
+
+        resetProgressOnly(fixture.courseId)
+        assertFalse(progress(fixture).data().containsKey("courseCompletedAt"))
+
+        fixture.lessonIds.forEach { complete(fixture, it) }
+        submitPassing(fixture)
+
+        assertNotNull(progress(fixture).data().getValue("courseCompletedAt"))
         assertEquals(1L, certificateCount())
     }
 
@@ -150,6 +178,9 @@ class CertificatesIntegrationTest {
         client.get("/api/v1/certificates") { bearerAuth(token) }.root().getValue("data").jsonArray
     private suspend fun certificateCount(): Long = MongoClient.create(MONGO_URI).use {
         it.getDatabase(DATABASE).getCollection<Document>("certificates").countDocuments()
+    }
+    private suspend fun resetProgressOnly(courseId: String) = MongoClient.create(MONGO_URI).use {
+        it.getDatabase(DATABASE).getCollection<Document>("progress").deleteMany(eq("courseId", ObjectId(courseId)))
     }
 
     private suspend fun ApplicationTestBuilder.provision(email: String, role: String, name: String): String {

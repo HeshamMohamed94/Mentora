@@ -50,6 +50,10 @@ class ProgressService(
         session: ClientSession, userId: ObjectId, courseId: ObjectId, now: Instant,
     ) = repository.markCourseCompleted(session, userId, courseId, now)
 
+    /** Non-transactional backfill — see [ProgressRepository]'s matching overload kdoc (Phase 8 A4). */
+    suspend fun markCourseCompleted(userId: ObjectId, courseId: ObjectId, now: Instant) =
+        repository.markCourseCompleted(userId, courseId, now)
+
     suspend fun setQuizPassed(
         session: ClientSession, userId: ObjectId, courseId: ObjectId, passed: Boolean, now: Instant,
     ) = repository.updateQuizPassed(session, userId, courseId, passed, now)
