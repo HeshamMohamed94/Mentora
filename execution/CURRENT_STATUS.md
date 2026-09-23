@@ -1,11 +1,24 @@
 # Mentora — Current Implementation Status
 
-**Last updated:** 2026-09-21 — **PHASE 7 (Full Integration) — COMPLETE.** T0-T13 all done. Every A-J
+**Last updated:** 2026-09-23 — **PHASE 8 (QA, Polish & Portfolio Demo) — COMPLETE. THIS IS THE
+PROJECT'S FINAL PHASE — NO PHASE 9 EXISTS OR WILL BE STARTED.** Every A-J acceptance-criteria row is
+PASS, FIXED, PASS-with-a-disclosed-exception, or an explicitly recorded ACCEPTED LIMITATION
+(`execution/PHASE_8_ACCEPTANCE_CRITERIA.md`'s final matrix, `execution/PHASE_HANDOFF.md`'s Phase 8
+entry). Seven real, previously-undetected defects were found and fixed (two search-pagination bugs,
+the AppDialog scrim regression genuinely root-caused after two prior failed Phase 7 attempts, three
+known-issue fixes, and a concurrent-duplicate-request defect found and fixed across three backend
+services). A real portfolio-readiness gap (no root README) was found and closed. A real demo-data-quality
+finding (accumulated test data cluttering the catalog) was found, disclosed, and correctly left as a
+pre-demo action item rather than an unauthorized destructive database change. iOS remains frozen at its
+Phase 5 state and real Anthropic live-provider verification remains deferred (D146), both untouched, per
+standing user decisions. See the "PHASE 8" entry in `PHASE_HANDOFF.md` for full detail.
+
+Previously, 2026-09-21 — **PHASE 7 (Full Integration) — COMPLETE.** T0-T13 all done. Every A-J
 acceptance-criteria row is PASS, PASS-with-a-disclosed-exception, or an explicitly recorded accepted
 gap (`execution/PHASE_7_ACCEPTANCE_CRITERIA.md`'s final matrix, `execution/PHASE_HANDOFF.md`'s Phase 7
 entry). All 5 GitHub Actions workflows (backend/web/android/tokens/iOS CI) are real and green. The
-disclosed cross-client C4 bug is fixed and live-verified on a real device. **Phase 8 must not begin
-without the user's own separate, explicit approval.** See the "PHASE 7" section below for full detail.
+disclosed cross-client C4 bug is fixed and live-verified on a real device. See the "PHASE 7" section
+below for full detail.
 
 Previously, 2026-09-20 — **PHASE 6 (AI Tutor Integration) — IMPLEMENTATION COMPLETE. LIVE PROVIDER
 VERIFICATION DEFERRED BY USER DECISION (D146).** The real `AnthropicAiProvider` is implemented,
@@ -467,7 +480,7 @@ Allowed phase states: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `COMPLETE`.
 | PHASE 5 — iOS | **DEFERRED / PARTIALLY IMPLEMENTED** | Started 2026-09-18. T1-T11 done, CI-confirmed (`ios-ci.yml`). T12-T23 NOT started. Frozen by explicit user decision (see "PHASE 5 FREEZE" section, and the top banner above) — not a task failure, not abandoned, not to be resumed during Phase 6/7/8. |
 | PHASE 6 — AI Tutor Integration | **IMPLEMENTATION COMPLETE** | Real `AnthropicAiProvider` implemented, reviewed twice (Opus + Codex), documented. Live provider runtime verification DEFERRED BY EXPLICIT USER DECISION (D146) — not a blocker. See the top banner above and `PHASE_HANDOFF.md`'s Phase 6 entry. |
 | PHASE 7 — Full Integration | **COMPLETE** | Started 2026-09-20, completed 2026-09-21. All 5 CI workflows real and green; the disclosed C4 cross-client bug fixed and live-verified; full A-J acceptance audit closed (T13). **Phase 8 must not begin without the user's own separate, explicit approval.** See the "PHASE 7" section above and `PHASE_HANDOFF.md`'s Phase 7 entry. |
-| PHASE 8 — QA, Polish & Portfolio Demo | NOT_STARTED | Blocked on Phase 7. |
+| PHASE 8 — QA, Polish & Portfolio Demo | **COMPLETE — PROJECT'S FINAL PHASE** | Started 2026-09-22, completed 2026-09-23. Seven real defects found and fixed (D-10/D-11 search pagination, A1 AppDialog scrim, A2/A4/A5 known-issue fixes, C4 concurrency fix across 3 services); full A-J acceptance audit closed; root README authored; portfolio-readiness verified. **No Phase 9 exists or will be started.** See `PHASE_HANDOFF.md`'s Phase 8 entry and `PHASE_8_ACCEPTANCE_CRITERIA.md`'s final matrix. |
 
 ---
 
