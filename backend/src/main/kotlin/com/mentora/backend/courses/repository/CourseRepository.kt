@@ -7,7 +7,7 @@ import com.mongodb.client.model.Filters.gt
 import com.mongodb.client.model.Filters.`in`
 import com.mongodb.client.model.Filters.lte
 import com.mongodb.client.model.Filters.or
-import com.mongodb.client.model.Filters.text
+import com.mongodb.client.model.Filters.regex
 import com.mongodb.client.model.ReplaceOptions
 import com.mongodb.client.model.Sorts.ascending
 import com.mongodb.kotlin.client.coroutine.MongoDatabase
@@ -19,6 +19,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.bson.conversions.Bson
 import org.bson.types.ObjectId
+import java.util.regex.Pattern
 
 @Serializable
 data class PriceDisplay(val amount: Int, val currency: String)
@@ -106,10 +107,30 @@ class CourseRepository(database: MongoDatabase) {
             // metadata for the requested locale, per the Course Localized Metadata ticket (D57).
             filter.contentLanguage?.let { add(or(eq("contentLanguage", it), exists("translations.$it"))) }
             filter.maxPrice?.let { add(lte("priceDisplay.amount", it)) }
-            filter.query?.takeIf { it.isNotBlank() }?.let { add(text(it)) }
+            filter.query?.takeIf { it.isNotBlank() }?.let { add(courseSearch(it)) }
             filter.cursor?.let { add(gt("_id", it)) }
         }
         return courses.find(and(filters)).sort(ascending("_id")).limit(filter.limit + 1).toList()
+    }
+
+    /** Substring match across every field `CoursesIndexes.kt`'s text index covers (base
+     * title/description plus both locales' translated title/description) — deliberately NOT
+     * MongoDB `$text` search. `$text` ranks by relevance score, but this list is paginated by
+     * sorting on `_id` ascending with no relevance sort applied — combined with `$text`'s broad
+     * OR-across-terms matching, that silently drops a genuinely-relevant course (e.g. a
+     * just-created one) past the first page once the catalog holds more loose matches than the
+     * page limit (Phase 8 B4, D-11 — the same class of defect D-10 already fixed for admin search,
+     * now confirmed live on this endpoint too as the E2E-test-generated catalog grew). */
+    private fun courseSearch(query: String): Bson {
+        val escapedQuery = Pattern.quote(query)
+        return or(
+            regex("title", escapedQuery, "i"),
+            regex("description", escapedQuery, "i"),
+            regex("translations.en.title", escapedQuery, "i"),
+            regex("translations.en.description", escapedQuery, "i"),
+            regex("translations.ar.title", escapedQuery, "i"),
+            regex("translations.ar.description", escapedQuery, "i"),
+        )
     }
 
     suspend fun replace(course: CourseDocument): CourseDocument? {

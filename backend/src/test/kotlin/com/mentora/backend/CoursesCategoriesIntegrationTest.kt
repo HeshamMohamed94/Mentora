@@ -204,6 +204,25 @@ class CoursesCategoriesIntegrationTest {
     }
 
     @Test
+    fun `public course search finds a title beyond the default page limit even when a common word is shared`() = testApplication {
+        // Phase 8 B4 regression (D-11): the same class of defect D-10 already fixed for admin
+        // search -- the old `$text` filter OR-matched any shared word (e.g. "Course") across
+        // every course, then paginated by `_id` ascending with no relevance sort, so a
+        // just-published course whose title also happens to share a common word with 20+ older
+        // courses was silently dropped past page 1 of the public /courses listing too. Confirmed
+        // live via Playwright once the E2E-test-generated catalog grew past the page limit.
+        application { module(config()) }
+        val admin = provision("search-page-admin@example.com", "admin")
+        val instructor = provision("search-page-instructor@example.com", "instructor")
+        val categoryId = postJson("/api/v1/categories", """{"name":"Search Paging"}""", admin).dataString("id")
+        repeat(25) { i -> createPublishedCourse(instructor, categoryId, "Course Number $i", i * 3) }
+        val targetId = createPublishedCourse(instructor, categoryId, "Course Zephyr", 200)
+
+        val filtered = client.get("/api/v1/courses?q=Course%20Zephyr").dataArray()
+        assertEquals(listOf(targetId), filtered.map { it.jsonObject.getValue("id").jsonPrimitive.content })
+    }
+
+    @Test
     fun `unsupported translation locale and blank translated text are both rejected`() = testApplication {
         application { module(config()) }
         val admin = provision("i18n-validation-admin@example.com", "admin")
