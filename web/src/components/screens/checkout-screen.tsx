@@ -75,7 +75,7 @@ export function CheckoutScreen({ courseId }: { courseId: string }) {
           <span className="mtx-text-heading-h3 mtx-checkout-price-total">{price}</span>
         </div>
 
-        <p className="mtx-checkout-notice mtx-text-body-small">{t("demoNotice")}</p>
+        <p id="checkout-demo-notice" className="mtx-checkout-notice mtx-text-body-small">{t("demoNotice")}</p>
 
         {completeMutation.isError && (
           <p className="mtx-text-caption" style={{ color: "var(--color-error-default)" }}>
@@ -84,7 +84,13 @@ export function CheckoutScreen({ courseId }: { courseId: string }) {
         )}
 
         <div className="mtx-checkout-actions">
-          <Button variant="primary" loading={completeMutation.isPending} onClick={handleConfirm} className="w-full">
+          <Button
+            variant="primary"
+            loading={completeMutation.isPending}
+            onClick={handleConfirm}
+            className="w-full"
+            aria-describedby="checkout-demo-notice"
+          >
             {t("confirmAction")}
           </Button>
           <Link href={`/app/courses/${courseId}`} className="mtx-btn mtx-btn-text w-full text-center">
