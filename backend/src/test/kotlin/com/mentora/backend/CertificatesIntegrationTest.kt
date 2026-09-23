@@ -18,6 +18,8 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -112,6 +114,31 @@ class CertificatesIntegrationTest {
 
         assertNotNull(progress(fixture).data().getValue("courseCompletedAt"))
         assertEquals(1L, certificateCount())
+    }
+
+    @Test
+    fun `concurrent duplicate completions of the same course never double issue a certificate`() = testApplication {
+        // architecture/TESTING_STRATEGY.md § 1 -- the completion-to-certificate transaction is one
+        // of the two named highest-correctness-risk areas. The existing sequential tests above only
+        // exercise CertificateService.checkAndIssueIfComplete's DUPLICATE_KEY-vs-MongoWriteException
+        // recovery path (one request already committed before the next one's read). Phase 8 C4's gap
+        // analysis found (mirroring the identical fix in EnrollmentIntegrationTest) that a genuinely
+        // concurrent race instead surfaces as a MongoCommandException/WriteConflict carrying the
+        // "TransientTransactionError" label, which the DUPLICATE_KEY-only catch never handled and
+        // which previously reached the caller as an unhandled 500 despite the unique index correctly
+        // preventing a second certificate document.
+        application { module(config()) }
+        val fixture = fixture("cert-race", withQuiz = false)
+        checkout(fixture.courseId, fixture.student)
+        complete(fixture, fixture.lessonIds.first())
+
+        val responses = coroutineScope {
+            (1..10).map { async { complete(fixture, fixture.lessonIds.last()) } }.map { it.await() }
+        }
+        responses.forEach { assertEquals(HttpStatusCode.OK, it.status) }
+        assertEquals(1, certificates(fixture.student).size)
+        assertEquals(1L, certificateCount())
+        assertNotNull(progress(fixture).data().getValue("courseCompletedAt"))
     }
 
     @Test

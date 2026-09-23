@@ -16,6 +16,8 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
@@ -95,6 +97,38 @@ class EnrollmentIntegrationTest {
         val list = client.get("/api/v1/enrollments") { bearerAuth(firstStudent) }
         assertEquals(HttpStatusCode.OK, list.status)
         assertEquals(listOf(firstCourse), list.dataArray().map { it.jsonObject.string("courseId") })
+    }
+
+    @Test
+    fun `concurrent duplicate checkout requests never create more than one enrollment`() = testApplication {
+        // architecture/TESTING_STRATEGY.md § 1: "a duplicate request must never create two
+        // enrollments" -- the sequential `completion is idempotent` test above only exercises
+        // EnrollmentService.complete's early `repository.find` short-circuit (the second call
+        // already sees the first call's committed enrollment). It never actually drives the
+        // MongoWriteException/DUPLICATE_KEY recovery branch a few lines below it, which is the
+        // part that matters for a *genuine* race -- two requests both passing the `find` check
+        // before either has inserted. Firing many truly concurrent requests at the same
+        // student+course is what reaches that branch instead.
+        application { module(config()) }
+        val admin = provision("race-admin@example.com", "admin", "Race Admin")
+        val instructor = provision("race-instructor@example.com", "instructor", "Race Author")
+        val student = register("race-student@example.com", "Race Student").dataString("accessToken")
+        val categoryId = createCategory(admin, "Race Subjects")
+        val courseId = createPublishedCourse(instructor, categoryId, "Race Course", 45000, "EGP")
+
+        val responses = coroutineScope {
+            (1..10).map { async { complete(courseId, student) } }.map { it.await() }
+        }
+        responses.forEach { assertTrue(it.status == HttpStatusCode.Created || it.status == HttpStatusCode.OK) }
+        val enrollmentIds = responses.map { it.dataObject().getValue("enrollment").jsonObject.string("id") }.toSet()
+        assertEquals(1, enrollmentIds.size)
+        assertEquals(1, responses.count { it.status == HttpStatusCode.Created })
+
+        MongoClient.create(MONGO_URI).use { client ->
+            val database = client.getDatabase(DATABASE)
+            assertEquals(1L, database.getCollection<Document>("enrollments").countDocuments())
+            assertEquals(1L, database.getCollection<Document>("demoPurchases").countDocuments())
+        }
     }
 
     @Test
