@@ -17,6 +17,7 @@ out/
 .gradle/
 build/
 **/build/
+.kotlin/
 local.properties
 
 # IntelliJ / Android Studio

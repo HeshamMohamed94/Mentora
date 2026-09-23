@@ -88,8 +88,8 @@ npm run test:e2e -- --project=chromium                       # or --project=fire
 
 | Project | Status |
 |---|---|
-| `chromium` | ✅ All 19 tests passing |
-| `firefox` | ✅ All 19 tests passing |
+| `chromium` | ✅ All 20 tests passing |
+| `firefox` | ✅ All 20 tests passing (as of Task 14; not independently re-run against the Phase 8-added 20th test) |
 | `webkit` | ❌ Blocked — see below, don't run this one expecting a clean result |
 
 WebKit fails almost the entire suite for a real, investigated, non-product reason: the backend correctly
