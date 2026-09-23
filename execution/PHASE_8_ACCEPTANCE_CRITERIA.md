@@ -75,7 +75,7 @@ sources, not invented — see "Authority sources" below.
 
 | # | Criterion | Status |
 |---|---|---|
-| C1 | Backend/`:shared`/`:androidApp` JVM/lint/Playwright suites pass at or above the Phase 7 T13 baseline (127/249/246/0 lint errors/19 chromium) — zero regressions. | NOT STARTED |
+| C1 | Backend/`:shared`/`:androidApp` JVM/lint/Playwright suites pass at or above the Phase 7 T13 baseline (127/249/246/0 lint errors/19 chromium) — zero regressions. | **PASS (2026-09-23).** Backend 133/133 (127 baseline + 6 new regression tests: D-10, A4, A5×2, A5-followup×2, D-11), `:shared:testDebugUnitTest` 249/249, `:androidApp:testDebugUnitTest` 246/246, `:androidApp:lintDebug` 0 errors (105 warnings, baseline-matching), Playwright chromium 19 passed + 1 flaky-self-healed-on-retry = 20/20 functional (baseline 19 + 1 new B8 test). Zero regressions anywhere; several real pre-existing defects found and fixed along the way (D-10, D-11, A1, A2, A4, A5) — see their own rows. |
 | C2 | Android instrumented suite (106 tests, local emulator) run and accounted for test-by-test; the 2 AppDialog failures resolved per A1; any transient failure characterized, not hand-waved. | NOT STARTED |
 | C3 | Bounded Web Vitest+RTL tier (H2) exists and runs in CI. | NOT STARTED |
 | C4 | High-risk-area coverage (demo-checkout idempotency, completion→certificate transaction, quiz `isCorrect` stripping) re-confirmed genuinely covered. | NOT STARTED |
