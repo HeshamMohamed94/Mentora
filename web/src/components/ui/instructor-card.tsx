@@ -1,10 +1,4 @@
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  return parts
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? "")
-    .join("");
-}
+import { Avatar } from "./avatar";
 
 /** design-system/COMPONENTS.md § InstructorCard. No instructor bio/title/photo field exists
  * on the backend yet (only `instructorName`, D37) — avatar falls back to initials, and the
@@ -12,9 +6,7 @@ function initials(name: string): string {
 export function InstructorCard({ name }: { name: string }) {
   return (
     <div className="mtx-instructor-card">
-      <div className="mtx-avatar" style={{ width: 64, height: 64, fontSize: 24 }} aria-hidden="true">
-        {initials(name)}
-      </div>
+      <Avatar name={name} size="large" />
       <div>
         <p className="mtx-text-heading-h4">{name}</p>
       </div>
