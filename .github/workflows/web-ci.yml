@@ -1,8 +1,10 @@
 # Mentora — Web CI (Phase 7, Task T2/T3)
 #
 # WHAT THIS IS. The automated gate for `web/` — a Next.js 15 app. Two jobs: `web-static` (ESLint,
-# the repo's own RTL/logical-properties gate, design-to-code drift validation, TypeScript — fast, no
-# backend needed, see the no-build-step note below) and `web-e2e` (the full local stack — MongoDB +
+# the repo's own RTL/logical-properties gate, design-to-code drift validation, the bounded Vitest +
+# React Testing Library unit/component tier (H2/C3 — quiz-results data logic, demo-checkout/
+# enrollment flow logic, auth form validation logic), TypeScript — fast, no backend needed, see the
+# no-build-step note below) and `web-e2e` (the full local stack — MongoDB +
 # backend + Website, including the one real production build this file performs — with the real
 # Playwright suite run against it, per
 # `architecture/DEPLOYMENT.md § 5`'s explicit requirement for CI-provisioned E2E). Splitting them
@@ -113,6 +115,9 @@ jobs:
 
       - name: Design-to-code validation
         run: npm run validate:design-to-code
+
+      - name: Unit/component tests (Vitest + React Testing Library — bounded tier, H2/C3)
+        run: npm run test:unit
 
       - name: Type-check
         run: npm run typecheck
