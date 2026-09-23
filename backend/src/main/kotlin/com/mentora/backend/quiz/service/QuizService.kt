@@ -2,6 +2,7 @@ package com.mentora.backend.quiz.service
 
 import com.mentora.backend.common.ApiException
 import com.mentora.backend.common.MentoraPrincipal
+import com.mentora.backend.common.withRetryableTransaction
 import com.mentora.backend.courses.service.CourseService
 import com.mentora.backend.enrollment.service.EnrollmentService
 import com.mentora.backend.progress.service.ProgressService
@@ -11,7 +12,6 @@ import com.mentora.backend.quiz.repository.Question
 import com.mentora.backend.quiz.repository.QuizAttemptDocument
 import com.mentora.backend.quiz.repository.QuizDocument
 import com.mentora.backend.quiz.repository.QuizRepository
-import com.mongodb.kotlin.client.coroutine.ClientSession
 import com.mongodb.kotlin.client.coroutine.MongoClient
 import kotlinx.datetime.Clock
 import kotlinx.serialization.Serializable
@@ -83,15 +83,18 @@ class QuizService(
         val quiz = requireQuiz(objectCourseId)
         val response = grade(quiz, request)
         val now = Clock.System.now()
-        mongoClient.startSession().use { session ->
-            inTransaction(session) {
-                repository.insertAttempt(session, QuizAttemptDocument(
-                    userId = principal.userId, quizId = requireNotNull(quiz.id), courseId = objectCourseId,
-                    answers = response.breakdown.map { AnswerRecord(it.questionId, it.selectedOptionId) },
-                    score = response.score, passed = response.passed, submittedAt = now,
-                ))
-                progress.setQuizPassed(session, principal.userId, objectCourseId, response.passed, now)
-            }
+        // Phase 8 C4: two concurrent submits (e.g. a double-tap on "Submit Quiz") can hit a
+        // MongoDB WriteConflict/TransientTransactionError on the shared `progress` document below —
+        // unlike enrollment/certificate issuance, there is no idempotent-duplicate case to recover
+        // here (each attempt is a legitimately new, independent record), so `withRetryableTransaction`
+        // simply re-runs the whole transaction body, which is safe to redo from scratch.
+        mongoClient.withRetryableTransaction { session ->
+            repository.insertAttempt(session, QuizAttemptDocument(
+                userId = principal.userId, quizId = requireNotNull(quiz.id), courseId = objectCourseId,
+                answers = response.breakdown.map { AnswerRecord(it.questionId, it.selectedOptionId) },
+                score = response.score, passed = response.passed, submittedAt = now,
+            ))
+            progress.setQuizPassed(session, principal.userId, objectCourseId, response.passed, now)
         }
         return response
     }
@@ -138,15 +141,6 @@ class QuizService(
 
     private suspend fun requireQuiz(courseId: ObjectId) = repository.findByCourseId(courseId)
         ?: throw ApiException.NotFound("QUIZ_NOT_FOUND", "The quiz was not found.")
-
-    private suspend fun <T> inTransaction(session: ClientSession, block: suspend () -> T): T {
-        session.startTransaction()
-        return try { block().also { session.commitTransaction() } }
-        catch (error: Throwable) {
-            if (session.hasActiveTransaction()) session.abortTransaction()
-            throw error
-        }
-    }
 
     private fun objectId(value: String) = try { ObjectId(value) }
     catch (_: IllegalArgumentException) { throw ApiException.Validation(fields = mapOf("id" to "INVALID")) }

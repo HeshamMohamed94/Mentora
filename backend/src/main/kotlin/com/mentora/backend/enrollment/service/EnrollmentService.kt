@@ -5,6 +5,7 @@ import com.mentora.backend.common.MentoraPrincipal
 import com.mentora.backend.common.Page
 import com.mentora.backend.common.PageRequest
 import com.mentora.backend.common.toPage
+import com.mentora.backend.common.withRetryableTransaction
 import com.mentora.backend.courses.service.CourseResponse
 import com.mentora.backend.courses.service.CourseService
 import com.mentora.backend.courses.service.PriceDisplayDto
@@ -13,7 +14,6 @@ import com.mentora.backend.enrollment.repository.EnrollmentDocument
 import com.mentora.backend.enrollment.repository.EnrollmentRepository
 import com.mentora.backend.users.service.UserService
 import com.mongodb.ErrorCategory
-import com.mongodb.MongoException
 import com.mongodb.MongoWriteException
 import com.mongodb.kotlin.client.coroutine.ClientSession
 import com.mongodb.kotlin.client.coroutine.MongoClient
@@ -61,37 +61,29 @@ class EnrollmentService(
 
     suspend fun complete(courseId: String, principal: MentoraPrincipal): CompletionOutcome {
         val objectCourseId = objectId(courseId)
-        repeat(TRANSIENT_TRANSACTION_RETRY_LIMIT) { attempt ->
-            try {
-                mongoClient.startSession().use { session ->
-                    return inTransaction(session) {
-                        repository.find(session, principal.userId, objectCourseId)?.let {
-                            return@inTransaction CompletionOutcome(EnrollmentCompletion(it.toResponse(), true), false)
-                        }
-                        val course = publishedCourse(courseId, principal)
-                        createEnrollment(session, principal.userId, objectCourseId, course.priceDisplay)
-                    }
+        return try {
+            mongoClient.withRetryableTransaction { session ->
+                repository.find(session, principal.userId, objectCourseId)?.let {
+                    return@withRetryableTransaction CompletionOutcome(EnrollmentCompletion(it.toResponse(), true), false)
                 }
-            } catch (error: MongoWriteException) {
-                if (error.error.category != ErrorCategory.DUPLICATE_KEY) throw error
-                val existing = repository.find(principal.userId, objectCourseId) ?: throw error
-                return CompletionOutcome(EnrollmentCompletion(existing.toResponse(), true), false)
-            } catch (error: MongoException) {
-                // Found via Phase 8 C4's gap analysis: truly concurrent duplicate checkout requests
-                // for the same (user, course) don't always fail the unique-index check above as a
-                // clean MongoWriteException/DUPLICATE_KEY -- MongoDB's own transaction concurrency
-                // control can instead abort the losing transaction immediately with a
-                // MongoCommandException (error 112, WriteConflict) carrying the driver's
-                // "TransientTransactionError" label, which the DUPLICATE_KEY branch above never
-                // catches, so it was reaching the caller as an unhandled 500 even though no
-                // duplicate enrollment was ever actually created. Retrying the whole transaction
-                // (the pattern MongoDB's own docs prescribe for this label) resolves it: by the
-                // retry, the winning request has committed, so `repository.find` above returns it
-                // and this call completes as the same idempotent "already enrolled" response.
-                if (!error.hasErrorLabel("TransientTransactionError") || attempt == TRANSIENT_TRANSACTION_RETRY_LIMIT - 1) throw error
+                val course = publishedCourse(courseId, principal)
+                createEnrollment(session, principal.userId, objectCourseId, course.priceDisplay)
             }
+        } catch (error: MongoWriteException) {
+            if (error.error.category != ErrorCategory.DUPLICATE_KEY) throw error
+            // Found via Phase 8 C4's gap analysis: truly concurrent duplicate checkout requests for
+            // the same (user, course) don't always fail this unique-index check as a clean
+            // MongoWriteException/DUPLICATE_KEY -- MongoDB's own transaction concurrency control can
+            // instead abort the losing transaction immediately with a MongoCommandException (error
+            // 112, WriteConflict) carrying the driver's "TransientTransactionError" label.
+            // `withRetryableTransaction` already retries the whole transaction for exactly that label
+            // (checked before this narrower catch ever sees the exception), so by the time control
+            // reaches here it is genuinely a non-transient DUPLICATE_KEY: the winning request has
+            // committed, `repository.find` below returns it, and this call completes as the same
+            // idempotent "already enrolled" response.
+            val existing = repository.find(principal.userId, objectCourseId) ?: throw error
+            CompletionOutcome(EnrollmentCompletion(existing.toResponse(), true), false)
         }
-        error("unreachable: retry loop always returns or throws")
     }
 
     suspend fun list(principal: MentoraPrincipal, page: PageRequest): Page<EnrollmentResponse> =
@@ -128,16 +120,6 @@ class EnrollmentService(
             if (it.status != "published") throw ApiException.NotFound("COURSE_NOT_FOUND", "The course was not found.")
         }
 
-    private suspend fun <T> inTransaction(session: ClientSession, block: suspend () -> T): T {
-        session.startTransaction()
-        return try {
-            block().also { session.commitTransaction() }
-        } catch (error: Throwable) {
-            if (session.hasActiveTransaction()) session.abortTransaction()
-            throw error
-        }
-    }
-
     private fun objectId(value: String) = try {
         ObjectId(value)
     } catch (_: IllegalArgumentException) {
@@ -147,8 +129,4 @@ class EnrollmentService(
     private fun EnrollmentDocument.toResponse() = EnrollmentResponse(
         requireNotNull(id).toHexString(), courseId.toHexString(), source, enrolledAt, status,
     )
-
-    private companion object {
-        const val TRANSIENT_TRANSACTION_RETRY_LIMIT = 10
-    }
 }

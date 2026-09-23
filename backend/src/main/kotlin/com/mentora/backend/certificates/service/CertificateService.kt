@@ -7,14 +7,13 @@ import com.mentora.backend.common.MentoraPrincipal
 import com.mentora.backend.common.Page
 import com.mentora.backend.common.PageRequest
 import com.mentora.backend.common.toPage
+import com.mentora.backend.common.withRetryableTransaction
 import com.mentora.backend.courses.service.CourseService
 import com.mentora.backend.progress.service.ProgressService
 import com.mentora.backend.quiz.service.QuizService
 import com.mentora.backend.users.service.UserService
 import com.mongodb.ErrorCategory
-import com.mongodb.MongoException
 import com.mongodb.MongoWriteException
-import com.mongodb.kotlin.client.coroutine.ClientSession
 import com.mongodb.kotlin.client.coroutine.MongoClient
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
@@ -58,57 +57,37 @@ class CertificateService(
         val instructor = users.getProfile(ObjectId(course.instructorId))
         val student = users.getProfile(principal.userId)
         val now = Clock.System.now()
-        repeat(TRANSIENT_TRANSACTION_RETRY_LIMIT) { attempt ->
-            try {
-                mongoClient.startSession().use { session ->
-                    inTransaction(session) {
-                        progress.markCourseCompleted(session, principal.userId, objectCourseId, now)
-                        repository.insert(session, CertificateDocument(
-                            userId = principal.userId,
-                            courseId = objectCourseId,
-                            issuedAt = now,
-                            studentNameSnapshot = student.name,
-                            courseTitleSnapshot = course.title,
-                            instructorNameSnapshot = instructor.name,
-                            completionDateSnapshot = now,
-                        ))
-                    }
-                }
-                return
-            } catch (error: MongoWriteException) {
-                if (error.error.category != ErrorCategory.DUPLICATE_KEY) throw error
-                // A certificate for this (user, course) pair already exists, so the certificate insert
-                // above failed its unique-index check and the whole transaction — including this
-                // attempt's `markCourseCompleted` — was rolled back together with it. This is reachable
-                // without any client misbehavior: SeedData.kt's `ensureCurriculum` clears `progress`
-                // rows when a course's curriculum is rebuilt but deliberately leaves `certificates`
-                // untouched (by design — a certificate must stay a permanent record even if the
-                // curriculum it was earned against changes shape), so a student who already held a
-                // certificate can naturally re-walk the (new) lessons/quiz and land back here. Without
-                // this recovery, `courseCompletedAt` would be stuck unset forever even though the
-                // student has, in every real sense, completed the course again — the exact Phase 8 A4
-                // "re-passing an already-passed quiz doesn't route to the completion screen" defect.
-                // Safe to backfill standalone: idempotent, and no certificate write is attempted here.
-                progress.markCourseCompleted(principal.userId, objectCourseId, now)
-                return
-            } catch (error: MongoException) {
-                // Found via Phase 8 C4's gap analysis (same defect class as EnrollmentService's
-                // `complete`, confirmed live by a concurrency test there): two truly concurrent
-                // completions of the same (user, course) don't always fail the unique-index check
-                // above as a clean MongoWriteException/DUPLICATE_KEY -- MongoDB's transaction
-                // concurrency control can instead abort the losing transaction immediately with a
-                // MongoCommandException (error 112, WriteConflict) carrying the driver's
-                // "TransientTransactionError" label, which the DUPLICATE_KEY branch above never
-                // catches, so it previously reached the caller as an unhandled 500. Retrying the
-                // whole method (the pattern MongoDB's own docs prescribe for this label) resolves
-                // it: `snapshotForCompletion`'s courseCompletedAt/DUPLICATE_KEY checks above will
-                // see the winner's now-committed state and this call returns cleanly as a no-op.
-                if (!error.hasErrorLabel("TransientTransactionError") || attempt == TRANSIENT_TRANSACTION_RETRY_LIMIT - 1) throw error
-                // Fall through to the next `repeat` attempt: by then the winning transaction has
-                // either committed (this attempt's insert will cleanly hit the DUPLICATE_KEY branch
-                // above) or is still racing (this attempt hits WriteConflict again and retries once
-                // more) -- no separate re-check needed, the loop body already handles both outcomes.
+        try {
+            mongoClient.withRetryableTransaction { session ->
+                progress.markCourseCompleted(session, principal.userId, objectCourseId, now)
+                repository.insert(session, CertificateDocument(
+                    userId = principal.userId,
+                    courseId = objectCourseId,
+                    issuedAt = now,
+                    studentNameSnapshot = student.name,
+                    courseTitleSnapshot = course.title,
+                    instructorNameSnapshot = instructor.name,
+                    completionDateSnapshot = now,
+                ))
             }
+        } catch (error: MongoWriteException) {
+            if (error.error.category != ErrorCategory.DUPLICATE_KEY) throw error
+            // A certificate for this (user, course) pair already exists, so the certificate insert
+            // above failed its unique-index check and the whole transaction — including this
+            // attempt's `markCourseCompleted` — was rolled back together with it. This is reachable
+            // without any client misbehavior: SeedData.kt's `ensureCurriculum` clears `progress`
+            // rows when a course's curriculum is rebuilt but deliberately leaves `certificates`
+            // untouched (by design — a certificate must stay a permanent record even if the
+            // curriculum it was earned against changes shape), so a student who already held a
+            // certificate can naturally re-walk the (new) lessons/quiz and land back here. Without
+            // this recovery, `courseCompletedAt` would be stuck unset forever even though the
+            // student has, in every real sense, completed the course again — the exact Phase 8 A4
+            // "re-passing an already-passed quiz doesn't route to the completion screen" defect.
+            // Safe to backfill standalone: idempotent, and no certificate write is attempted here.
+            // `withRetryableTransaction` checks for a `TransientTransactionError` label BEFORE any
+            // per-call-site exception type narrowing, so by the time a MongoWriteException reaches
+            // here it is genuinely a non-transient DUPLICATE_KEY, not a write-conflict retry candidate.
+            progress.markCourseCompleted(principal.userId, objectCourseId, now)
         }
     }
 
@@ -121,15 +100,6 @@ class CertificateService(
         val certificate = repository.findByIdAndUser(parsePublicId(id), principal.userId)
             ?: throw certificateNotFound()
         return certificate.toDetail()
-    }
-
-    private suspend fun <T> inTransaction(session: ClientSession, block: suspend () -> T): T {
-        session.startTransaction()
-        return try { block().also { session.commitTransaction() } }
-        catch (error: Throwable) {
-            if (session.hasActiveTransaction()) session.abortTransaction()
-            throw error
-        }
     }
 
     private fun objectId(value: String) = try { ObjectId(value) }
@@ -153,6 +123,5 @@ class CertificateService(
 
     private companion object {
         val PUBLIC_ID = Regex("^MTR-([0-9A-Fa-f]{4})-([0-9A-Fa-f]{4})-([0-9A-Fa-f]{4})-([0-9A-Fa-f]{4})-([0-9A-Fa-f]{4})-([0-9A-Fa-f]{4})$")
-        const val TRANSIENT_TRANSACTION_RETRY_LIMIT = 10
     }
 }

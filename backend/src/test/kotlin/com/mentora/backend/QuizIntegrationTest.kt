@@ -17,6 +17,8 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -103,6 +105,32 @@ class QuizIntegrationTest {
         }
         assertEquals(25, latest.data().int("score"))
         assertFalse(latest.data().boolean("passed"))
+    }
+
+    @Test
+    fun `concurrent quiz submits from a double-tap on Submit never 500`() = testApplication {
+        // Phase 8 C4 (found via a reviewer's follow-up on the enrollment/certificate concurrency
+        // fixes): `submit`'s transaction writes to the same `progress` document every attempt
+        // touches, with no retry -- two truly concurrent submits (a double-tap on "Submit Quiz")
+        // could hit a MongoDB WriteConflict/TransientTransactionError and 500, even though every
+        // attempt here is legitimately allowed to succeed (unlike enrollment/certificate, there is
+        // no "must never duplicate" invariant to fall back on if the retry didn't exist).
+        application { module(config()) }
+        val fixture = fixture("quiz-race")
+        checkout(fixture.courseId, fixture.student)
+        putQuiz(fixture.courseId, fixture.owner)
+        val passingAnswers = """{"answers":[{"questionId":"q1","selectedOptionId":"q1-c"},{"questionId":"q2","selectedOptionId":"q2-c"},{"questionId":"q3","selectedOptionId":"q3-c"},{"questionId":"q4","selectedOptionId":"q4-c"}]}"""
+
+        val responses = coroutineScope {
+            (1..10).map { async { submit(fixture, passingAnswers) } }.map { it.await() }
+        }
+        responses.forEach { assertEquals(HttpStatusCode.OK, it.status) }
+
+        MongoClient.create(MONGO_URI).use { client ->
+            val database = client.getDatabase(DATABASE)
+            assertEquals(10L, database.getCollection<Document>("quizAttempts").countDocuments())
+        }
+        assertTrue(progress(fixture).data().boolean("quizPassed"))
     }
 
     @Test
